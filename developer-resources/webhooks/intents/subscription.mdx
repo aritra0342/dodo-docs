@@ -1,6 +1,53 @@
 ---
 openapi-schema: SubscriptionResponse
 title: Subscription
-description: The payload sent to your webhook endpoint when a subscription is created or updated.
+description: The payload sent to your webhook endpoint when a subscription is created, updated, or changes state.
 icon: "repeat"
 ---
+
+## Subscription Webhook Events
+
+The following webhook events are available for tracking subscription lifecycle changes:
+
+| Event | Description |
+|-------|-------------|
+| `subscription.active` | Subscription is successfully activated |
+| `subscription.updated` | Subscription object was updated (any field change triggers this event) |
+| `subscription.on_hold` | Subscription is put on hold due to failed renewal |
+| `subscription.renewed` | Subscription is renewed for the next billing period |
+| `subscription.plan_changed` | Subscription plan was upgraded, downgraded, or modified |
+| `subscription.cancelled` | Subscription is cancelled |
+| `subscription.failed` | Subscription creation failed during mandate creation |
+| `subscription.expired` | Subscription reached the end of its term |
+
+### Using `subscription.updated` for Real-Time Sync
+
+The `subscription.updated` webhook fires whenever any subscription field changes, allowing you to keep your application state in sync without polling:
+
+```javascript
+app.post('/webhooks/dodo', async (req, res) => {
+  const event = req.body;
+  
+  if (event.type === 'subscription.updated') {
+    const subscription = event.data;
+    
+    // Sync subscription changes to your database
+    await syncSubscription(subscription.subscription_id, {
+      status: subscription.status,
+      next_billing_date: subscription.next_billing_date,
+      metadata: subscription.metadata,
+      // ... other fields you want to track
+    });
+    
+    console.log(`Subscription ${subscription.subscription_id} updated`);
+  }
+  
+  res.json({ received: true });
+});
+```
+
+<Tip>
+Subscribe to `subscription.updated` to get real-time notifications about any subscription changes, eliminating the need to poll the API for updates.
+</Tip>
+
+## Webhook Payload Schema

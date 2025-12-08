@@ -1,0 +1,115 @@
+---
+title: v1.66.0 (December 8, 2025)
+description: "Subscription.updated webhook, minimal address checkout, read-only API keys, UPI AutoPay & RuPay subscriptions for all businesses"
+icon: "arrows-turn-right"
+---
+
+## New Features 🚀
+
+1. **`subscription.updated` Webhook**  
+   A new webhook event that fires on every subscription object update, giving you real-time notifications about any changes to your subscriptions.
+   
+   Use this webhook to:
+   - Get instant notifications when subscription details change
+   - Keep your application state synchronized with Dodo Payments
+   - React to subscription updates without polling the API
+   
+   <Tip>
+   Subscribe to `subscription.updated` to eliminate the need for polling and keep your system in sync with real-time subscription changes.
+   </Tip>
+   
+   Learn more: [Subscription Webhooks](/developer-resources/webhooks/intents/subscription)
+
+2. **Minimal Address Support in Checkout**  
+
+   <Frame>
+   <img src="/images/changelog/minimal-address.png" alt="Minimal Address Support in Checkout" />
+   </Frame>
+
+   Reduce checkout friction with the new minimal address collection mode. Instead of collecting full address details, minimal address mode only collects:
+   
+   - **Country**: Always required for tax determination
+   - **ZIP/Postal code**: Only collected in regions where it's necessary for sales tax, VAT, or GST calculation
+   
+   <Check>
+   Result: Significantly faster checkout completion with fewer form fields for customers.
+   </Check>
+   
+   **Enable minimal address:**
+   
+   <Tabs>
+   <Tab title="Checkout Sessions">
+   ```javascript
+   const session = await client.checkoutSessions.create({
+     product_cart: [{ product_id: 'prod_123', quantity: 1 }],
+     minimal_address: true
+   });
+   ```
+   </Tab>
+   
+   <Tab title="Static Payment Links">
+   Append `minimalAddress=true` to your payment link URL:
+   
+   ```
+   https://checkout.dodopayments.com/buy/prod_123?minimalAddress=true
+   ```
+   </Tab>
+   </Tabs>
+   
+   <Info>
+   By default, checkout continues to collect complete addresses. We'll gradually transition all checkout links to minimal address mode. Enable the feature flag now to start benefiting from reduced checkout friction.
+   </Info>
+
+3. **Read-Only API Keys**  
+   Create API keys with read-only permissions for safer integrations. When creating a new API key, uncheck **Enable write access** to create a read-only key.
+   
+   Read-only keys can:
+   - Fetch payment, subscription, and customer data
+   - List products and retrieve details
+   - Access reports and analytics
+   
+   Read-only keys **cannot**:
+   - Create or modify payments
+   - Update subscriptions
+   - Change product configurations
+   
+   <Tip>
+   Uncheck "Enable write access" for dashboard integrations, analytics tools, and any system that only needs to view data without making changes.
+   </Tip>
+
+4. **UPI AutoPay & RuPay Card Subscriptions - Full Rollout**  
+   UPI AutoPay and RuPay card subscriptions are now available for all businesses. This enables recurring payments for Indian customers with:
+   
+   - **UPI AutoPay**: Automated recurring charges via UPI mandate
+   - **RuPay Cards**: Subscription support for India's domestic card network
+   
+   <Check>
+   Result: Expanded subscription payment options for the Indian market with RBI-compliant mandate handling.
+   </Check>
+   
+   Learn more: [Subscriptions with RBI-Compliant Mandates](/features/subscription#subscriptions-with-rbi-compliant-mandates)
+
+5. **Plan Change Preview API**  
+   A new API endpoint to preview subscription plan changes before committing to them. Get the exact charge amount and see how the subscription will look after the change - without making any actual modifications.
+   
+   ```javascript
+   const preview = await client.subscriptions.previewChangePlan('sub_123', {
+     product_id: 'prod_pro_plan',
+     proration_billing_mode: 'prorated_immediately',
+     quantity: 1
+   });
+   
+   console.log('Charge amount:', preview.immediate_charge.summary);
+   console.log('New plan details:', preview.new_plan);
+   ```
+   
+   Use this to:
+   - Show customers exactly what they'll pay before confirming upgrades/downgrades
+   - Build pricing calculators and plan comparison tools
+   - Reduce support tickets by improving pricing transparency
+   
+   Learn more: [Preview Plan Change API](/api-reference/subscriptions/preview-change-plan)
+
+6. **General Bug Fixes and Enhancements**  
+   This release includes UI polish, performance improvements, and resolves minor bugs for a more reliable, streamlined experience.
+
