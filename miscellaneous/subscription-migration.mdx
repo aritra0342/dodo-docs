@@ -1,0 +1,277 @@
+---
+sidebarTitle: Subscription Migration
+title: Subscription Migration to Dodo Payments
+description: Learn how to migrate your existing subscribers and payment methods from your current payment processor to Dodo Payments.
+icon: "file-import"
+---
+
+## What is a subscription migration?
+
+A subscription migration transfers your existing subscribers from your legacy payment processor to Dodo Payments, giving you a single source of truth for all your customer data. Without a migration, customers you've acquired to date remain in your legacy system, and only new customers would be visible in Dodo Payments.
+
+The migration process ensures a seamless billing experience for your customers—they won't need to re-enter their payment details or experience any interruption to their subscriptions.
+
+<Warning>
+Currently, we only support migration for **card tokens**. Apple Pay, Google Pay, and other wallet payment methods cannot be transferred between payment processors due to tokenization restrictions imposed by these providers.
+</Warning>
+
+## Migration process overview
+
+The subscription migration process consists of three key parts:
+
+1. **Payment method transfer** — Secure transfer of sensitive card data from your current processor
+2. **Subscriber data transfer** — Export of customer details, subscription plans, and billing schedules
+3. **Import and validation** — Unifying payment methods and subscriber data in Dodo Payments
+
+<Note>
+To begin a subscription migration, contact our [support team](mailto:support@dodopayments.com). They will connect you with a dedicated Solutions Engineer who will guide you through the entire process.
+</Note>
+
+## Requirements
+
+Before initiating a migration, ensure you meet the following requirements:
+
+<AccordionGroup>
+<Accordion title="PCI DSS compliance verification">
+Dodo Payments is PCI DSS Level 1 compliant. To meet compliance obligations, we can only receive card data from another PCI DSS Level 1-compliant payment processor.
+
+Your current processor must provide:
+- Their current PCI Attestation of Compliance (AOC), or their listing on Visa's Global Registry of Service Providers
+- Confirmation that they support secure card data exports
+
+View our [Attestation of Compliance (AOC)](/assets/dodo-payments-pci-dss-aoc.pdf) to share with your current processor.
+</Accordion>
+
+<Accordion title="Dodo Payments integration">
+Complete your Dodo Payments integration and ensure all new customers are being directed to Dodo Payments checkout before starting the migration. This prevents data inconsistencies during the transition period.
+</Accordion>
+
+<Accordion title="Data access authorization">
+Ensure you have the necessary authorization to request a data export from your current processor. This typically requires:
+- Account owner verification
+- Written authorization for sensitive data access
+- Completion of your processor's security verification steps
+</Accordion>
+</AccordionGroup>
+
+## Step-by-step migration guide
+
+<Steps>
+<Step title="Request payment method export from your current processor">
+Contact your current payment processor's support team and submit a formal request for a complete export of your customer card tokens.
+
+You will need to:
+- Provide verification of your identity and authorization
+- Request they encrypt the export using Dodo Payments' PGP public key (provided below)
+- Ask them to transfer the encrypted file directly to our secure SFTP server
+
+<Info>
+Secure transfers are made directly from server to server via SFTP. Your Solutions Engineer will provide the SFTP credentials to share with your current processor.
+</Info>
+
+On average, this process takes around **2 weeks**, although timing varies depending on your current processor's policies and response times.
+</Step>
+
+<Step title="Prepare subscriber data export">
+While the payment method transfer is in progress, export your subscriber data from your legacy system. Your Solutions Engineer will provide a CSV template and guide you through the required fields.
+
+### Required subscriber data
+
+| Field | Description |
+|-------|-------------|
+| `customer_id` | Your internal customer identifier |
+| `email` | Customer's email address |
+| `name` | Customer's full name |
+| `country` | Two-letter country code (ISO 3166-1 alpha-2) |
+| `currency` | Three-letter currency code (ISO 4217) |
+| `payment_amount` | Subscription amount in smallest currency unit |
+| `payment_interval` | Billing frequency (monthly, yearly, etc.) |
+| `next_billing_date` | Next scheduled billing date (ISO 8601) |
+| `card_token` | Unique token from your current processor |
+
+<Warning>
+The `card_token` field is critical—it's used to match subscriber records with their payment methods during import. Ensure this matches exactly with the token in the payment method export.
+</Warning>
+
+### Sample data format
+
+```json
+{
+  "customers": [
+    {
+      "customer_id": "cus_abc123",
+      "email": "jane.doe@example.com",
+      "name": "Jane Doe",
+      "country": "US",
+      "currency": "USD",
+      "payment_amount": 2999,
+      "payment_interval": "monthly",
+      "next_billing_date": "2025-01-15T00:00:00Z",
+      "card_token": "tok_xyz789",
+      "metadata": {
+        "plan": "pro",
+        "signup_source": "website"
+      }
+    }
+  ]
+}
+```
+</Step>
+
+<Step title="Validation and testing">
+Before the import date, our team will:
+
+- Verify file integrity and encryption of the payment method data
+- Validate your subscriber CSV for correct formatting
+- Run a test import in our sandbox environment
+- Identify and resolve any data mapping issues
+
+<Check>
+You'll receive a validation report confirming everything is ready for the production import.
+</Check>
+</Step>
+
+<Step title="Production import">
+On the agreed import date, our engineering team will:
+
+1. Import the payment method data into our PCI-compliant Card Vault
+2. Import your subscriber data
+3. Match subscribers to their payment methods using the card tokens
+4. Activate all migrated subscriptions
+
+<Info>
+Typical processing time is **2-3 business days** for standard migrations, depending on the volume of subscribers.
+</Info>
+</Step>
+
+<Step title="Post-migration verification">
+After the import completes, you'll receive:
+
+- A comprehensive migration report
+- A CSV mapping your old subscription IDs to new Dodo Payments IDs
+- Access to all migrated customers in your Dodo Payments dashboard
+
+We recommend:
+- Verifying a sample of migrated subscriptions in your dashboard
+- Testing a few subscription renewals in sandbox mode
+- Updating your internal database references with the new IDs
+- Running parallel monitoring for the first billing cycle
+</Step>
+</Steps>
+
+## Migratable data
+
+The following data can be transferred during a subscription migration:
+
+| Data type | Supported | Notes |
+|-----------|-----------|-------|
+| Credit/debit card numbers | ✅ | Encrypted via PGP |
+| Card expiration dates | ✅ | |
+| Cardholder names | ✅ | |
+| Billing addresses | ✅ | |
+| Customer email addresses | ✅ | |
+| Customer metadata | ✅ | Custom key-value pairs |
+| Subscription details | ✅ | Plan, amount, interval |
+| Apple Pay tokens | ❌ | Cannot be transferred |
+| Google Pay tokens | ❌ | Cannot be transferred |
+| Other wallet tokens | ❌ | Cannot be transferred |
+| Payment history | ❌ | Export from your current processor |
+
+<Note>
+Payment history and transaction records cannot be migrated. We recommend exporting this data from your current processor for your records before completing the transition.
+</Note>
+
+## PGP encryption
+
+For maximum security when transferring sensitive card data, all files **must** be encrypted using our PGP public key. This provides an additional layer of protection beyond transport-level encryption.
+
+Share this key with your current payment processor for encrypting the card data export:
+
+<Accordion title="Dodo Payments PGP Public Key">
+
+```
+-----BEGIN PGP PUBLIC KEY BLOCK-----
+
+mQINBGflFWEBEADA8IaeXNc9ekoyWGH6TBi3PvazDTXH9MeAIcq8tcXPjr+aDTA7
+QE0oJbnH+Zi6nP6Mh20c4bftzC890/QJmk6shdgpQuCd/80yC1TT5tyqKDV517WQ
+B7A8CmbonuZ//jS+jWrekpbLFMzoro1ZkeCRDNbhF3KSrMv1UOugBHPAchtkTur8
+2k+HtIFKVW8xQ3/nrnKGeNWdHMp3y6yATjXm0E2y9Oq83CQ1TkwwB+MI0Y/uZaXv
+3016pOos3lQFXqVAvShDRzMXxvPHc902QS47v0gSj5wsVWv3g5QP/TlAE6Pvua18
+78xoROo9RLwovMmX372JeZdqKgIV+BmxlOrGCDcNOY4Flz+NRJuKbVk0UmD8f1tW
+NL5x/r36ZNnBbzohqcwp5dktiRn0MDHUsvv8StOkbFqQ+HyYSzoO1dRYGkz5bkfI
+urv4hd26I4rdu8GTpEaBcd0rx1NcNT2lbqrcTE7rux3c3Vf1QD6lSj+VbJBxxyxO
++fgeoVNpAi4Zfyls+VYCRolVHxxdjh/Zu6iAUrpubpgBxoxwzF3vMVWDPvZahUxY
+gt340eRr6KQUpI2TK4iNhTzc4CpYP/eKyC8TavHzpuGap0f7ojNaD1yjPxKJ9HFF
+eFde7jtoglvGrdW/GnoTVBFdN4wdcrJ6+Xthlqk5n0CZLKxZzCsnJ+Y00wARAQAB
+tFlEb2RvIFBheW1lbnRzIEltcG9ydCBLZXkgKEltcG9ydCBrZXkgZm9yIGNhcmQg
+dG9rZW4gbWlncmF0aW9uKSA8cHQtdGVhbUBkb2RvcGF5bWVudHMuY29tPokCVwQT
+AQgAQRYhBAfnpp8sSFvzQCZA9mOB38/zSlnMBQJn5RVhAhsDBQkJZgGABQsJCAcC
+AiICBhUKCQgLAgQWAgMBAh4HAheAAAoJEGOB38/zSlnMLm4QAK1sQxraYnV4OC9l
+G0LNUDRKsayJ3+5uW6gbD72NhQ1Q7GpD6J1kmoXO95ZMSV4Ev+PAdBHVnhbl+LTk
+JBZTrVszeZfmAr2D0HTdBsqlB8uUISXaffL/a0POWTLRdVzHJbTPtC23SHjW8XFu
+0ixomJxnIXu1iBccEPJTWpjYQbecfK6xMbHYvLQYBCLBWbDfr7hJ3ubnF8izo4W+
+cxYmFS5A4lKs6PHC+MlikFHtKKhDaKT+Zc5c5utcGpPEFUw1vxvQkgabOie6/ufc
+EAfzHaFklDvyovfKJ3eOrTRlOG8T0TmoccxjTtx4vboaTcnKoANO0p1G5esjkAWU
+2Bpa/hTaW3YvKBlHEPovm+E4c7OieHIvw3+BS7uyWOmNHgzJcAEVkbJAvRl9X1lQ
+LzcOqBIVMyLF5zswRBHtCWHuYsolIO8zMKHmYKV52jR7OkGcZ5ekaqIKVsOmpDCk
+Rn7RWubhglOC6e+CNK+2LEQALpDLx05F4uUSmbo0KvQtgnXJHsVsesaO/CVxvdOw
+nWv3MyZbhN+EGCKbO3eoTkaM7EHRPEsHa04a+T+TPFel1B7VlTdBikoyNQxyh4a2
+V/ERoKi1qI9DS158lkPkZt90PLhPMVyOFTmTt8ZbZhp1TndmIterWGlYFz8yXb7A
+BDeo0Xmu2rmuoG7kEihSwt0UmfMSuQINBGflFWEBEACyXdG9SjXd7dRoJ5bcs64A
+Cxea1NZ90x4NWdx0lTy8ruHBSzl2SYDGhDbAAOhVTxZHr1UeDfPBp/urYiENsFeA
+Fx2V4Pt2Jj0oBJ6IIHnf1X0U+T6JzVYraaQBHUjXsq4GVoD0bWydQwE6+PSOOZ8R
+d7GlsdDl0lM38krkN84BRI/OEfLJaUKFAN9COBnna3bpUwhrvk2o05ItYK/CPoEp
+lQAI5mvO7x+kPSsWUCW905TrQuvYuJQvhCZN/2NMn7X5NzhVLLnPW+hyBfkjkWWm
+8GQoH54AADQOKAczkXuSUuLwji+TA2ImAw9FI/S5cIjxG3z4PaAg7zVeZEpjjTWN
+7QQXEMvzDLLXRSjXHsmtWmg//pgvkTxyuzPbNKK7KY9Q+Xyqb0bP5UQKrZ9nRn4l
+MMZjC7Kj7eeMv3g/V6wH60Sle0/XW1zSX0djay/Hf99eXcfntlSW0DB2pn9fa8+W
+vdmASrLwcYyGjIROxzHIW9uUs4kdJqWatzfT/0uWWwaLayEkd/lCzITn61UAYwVt
+YIhY5u9lH0ZuQsxOm267TZrrgDbN9h+z5OVLxW9ylhvXZhMa0w87z8ZTp9wCycki
+CNCM1dP0N+lxIPnDu3MztK8u/yelcKpruY5L+gMmVcyDPSYUHDO7g764IdUmSPh4
+VfIeXAsj2r5usa4/+OcxuQARAQABiQI8BBgBCAAmFiEEB+emnyxIW/NAJkD2Y4Hf
+z/NKWcwFAmflFWECGwwFCQlmAYAACgkQY4Hfz/NKWcxoIA//edJGWP4Pu70M5IlQ
+rLRhi0+hKe0l5VrR1XYcr0EA4qiRQIouab4QvHoxNpn5RGQ+C2agwraiIwIP/nqR
+Wz1arWpea8BuSeAJCI0uVQURGexB9ZIJ4oiz8itAiHyjW6x+B4zC9RKe3xGO8KIt
+FhtGMYGP+8bZyOUnIU9ZqO+mxHc/wnwCeICzE5TpITrEERbXh0XZJJCLotpss8o8
+4F0Lb/9VwObCEdxpC6IkKW9GF5WJjmycfdcojaEr26qNSj1KsKRww7ukoVthD4aT
+KRM0j3X0UFNz522hBCV/+0+cGMSc5lIRzE+gsXM8vpCW3rmWZj9pMyL5r/RH1FFL
+9N3nFvfjoiuEqQ/DRy3jdwCHXEijjo5ym1KU9AGuo42deI0nrpvzXYSSahKMOb0/
+PbF4YlrtSbXwhIsBfCUX6njvNomu2u4wDs7gv7gyimyetMZ8EwJ3aGvXlD4kHh15
+tIo5NVXXLfslGtoL+27iW4nmoAxV1lOU2c2Wei+lXEc7t6JgeI0NTdqBnYTNHsOZ
+f+dti4KGC2Y+6QKhCgvTFHdHpBJj9DzG49C+4E5ZZL3bNdsU5eXaIuJf/KW+eVQB
+EZgHVgBRCqwrDD6SpkOT2lzNxfKI5rBV+WCT+hbu83hk2Pd1K7N3JQs1fVFffF37
+1OSDhXaPYtJnVApUzaCrC5PJCXU=
+=nHcw
+-----END PGP PUBLIC KEY BLOCK-----
+
+```
+</Accordion>
+
+## Timeline expectations
+
+| Phase | Duration |
+|-------|----------|
+| Initial setup and planning | 1-2 days |
+| Payment method transfer | ~2 weeks |
+| Subscriber data preparation | 3-5 days (parallel) |
+| Validation and testing | 2-3 days |
+| Production import | 2-3 business days |
+| Post-migration verification | 1-2 days |
+
+<Tip>
+The total migration typically takes **3-4 weeks** from start to finish. Starting your subscriber data preparation while the payment method transfer is in progress helps minimize the overall timeline.
+</Tip>
+
+## Get started
+
+Ready to migrate your subscriptions to Dodo Payments? Contact our team to begin the process:
+
+<CardGroup cols={2}>
+<Card title="Contact Support" icon="envelope" href="mailto:support@dodopayments.com">
+Reach out to start your migration and get connected with a Solutions Engineer.
+</Card>
+
+<Card title="API Documentation" icon="code" href="/api-reference">
+Explore our API to understand how subscriptions work in Dodo Payments.
+</Card>
+</CardGroup>
