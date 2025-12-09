@@ -35,10 +35,10 @@ You can sync any combination of these entities by specifying them in the `scopes
 
 ## Database Support
 
-We currently support **MongoDB** and **PostgreSQL**.
+We currently support **MongoDB**, **PostgreSQL**, **MySQL**, and **ClickHouse**.
 
 We are actively working on expanding support for:
-- **Databases**: Clickhouse, Snowflake, and others.
+- **Databases**: Snowflake and others.
 - **Pipelines**: ETL pipelines, Realtime sync.
 
 <Tip>
@@ -87,6 +87,12 @@ dodo-sync -i 600 -d mongodb -u mongodb://mymongodb.url --scopes "licences,paymen
 
 # PostgreSQL
 dodo-sync -i 600 -d postgres -u postgresql://user:password@localhost:5432/mydb --scopes "licences,payments,customers,subscriptions" --api-key YOUR_API_KEY --env test_mode
+
+# MySQL
+dodo-sync -i 600 -d mysql -u mysql://user:password@localhost:3306/mydb --scopes "licences,payments,customers,subscriptions" --api-key YOUR_API_KEY --env test_mode
+
+# ClickHouse
+dodo-sync -i 600 -d clickhouse -u http://localhost:8123 --scopes "licences,payments,customers,subscriptions" --api-key YOUR_API_KEY --env test_mode
 ```
 
 #### CLI Arguments
@@ -96,11 +102,15 @@ Sync interval in seconds. Determines how frequently the sync operation runs. If 
 </ParamField>
 
 <ParamField path="--database" type="string" alias="-d" required>
-Database type to use. Supported values: `"mongodb"` or `"postgres"`.
+Database type to use. Supported values: `"mongodb"`, `"postgres"`, `"mysql"`, or `"clickhouse"`.
 </ParamField>
 
 <ParamField path="--database-uri" type="string" alias="-u" required>
-Connection URI for your database. For MongoDB, use a MongoDB connection string (e.g., `mongodb://localhost:27017` or `mongodb+srv://user:pass@cluster.mongodb.net/`). For PostgreSQL, use a PostgreSQL connection string (e.g., `postgresql://user:password@localhost:5432/mydb`).
+Connection URI for your database:
+- **MongoDB**: `mongodb://localhost:27017` or `mongodb+srv://user:pass@cluster.mongodb.net/`
+- **PostgreSQL**: `postgresql://user:password@localhost:5432/mydb`
+- **MySQL**: `mysql://user:password@localhost:3306/mydb`
+- **ClickHouse**: `http://localhost:8123`
 </ParamField>
 
 <ParamField path="--scopes" type="string" required>
@@ -212,14 +222,62 @@ await syncDodoPayments.init();
 syncDodoPayments.start();
 ```
 
+#### MySQL Example
+
+Here's how to use `dodo-sync` with MySQL:
+
+```typescript
+import { DodoSync } from 'dodo-sync';
+
+const syncDodoPayments = new DodoSync({
+  interval: 60,
+  database: 'mysql',
+  databaseURI: process.env.MYSQL_URI, // e.g., 'mysql://user:password@localhost:3306/mydb'
+  scopes: ['licences', 'payments', 'customers', 'subscriptions'],
+  dodoPaymentsOptions: {
+    bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+    environment: 'test_mode'
+  }
+});
+
+await syncDodoPayments.init();
+syncDodoPayments.start();
+```
+
+#### ClickHouse Example
+
+Here's how to use `dodo-sync` with ClickHouse:
+
+```typescript
+import { DodoSync } from 'dodo-sync';
+
+const syncDodoPayments = new DodoSync({
+  interval: 60,
+  database: 'clickhouse',
+  databaseURI: process.env.CLICKHOUSE_URI, // e.g., 'http://localhost:8123'
+  scopes: ['licences', 'payments', 'customers', 'subscriptions'],
+  dodoPaymentsOptions: {
+    bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+    environment: 'test_mode'
+  }
+});
+
+await syncDodoPayments.init();
+syncDodoPayments.start();
+```
+
 #### Constructor Options
 
 <ParamField body="database" type="string" required>
-Name of the database to use. Supported values: `"mongodb"` or `"postgres"`.
+Name of the database to use. Supported values: `"mongodb"`, `"postgres"`, `"mysql"`, or `"clickhouse"`.
 </ParamField>
 
 <ParamField body="databaseURI" type="string" required>
-Connection string for your database. For MongoDB, provide a valid MongoDB connection URI. For PostgreSQL, provide a valid PostgreSQL connection URI (e.g., `postgresql://user:password@localhost:5432/mydb`).
+Connection string for your database:
+- **MongoDB**: `mongodb://localhost:27017` or `mongodb+srv://...`
+- **PostgreSQL**: `postgresql://user:password@localhost:5432/mydb`
+- **MySQL**: `mysql://user:password@localhost:3306/mydb`
+- **ClickHouse**: `http://localhost:8123`
 </ParamField>
 
 <ParamField body="scopes" type="string[]" required>
@@ -248,6 +306,10 @@ Number of requests per second. Controls how fast the sync engine makes API reque
 **MongoDB**: A database named `dodopayments_sync` will be automatically created on your database server. All sync data will be stored there. This database name is currently fixed and cannot be changed.
 
 **PostgreSQL**: Tables (`Subscriptions`, `Payments`, `Licenses`, `Customers`) will be created in the database specified in your connection URI. Data is stored as JSONB.
+
+**MySQL**: Tables (`Subscriptions`, `Payments`, `Licenses`, `Customers`) will be created in the database specified in your connection URI. Data is stored as JSON.
+
+**ClickHouse**: Tables (`Subscriptions`, `Payments`, `Licenses`, `Customers`) will be created using the ReplacingMergeTree engine. When querying, use the `FINAL` keyword to ensure deduplicated results.
 </Warning>
 
 <Info>
