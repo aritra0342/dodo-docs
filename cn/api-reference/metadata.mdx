@@ -1,0 +1,190 @@
+---
+title: 元数据指南
+description: 了解如何使用元数据来存储有关您的 Dodo Payments 对象的附加信息
+icon: tags
+---
+
+## 介绍
+
+元数据允许您在 Dodo Payments 中存储有关对象的附加结构化信息。您可以将元数据附加到大多数 Dodo Payments 对象，包括支付、订阅等。
+
+## 概述
+
+- 元数据键最长可达 40 个字符
+- 元数据值最长可达 500 个字符
+- 每个对象最多可以有 50 个元数据键值对
+- 键应仅包含字母数字字符、破折号和下划线
+- 元数据无法通过我们的 API 进行搜索，但会在 API 响应和 Webhook 中返回
+
+## 用例
+
+元数据对于以下情况非常有用：
+
+- 存储外部 ID 或引用
+- 添加内部注释
+- 将 Dodo Payments 对象链接到您的系统
+- 对交易进行分类
+- 为报告添加自定义属性
+
+## 添加元数据
+
+您可以在通过 API 创建或更新对象时添加元数据。对于产品，您还可以选择直接从仪表板 UI 添加元数据。
+
+### 通过 API
+
+```javascript
+// Adding metadata when creating a checkout session
+const checkoutSession = await client.checkoutSessions.create({
+    product_cart: [{ product_id: 'product_id', quantity: 1 }],
+    return_url: 'https://example.com/return',
+    metadata: {
+        order_id: 'ORD-123',
+        campaign_source: 'email',
+        customer_segment: 'premium'
+    }
+});
+
+// Adding metadata when creating a payment
+const payment = await client.payments.create({
+    billing: { city: 'city', country: 'AF', state: 'state', street: 'street', zipcode: 0 },
+    customer: { customer_id: 'customer_id' },
+    product_cart: [{ product_id: 'product_id', quantity: 0 }],
+    metadata:{order_id: 'ORD-123', customer_notes: 'Customer notes'}
+  });
+
+// Adding metadata when creating a product
+const product = await client.products.create({
+    name: 'Premium Software License',
+    price: 9900,
+    currency: 'USD',
+    metadata: {
+        category: 'software',
+        license_type: 'premium',
+        support_tier: 'priority'
+    }
+});
+
+// Adding metadata when creating a customer
+const customer = await client.customers.create({
+    email: 'customer@example.com',
+    name: 'John Doe',
+    metadata: {
+        crm_id: 'CRM-12345',
+        customer_segment: 'enterprise',
+        referral_source: 'website'
+    }
+});
+```
+
+### 通过仪表板 UI（仅限产品）
+
+对于产品，您还可以在创建或编辑产品时直接从 Dodo Payments 仪表板添加元数据。元数据部分允许您轻松添加自定义键值对，而无需编写代码。
+
+<Frame>
+<img src="/images/product-catalog/product-metadata-ui.png" alt="Dodo Payments 仪表板中的产品元数据界面" />
+</Frame>
+
+<Tip>
+使用仪表板 UI 进行产品元数据管理对于需要管理产品信息和类别的非技术团队成员特别有用。
+</Tip>
+
+## 检索元数据
+
+在检索对象时，元数据包含在 API 响应中：
+
+```javascript
+// Retrieving checkout session metadata
+const checkoutSession = await client.checkoutSessions.retrieve('cs_123');
+console.log(checkoutSession.metadata.order_id); // 'ORD-123'
+
+// Retrieving payment metadata
+const payment = await client.payments.retrieve('pay_123');
+console.log(payment.metadata.order_id); // '6735'
+
+// Retrieving customer metadata
+const customer = await client.customers.retrieve('customer_123');
+console.log(customer.metadata.crm_id); // 'CRM-12345'
+
+// Retrieving refund metadata
+const refund = await client.refunds.retrieve('refund_123');
+console.log(refund.metadata.refund_reason); // 'customer_request'
+```
+
+## 搜索和过滤
+
+虽然元数据无法通过我们的 API 直接搜索，但您可以：
+
+1. 在元数据中存储重要标识符
+2. 使用其主 ID 检索对象
+3. 在您的应用程序代码中过滤结果
+
+```javascript
+// Example: Find a checkout session using metadata
+const checkoutSessions = await client.checkoutSessions.list({
+  limit: 100
+});
+
+const matchingSession = checkoutSessions.data.find(
+  session => session.metadata?.order_id === 'ORD-123'
+);
+
+// Example: Find a payment using your order ID
+const payments = await client.payments.list({
+  limit: 100
+});
+
+const matchingPayment = payments.data.find(
+  payment => payment.metadata.order_id === '6735'
+);
+```
+
+## 最佳实践
+
+### 应该：
+- 对元数据键使用一致的命名约定
+- 在内部记录您的元数据架构
+- 保持值简短且有意义
+- 仅将元数据用于静态数据
+- 考虑为不同系统使用前缀（例如，`crm_id`，`inventory_sku`）
+
+### 不要：
+- 在元数据中存储敏感数据
+- 将元数据用于频繁更改的值
+- 依赖元数据进行关键业务逻辑
+- 存储在对象中其他地方可用的重复信息
+- 在元数据键中使用特殊字符
+
+## 支持的对象
+
+元数据支持以下对象：
+
+| 对象类型 | 支持 |
+|------------|---------|
+| 支付 | ✓ |
+| 订阅 | ✓ |
+| 产品 | ✓ |
+| 退款 | ✓ |
+| 结账会话 | ✓ |
+| 客户 | ✓ |
+
+## Webhook 和元数据
+
+元数据包含在 webhook 事件中，使您能够轻松处理带有自定义数据的通知：
+
+```javascript
+// Example webhook handler
+app.post('/webhook', (req, res) => {
+  const event = req.body;
+
+  if (event.type === 'payment.succeeded') {
+    const orderId = event.data.object.metadata.order_id;
+    // Process order using your internal order ID
+  }
+  
+  if (event.type === 'checkout.session.completed') {
+    const orderId = event.data.object.metadata.order_id;
+    const campaignSource = event.data.object.metadata.campaign_source;
+    // Handle checkout session completion with custom metadata
+  }
+});
+```

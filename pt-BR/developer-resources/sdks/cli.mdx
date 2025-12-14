@@ -1,0 +1,249 @@
+---
+title: CLI
+description: Interface de linha de comando para interagir com a API de
+  Pagamentos Dodo a partir do seu terminal
+icon: terminal
+---
+
+## Instalação
+
+### Instalação com Go
+
+```bash
+go install github.com/dodopayments/dodopayments-cli/cmd/dodopayments@latest
+```
+
+### A partir do Código Fonte
+
+```bash
+git clone https://github.com/dodopayments/dodopayments-cli.git
+cd dodopayments-cli
+go install ./cmd/dodopayments
+```
+
+## Início Rápido
+
+Defina sua chave de API:
+
+```bash
+export DODO_PAYMENTS_API_KEY=your_api_key_here
+```
+
+Estrutura básica do comando:
+
+```bash
+dodopayments [resource] [command] [flags]
+```
+
+Crie uma sessão de checkout:
+
+```bash
+dodopayments checkout-sessions create \
+  --product-cart.product_id prod_123 \
+  --product-cart.quantity 1 \
+  --return-url https://yourdomain.com/return
+```
+
+## Flags Globais
+
+| Flag | Descrição |
+|------|-------------|
+| `--format` | Formato de saída: `auto`, `json`, `yaml`, `pretty`, `explore` |
+| `--transform` | Filtrar resposta usando a sintaxe gjson |
+| `--debug` | Habilitar registro detalhado |
+| `--version`, `-v` | Exibir versão do CLI |
+
+## Comandos Comuns
+
+### Pagamentos
+
+```bash
+# List payments
+dodopayments payments list --limit 20 --format json
+
+# Retrieve payment
+dodopayments payments retrieve pay_123
+
+# Get line items
+dodopayments payments line-items pay_123
+```
+
+### Clientes
+
+```bash
+# Create customer
+dodopayments customers create \
+  --email customer@example.com \
+  --name "John Doe"
+
+# List customers
+dodopayments customers list
+
+# Update customer
+dodopayments customers update cus_123 --name "Jane Doe"
+```
+
+### Assinaturas
+
+```bash
+# Create subscription
+dodopayments subscriptions create \
+  --customer-id cus_123 \
+  --product-id prod_456
+
+# List subscriptions
+dodopayments subscriptions list
+
+# Get usage history
+dodopayments subscriptions usage-history sub_123
+```
+
+### Produtos
+
+```bash
+# Create product
+dodopayments products create \
+  --name "Premium Plan" \
+  --price.amount 2999 \
+  --price.currency USD
+
+# List products
+dodopayments products list
+```
+
+## Cobrança Baseada em Uso
+
+### Ingestão de Eventos
+
+```bash
+dodopayments usage-events ingest \
+  --events.event_id api_call_12345 \
+  --events.customer_id cus_abc123 \
+  --events.event_name api_request \
+  --events.timestamp 2024-01-15T10:30:00Z \
+  --events.metadata.endpoint /api/v1/users
+```
+
+### Gerenciar Medidores
+
+```bash
+# Create meter
+dodopayments meters create \
+  --name "API Requests" \
+  --event-name api_request \
+  --aggregation count
+
+# List meters
+dodopayments meters list
+```
+
+## Formatos de Saída
+
+### JSON (para scripts)
+
+```bash
+dodopayments payments list --format json | jq '.data[] | {id, amount}'
+```
+
+### Bonito (para leitura)
+
+```bash
+dodopayments payments retrieve pay_123 --format pretty
+```
+
+### Exploração Interativa
+
+```bash
+dodopayments payments list --format explore
+```
+
+### Transformar com gjson
+
+```bash
+# Extract all payment IDs
+dodopayments payments list --transform "data.#.id"
+
+# Filter and extract
+dodopayments payments list --transform "data.#(amount>5000)#.id"
+```
+
+<Tip>
+Use `--format json` com `jq` para processamento de dados poderoso em scripts de shell.
+</Tip>
+
+## Exemplo de Script
+
+```bash
+#!/bin/bash
+
+# Export all payments to CSV
+dodopayments payments list --format json | \
+  jq -r '.data[] | [.id, .amount, .currency, .status] | @csv' > payments.csv
+
+# Create customers from file
+while IFS=',' read -r email name; do
+  dodopayments customers create \
+    --email "$email" \
+    --name "$name" \
+    --format json
+done < customers.csv
+```
+
+## Conclusão de Shell
+
+Habilitar auto-completar:
+
+```bash
+# Bash
+eval "$(dodopayments completion bash)"
+
+# Zsh
+eval "$(dodopayments completion zsh)"
+
+# Fish
+dodopayments completion fish | source
+```
+
+## Recursos Disponíveis
+
+O CLI fornece comandos para 24 categorias de recursos:
+
+- `checkout-sessions` - Gerenciamento de sessão de checkout
+- `payments` - Operações de pagamento
+- `subscriptions` - Cobrança recorrente
+- `customers` - Contas de clientes
+- `products` - Catálogo de produtos
+- `licenses` - Licenciamento de software
+- `refunds` - Reembolsos de pagamento
+- `disputes` - Disputas de pagamento
+- `webhooks` - Webhooks de eventos
+- `meters` - Medidores de uso
+- `usage-events` - Rastreamento de uso
+- `discounts` - Códigos de desconto
+- `payouts` - Pagamentos a vendedores
+- `brands` - Gerenciamento multi-marca
+- Mais 10 recursos adicionais
+
+<Info>
+Use `dodopayments --help` para ver todos os recursos disponíveis e `dodopayments [resource] --help` para comandos específicos de recursos.
+</Info>
+
+## Recursos
+
+<CardGroup cols={2}>
+<Card title="Repositório do GitHub" icon="github" href="https://github.com/dodopayments/dodopayments-cli">
+  Veja o código-fonte e lançamentos
+</Card>
+
+<Card title="Referência da API" icon="book" href="/api-reference/introduction">
+  Documentação completa da API
+</Card>
+</CardGroup>
+
+## Suporte
+
+Precisa de ajuda com o CLI?
+
+- **Discord**: Junte-se ao nosso [servidor da comunidade](https://discord.gg/bYqAp4ayYh)
+- **Email**: Entre em contato conosco em support@dodopayments.com
+- **GitHub**: Abra uma issue no [repositório](https://github.com/dodopayments/dodopayments-cli)

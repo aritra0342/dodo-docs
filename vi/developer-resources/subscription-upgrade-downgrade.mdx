@@ -1,0 +1,817 @@
+---
+title: Hướng dẫn Nâng cấp & Hạ cấp Đăng ký
+description: Tìm hiểu cách thay đổi kế hoạch đăng ký của khách hàng, xử lý
+  proration và xử lý webhooks một cách đáng tin cậy.
+icon: arrows-rotate
+---
+
+<CardGroup cols={2}>
+<Card title="Tài liệu API Thay đổi Kế hoạch" icon="code" href="/api-reference/subscriptions/change-plan">
+  Truy cập tài liệu API đầy đủ để thay đổi kế hoạch đăng ký và thử nghiệm các yêu cầu thay đổi kế hoạch một cách tương tác.
+</Card>
+
+<Card title="Xem trước Thay đổi Kế hoạch API" icon="eye" href="/api-reference/subscriptions/preview-change-plan">
+  Xem trước số tiền chính xác sẽ bị tính phí trước khi cam kết thay đổi kế hoạch.
+</Card>
+
+<Card title="Hướng dẫn Tích hợp Đăng ký" icon="book" href="/developer-resources/subscription-integration-guide">
+  Tìm hiểu cách tạo và quản lý các đăng ký từ đầu với hướng dẫn tích hợp toàn diện của chúng tôi.
+</Card>
+</CardGroup>
+
+## Nâng cấp hoặc hạ cấp đăng ký là gì?
+
+Thay đổi kế hoạch cho phép bạn di chuyển một khách hàng giữa các cấp độ hoặc số lượng đăng ký. Sử dụng nó để:
+- Căn chỉnh giá cả với mức sử dụng hoặc tính năng
+- Chuyển từ hàng tháng sang hàng năm (hoặc ngược lại)
+- Điều chỉnh số lượng cho các sản phẩm dựa trên ghế
+
+<Info>
+Thay đổi kế hoạch có thể kích hoạt một khoản phí ngay lập tức tùy thuộc vào chế độ proration bạn chọn.
+</Info>
+
+## Khi nào sử dụng thay đổi kế hoạch
+
+- Nâng cấp khi khách hàng cần nhiều tính năng, mức sử dụng hoặc ghế hơn
+- Hạ cấp khi mức sử dụng giảm
+- Di chuyển người dùng sang sản phẩm hoặc giá mới mà không hủy đăng ký của họ
+
+## Điều kiện tiên quyết
+
+Trước khi thực hiện thay đổi kế hoạch đăng ký, hãy đảm bảo bạn có:
+
+- Một tài khoản thương nhân Dodo Payments với các sản phẩm đăng ký đang hoạt động
+- Thông tin xác thực API (khóa API và khóa bí mật webhook) từ bảng điều khiển
+- Một đăng ký đang hoạt động hiện có để sửa đổi
+- Điểm cuối webhook được cấu hình để xử lý các sự kiện đăng ký
+
+<Info>
+Để biết hướng dẫn thiết lập chi tiết, hãy xem [Hướng dẫn Tích hợp](/developer-resources/integration-guide#dashboard-setup).
+</Info>
+
+## Hướng dẫn Triển khai Từng Bước
+
+Theo dõi hướng dẫn toàn diện này để thực hiện các thay đổi kế hoạch đăng ký trong ứng dụng của bạn:
+
+<Steps>
+<Step title="Hiểu yêu cầu thay đổi kế hoạch">
+Trước khi thực hiện, xác định:
+- Các sản phẩm đăng ký nào có thể thay đổi sang các sản phẩm nào khác
+- Chế độ proration nào phù hợp với mô hình kinh doanh của bạn
+- Cách xử lý các thay đổi kế hoạch không thành công một cách nhẹ nhàng
+- Các sự kiện webhook nào cần theo dõi để quản lý trạng thái
+
+<Tip>
+Thử nghiệm các thay đổi kế hoạch một cách kỹ lưỡng trong chế độ thử nghiệm trước khi triển khai trong môi trường sản xuất.
+</Tip>
+</Step>
+
+<Step title="Chọn Chiến lược Proration của Bạn">
+Chọn cách tính phí phù hợp với nhu cầu kinh doanh của bạn:
+
+<Tabs>
+<Tab title="prorated_immediately">
+Tốt nhất cho: Các ứng dụng SaaS muốn tính phí công bằng cho thời gian không sử dụng
+- Tính toán số tiền proration chính xác dựa trên thời gian chu kỳ còn lại
+- Tính phí một khoản tiền proration dựa trên thời gian không sử dụng còn lại trong chu kỳ
+- Cung cấp hóa đơn minh bạch cho khách hàng
+</Tab>
+
+<Tab title="difference_immediately">
+Tốt nhất cho: Các tình huống nâng cấp/hạ cấp rõ ràng
+- Nâng cấp: Tính phí sự khác biệt ngay lập tức (ví dụ: $30→$80 = tính phí $50)
+- Hạ cấp: Tín dụng giá trị còn lại cho các lần gia hạn trong tương lai
+- Đơn giản hóa logic tính phí và giao tiếp với khách hàng
+</Tab>
+
+<Tab title="full_immediately">
+Tốt nhất cho: Khi bạn muốn đặt lại chu kỳ thanh toán
+- Tính phí toàn bộ số tiền của kế hoạch mới ngay lập tức
+- Bỏ qua thời gian còn lại từ kế hoạch cũ
+- Hữu ích cho các chuyển đổi từ hàng năm sang hàng tháng
+</Tab>
+</Tabs>
+</Step>
+
+<Step title="Thực hiện API Thay đổi Kế hoạch">
+Sử dụng API Thay đổi Kế hoạch để sửa đổi chi tiết đăng ký:
+
+<ParamField path="subscription_id" type="string" required>
+ID của đăng ký đang hoạt động để sửa đổi.
+</ParamField>
+
+<ParamField path="product_id" type="string" required>
+ID sản phẩm mới để thay đổi đăng ký sang.
+</ParamField>
+
+<ParamField path="quantity" type="integer" default="1">
+Số lượng đơn vị cho kế hoạch mới (đối với các sản phẩm dựa trên ghế).
+</ParamField>
+
+<ParamField path="proration_billing_mode" type="string" required>
+Cách xử lý thanh toán ngay lập tức: `prorated_immediately`, `full_immediately`, hoặc `difference_immediately`.
+</ParamField>
+
+<ParamField path="addons" type="array">
+Các addon tùy chọn cho kế hoạch mới. Để trống sẽ xóa bất kỳ addon hiện có nào.
+</ParamField>
+</Step>
+
+<Step title="Xử lý Sự kiện Webhook">
+Thiết lập xử lý webhook để theo dõi kết quả thay đổi kế hoạch:
+
+- `subscription.active`: Thay đổi kế hoạch thành công, đăng ký đã được cập nhật
+- `subscription.plan_changed`: Kế hoạch đăng ký đã thay đổi (nâng cấp/hạ cấp/cập nhật addon)
+- `subscription.on_hold`: Thay đổi phí kế hoạch không thành công, đăng ký đã bị tạm dừng
+- `payment.succeeded`: Tính phí ngay lập tức cho thay đổi kế hoạch đã thành công
+- `payment.failed`: Tính phí ngay lập tức không thành công
+
+<Warning>
+Luôn xác minh chữ ký webhook và thực hiện xử lý sự kiện idempotent.
+</Warning>
+</Step>
+
+<Step title="Cập nhật Trạng thái Ứng dụng của Bạn">
+Dựa trên các sự kiện webhook, cập nhật ứng dụng của bạn:
+- Cấp phát/rút lại tính năng dựa trên kế hoạch mới
+- Cập nhật bảng điều khiển của khách hàng với chi tiết kế hoạch mới
+- Gửi email xác nhận về các thay đổi kế hoạch
+- Ghi lại các thay đổi thanh toán cho mục đích kiểm toán
+</Step>
+
+<Step title="Kiểm tra và Giám sát">
+Thử nghiệm kỹ lưỡng việc triển khai của bạn:
+- Kiểm tra tất cả các chế độ proration với các tình huống khác nhau
+- Xác minh rằng việc xử lý webhook hoạt động chính xác
+- Giám sát tỷ lệ thành công của thay đổi kế hoạch
+- Thiết lập cảnh báo cho các thay đổi kế hoạch không thành công
+
+<Check>
+Việc triển khai thay đổi kế hoạch đăng ký của bạn hiện đã sẵn sàng cho việc sử dụng trong sản xuất.
+</Check>
+</Step>
+</Steps>
+
+## Xem trước Thay đổi Kế hoạch
+
+Trước khi cam kết thay đổi kế hoạch, hãy sử dụng API Xem trước để cho khách hàng thấy chính xác số tiền họ sẽ bị tính phí:
+
+<Tabs>
+<Tab title="Node.js SDK">
+
+```javascript
+const preview = await client.subscriptions.previewChangePlan('sub_123', {
+  product_id: 'prod_pro',
+  quantity: 1,
+  proration_billing_mode: 'prorated_immediately'
+});
+
+// Show customer the charge before confirming
+console.log('Immediate charge:', preview.immediate_charge.summary);
+console.log('New plan details:', preview.new_plan);
+```
+
+</Tab>
+
+<Tab title="Python SDK">
+
+```python
+preview = client.subscriptions.preview_change_plan(
+    subscription_id="sub_123",
+    product_id="prod_pro",
+    quantity=1,
+    proration_billing_mode="prorated_immediately"
+)
+
+# Show customer the charge before confirming
+print("Immediate charge:", preview.immediate_charge.summary)
+print("New plan details:", preview.new_plan)
+```
+
+</Tab>
+</Tabs>
+
+<Tip>
+Sử dụng API xem trước để xây dựng các hộp thoại xác nhận cho khách hàng cho thấy chính xác số tiền họ sẽ bị tính phí trước khi họ xác nhận thay đổi kế hoạch.
+</Tip>
+
+## API Thay đổi Kế hoạch
+
+Sử dụng API Thay đổi Kế hoạch để sửa đổi sản phẩm, số lượng và hành vi proration cho một đăng ký đang hoạt động.
+
+### Ví dụ khởi động nhanh
+
+<Tabs>
+  <Tab title="Node.js SDK">
+
+    ```javascript
+    import DodoPayments from 'dodopayments';
+
+    const client = new DodoPayments({
+      bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+      environment: 'test_mode', // defaults to 'live_mode'
+    });
+
+    async function changePlan() {
+      const result = await client.subscriptions.changePlan('sub_123', {
+        product_id: 'prod_new',
+        quantity: 3,
+        proration_billing_mode: 'prorated_immediately',
+      });
+      console.log(result.status, result.invoice_id, result.payment_id);
+    }
+
+    changePlan();
+    ```
+
+  </Tab>
+  <Tab title="Python SDK">
+
+    ```python
+    import os
+    from dodopayments import DodoPayments
+
+    client = DodoPayments(
+        bearer_token=os.environ.get("DODO_PAYMENTS_API_KEY"),
+        environment="test_mode",  # defaults to "live_mode"
+    )
+
+    result = client.subscriptions.change_plan(
+        subscription_id="sub_123",
+        product_id="prod_new",
+        quantity=3,
+        proration_billing_mode="prorated_immediately",
+    )
+    print(result.status, result.get("invoice_id"), result.get("payment_id"))
+    ```
+
+  </Tab>
+  <Tab title="Go SDK">
+
+    ```go
+    package main
+
+    import (
+      "context"
+      "fmt"
+      "github.com/dodopayments/dodopayments-go"
+      "github.com/dodopayments/dodopayments-go/option"
+    )
+
+    func main() {
+      client := dodopayments.NewClient(option.WithBearerToken("YOUR_TOKEN"))
+      res, err := client.Subscriptions.ChangePlan(context.TODO(), dodopayments.SubscriptionChangePlanParams{
+        SubscriptionID: dodopayments.F("sub_123"),
+        ProductID:             dodopayments.F("prod_new"),
+        Quantity:              dodopayments.F(int64(3)),
+        ProrationBillingMode:  dodopayments.F(dodopayments.SubscriptionChangePlanParamsProrationBillingModeProratedImmediately),
+      })
+      if err != nil { panic(err) }
+      fmt.Println(res.Status, res.InvoiceID, res.PaymentID)
+    }
+    ```
+
+  </Tab>
+  <Tab title="HTTP">
+
+    ```bash
+    curl -X POST "$DODO_API_BASE/subscriptions/sub_123/change-plan" \
+      -H "Authorization: Bearer $DODO_PAYMENTS_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "product_id": "prod_new",
+        "quantity": 3,
+        "proration_billing_mode": "prorated_immediately"
+      }'
+    ```
+
+  </Tab>
+</Tabs>
+
+```json Success
+{
+  "status": "processing",
+  "subscription_id": "sub_123",
+  "invoice_id": "inv_789",
+  "payment_id": "pay_456",
+  "proration_billing_mode": "prorated_immediately"
+}
+```
+
+<Note>
+Các trường như <code>invoice_id</code> và <code>payment_id</code> chỉ được trả về khi một khoản phí ngay lập tức và/hoặc hóa đơn được tạo trong quá trình thay đổi kế hoạch. Luôn dựa vào các sự kiện webhook (ví dụ: <code>payment.succeeded</code>, <code>subscription.plan_changed</code>) để xác nhận kết quả.
+</Note>
+
+<Warning>
+Nếu khoản phí ngay lập tức không thành công, đăng ký có thể chuyển sang `subscription.on_hold` cho đến khi thanh toán thành công.
+</Warning>
+
+## Quản lý Addons
+
+Khi thay đổi kế hoạch đăng ký, bạn cũng có thể sửa đổi các addon:
+
+```javascript
+// Add addons to the new plan
+await client.subscriptions.changePlan('sub_123', {
+  product_id: 'prod_new',
+  quantity: 1,
+  proration_billing_mode: 'difference_immediately',
+  addons: [
+    { addon_id: 'addon_123', quantity: 2 }
+  ]
+});
+
+// Remove all existing addons
+await client.subscriptions.changePlan('sub_123', {
+  product_id: 'prod_new',
+  quantity: 1,
+  proration_billing_mode: 'difference_immediately',
+  addons: [] // Empty array removes all existing addons
+});
+```
+
+<Info>
+Các addon được bao gồm trong tính toán proration và sẽ bị tính phí theo chế độ proration đã chọn.
+</Info>
+
+## Chế độ Proration
+
+Chọn cách tính phí cho khách hàng khi thay đổi kế hoạch:
+
+#### `prorated_immediately`
+- Tính phí cho sự khác biệt một phần trong chu kỳ hiện tại
+- Nếu trong thời gian dùng thử, tính phí ngay lập tức và chuyển sang kế hoạch mới ngay bây giờ
+- Hạ cấp: có thể tạo tín dụng proration áp dụng cho các lần gia hạn trong tương lai
+
+#### `full_immediately`
+- Tính phí toàn bộ số tiền của kế hoạch mới ngay lập tức
+- Bỏ qua thời gian còn lại từ kế hoạch cũ
+
+<Info>
+Các tín dụng được tạo bởi việc hạ cấp sử dụng <code>difference_immediately</code> là có phạm vi đăng ký và khác với <a href="/features/customer-credit">Tín dụng Khách hàng</a>. Chúng tự động áp dụng cho các lần gia hạn trong tương lai của cùng một đăng ký và không thể chuyển nhượng giữa các đăng ký.
+</Info>
+
+#### `difference_immediately`
+- Nâng cấp: tính phí ngay lập tức sự khác biệt giữa các kế hoạch cũ và mới
+- Hạ cấp: thêm giá trị còn lại như tín dụng nội bộ cho đăng ký và tự động áp dụng khi gia hạn
+
+### Các tình huống ví dụ
+
+<AccordionGroup>
+  <Accordion title="Nâng cấp: Cơ bản ($30) → Chuyên nghiệp ($80) với difference_immediately">
+
+    ```javascript
+    await client.subscriptions.changePlan('sub_123', {
+      product_id: 'prod_pro',
+      quantity: 1,
+      proration_billing_mode: 'difference_immediately'
+    })
+    // Immediate charge: $50
+    ```
+
+  </Accordion>
+  <Accordion title="Hạ cấp: Plus ($50) → Khởi đầu ($20) với difference_immediately">
+
+    ```javascript
+    await client.subscriptions.changePlan('sub_123', {
+      product_id: 'prod_starter',
+      quantity: 1,
+      proration_billing_mode: 'difference_immediately'
+    })
+    // Credit added: $30 (auto-applied to future renewals for this subscription)
+    ```
+
+  </Accordion>
+  <Accordion title="Nâng cấp giữa chu kỳ với prorated_immediately">
+
+    ```javascript
+    await client.subscriptions.changePlan('sub_123', {
+      product_id: 'prod_new',
+      quantity: 1,
+      proration_billing_mode: 'prorated_immediately'
+    })
+    // Immediate prorated charge based on remaining days in cycle
+    ```
+
+  </Accordion>
+  <Accordion title="Đặt lại thanh toán với full_immediately">
+
+    ```javascript
+    await client.subscriptions.changePlan('sub_123', {
+      product_id: 'prod_new',
+      quantity: 1,
+      proration_billing_mode: 'full_immediately'
+    })
+    // Immediate full charge for new plan; no credits calculated
+    ```
+
+  </Accordion>
+</AccordionGroup>
+
+<Tip>
+Chọn `prorated_immediately` cho kế toán công bằng về thời gian; chọn `full_immediately` để khởi động lại thanh toán; sử dụng `difference_immediately` cho các nâng cấp đơn giản và tín dụng tự động khi hạ cấp.
+</Tip>
+
+## Xử lý webhooks
+
+Theo dõi trạng thái đăng ký thông qua webhooks để xác nhận các thay đổi kế hoạch và thanh toán.
+
+### Các loại sự kiện cần xử lý
+- `subscription.active`: đăng ký đã được kích hoạt
+- `subscription.plan_changed`: kế hoạch đăng ký đã thay đổi (nâng cấp/hạ cấp/các thay đổi addon)
+- `subscription.on_hold`: phí không thành công, đăng ký đã bị tạm dừng
+- `subscription.renewed`: gia hạn đã thành công
+- `payment.succeeded`: thanh toán cho thay đổi kế hoạch hoặc gia hạn đã thành công
+- `payment.failed`: thanh toán không thành công
+
+<Info>
+Chúng tôi khuyên bạn nên điều khiển logic kinh doanh từ các sự kiện đăng ký và sử dụng các sự kiện thanh toán để xác nhận và đối chiếu.
+</Info>
+
+### Xác minh chữ ký và xử lý ý định
+
+<Tabs>
+  <Tab title="Next.js Route Handler">
+
+    ```javascript
+    import { NextRequest, NextResponse } from 'next/server';
+    
+    export async function POST(req) {
+      const webhookId = req.headers.get('webhook-id');
+      const webhookSignature = req.headers.get('webhook-signature');
+      const webhookTimestamp = req.headers.get('webhook-timestamp');
+      const secret = process.env.DODO_WEBHOOK_SECRET;
+    
+      const payload = await req.text();
+      // verifySignature is a placeholder – in production, use a Standard Webhooks library
+      const { valid, event } = await verifySignature(
+        payload,
+        { id: webhookId, signature: webhookSignature, timestamp: webhookTimestamp },
+        secret
+      );
+      if (!valid) return NextResponse.json({ error: 'Invalid signature' }, { status: 400 });
+    
+      switch (event.type) {
+        case 'subscription.active':
+          // mark subscription active in your DB
+          break;
+        case 'subscription.plan_changed':
+          // refresh entitlements and reflect the new plan in your UI
+          break;
+        case 'subscription.on_hold':
+          // notify user to update payment method
+          break;
+        case 'subscription.renewed':
+          // extend access window
+          break;
+        case 'payment.succeeded':
+          // reconcile payment for plan change
+          break;
+        case 'payment.failed':
+          // log and alert
+          break;
+        default:
+          // ignore unknown events
+          break;
+      }
+    
+      return NextResponse.json({ received: true });
+    }
+    ```
+
+  </Tab>
+  <Tab title="Express.js">
+
+    ```javascript
+    import express from 'express';
+    
+    const app = express();
+    app.post('/webhooks/dodo', express.raw({ type: 'application/json' }), async (req, res) => {
+      const webhookId = req.header('webhook-id');
+      const webhookSignature = req.header('webhook-signature');
+      const webhookTimestamp = req.header('webhook-timestamp');
+      const secret = process.env.DODO_WEBHOOK_SECRET;
+      const payload = req.body.toString('utf8');
+    
+      const { valid, event } = await verifySignature(
+        payload,
+        { id: webhookId, signature: webhookSignature, timestamp: webhookTimestamp },
+        secret
+      );
+      if (!valid) return res.status(400).send('Invalid signature');
+    
+      // handle events like above
+      res.json({ received: true });
+    });
+    
+    app.listen(3000);
+    ```
+
+  </Tab>
+</Tabs>
+
+<Note>
+Để biết chi tiết về các sơ đồ payload, hãy xem <a href="/developer-resources/webhooks/intents/subscription">Payload webhook Đăng ký</a> và <a href="/developer-resources/webhooks/intents/payment">Payload webhook Thanh toán</a>.
+</Note>
+
+## Các Thực hành Tốt Nhất
+
+Thực hiện các khuyến nghị này để thay đổi kế hoạch đăng ký một cách đáng tin cậy:
+
+### Chiến lược Thay đổi Kế hoạch
+- **Kiểm tra kỹ lưỡng**: Luôn kiểm tra các thay đổi kế hoạch trong chế độ thử nghiệm trước khi sản xuất
+- **Chọn proration cẩn thận**: Chọn chế độ proration phù hợp với mô hình kinh doanh của bạn
+- **Xử lý các lỗi một cách nhẹ nhàng**: Thực hiện xử lý lỗi đúng cách và logic thử lại
+- **Giám sát tỷ lệ thành công**: Theo dõi tỷ lệ thành công/thất bại của các thay đổi kế hoạch và điều tra các vấn đề
+
+### Triển khai Webhook
+- **Xác minh chữ ký**: Luôn xác thực chữ ký webhook để đảm bảo tính xác thực
+- **Thực hiện idempotency**: Xử lý các sự kiện webhook trùng lặp một cách nhẹ nhàng
+- **Xử lý không đồng bộ**: Đừng chặn phản hồi webhook với các thao tác nặng nề
+- **Ghi lại mọi thứ**: Duy trì nhật ký chi tiết để phục vụ cho việc gỡ lỗi và kiểm toán
+
+### Trải nghiệm Người dùng
+- **Giao tiếp rõ ràng**: Thông báo cho khách hàng về các thay đổi thanh toán và thời gian
+- **Cung cấp xác nhận**: Gửi email xác nhận cho các thay đổi kế hoạch thành công
+- **Xử lý các trường hợp đặc biệt**: Cân nhắc các giai đoạn dùng thử, proration và các khoản thanh toán không thành công
+- **Cập nhật UI ngay lập tức**: Phản ánh các thay đổi kế hoạch trong giao diện ứng dụng của bạn
+
+## Các Vấn đề Thường Gặp và Giải Pháp
+
+Giải quyết các vấn đề điển hình gặp phải trong quá trình thay đổi kế hoạch đăng ký:
+
+<AccordionGroup>
+<Accordion title="Phí đã được tạo nhưng đăng ký không được cập nhật">
+**Triệu chứng**: Cuộc gọi API thành công nhưng đăng ký vẫn ở kế hoạch cũ
+
+**Nguyên nhân phổ biến**:
+- Xử lý webhook không thành công hoặc bị trì hoãn
+- Trạng thái ứng dụng không được cập nhật sau khi nhận webhook
+- Vấn đề giao dịch cơ sở dữ liệu trong quá trình cập nhật trạng thái
+
+**Giải pháp**:
+- Thực hiện xử lý webhook mạnh mẽ với logic thử lại
+- Sử dụng các thao tác idempotent cho các cập nhật trạng thái
+- Thêm giám sát để phát hiện và cảnh báo về các sự kiện webhook bị bỏ lỡ
+- Xác minh rằng điểm cuối webhook có thể truy cập và phản hồi chính xác
+</Accordion>
+
+<Accordion title="Tín dụng không được áp dụng sau khi hạ cấp">
+**Triệu chứng**: Khách hàng hạ cấp nhưng không thấy số dư tín dụng
+
+**Nguyên nhân phổ biến**:
+- Kỳ vọng về chế độ proration: hạ cấp tín dụng sự khác biệt giá của toàn bộ kế hoạch với `difference_immediately`, trong khi `prorated_immediately` tạo ra một tín dụng proration dựa trên thời gian còn lại trong chu kỳ
+- Tín dụng là cụ thể cho đăng ký và không thể chuyển nhượng giữa các đăng ký
+- Số dư tín dụng không hiển thị trong bảng điều khiển của khách hàng
+
+**Giải pháp**:
+- Sử dụng `difference_immediately` cho các hạ cấp khi bạn muốn có tín dụng tự động
+- Giải thích cho khách hàng rằng tín dụng áp dụng cho các lần gia hạn trong tương lai của cùng một đăng ký
+- Triển khai cổng thông tin khách hàng để hiển thị số dư tín dụng
+- Kiểm tra xem hóa đơn xem trước tiếp theo có tín dụng đã áp dụng hay không
+</Accordion>
+
+<Accordion title="Xác minh chữ ký webhook không thành công">
+**Triệu chứng**: Các sự kiện webhook bị từ chối do chữ ký không hợp lệ
+
+**Nguyên nhân phổ biến**:
+- Khóa bí mật webhook không chính xác
+- Nội dung yêu cầu thô đã được sửa đổi trước khi xác minh chữ ký
+- Thuật toán xác minh chữ ký sai
+
+**Giải pháp**:
+- Xác minh rằng bạn đang sử dụng `DODO_WEBHOOK_SECRET` chính xác từ bảng điều khiển
+- Đọc nội dung yêu cầu thô trước bất kỳ middleware phân tích JSON nào
+- Sử dụng thư viện xác minh webhook tiêu chuẩn cho nền tảng của bạn
+- Thử nghiệm xác minh chữ ký webhook trong môi trường phát triển
+</Accordion>
+
+<Accordion title="Thay đổi kế hoạch không thành công với lỗi 422">
+**Triệu chứng**: API trả về lỗi 422 Unprocessable Entity
+
+**Nguyên nhân phổ biến**:
+- ID đăng ký hoặc ID sản phẩm không hợp lệ
+- Đăng ký không ở trạng thái hoạt động
+- Thiếu các tham số bắt buộc
+- Sản phẩm không có sẵn cho các thay đổi kế hoạch
+
+**Giải pháp**:
+- Xác minh rằng đăng ký tồn tại và đang hoạt động
+- Kiểm tra ID sản phẩm có hợp lệ và có sẵn không
+- Đảm bảo tất cả các tham số bắt buộc được cung cấp
+- Xem lại tài liệu API để biết yêu cầu tham số
+</Accordion>
+
+<Accordion title="Khoản phí ngay lập tức không thành công trong quá trình thay đổi kế hoạch">
+**Triệu chứng**: Thay đổi kế hoạch đã được khởi động nhưng khoản phí ngay lập tức không thành công
+
+**Nguyên nhân phổ biến**:
+- Không đủ tiền trong phương thức thanh toán của khách hàng
+- Phương thức thanh toán đã hết hạn hoặc không hợp lệ
+- Ngân hàng từ chối giao dịch
+- Phát hiện gian lận đã chặn khoản phí
+
+**Giải pháp**:
+- Xử lý các sự kiện webhook `payment.failed` một cách thích hợp
+- Thông báo cho khách hàng cập nhật phương thức thanh toán
+- Thực hiện logic thử lại cho các lỗi tạm thời
+- Cân nhắc cho phép thay đổi kế hoạch với các khoản phí ngay lập tức không thành công
+</Accordion>
+
+<Accordion title="Đăng ký bị tạm dừng sau khi thay đổi kế hoạch">
+**Triệu chứng**: Khoản phí thay đổi kế hoạch không thành công và đăng ký chuyển sang trạng thái `on_hold`
+
+**Điều gì xảy ra**:
+Khi một khoản phí thay đổi kế hoạch không thành công, đăng ký sẽ tự động được đặt vào trạng thái `on_hold`. Đăng ký sẽ không tự động gia hạn cho đến khi phương thức thanh toán được cập nhật.
+
+**Giải pháp**: Cập nhật phương thức thanh toán để kích hoạt lại đăng ký
+
+Để kích hoạt lại một đăng ký từ trạng thái `on_hold` sau khi thay đổi kế hoạch không thành công:
+
+1. **Cập nhật phương thức thanh toán** bằng cách sử dụng API Cập nhật Phương thức Thanh toán
+2. **Tạo khoản phí tự động**: API tự động tạo một khoản phí cho các khoản nợ còn lại
+3. **Tạo hóa đơn**: Một hóa đơn được tạo cho khoản phí
+4. **Xử lý thanh toán**: Thanh toán được xử lý bằng phương thức thanh toán mới
+5. **Kích hoạt lại**: Sau khi thanh toán thành công, đăng ký được kích hoạt lại sang trạng thái `active`
+
+<CodeGroup>
+
+```javascript Node.js
+// Reactivate subscription from on_hold after failed plan change
+async function reactivateAfterFailedPlanChange(subscriptionId) {
+  // Update payment method - automatically creates charge for remaining dues
+  const response = await client.subscriptions.updatePaymentMethod(subscriptionId, {
+    type: 'new',
+    return_url: 'https://example.com/return'
+  });
+  
+  if (response.payment_id) {
+    console.log('Charge created for remaining dues:', response.payment_id);
+    console.log('Payment link:', response.payment_link);
+    
+    // Redirect customer to payment_link to complete payment
+    // Monitor webhooks for:
+    // 1. payment.succeeded - charge succeeded
+    // 2. subscription.active - subscription reactivated
+  }
+  
+  return response;
+}
+
+// Or use existing payment method if available
+async function reactivateWithExistingPaymentMethod(subscriptionId, paymentMethodId) {
+  const response = await client.subscriptions.updatePaymentMethod(subscriptionId, {
+    type: 'existing',
+    payment_method_id: paymentMethodId
+  });
+  
+  // Monitor webhooks for payment.succeeded and subscription.active
+  return response;
+}
+```
+
+```python Python
+# Reactivate subscription from on_hold after failed plan change
+def reactivate_after_failed_plan_change(subscription_id):
+    # Update payment method - automatically creates charge for remaining dues
+    response = client.subscriptions.update_payment_method(
+        subscription_id=subscription_id,
+        type="new",
+        return_url="https://example.com/return"
+    )
+    
+    if response.payment_id:
+        print("Charge created for remaining dues:", response.payment_id)
+        print("Payment link:", response.payment_link)
+        
+        # Redirect customer to payment_link to complete payment
+        # Monitor webhooks for:
+        # 1. payment.succeeded - charge succeeded
+        # 2. subscription.active - subscription reactivated
+    
+    return response
+
+# Or use existing payment method if available
+def reactivate_with_existing_payment_method(subscription_id, payment_method_id):
+    response = client.subscriptions.update_payment_method(
+        subscription_id=subscription_id,
+        type="existing",
+        payment_method_id=payment_method_id
+    )
+    
+    # Monitor webhooks for payment.succeeded and subscription.active
+    return response
+```
+
+</CodeGroup>
+
+**Các sự kiện webhook cần theo dõi**:
+- `subscription.on_hold`: Đăng ký đã bị tạm dừng (nhận được khi khoản phí thay đổi kế hoạch không thành công)
+- `payment.succeeded`: Thanh toán cho các khoản nợ còn lại đã thành công (sau khi cập nhật phương thức thanh toán)
+- `subscription.active`: Đăng ký đã được kích hoạt lại sau khi thanh toán thành công
+
+**Các thực hành tốt nhất**:
+- Thông báo ngay cho khách hàng khi khoản phí thay đổi kế hoạch không thành công
+- Cung cấp hướng dẫn rõ ràng về cách cập nhật phương thức thanh toán của họ
+- Giám sát các sự kiện webhook để theo dõi trạng thái kích hoạt lại
+- Cân nhắc triển khai logic thử lại tự động cho các lỗi thanh toán tạm thời
+
+<Card title="Tài liệu API Cập nhật Phương thức Thanh toán" icon="code" href="/api-reference/subscriptions/update-payment-method">
+Xem tài liệu API đầy đủ để cập nhật phương thức thanh toán và kích hoạt lại các đăng ký.
+</Card>
+</Accordion>
+</AccordionGroup>
+
+## Kiểm tra Việc Triển khai của Bạn
+
+Theo dõi các bước này để kiểm tra kỹ lưỡng việc triển khai thay đổi kế hoạch đăng ký của bạn:
+
+<Steps>
+<Step title="Thiết lập môi trường thử nghiệm">
+- Sử dụng khóa API thử nghiệm và các sản phẩm thử nghiệm
+- Tạo các đăng ký thử nghiệm với các loại kế hoạch khác nhau
+- Cấu hình điểm cuối webhook thử nghiệm
+- Thiết lập giám sát và ghi lại
+</Step>
+
+<Step title="Kiểm tra các chế độ proration khác nhau">
+- Kiểm tra `prorated_immediately` với các vị trí chu kỳ thanh toán khác nhau
+- Kiểm tra `difference_immediately` cho các nâng cấp và hạ cấp
+- Kiểm tra `full_immediately` để đặt lại các chu kỳ thanh toán
+- Xác minh rằng các phép tính tín dụng là chính xác
+</Step>
+
+<Step title="Kiểm tra xử lý webhook">
+- Xác minh rằng tất cả các sự kiện webhook liên quan đều được nhận
+- Kiểm tra xác minh chữ ký webhook
+- Xử lý các sự kiện webhook trùng lặp một cách nhẹ nhàng
+- Kiểm tra các kịch bản thất bại trong xử lý webhook
+</Step>
+
+<Step title="Kiểm tra các kịch bản lỗi">
+- Kiểm tra với các ID đăng ký không hợp lệ
+- Kiểm tra với các phương thức thanh toán đã hết hạn
+- Kiểm tra các lỗi mạng và thời gian chờ
+- Kiểm tra với các khoản tiền không đủ
+</Step>
+
+<Step title="Giám sát trong sản xuất">
+- Thiết lập cảnh báo cho các thay đổi kế hoạch không thành công
+- Giám sát thời gian xử lý webhook
+- Theo dõi tỷ lệ thành công của các thay đổi kế hoạch
+- Xem xét các vé hỗ trợ khách hàng cho các vấn đề thay đổi kế hoạch
+</Step>
+</Steps>
+
+## Xử lý Lỗi
+
+Xử lý các lỗi API phổ biến một cách nhẹ nhàng trong việc triển khai của bạn:
+
+### Mã Trạng thái HTTP
+
+<AccordionGroup>
+<Accordion title="200 OK">
+Yêu cầu thay đổi kế hoạch đã được xử lý thành công. Đăng ký đang được cập nhật và quá trình thanh toán đã bắt đầu.
+</Accordion>
+
+<Accordion title="400 Bad Request">
+Tham số yêu cầu không hợp lệ. Kiểm tra rằng tất cả các trường bắt buộc đã được cung cấp và định dạng đúng.
+</Accordion>
+
+<Accordion title="401 Unauthorized">
+Khóa API không hợp lệ hoặc thiếu. Xác minh rằng `DODO_PAYMENTS_API_KEY` của bạn là chính xác và có quyền truy cập phù hợp.
+</Accordion>
+
+<Accordion title="404 Not Found">
+ID đăng ký không được tìm thấy hoặc không thuộc về tài khoản của bạn.
+</Accordion>
+
+<Accordion title="422 Unprocessable Entity">
+Đăng ký không thể được thay đổi (ví dụ: đã bị hủy, sản phẩm không có sẵn, v.v.).
+</Accordion>
+
+<Accordion title="500 Internal Server Error">
+Đã xảy ra lỗi máy chủ. Thử lại yêu cầu sau một khoảng thời gian ngắn.
+</Accordion>
+</AccordionGroup>
+
+### Định dạng Phản hồi Lỗi
+
+```json
+{
+  "error": {
+    "code": "subscription_not_found",
+    "message": "The subscription with ID 'sub_123' was not found",
+    "details": {
+      "subscription_id": "sub_123"
+    }
+  }
+}
+```
+
+## Các bước tiếp theo
+
+- Xem lại <a href="/api-reference/subscriptions/change-plan">API Thay đổi Kế hoạch</a>
+- Khám phá <a href="/features/customer-credit">Tín dụng Khách hàng</a>
+- Triển khai cảnh báo cho `subscription.on_hold`
+- Kiểm tra Hướng dẫn Tích hợp <a href="/developer-resources/webhooks">Webhook</a>

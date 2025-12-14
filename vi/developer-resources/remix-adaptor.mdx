@@ -1,0 +1,626 @@
+---
+title: Bộ điều hợp Remix
+description: Tìm hiểu cách tích hợp Dodo Payments với dự án Remix App Router của
+  bạn bằng cách sử dụng Bộ điều hợp Remix của chúng tôi. Bao gồm thanh toán,
+  cổng thông tin khách hàng, webhook và thiết lập môi trường an toàn.
+icon: code-merge
+---
+
+<CardGroup cols={2}>
+<Card title="Xử lý Thanh toán" icon="cart-shopping" href="#checkout-route-handler">
+    Tích hợp thanh toán Dodo Payments vào ứng dụng Remix của bạn.
+</Card>
+<Card title="Cổng Thông Tin Khách Hàng" icon="user" href="#customer-portal-route-handler">
+    Cho phép khách hàng quản lý đăng ký và thông tin.
+</Card>
+<Card title="Webhook" icon="bell" href="#webhook-route-handler">
+    Nhận và xử lý các sự kiện webhook của Dodo Payments.
+</Card>
+</CardGroup>
+
+## Cài đặt
+
+<Steps>
+<Step title="Cài đặt gói">
+Chạy lệnh sau trong thư mục gốc của dự án bạn:
+
+```bash
+npm install @dodopayments/remix
+```
+
+</Step>
+<Step title="Thiết lập biến môi trường">
+Tạo một tệp <code>.env</code> trong thư mục gốc của dự án bạn:
+
+```env expandable
+DODO_PAYMENTS_API_KEY=your-api-key
+DODO_PAYMENTS_WEBHOOK_SECRET=your-webhook-secret
+DODO_PAYMENTS_RETURN_URL=https://yourdomain.com/checkout/success
+DODO_PAYMENTS_ENVIRONMENT="test_mode" or "live_mode"
+```
+
+<Warning>
+Không bao giờ cam kết tệp <code>.env</code> hoặc bí mật của bạn vào hệ thống kiểm soát phiên bản.
+</Warning>
+</Step>
+</Steps>
+
+## Ví dụ về Xử lý Đường dẫn
+
+<Info>
+Tất cả các ví dụ đều giả định rằng bạn đang sử dụng Remix App Router.
+</Info>
+
+<Tabs>
+<Tab title="Xử lý Thanh toán">
+  <Info>
+  Sử dụng bộ xử lý này để tích hợp thanh toán Dodo Payments vào ứng dụng Remix của bạn. Hỗ trợ các luồng thanh toán tĩnh (GET), động (POST) và phiên (POST).
+  </Info>
+  <CodeGroup>
+
+    ```typescript Remix Route Handler expandable
+    // app/routes/api.checkout.tsx
+    import { Checkout } from "@dodopayments/remix";
+    import type { LoaderFunctionArgs } from "@remix-run/node";
+
+    const checkoutGetHandler = Checkout({
+        bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+        returnUrl: process.env.DODO_PAYMENTS_RETURN_URL,
+        environment: process.env.DODO_PAYMENTS_ENVIRONMENT,
+        type: "static"
+    });
+
+    const checkoutPostHandler = Checkout({
+        bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+        returnUrl: process.env.DODO_PAYMENTS_RETURN_URL,
+        environment: process.env.DODO_PAYMENTS_ENVIRONMENT,
+        type: "dynamic", // for dynamic checkout
+    });
+
+    const checkoutSessionHandler = Checkout({
+        bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+        returnUrl: process.env.DODO_PAYMENTS_RETURN_URL,
+        environment: process.env.DODO_PAYMENTS_ENVIRONMENT,
+        type: "session", // for checkout sessions
+    });
+
+    export const loader = ({ request }: LoaderFunctionArgs) => checkoutGetHandler(request);
+    export const action = ({ request }: LoaderFunctionArgs) => {
+        // You can conditionally route to different handlers based on your needs
+        // For checkout sessions, use checkoutSessionHandler(request)
+        return checkoutPostHandler(request);
+    };
+    ```
+
+  </CodeGroup>
+  <CodeGroup>
+
+  ```curl Static Checkout Curl example expandable
+  curl --request GET \
+  --url 'https://example.com/api/checkout?productId=pdt_fqJhl7pxKWiLhwQR042rh' \
+  --header 'User-Agent: insomnia/11.2.0' \
+  --cookie mode=test
+  ```
+
+  </CodeGroup>
+  <CodeGroup>
+
+  ```curl Dynamic Checkout Curl example expandable
+  curl --request POST \
+  --url https://example.com/api/checkout \
+  --header 'Content-Type: application/json' \
+  --header 'User-Agent: insomnia/11.2.0' \
+  --cookie mode=test \
+  --data '{
+  "billing": {
+    "city": "Texas",
+    "country": "US",
+    "state": "Texas",
+    "street": "56, hhh",
+    "zipcode": "560000"
+  },
+  "customer": {
+    "email": "test@example.com",
+		"name": "test"
+  },
+  "metadata": {},
+  "payment_link": true,
+	"product_id": "pdt_QMDuvLkbVzCRWRQjLNcs",
+	"quantity": 1,
+	"billing_currency": "USD",
+	"discount_code": "IKHZ23M9GQ",
+    "return_url": "https://example.com",
+	"trial_period_days": 10
+}'
+  ```
+
+  </CodeGroup>
+  <CodeGroup>
+
+  ```curl Checkout Session Curl example expandable
+  curl --request POST \
+  --url https://example.com/api/checkout \
+  --header 'Content-Type: application/json' \
+  --header 'User-Agent: insomnia/11.2.0' \
+  --cookie mode=test \
+  --data '{
+  "product_cart": [
+    {
+      "product_id": "pdt_QMDuvLkbVzCRWRQjLNcs",
+      "quantity": 1
+    }
+  ],
+  "customer": {
+    "email": "test@example.com",
+    "name": "test"
+  },
+  "return_url": "https://example.com/success"
+}'
+  ```
+
+  </CodeGroup>
+
+</Tab>
+<Tab title="Xử lý Cổng Thông Tin Khách Hàng">
+  <Info>
+  Sử dụng bộ xử lý này để cho phép khách hàng quản lý đăng ký và thông tin của họ thông qua cổng thông tin khách hàng Dodo Payments.
+  </Info>
+  <CodeGroup>
+
+    ```typescript Remix Route Handler expandable
+    // app/routes/api.customer-portal.tsx
+    import { CustomerPortal } from "@dodopayments/remix";
+    import type { LoaderFunctionArgs } from "@remix-run/node";
+
+    const customerPortalHandler = CustomerPortal({
+        bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+        environment: process.env.DODO_PAYMENTS_ENVIRONMENT
+    });
+
+    export const loader = ({ request }: LoaderFunctionArgs) => customerPortalHandler(request);
+    ```
+
+  </CodeGroup>
+  <CodeGroup>
+
+  ```curl Customer Portal Curl example expandable
+  curl --request GET \
+  --url 'https://example.com/api/customer-portal?customer_id=cus_9VuW4K7O3GHwasENg31m&send_email=true' \
+  --header 'User-Agent: insomnia/11.2.0' \
+  --cookie mode=test
+  ```
+
+  </CodeGroup>
+</Tab>
+<Tab title="Xử lý Webhook">
+  <Info>
+  Sử dụng bộ xử lý này để nhận và xử lý các sự kiện webhook của Dodo Payments một cách an toàn trong ứng dụng Remix của bạn.
+  </Info>
+  <CodeGroup>
+
+    ```typescript Remix Route Handler expandable
+    // app/routes/api.webhook.tsx
+    import { Webhooks } from "@dodopayments/remix";
+    import type { LoaderFunctionArgs } from "@remix-run/node";
+
+    const webhookHandler = Webhooks({
+    webhookKey: process.env.DODO_PAYMENTS_WEBHOOK_SECRET,
+    onPayload: async (payload) => {
+        //Handle Payload Here
+        console.log(payload)
+    }
+    });
+    export const action = ({ request }: LoaderFunctionArgs) => webhookHandler(request);
+    ```
+
+  </CodeGroup>
+</Tab>
+</Tabs>
+
+## Xử lý Đường dẫn Thanh toán
+
+<Info>
+Dodo Payments hỗ trợ ba loại luồng thanh toán để tích hợp thanh toán vào trang web của bạn, bộ điều hợp này hỗ trợ tất cả các loại luồng thanh toán.
+</Info>
+
+- **Liên kết Thanh toán Tĩnh:** URL có thể chia sẻ ngay lập tức để thu thập thanh toán nhanh chóng, không cần mã.
+- **Liên kết Thanh toán Động:** Tạo liên kết thanh toán theo chương trình với các chi tiết tùy chỉnh bằng cách sử dụng API hoặc SDK.
+- **Phiên Thanh toán:** Tạo trải nghiệm thanh toán an toàn, tùy chỉnh với giỏ hàng sản phẩm và thông tin khách hàng đã được cấu hình trước.
+
+<AccordionGroup>
+<Accordion title="Thanh toán Tĩnh (GET)">
+
+### Tham số Truy vấn Hỗ trợ
+<ParamField query="productId" type="string" required>
+Mã định danh sản phẩm (ví dụ: <code>?productId=pdt_nZuwz45WAs64n3l07zpQR</code>).
+</ParamField>
+<ParamField query="quantity" type="integer">
+Số lượng sản phẩm.
+</ParamField>
+<ParamField query="fullName" type="string">
+Họ và tên của khách hàng.
+</ParamField>
+<ParamField query="firstName" type="string">
+Tên của khách hàng.
+</ParamField>
+<ParamField query="lastName" type="string">
+Họ của khách hàng.
+</ParamField>
+<ParamField query="email" type="string">
+Địa chỉ email của khách hàng.
+</ParamField>
+<ParamField query="country" type="string">
+Quốc gia của khách hàng.
+</ParamField>
+<ParamField query="addressLine" type="string">
+Địa chỉ của khách hàng.
+</ParamField>
+<ParamField query="city" type="string">
+Thành phố của khách hàng.
+</ParamField>
+<ParamField query="state" type="string">
+Tiểu bang/tỉnh của khách hàng.
+</ParamField>
+<ParamField query="zipCode" type="string">
+Mã bưu điện của khách hàng.
+</ParamField>
+<ParamField query="disableFullName" type="boolean">
+Vô hiệu hóa trường họ và tên.
+</ParamField>
+<ParamField query="disableFirstName" type="boolean">
+Vô hiệu hóa trường tên.
+</ParamField>
+<ParamField query="disableLastName" type="boolean">
+Vô hiệu hóa trường họ.
+</ParamField>
+<ParamField query="disableEmail" type="boolean">
+Vô hiệu hóa trường email.
+</ParamField>
+<ParamField query="disableCountry" type="boolean">
+Vô hiệu hóa trường quốc gia.
+</ParamField>
+<ParamField query="disableAddressLine" type="boolean">
+Vô hiệu hóa trường địa chỉ.
+</ParamField>
+<ParamField query="disableCity" type="boolean">
+Vô hiệu hóa trường thành phố.
+</ParamField>
+<ParamField query="disableState" type="boolean">
+Vô hiệu hóa trường tiểu bang.
+</ParamField>
+<ParamField query="disableZipCode" type="boolean">
+Vô hiệu hóa trường mã bưu điện.
+</ParamField>
+<ParamField query="paymentCurrency" type="string">
+Chỉ định loại tiền tệ thanh toán (ví dụ: <code>USD</code>).
+</ParamField>
+<ParamField query="showCurrencySelector" type="boolean">
+Hiển thị trình chọn tiền tệ.
+</ParamField>
+<ParamField query="paymentAmount" type="integer">
+Chỉ định số tiền thanh toán (ví dụ: <code>1000</code> cho $10.00).
+</ParamField>
+<ParamField query="showDiscounts" type="boolean">
+Hiển thị các trường giảm giá.
+</ParamField>
+<ParamField query="metadata_*" type="string">
+Bất kỳ tham số truy vấn nào bắt đầu bằng <code>metadata_</code> sẽ được truyền dưới dạng metadata.
+</ParamField>
+
+<Warning>
+Nếu <code>productId</code> bị thiếu, bộ xử lý sẽ trả về phản hồi 400. Các tham số truy vấn không hợp lệ cũng dẫn đến phản hồi 400.
+</Warning>
+
+### Định dạng Phản hồi
+Thanh toán tĩnh trả về phản hồi JSON với URL thanh toán:
+
+```json
+{
+  "checkout_url": "https://checkout.dodopayments.com/..."
+}
+```
+
+</Accordion>
+<Accordion title="Thanh toán Động (POST)">
+- Gửi các tham số dưới dạng thân JSON trong yêu cầu POST.
+- Hỗ trợ cả thanh toán một lần và định kỳ.
+- Để có danh sách đầy đủ các trường thân POST được hỗ trợ, hãy tham khảo:
+  - [Thân yêu cầu cho Sản phẩm Thanh toán Một lần](https://docs.dodopayments.com/api-reference/payments/post-payments)
+  - [Thân yêu cầu cho Sản phẩm Đăng ký](https://docs.dodopayments.com/api-reference/subscriptions/post-subscriptions)
+
+### Định dạng Phản hồi
+Thanh toán động trả về phản hồi JSON với URL thanh toán:
+
+```json
+{
+  "checkout_url": "https://checkout.dodopayments.com/..."
+}
+```
+
+</Accordion>
+<Accordion title="Phiên Thanh toán (POST)">
+Các phiên thanh toán cung cấp trải nghiệm thanh toán an toàn hơn, được lưu trữ, xử lý toàn bộ luồng thanh toán cho cả mua hàng một lần và đăng ký với quyền kiểm soát tùy chỉnh đầy đủ.
+
+Tham khảo [Hướng dẫn Tích hợp Phiên Thanh toán](https://docs.dodopayments.com/developer-resources/checkout-session) để biết thêm chi tiết và danh sách đầy đủ các trường được hỗ trợ.
+
+### Định dạng Phản hồi
+Các phiên thanh toán trả về phản hồi JSON với URL thanh toán:
+
+```json
+{
+  "checkout_url": "https://checkout.dodopayments.com/session/..."
+}
+```
+
+</Accordion>
+</AccordionGroup>
+
+## Xử lý Đường dẫn Cổng Thông Tin Khách Hàng
+
+Bộ xử lý Đường dẫn Cổng Thông Tin Khách Hàng cho phép bạn tích hợp liền mạch cổng thông tin khách hàng Dodo Payments vào ứng dụng Remix của bạn.
+
+### Tham số Truy vấn
+<ParamField query="customer_id" type="string" required>
+Mã khách hàng cho phiên cổng (ví dụ: <code>?customer_id=cus_123</code>).
+</ParamField>
+<ParamField query="send_email" type="boolean">
+Nếu được đặt thành <code>true</code>, sẽ gửi email cho khách hàng với liên kết cổng.
+</ParamField>
+
+<Warning>
+Trả về 400 nếu <code>customer_id</code> bị thiếu.
+</Warning>
+
+## Xử lý Đường dẫn Webhook
+
+- **Phương thức:** Chỉ hỗ trợ yêu cầu POST. Các phương thức khác trả về 405.
+- **Xác minh Chữ ký:** Xác minh chữ ký webhook bằng cách sử dụng <code>webhookKey</code>. Trả về 401 nếu xác minh thất bại.
+- **Xác thực Tải trọng:** Được xác thực bằng Zod. Trả về 400 cho các tải trọng không hợp lệ.
+- **Xử lý Lỗi:**
+  - 401: Chữ ký không hợp lệ
+  - 400: Tải trọng không hợp lệ
+  - 500: Lỗi nội bộ trong quá trình xác minh
+- **Định tuyến Sự kiện:** Gọi bộ xử lý sự kiện thích hợp dựa trên loại tải trọng.
+
+### Các Bộ xử lý Sự kiện Webhook Hỗ trợ
+<CodeGroup>
+
+```typescript Typescript expandable
+onPayload?: (payload: WebhookPayload) => Promise<void>;
+onPaymentSucceeded?: (payload: WebhookPayload) => Promise<void>;
+onPaymentFailed?: (payload: WebhookPayload) => Promise<void>;
+onPaymentProcessing?: (payload: WebhookPayload) => Promise<void>;
+onPaymentCancelled?: (payload: WebhookPayload) => Promise<void>;
+onRefundSucceeded?: (payload: WebhookPayload) => Promise<void>;
+onRefundFailed?: (payload: WebhookPayload) => Promise<void>;
+onDisputeOpened?: (payload: WebhookPayload) => Promise<void>;
+onDisputeExpired?: (payload: WebhookPayload) => Promise<void>;
+onDisputeAccepted?: (payload: WebhookPayload) => Promise<void>;
+onDisputeCancelled?: (payload: WebhookPayload) => Promise<void>;
+onDisputeChallenged?: (payload: WebhookPayload) => Promise<void>;
+onDisputeWon?: (payload: WebhookPayload) => Promise<void>;
+onDisputeLost?: (payload: WebhookPayload) => Promise<void>;
+onSubscriptionActive?: (payload: WebhookPayload) => Promise<void>;
+onSubscriptionOnHold?: (payload: WebhookPayload) => Promise<void>;
+onSubscriptionRenewed?: (payload: WebhookPayload) => Promise<void>;
+onSubscriptionPlanChanged?: (payload: WebhookPayload) => Promise<void>;
+onSubscriptionCancelled?: (payload: WebhookPayload) => Promise<void>;
+onSubscriptionFailed?: (payload: WebhookPayload) => Promise<void>;
+onSubscriptionExpired?: (payload: WebhookPayload) => Promise<void>;
+onLicenseKeyCreated?: (payload: WebhookPayload) => Promise<void>;
+```
+
+</CodeGroup>
+
+---
+
+## Lời nhắc cho LLM
+
+```
+
+You are an expert Remix developer assistant. Your task is to guide a user through integrating the @dodopayments/remix adapter into their existing Remix project.
+
+The @dodopayments/remix adapter provides route handlers for Dodo Payments' Checkout, Customer Portal, and Webhook functionalities, designed for Remix route handlers.
+
+First, install the necessary packages. Use the package manager appropriate for your project (npm, yarn, or bun) based on the presence of lock files (e.g., package-lock.json for npm, yarn.lock for yarn, bun.lockb for bun):
+
+npm install @dodopayments/remix
+
+Here's how you should structure your response:
+
+    Ask the user which functionalities they want to integrate.
+
+"Which parts of the @dodopayments/remix adapter would you like to integrate into your project? You can choose one or more of the following:
+
+    Checkout Route Handler (for handling product checkouts)
+
+    Customer Portal Route Handler (for managing customer subscriptions/details)
+
+    Webhook Route Handler (for receiving Dodo Payments webhook events)
+
+    All (integrate all three)"
+
+    Based on the user's selection, provide detailed integration steps for each chosen functionality.
+
+If Checkout Route Handler is selected:
+
+Purpose: This handler redirects users to the Dodo Payments checkout page.
+File Creation: Create a new file at app/routes/api.checkout.tsx in your Remix project.
+
+Code Snippet:
+
+// app/routes/api.checkout.tsx
+import { Checkout } from "@dodopayments/remix";
+import type { LoaderFunctionArgs } from "@remix-run/node";
+
+const checkoutGetHandler = Checkout({
+  bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+  returnUrl: process.env.DODO_PAYMENTS_RETURN_URL,
+  environment: process.env.DODO_PAYMENTS_ENVIRONMENT,
+  type: "static",
+});
+
+const checkoutPostHandler = Checkout({
+  bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+  returnUrl: process.env.DODO_PAYMENTS_RETURN_URL,
+  environment: process.env.DODO_PAYMENTS_ENVIRONMENT,
+  type: "dynamic", // for dynamic checkout
+});
+
+const checkoutSessionHandler = Checkout({
+  bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+  returnUrl: process.env.DODO_PAYMENTS_RETURN_URL,
+  environment: process.env.DODO_PAYMENTS_ENVIRONMENT,
+  type: "session", // for checkout sessions
+});
+
+export const loader = ({ request }: LoaderFunctionArgs) => checkoutGetHandler(request);
+
+export const action = ({ request }: LoaderFunctionArgs) => {
+  // You can conditionally route to different handlers based on your needs
+  // For checkout sessions, use checkoutSessionHandler(request)
+  return checkoutPostHandler(request);
+};
+
+If Customer Portal Route Handler is selected:
+
+Purpose: This handler redirects authenticated users to their Dodo Payments customer portal.
+File Creation: Create a new file at app/routes/api.customer-portal.tsx in your Remix project.
+
+Code Snippet:
+
+// app/routes/api.customer-portal.tsx
+import { CustomerPortal } from "@dodopayments/remix";
+import type { LoaderFunctionArgs } from "@remix-run/node";
+
+const customerPortalHandler = CustomerPortal({
+  bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+  environment: process.env.DODO_PAYMENTS_ENVIRONMENT
+});
+
+export const loader = ({ request }: LoaderFunctionArgs) => customerPortalHandler(request);
+
+Query Parameters:
+
+    customer_id (required): The customer ID for the portal session (e.g., ?customer_id=cus_123)
+
+    send_email (optional, boolean): If set to true, sends an email to the customer with the portal link.
+
+    Returns 400 if customer_id is missing.
+
+If Webhook Route Handler is selected:
+
+Purpose: This handler processes incoming webhook events from Dodo Payments, allowing your application to react to events like successful payments, refunds, or subscription changes.
+File Creation: Create a new file at app/routes/api.webhook.tsx in your Remix project.
+
+Code Snippet:
+
+// app/routes/api.webhook.tsx
+import { Webhooks } from "@dodopayments/remix";
+import type { LoaderFunctionArgs } from "@remix-run/node";
+
+const webhookHandler = Webhooks({
+  webhookKey: process.env.DODO_PAYMENTS_WEBHOOK_SECRET,
+  onPayload: async (payload) => {
+    //Handle Payload Here
+    console.log(payload)
+  }
+});
+
+export const action = ({ request }: LoaderFunctionArgs) => webhookHandler(request);
+
+Handler Details:
+
+    Method: Only POST requests are supported. Other methods return 405.
+
+    Signature Verification: The handler verifies the webhook signature using the webhookKey and returns 401 if verification fails.
+
+    Payload Validation: The payload is validated with Zod. Returns 400 for invalid payloads.
+
+Error Handling:
+
+    401: Invalid signature
+
+    400: Invalid payload
+
+    500: Internal error during verification
+
+Event Routing: Calls the appropriate event handler based on the payload type.
+
+Supported Webhook Event Handlers:
+
+    onPayload?: (payload: WebhookPayload) => Promise<void>
+
+    onPaymentSucceeded?: (payload: WebhookPayload) => Promise<void>
+
+    onPaymentFailed?: (payload: WebhookPayload) => Promise<void>
+
+    onPaymentProcessing?: (payload: WebhookPayload) => Promise<void>
+
+    onPaymentCancelled?: (payload: WebhookPayload) => Promise<void>
+
+    onRefundSucceeded?: (payload: WebhookPayload) => Promise<void>
+
+    onRefundFailed?: (payload: WebhookPayload) => Promise<void>
+
+    onDisputeOpened?: (payload: WebhookPayload) => Promise<void>
+
+    onDisputeExpired?: (payload: WebhookPayload) => Promise<void>
+
+    onDisputeAccepted?: (payload: WebhookPayload) => Promise<void>
+
+    onDisputeCancelled?: (payload: WebhookPayload) => Promise<void>
+
+    onDisputeChallenged?: (payload: WebhookPayload) => Promise<void>
+
+    onDisputeWon?: (payload: WebhookPayload) => Promise<void>
+
+    onDisputeLost?: (payload: WebhookPayload) => Promise<void>
+
+    onSubscriptionActive?: (payload: WebhookPayload) => Promise<void>
+
+    onSubscriptionOnHold?: (payload: WebhookPayload) => Promise<void>
+
+    onSubscriptionRenewed?: (payload: WebhookPayload) => Promise<void>
+
+    onSubscriptionPaused?: (payload: WebhookPayload) => Promise<void>
+
+    onSubscriptionPlanChanged?: (payload: WebhookPayload) => Promise<void>
+
+    onSubscriptionCancelled?: (payload: WebhookPayload) => Promise<void>
+
+    onSubscriptionFailed?: (payload: WebhookPayload) => Promise<void>
+
+    onSubscriptionExpired?: (payload: WebhookPayload) => Promise<void>
+
+    onLicenseKeyCreated?: (payload: WebhookPayload) => Promise<void>
+
+    Environment Variable Setup:
+
+To ensure the adapter functions correctly, you will need to manually set up the following environment variables in your Remix project's deployment environment (e.g., Vercel, Netlify, AWS, etc.):
+
+    DODO_PAYMENTS_API_KEY: Your Dodo Payments API Key (required for Checkout and Customer Portal).
+
+    DODO_PAYMENTS_RETURN_URL: (Optional) The URL to redirect to after a successful checkout (for Checkout handler).
+
+    DODO_PAYMENTS_ENVIRONMENT: (Optional) The environment for the API (e.g., test or live).
+
+    DODO_PAYMENTS_WEBHOOK_SECRET: Your Dodo Payments Webhook Secret (required for Webhook handler).
+
+Example .env file:
+
+DODO_PAYMENTS_API_KEY=your-api-key
+DODO_PAYMENTS_RETURN_URL=your-return-url
+DODO_PAYMENTS_ENVIRONMENT=test
+DODO_PAYMENTS_WEBHOOK_SECRET=your-webhook-secret
+
+Usage in your code:
+
+bearerToken: process.env.DODO_PAYMENTS_API_KEY
+webhookKey: process.env.DODO_PAYMENTS_WEBHOOK_SECRET
+
+Important: Never commit sensitive environment variables directly into your version control. Use environment variables for all sensitive information.
+
+If the user needs assistance setting up environment variables for their specific deployment environment, ask them what platform they are using (e.g., Vercel, Netlify, AWS, etc.), and provide guidance. You can also add comments to their PR or chat depending on the context
+
+```

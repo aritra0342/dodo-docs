@@ -1,0 +1,191 @@
+---
+title: Panduan Metadata
+description: Pelajari cara menggunakan metadata untuk menyimpan informasi
+  tambahan tentang objek Dodo Payments Anda
+icon: tags
+---
+
+## Pendahuluan
+
+Metadata memungkinkan Anda untuk menyimpan informasi tambahan yang terstruktur tentang objek Anda di Dodo Payments. Anda dapat melampirkan metadata ke sebagian besar objek Dodo Payments, termasuk pembayaran, langganan, dan lainnya.
+
+## Ikhtisar
+
+- Kunci metadata dapat memiliki panjang hingga 40 karakter
+- Nilai metadata dapat memiliki panjang hingga 500 karakter
+- Anda dapat memiliki hingga 50 pasangan kunci-nilai metadata per objek
+- Kunci hanya boleh berisi karakter alfanumerik, tanda hubung, dan garis bawah
+- Metadata tidak dapat dicari menggunakan API kami tetapi dikembalikan dalam respons API dan webhook
+
+## Kasus Penggunaan
+
+Metadata berguna untuk:
+
+- Menyimpan ID atau referensi eksternal
+- Menambahkan anotasi internal
+- Menghubungkan objek Dodo Payments ke sistem Anda
+- Mengkategorikan transaksi
+- Menambahkan atribut kustom untuk pelaporan
+
+## Menambahkan Metadata
+
+Anda dapat menambahkan metadata saat membuat atau memperbarui objek melalui API. Untuk produk, Anda juga memiliki opsi untuk menambahkan metadata langsung dari UI dasbor.
+
+### Melalui API
+
+```javascript
+// Adding metadata when creating a checkout session
+const checkoutSession = await client.checkoutSessions.create({
+    product_cart: [{ product_id: 'product_id', quantity: 1 }],
+    return_url: 'https://example.com/return',
+    metadata: {
+        order_id: 'ORD-123',
+        campaign_source: 'email',
+        customer_segment: 'premium'
+    }
+});
+
+// Adding metadata when creating a payment
+const payment = await client.payments.create({
+    billing: { city: 'city', country: 'AF', state: 'state', street: 'street', zipcode: 0 },
+    customer: { customer_id: 'customer_id' },
+    product_cart: [{ product_id: 'product_id', quantity: 0 }],
+    metadata:{order_id: 'ORD-123', customer_notes: 'Customer notes'}
+  });
+
+// Adding metadata when creating a product
+const product = await client.products.create({
+    name: 'Premium Software License',
+    price: 9900,
+    currency: 'USD',
+    metadata: {
+        category: 'software',
+        license_type: 'premium',
+        support_tier: 'priority'
+    }
+});
+
+// Adding metadata when creating a customer
+const customer = await client.customers.create({
+    email: 'customer@example.com',
+    name: 'John Doe',
+    metadata: {
+        crm_id: 'CRM-12345',
+        customer_segment: 'enterprise',
+        referral_source: 'website'
+    }
+});
+```
+
+### Melalui UI Dasbor (Hanya Produk)
+
+Untuk produk, Anda juga dapat menambahkan metadata langsung dari dasbor Dodo Payments saat membuat atau mengedit produk. Bagian metadata memungkinkan Anda untuk dengan mudah menambahkan pasangan kunci-nilai kustom tanpa menulis kode.
+
+<Frame>
+<img src="/images/product-catalog/product-metadata-ui.png" alt="Antarmuka metadata produk di dasbor Dodo Payments" />
+</Frame>
+
+<Tip>
+Menggunakan UI dasbor untuk metadata produk sangat berguna bagi anggota tim non-teknis yang perlu mengelola informasi dan kategori produk.
+</Tip>
+
+## Mengambil Metadata
+
+Metadata disertakan dalam respons API saat mengambil objek:
+
+```javascript
+// Retrieving checkout session metadata
+const checkoutSession = await client.checkoutSessions.retrieve('cs_123');
+console.log(checkoutSession.metadata.order_id); // 'ORD-123'
+
+// Retrieving payment metadata
+const payment = await client.payments.retrieve('pay_123');
+console.log(payment.metadata.order_id); // '6735'
+
+// Retrieving customer metadata
+const customer = await client.customers.retrieve('customer_123');
+console.log(customer.metadata.crm_id); // 'CRM-12345'
+
+// Retrieving refund metadata
+const refund = await client.refunds.retrieve('refund_123');
+console.log(refund.metadata.refund_reason); // 'customer_request'
+```
+
+## Pencarian dan Penyaringan
+
+Meskipun metadata tidak dapat dicari secara langsung melalui API kami, Anda dapat:
+
+1. Menyimpan pengidentifikasi penting dalam metadata
+2. Mengambil objek menggunakan ID utama mereka
+3. Menyaring hasil dalam kode aplikasi Anda
+
+```javascript
+// Example: Find a checkout session using metadata
+const checkoutSessions = await client.checkoutSessions.list({
+  limit: 100
+});
+
+const matchingSession = checkoutSessions.data.find(
+  session => session.metadata?.order_id === 'ORD-123'
+);
+
+// Example: Find a payment using your order ID
+const payments = await client.payments.list({
+  limit: 100
+});
+
+const matchingPayment = payments.data.find(
+  payment => payment.metadata.order_id === '6735'
+);
+```
+
+## Praktik Terbaik
+
+### Lakukan:
+- Gunakan konvensi penamaan yang konsisten untuk kunci metadata
+- Dokumentasikan skema metadata Anda secara internal
+- Jaga nilai tetap singkat dan bermakna
+- Gunakan metadata hanya untuk data statis
+- Pertimbangkan untuk menggunakan awalan untuk sistem yang berbeda (misalnya, `crm_id`, `inventory_sku`)
+
+### Jangan:
+- Menyimpan data sensitif dalam metadata
+- Menggunakan metadata untuk nilai yang sering berubah
+- Mengandalkan metadata untuk logika bisnis yang kritis
+- Menyimpan informasi duplikat yang tersedia di tempat lain dalam objek
+- Menggunakan karakter khusus dalam kunci metadata
+
+## Objek yang Didukung
+
+Metadata didukung pada objek berikut:
+
+| Tipe Objek | Dukungan |
+|------------|---------|
+| Pembayaran | ✓ |
+| Langganan | ✓ |
+| Produk | ✓ |
+| Pengembalian Dana | ✓ |
+| Sesi Checkout | ✓ |
+| Pelanggan | ✓ |
+
+## Webhook dan Metadata
+
+Metadata disertakan dalam peristiwa webhook, memudahkan untuk menangani notifikasi dengan data kustom Anda:
+
+```javascript
+// Example webhook handler
+app.post('/webhook', (req, res) => {
+  const event = req.body;
+
+  if (event.type === 'payment.succeeded') {
+    const orderId = event.data.object.metadata.order_id;
+    // Process order using your internal order ID
+  }
+  
+  if (event.type === 'checkout.session.completed') {
+    const orderId = event.data.object.metadata.order_id;
+    const campaignSource = event.data.object.metadata.campaign_source;
+    // Handle checkout session completion with custom metadata
+  }
+});
+```

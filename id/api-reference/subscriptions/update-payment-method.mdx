@@ -1,0 +1,53 @@
+---
+openapi: post /subscriptions/{subscription_id}/update-payment-method
+title: Perbarui Metode Pembayaran
+description: Perbarui metode pembayaran untuk langganan yang ada. Anda dapat
+  menambahkan metode pembayaran baru atau menggunakan yang sudah ada dari metode
+  pembayaran yang disimpan oleh pelanggan.
+---
+
+Perbarui metode pembayaran untuk sebuah langganan. Endpoint ini mendukung baik langganan aktif maupun langganan dalam `on_hold` state.
+
+<Info>
+Untuk langganan dalam `on_hold` state, memperbarui metode pembayaran secara otomatis membuat tagihan untuk sisa utang, menghasilkan faktur, dan mengaktifkan kembali langganan ke `active` state setelah pembayaran berhasil.
+</Info>
+
+### Kasus Penggunaan
+
+- **Langganan aktif**: Perbarui metode pembayaran ketika kartu kedaluwarsa atau pelanggan ingin menggunakan metode pembayaran yang berbeda
+- **Langganan ditangguhkan**: Mengaktifkan kembali langganan yang ditangguhkan karena pembayaran gagal dengan memperbarui metode pembayaran
+- **Manajemen metode pembayaran**: Beralih antara metode pembayaran yang disimpan atau menambahkan yang baru
+
+<Info>
+Untuk mencantumkan metode pembayaran yang ada untuk seorang pelanggan, gunakan [List Payment Methods API](/api-reference/customers/get-customer-payment-methods). Ini membantu Anda mengambil ID metode pembayaran yang tersedia saat menggunakan `type: "existing"` untuk memperbarui metode pembayaran langganan.
+</Info>
+
+### Perilaku untuk Langganan Aktif
+
+Saat memperbarui metode pembayaran untuk langganan aktif:
+
+- Metode pembayaran diperbarui segera
+- Tidak ada biaya yang dibuat
+- Langganan tetap aktif
+- Pembaruan di masa depan akan menggunakan metode pembayaran baru
+
+### Perilaku untuk Langganan Ditangguhkan
+
+Saat memperbarui metode pembayaran untuk langganan dalam `on_hold` state:
+
+1. Biaya secara otomatis dibuat untuk sisa utang
+2. Faktur dihasilkan untuk biaya tersebut
+3. Pembayaran diproses menggunakan metode pembayaran baru
+4. Setelah pembayaran berhasil, langganan diaktifkan kembali ke `active` state
+5. Anda akan menerima peristiwa webhook: `payment.succeeded` diikuti oleh `subscription.active`
+
+<Warning>
+Jika pembayaran gagal setelah memperbarui metode pembayaran untuk langganan `on_hold`, langganan akan tetap dalam `on_hold` state. Pantau peristiwa webhook untuk melacak status pembayaran.
+</Warning>
+
+### Peristiwa Webhook
+
+Saat memperbarui metode pembayaran untuk langganan `on_hold`, Anda akan menerima peristiwa webhook berikut:
+
+1. **`payment.succeeded`** - Biaya untuk sisa utang berhasil
+2. **`subscription.active`** - Langganan telah diaktifkan kembali

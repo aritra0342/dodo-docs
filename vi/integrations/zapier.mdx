@@ -1,0 +1,179 @@
+---
+title: Zapier
+description: Kết nối Dodo Payments với 5000+ ứng dụng thông qua webhook của
+  Zapier để có vô hạn khả năng tự động hóa.
+icon: bolt
+---
+
+## Giới thiệu
+
+Kết nối Dodo Payments với hàng ngàn ứng dụng và dịch vụ thông qua Zapier. Tự động hóa quy trình làm việc bằng cách kích hoạt Zaps khi xảy ra sự kiện thanh toán, từ việc gửi email đến cập nhật bảng tính, tạo nhiệm vụ và nhiều hơn nữa.
+
+<Info>
+Tích hợp này yêu cầu một URL webhook của Zapier từ cấu hình Zap của bạn.
+</Info>
+
+## Bắt đầu
+
+<Steps>
+<Step title="Mở phần Webhook">
+  Trong bảng điều khiển Dodo Payments của bạn, điều hướng đến <b>Webhooks → + Thêm Điểm cuối</b> và mở rộng menu thả xuống tích hợp.
+  <Frame>
+    <img src="/images/integrations/zapier.png" alt="Thêm Điểm cuối và menu thả xuống tích hợp" />
+  </Frame>
+</Step>
+
+<Step title="Chọn Zapier">
+  Chọn thẻ tích hợp <b>Zapier</b>.
+</Step>
+
+<Step title="Tạo Zap trong Zapier">
+  Trong Zapier, tạo một Zap mới với "Webhooks by Zapier" làm kích hoạt. Sao chép URL webhook.
+</Step>
+
+<Step title="Dán URL Webhook">
+  Dán URL webhook của Zapier vào cấu hình điểm cuối.
+</Step>
+
+<Step title="Cấu hình Biến đổi">
+  Chỉnh sửa mã biến đổi để định dạng dữ liệu cho quy trình làm việc của bạn trong Zapier.
+</Step>
+
+<Step title="Kiểm tra & Tạo">
+  Kiểm tra với các payload mẫu và nhấp vào <b>Tạo</b> để kích hoạt tích hợp.
+</Step>
+
+<Step title="Xong!">
+  🎉 Các sự kiện thanh toán bây giờ sẽ tự động kích hoạt quy trình làm việc của bạn trong Zapier.
+</Step>
+</Steps>
+
+## Ví dụ Mã Biến đổi
+
+### Payload Webhook Cơ bản
+
+```javascript basic_webhook.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.payload = {
+      event_type: webhook.eventType,
+      payment_id: p.payment_id,
+      amount: (p.total_amount / 100).toFixed(2),
+      currency: p.currency || "USD",
+      customer_email: p.customer.email,
+      customer_name: p.customer.name,
+      payment_method: p.payment_method || "unknown",
+      timestamp: webhook.payload.timestamp
+    };
+  }
+  return webhook;
+}
+```
+
+### Bộ xử lý Sự kiện Đăng ký
+
+```javascript subscription_webhook.js icon="js" expandable
+function handler(webhook) {
+  const s = webhook.payload.data;
+  switch (webhook.eventType) {
+    case "subscription.active":
+      webhook.payload = {
+        event_type: "subscription_started",
+        subscription_id: s.subscription_id,
+        customer_email: s.customer.email,
+        customer_name: s.customer.name,
+        product_id: s.product_id,
+        amount: (s.recurring_pre_tax_amount / 100).toFixed(2),
+        frequency: s.payment_frequency_interval,
+        next_billing: s.next_billing_date,
+        timestamp: webhook.payload.timestamp
+      };
+      break;
+    case "subscription.cancelled":
+      webhook.payload = {
+        event_type: "subscription_cancelled",
+        subscription_id: s.subscription_id,
+        customer_email: s.customer.email,
+        cancelled_at: s.cancelled_at,
+        cancel_at_next_billing: s.cancel_at_next_billing_date,
+        timestamp: webhook.payload.timestamp
+      };
+      break;
+  }
+  return webhook;
+}
+```
+
+### Bộ xử lý Cảnh báo Tranh chấp
+
+```javascript dispute_webhook.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType.startsWith("dispute.")) {
+    const d = webhook.payload.data;
+    webhook.payload = {
+      event_type: webhook.eventType,
+      dispute_id: d.dispute_id,
+      payment_id: d.payment_id,
+      amount: (d.amount / 100).toFixed(2),
+      status: d.dispute_status,
+      stage: d.dispute_stage,
+      remarks: d.remarks || "",
+      urgent: webhook.eventType === "dispute.opened",
+      timestamp: webhook.payload.timestamp
+    };
+  }
+  return webhook;
+}
+```
+
+## Các Trường Hợp Sử Dụng Zapier Phổ Biến
+
+<AccordionGroup>
+<Accordion title="Thông báo Email">
+- Gửi email Gmail/Outlook cho xác nhận thanh toán
+- Tạo chuỗi email trong Mailchimp/ConvertKit
+- Gửi thông báo Slack/Discord
+- Tạo bản ghi Google Sheets
+</Accordion>
+
+<Accordion title="Cập nhật CRM">
+- Thêm liên hệ vào HubSpot/Salesforce
+- Tạo giao dịch trong Pipedrive/Close
+- Cập nhật hồ sơ khách hàng trong Airtable
+- Ghi lại hoạt động trong Monday.com
+</Accordion>
+
+<Accordion title="Quản lý Nhiệm vụ">
+- Tạo nhiệm vụ trong Asana/Trello
+- Thêm mục cần làm trong Notion
+- Tạo sự kiện lịch
+- Gửi thông báo SMS qua Twilio
+</Accordion>
+</AccordionGroup>
+
+## Mẹo
+
+- Giữ cấu trúc payload đơn giản để dễ dàng phân tích trong Zapier
+- Sử dụng tên trường nhất quán trên tất cả các sự kiện
+- Bao gồm dấu thời gian cho thời gian quy trình làm việc
+- Kiểm tra Zap của bạn với dữ liệu mẫu trước khi đưa vào hoạt động
+- Sử dụng bộ lọc tích hợp của Zapier cho logic điều kiện
+
+## Khắc phục sự cố
+
+<AccordionGroup>
+<Accordion title="Zap không kích hoạt">
+- Xác minh URL webhook là chính xác và đang hoạt động
+- Kiểm tra rằng Zap đã được bật trong Zapier
+- Đảm bảo cấu trúc payload khớp với mong đợi của Zapier
+- Kiểm tra việc gửi webhook trong bảng điều khiển Zapier
+</Accordion>
+
+<Accordion title="Dữ liệu không ánh xạ chính xác">
+- Kiểm tra tên trường trong các bước hành động của Zapier
+- Xác minh kiểu dữ liệu khớp với định dạng mong đợi
+- Sử dụng tính năng kiểm tra của Zapier để gỡ lỗi ánh xạ
+- Đảm bảo mã biến đổi trả về JSON hợp lệ
+</Accordion>
+</AccordionGroup>

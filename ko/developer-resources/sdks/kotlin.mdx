@@ -1,0 +1,440 @@
+---
+title: Kotlin
+description: Kotlin 애플리케이션에 Dodo Payments를 현대적인 코루틴과 널 안전성을 통해 통합하세요.
+icon: k
+---
+
+Kotlin SDK는 Kotlin으로 작성된 애플리케이션에서 Dodo Payments REST API에 편리하게 접근할 수 있도록 제공합니다. 널 값, 시퀀스, 서스펜드 함수 및 기타 Kotlin 전용 기능을 특징으로 하여 인체공학적으로 사용할 수 있습니다.
+
+## 설치
+
+### Gradle (Kotlin DSL)
+
+`build.gradle.kts`에 종속성을 추가하세요:
+
+```kotlin build.gradle.kts
+implementation("com.dodopayments.api:dodo-payments-kotlin:1.61.5")
+```
+
+### Maven
+
+`pom.xml`에 종속성을 추가하세요:
+
+```xml pom.xml
+<dependency>
+  <groupId>com.dodopayments.api</groupId>
+  <artifactId>dodo-payments-kotlin</artifactId>
+  <version>1.61.5</version>
+</dependency>
+```
+
+<Tip>
+항상 최신 SDK 버전을 사용하여 최신 Dodo Payments 기능에 접근하세요. 최신 버전은 [Maven Central](https://central.sonatype.com/artifact/com.dodopayments.api/dodo-payments-kotlin)에서 확인하세요.
+</Tip>
+
+<Info>
+SDK는 Kotlin 1.6 이상이 필요하며 JVM 및 Android 플랫폼과 호환됩니다.
+</Info>
+
+## 빠른 시작
+
+클라이언트를 초기화하고 체크아웃 세션을 생성하세요:
+
+```kotlin
+import com.dodopayments.api.client.DodoPaymentsClient
+import com.dodopayments.api.client.okhttp.DodoPaymentsOkHttpClient
+import com.dodopayments.api.models.checkoutsessions.CheckoutSessionRequest
+import com.dodopayments.api.models.checkoutsessions.CheckoutSessionResponse
+
+// Configure using environment variables (DODO_PAYMENTS_API_KEY, DODO_PAYMENTS_BASE_URL)
+// Or system properties (dodopayments.apiKey, dodopayments.baseUrl)
+val client: DodoPaymentsClient = DodoPaymentsOkHttpClient.fromEnv()
+
+val params: CheckoutSessionRequest = CheckoutSessionRequest.builder()
+    .addProductCart(CheckoutSessionRequest.ProductCart.builder()
+        .productId("product_id")
+        .quantity(1)
+        .build())
+    .build()
+    
+val checkoutSessionResponse: CheckoutSessionResponse = client.checkoutSessions().create(params)
+println(checkoutSessionResponse.sessionId())
+```
+
+<Warning>
+API 키는 항상 환경 변수 또는 암호화된 구성으로 안전하게 저장하세요. 버전 관리에 커밋하지 마세요.
+</Warning>
+
+## 핵심 기능
+
+<CardGroup cols={2}>
+<Card title="코루틴" icon="bolt">
+  비동기 작업을 위한 Kotlin 코루틴에 대한 완전한 지원
+</Card>
+
+<Card title="널 안전성" icon="shield-check">
+  강력한 오류 처리를 위한 Kotlin의 널 안전성 활용
+</Card>
+
+<Card title="확장 함수" icon="code">
+  향상된 기능을 위한 관용적인 Kotlin 확장
+</Card>
+
+<Card title="데이터 클래스" icon="layer-group">
+  복사 및 구조 분해 지원이 있는 타입 안전 데이터 클래스
+</Card>
+</CardGroup>
+
+## 구성
+
+### 환경 변수에서
+
+환경 변수 또는 시스템 속성에서 초기화하세요:
+
+```kotlin
+val client: DodoPaymentsClient = DodoPaymentsOkHttpClient.fromEnv()
+```
+
+### 수동 구성
+
+모든 옵션으로 수동으로 구성하세요:
+
+```kotlin
+import java.time.Duration
+
+val client = DodoPaymentsOkHttpClient.builder()
+    .bearerToken("your_api_key_here")
+    .baseUrl("https://live.dodopayments.com")
+    .maxRetries(3)
+    .timeout(Duration.ofSeconds(30))
+    .build()
+```
+
+### 테스트 모드
+
+테스트/샌드박스 환경을 위해 구성하세요:
+
+```kotlin
+val testClient = DodoPaymentsOkHttpClient.builder()
+    .fromEnv()
+    .testMode()
+    .build()
+```
+
+### 타임아웃 및 재시도
+
+전역 또는 요청별로 구성하세요:
+
+```kotlin
+import com.dodopayments.api.core.RequestOptions
+
+// Global configuration
+val client = DodoPaymentsOkHttpClient.builder()
+    .fromEnv()
+    .timeout(Duration.ofSeconds(45))
+    .maxRetries(3)
+    .build()
+
+// Per-request timeout override
+val product = client.products().retrieve(
+    "prod_123",
+    RequestOptions.builder()
+        .timeout(Duration.ofSeconds(10))
+        .build()
+)
+```
+
+## 일반 작업
+
+### 체크아웃 세션 생성
+
+체크아웃 세션을 생성하세요:
+
+```kotlin
+val params = CheckoutSessionRequest.builder()
+    .addProductCart(CheckoutSessionRequest.ProductCart.builder()
+        .productId("prod_123")
+        .quantity(1)
+        .build())
+    .returnUrl("https://yourdomain.com/return")
+    .build()
+
+val session = client.checkoutSessions().create(params)
+println("Checkout URL: ${session.url()}")
+```
+
+### 제품 생성
+
+상세 구성을 가진 제품을 생성하세요:
+
+```kotlin
+import com.dodopayments.api.models.products.Product
+import com.dodopayments.api.models.products.ProductCreateParams
+import com.dodopayments.api.models.misc.Currency
+import com.dodopayments.api.models.misc.TaxCategory
+
+val createParams = ProductCreateParams.builder()
+    .name("Premium Subscription")
+    .description("Monthly subscription with all features")
+    .price(
+        ProductCreateParams.RecurringPrice.builder()
+            .currency(Currency.USD)
+            .preTaxAmount(2999) // $29.99 in cents
+            .paymentFrequencyInterval(ProductCreateParams.RecurringPrice.TimeInterval.MONTH)
+            .paymentFrequencyCount(1)
+            .build()
+    )
+    .taxCategory(TaxCategory.DIGITAL_GOODS)
+    .build()
+
+val product: Product = client.products().create(createParams)
+println("Created product ID: ${product.productId()}")
+```
+
+### 라이센스 키 활성화
+
+고객을 위한 라이센스 키를 활성화하세요:
+
+```kotlin
+import com.dodopayments.api.models.licenses.LicenseActivateParams
+import com.dodopayments.api.models.licenses.LicenseActivateResponse
+
+val activateParams = LicenseActivateParams.builder()
+    .licenseKey("XXXX-XXXX-XXXX-XXXX")
+    .instanceName("user-laptop-01")
+    .build()
+
+try {
+    val activationResult: LicenseActivateResponse = client.licenses()
+        .activate(activateParams)
+
+    println("License activated successfully")
+    println("Instance ID: ${activationResult.instanceId()}")
+    println("Expires at: ${activationResult.expiresAt()}")
+} catch (e: UnprocessableEntityException) {
+    println("License activation failed: ${e.message}")
+}
+```
+
+## 사용 기반 청구
+
+### 사용 이벤트 기록
+
+미터의 사용을 추적하세요:
+
+```kotlin
+import com.dodopayments.api.models.usageevents.UsageEventCreateParams
+import java.time.OffsetDateTime
+
+val usageParams = UsageEventCreateParams.builder()
+    .meterId("meter_123")
+    .customerId("cust_456")
+    .value(150)
+    .timestamp(OffsetDateTime.now())
+    .build()
+
+client.usageEvents().create(usageParams)
+println("Usage event recorded")
+```
+
+## 비동기 작업
+
+### 비동기 클라이언트
+
+코루틴 기반 작업을 위해 비동기 클라이언트를 사용하세요:
+
+```kotlin
+import com.dodopayments.api.client.DodoPaymentsClientAsync
+import com.dodopayments.api.client.okhttp.DodoPaymentsOkHttpClientAsync
+import kotlinx.coroutines.runBlocking
+
+val asyncClient: DodoPaymentsClientAsync = DodoPaymentsOkHttpClientAsync.fromEnv()
+
+runBlocking {
+    val customer = asyncClient.customers().retrieve("cust_123")
+    println("Customer email: ${customer.email()}")
+}
+```
+
+## 오류 처리
+
+Kotlin의 예외 처리를 사용하여 오류를 처리하세요:
+
+```kotlin
+import com.dodopayments.api.errors.*
+
+try {
+    val payment = client.payments().create(params)
+    println("Success: ${payment.id()}")
+} catch (e: AuthenticationException) {
+    println("Authentication failed: ${e.message}")
+} catch (e: InvalidRequestException) {
+    println("Invalid request: ${e.message}")
+    e.parameter?.let { println("Parameter: $it") }
+} catch (e: RateLimitException) {
+    println("Rate limit exceeded, retry after: ${e.retryAfter}")
+} catch (e: DodoPaymentsServiceException) {
+    println("API error: ${e.statusCode()} - ${e.message}")
+}
+```
+
+### 함수형 오류 처리
+
+함수형 오류 처리를 위해 `Result`을 사용하세요:
+
+```kotlin
+fun safeCreatePayment(client: DodoPaymentsClient): Result<Payment> = runCatching {
+    client.payments().create(params)
+}
+
+// Usage
+safe CreatePayment(client)
+    .onSuccess { payment -> println("Created: ${payment.id()}") }
+    .onFailure { error -> println("Error: ${error.message}") }
+```
+
+<Tip>
+Kotlin의 `runCatching`을 사용하여 결과 타입으로 오류 처리를 보다 함수적으로 접근하세요.
+</Tip>
+
+## Android 통합
+
+Android 애플리케이션과 함께 사용하세요:
+
+```kotlin
+import android.app.Application
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.dodopayments.api.client.DodoPaymentsClient
+import kotlinx.coroutines.launch
+
+class PaymentViewModel(application: Application) : ViewModel() {
+    private val client = DodoPaymentsOkHttpClient.builder()
+        .bearerToken(BuildConfig.DODO_API_KEY)
+        .build()
+    
+    fun createCheckout(productId: String) {
+        viewModelScope.launch {
+            try {
+                val session = client.async().checkoutSessions().create(params)
+                // Open checkout URL in browser or WebView
+                openUrl(session.url())
+            } catch (e: Exception) {
+                handleError(e)
+            }
+        }
+    }
+}
+```
+
+## 응답 검증
+
+응답 검증을 활성화하세요:
+
+```kotlin
+import com.dodopayments.api.core.RequestOptions
+
+// Per-request validation
+val product = client.products().retrieve(
+    "prod_123",
+    RequestOptions.builder()
+        .responseValidation(true)
+        .build()
+)
+
+// Or validate explicitly
+val validatedProduct = product.validate()
+```
+
+## 고급 기능
+
+### 프록시 구성
+
+프록시 설정을 구성하세요:
+
+```kotlin
+import java.net.InetSocketAddress
+import java.net.Proxy
+
+val client = DodoPaymentsOkHttpClient.builder()
+    .fromEnv()
+    .proxy(
+        Proxy(
+            Proxy.Type.HTTP,
+            InetSocketAddress("proxy.example.com", 8080)
+        )
+    )
+    .build()
+```
+
+### 임시 구성
+
+클라이언트 구성을 임시로 수정하세요:
+
+```kotlin
+val customClient = client.withOptions {
+    it.baseUrl("https://example.com")
+    it.maxRetries(5)
+}
+```
+
+## Ktor 통합
+
+Ktor 서버 애플리케이션과 통합하세요:
+
+```kotlin
+import io.ktor.server.application.*
+import io.ktor.server.request.*
+import io.ktor.server.response.*
+import io.ktor.server.routing.*
+
+fun Application.configureRouting() {
+    val client = DodoPaymentsOkHttpClient.builder()
+        .bearerToken(environment.config.property("dodo.apiKey").getString())
+        .build()
+    
+    routing {
+        post("/create-checkout") {
+            try {
+                val request = call.receive<CheckoutRequest>()
+                val session = client.checkoutSessions().create(params)
+                call.respond(mapOf("checkout_url" to session.url()))
+            } catch (e: DodoPaymentsServiceException) {
+                call.respond(HttpStatusCode.BadRequest, mapOf("error" to e.message))
+            }
+        }
+    }
+}
+```
+
+## 리소스
+
+<CardGroup cols={2}>
+<Card title="GitHub 리포지토리" icon="github" href="https://github.com/dodopayments/dodopayments-kotlin">
+  소스 코드를 보고 기여하세요
+</Card>
+
+<Card title="API 참조" icon="book" href="/api-reference/introduction">
+  완전한 API 문서
+</Card>
+
+<Card title="Discord 커뮤니티" icon="discord" href="https://discord.gg/bYqAp4ayYh">
+  도움을 받고 개발자와 연결하세요
+</Card>
+
+<Card title="문제 보고" icon="bug" href="https://github.com/dodopayments/dodopayments-kotlin/issues">
+  버그를 보고하거나 기능 요청하세요
+</Card>
+</CardGroup>
+
+## 지원
+
+Kotlin SDK에 대한 도움이 필요하신가요?
+
+- **Discord**: 실시간 지원을 위해 [커뮤니티 서버](https://discord.gg/bYqAp4ayYh)에 참여하세요
+- **이메일**: support@dodopayments.com으로 문의하세요
+- **GitHub**: [리포지토리](https://github.com/dodopayments/dodopayments-kotlin)에서 문제를 열어보세요
+
+## 기여
+
+기여를 환영합니다! 시작하려면 [기여 가이드라인](https://github.com/dodopayments/dodopayments-kotlin/blob/main/CONTRIBUTING.md)을 확인하세요.

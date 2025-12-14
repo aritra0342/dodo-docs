@@ -1,0 +1,331 @@
+---
+sidebarTitle: 数据库同步
+title: 与您的数据库同步
+icon: database
+description: 自动将您的 Dodo Payments 数据同步到您自己的数据库，以便进行分析、报告和集成。
+---
+
+Dodo Payments 提供了内置的数据库同步功能，可以自动将您的支付数据与您自己的数据库同步。您可以同步 **支付**、**客户**、**订阅** 和 **许可证**，以维护数据的本地副本，以便进行分析、报告或与其他系统集成。
+
+<Info>
+**实现**：通过 [npm 包](https://www.npmjs.com/package/dodo-sync) 可用 | **源代码**：[GitHub](https://github.com/dodopayments/dodo-sync)
+</Info>
+
+## 您可以同步什么？
+
+我们的数据库同步功能支持将以下 Dodo Payments 实体同步到您的数据库：
+
+<CardGroup cols={2}>
+  <Card title="支付" icon="credit-card">
+    同步所有支付交易，包括一次性支付、退款和支付状态更新。
+  </Card>
+  <Card title="客户" icon="users">
+    保持客户数据同步，包括客户档案、联系信息和元数据。
+  </Card>
+  <Card title="订阅" icon="repeat">
+    同步订阅数据，包括活跃订阅、计费周期和订阅状态更改。
+  </Card>
+  <Card title="许可证" icon="key">
+    同步许可证信息，包括许可证密钥、激活和许可证状态更新。
+  </Card>
+</CardGroup>
+
+您可以通过在 `scopes` 参数中指定它们，来同步这些实体的任意组合。所有同步操作都是增量的，仅传输新的或更新的记录，以实现最佳性能。
+
+## 数据库支持
+
+我们目前支持 **MongoDB**、**PostgreSQL**、**MySQL** 和 **ClickHouse**。
+
+我们正在积极扩展对以下内容的支持：
+- **数据库**：Snowflake 和其他。
+- **管道**：ETL 管道、实时同步。
+
+<Tip>
+我们正在不断扩展数据库支持。如果您想贡献新的数据库集成，请向我们的 [GitHub 仓库](https://github.com/dodopayments/dodo-sync) 提交 Pull Request。
+</Tip>
+
+## 开始使用
+
+您可以通过 **CLI** 或在您的 **代码** 中以编程方式使用我们的数据库同步功能。这两种方法提供相同的功能——选择最适合您工作流程的方法。
+
+### 使用 CLI
+
+CLI 工具提供了一种快速设置和运行数据库同步的方法。全局安装它，以便在终端的任何地方使用：
+
+<CodeGroup>
+
+```bash npm
+npm install -g dodo-sync
+```
+
+```bash bun
+bun add -g dodo-sync
+```
+
+</CodeGroup>
+
+#### 运行 CLI
+
+CLI 支持两种模式：**交互模式**用于引导设置，**手动模式**用于直接配置。
+
+**交互模式**：只需运行命令而不带参数即可启动交互式设置向导。
+
+```bash
+dodo-sync
+```
+
+**手动模式**：直接传递参数以跳过向导。
+
+```bash
+dodo-sync -i [interval] -d [database] -u [database_uri] --scopes [scopes] --api-key [api_key] --env [environment]
+```
+
+**示例：**
+
+```bash
+# MongoDB
+dodo-sync -i 600 -d mongodb -u mongodb://mymongodb.url --scopes "licences,payments,customers,subscriptions" --api-key YOUR_API_KEY --env test_mode
+
+# PostgreSQL
+dodo-sync -i 600 -d postgres -u postgresql://user:password@localhost:5432/mydb --scopes "licences,payments,customers,subscriptions" --api-key YOUR_API_KEY --env test_mode
+
+# MySQL
+dodo-sync -i 600 -d mysql -u mysql://user:password@localhost:3306/mydb --scopes "licences,payments,customers,subscriptions" --api-key YOUR_API_KEY --env test_mode
+
+# ClickHouse
+dodo-sync -i 600 -d clickhouse -u http://localhost:8123 --scopes "licences,payments,customers,subscriptions" --api-key YOUR_API_KEY --env test_mode
+```
+
+#### CLI 参数
+
+<ParamField path="--interval" type="number" alias="-i">
+同步间隔（以秒为单位）。确定同步操作运行的频率。如果未提供，同步将运行一次并退出。
+</ParamField>
+
+<ParamField path="--database" type="string" alias="-d" required>
+要使用的数据库类型。支持的值：`"mongodb"`、`"postgres"`、`"mysql"` 或 `"clickhouse"`。
+</ParamField>
+
+<ParamField path="--database-uri" type="string" alias="-u" required>
+您的数据库的连接 URI：
+- **MongoDB**：`mongodb://localhost:27017` 或 `mongodb+srv://user:pass@cluster.mongodb.net/`
+- **PostgreSQL**：`postgresql://user:password@localhost:5432/mydb`
+- **MySQL**：`mysql://user:password@localhost:3306/mydb`
+- **ClickHouse**：`http://localhost:8123`
+</ParamField>
+
+<ParamField path="--scopes" type="string" required>
+要同步的数据实体的逗号分隔列表。可用范围：`licences`、`payments`、`customers`、`subscriptions`。示例：`"payments,customers"`。
+</ParamField>
+
+<ParamField path="--api-key" type="string" required>
+您的 Dodo Payments API 密钥。应以 `dp_live_` 开头以用于实时模式，或 `dp_test_` 用于测试模式。
+</ParamField>
+
+<ParamField path="--env" type="string" required>
+环境目标。必须是 `"live_mode"` 或 `"test_mode"`。这决定了从哪个 Dodo Payments 环境进行同步。
+</ParamField>
+
+<ParamField path="--rate-limit" type="number" alias="--rl">
+每秒请求的速率限制。控制同步引擎向 Dodo Payments API 发出请求的速度，以避免过载。
+</ParamField>
+
+### 在您的代码中使用
+
+要进行编程控制，请将同步功能直接集成到您的应用程序中。将其作为依赖项安装到您的项目中：
+
+<CodeGroup>
+
+```bash npm
+npm install dodo-sync
+```
+
+```bash bun
+bun add dodo-sync
+```
+
+</CodeGroup>
+
+#### 自动同步（基于间隔）
+
+当您希望同步在固定间隔内持续运行时，请使用自动同步：
+
+```typescript
+import { DodoSync } from 'dodo-sync';
+
+const syncDodoPayments = new DodoSync({
+  interval: 60, // Sync every 60 seconds
+  database: 'mongodb',
+  databaseURI: process.env.MONGODB_URI, // e.g., 'mongodb://localhost:27017'
+  scopes: ['licences', 'payments', 'customers', 'subscriptions'],
+  dodoPaymentsOptions: {
+    bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+    environment: 'test_mode' // or 'live_mode'
+  }
+});
+
+// Initialize connection
+await syncDodoPayments.init();
+
+// Start the sync loop
+syncDodoPayments.start();
+```
+
+<Tip>
+使用 `interval` 选项时，必须提供 `.start()` 以进行自动同步。同步将在指定的间隔内持续运行，直到进程被停止。
+</Tip>
+
+#### 手动同步
+
+当您希望按需触发同步操作（例如，从 cron 作业或 API 端点）时，请使用手动同步：
+
+```typescript
+import { DodoSync } from 'dodo-sync';
+
+const syncDodoPayments = new DodoSync({
+  database: 'mongodb',
+  databaseURI: process.env.MONGODB_URI,
+  scopes: ['licences', 'payments', 'customers', 'subscriptions'],
+  dodoPaymentsOptions: {
+    bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+    environment: 'test_mode'
+  }
+});
+
+// Initialize connection
+await syncDodoPayments.init();
+
+// Trigger a single sync operation
+await syncDodoPayments.run();
+```
+
+<Tip>
+使用手动同步时，`interval` 选项不是必需的。您可以在需要执行同步操作时调用 `.run()`。
+</Tip>
+
+#### PostgreSQL 示例
+
+以下是如何使用 `dodo-sync` 与 PostgreSQL：
+
+```typescript
+import { DodoSync } from 'dodo-sync';
+
+const syncDodoPayments = new DodoSync({
+  interval: 60,
+  database: 'postgres',
+  databaseURI: process.env.POSTGRES_URI, // e.g., 'postgresql://user:password@localhost:5432/mydb'
+  scopes: ['licences', 'payments', 'customers', 'subscriptions'],
+  dodoPaymentsOptions: {
+    bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+    environment: 'test_mode'
+  }
+});
+
+await syncDodoPayments.init();
+syncDodoPayments.start();
+```
+
+#### MySQL 示例
+
+以下是如何使用 `dodo-sync` 与 MySQL：
+
+```typescript
+import { DodoSync } from 'dodo-sync';
+
+const syncDodoPayments = new DodoSync({
+  interval: 60,
+  database: 'mysql',
+  databaseURI: process.env.MYSQL_URI, // e.g., 'mysql://user:password@localhost:3306/mydb'
+  scopes: ['licences', 'payments', 'customers', 'subscriptions'],
+  dodoPaymentsOptions: {
+    bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+    environment: 'test_mode'
+  }
+});
+
+await syncDodoPayments.init();
+syncDodoPayments.start();
+```
+
+#### ClickHouse 示例
+
+以下是如何使用 `dodo-sync` 与 ClickHouse：
+
+```typescript
+import { DodoSync } from 'dodo-sync';
+
+const syncDodoPayments = new DodoSync({
+  interval: 60,
+  database: 'clickhouse',
+  databaseURI: process.env.CLICKHOUSE_URI, // e.g., 'http://localhost:8123'
+  scopes: ['licences', 'payments', 'customers', 'subscriptions'],
+  dodoPaymentsOptions: {
+    bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+    environment: 'test_mode'
+  }
+});
+
+await syncDodoPayments.init();
+syncDodoPayments.start();
+```
+
+#### 构造函数选项
+
+<ParamField body="database" type="string" required>
+要使用的数据库名称。支持的值：`"mongodb"`、`"postgres"`、`"mysql"` 或 `"clickhouse"`。
+</ParamField>
+
+<ParamField body="databaseURI" type="string" required>
+您的数据库的连接字符串：
+- **MongoDB**：`mongodb://localhost:27017` 或 `mongodb+srv://...`
+- **PostgreSQL**：`postgresql://user:password@localhost:5432/mydb`
+- **MySQL**：`mysql://user:password@localhost:3306/mydb`
+- **ClickHouse**：`http://localhost:8123`
+</ParamField>
+
+<ParamField body="scopes" type="string[]" required>
+要同步的实体数组。可用选项：`"licences"`、`"payments"`、`"customers"`、`"subscriptions"`。您可以包含这些的任意组合。
+</ParamField>
+
+<ParamField body="dodoPaymentsOptions" type="object" required>
+Dodo Payments API 配置，用于身份验证和环境选择。有关完整选项，请参见 [TypeScript SDK 类型](https://github.com/dodopayments/dodopayments-typescript/blob/main/src/client.ts)。
+
+**必需属性：**
+- `bearerToken`：您的 Dodo Payments API 密钥
+- `environment`：要么是 `"test_mode"`，要么是 `"live_mode"`
+</ParamField>
+
+<ParamField body="interval" type="number">
+自动同步之间的时间（以秒为单位）。在使用 `.start()` 进行自动同步时必需。在使用 `.run()` 进行手动同步时可选。
+</ParamField>
+
+<ParamField body="rateLimit" type="number">
+每秒请求的数量。控制同步引擎向 Dodo Payments API 发出请求的速度，以避免过载。
+</ParamField>
+
+## 重要信息
+
+<Warning>
+**MongoDB**：将在您的数据库服务器上自动创建名为 `dodopayments_sync` 的数据库。所有同步数据将存储在此处。此数据库名称当前是固定的，无法更改。
+
+**PostgreSQL**：将在您连接 URI 指定的数据库中创建表（`Subscriptions`、`Payments`、`Licenses`、`Customers`）。数据以 JSONB 格式存储。
+
+**MySQL**：将在您连接 URI 指定的数据库中创建表（`Subscriptions`、`Payments`、`Licenses`、`Customers`）。数据以 JSON 格式存储。
+
+**ClickHouse**：将使用 ReplacingMergeTree 引擎创建表（`Subscriptions`、`Payments`、`Licenses`、`Customers`）。查询时，请使用 `FINAL` 关键字以确保去重结果。
+</Warning>
+
+<Info>
+同步引擎跟踪更改，仅同步新的或更新的记录，使后续同步即使在大型数据集上也高效。
+</Info>
+
+## 其他资源
+
+<CardGroup cols={2}>
+  <Card title="GitHub 仓库" icon="github" href="https://github.com/dodopayments/dodo-sync">
+    查看源代码、报告问题或贡献改进
+  </Card>
+  <Card title="npm 包" icon="box-open" href="https://www.npmjs.com/package/dodo-sync">
+    查看包详细信息和安装说明
+  </Card>
+</CardGroup>

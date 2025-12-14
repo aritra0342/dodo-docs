@@ -1,0 +1,269 @@
+---
+sidebarTitle: Astro
+title: Astro 最小化模板
+description: 使用我们的最小化 Astro 模板快速开始将 Dodo Payments 集成到您的 Astro 应用程序中
+icon: star
+---
+
+## 概述
+
+Astro 最小化模板提供了一个现成的起点，用于将 Dodo Payments 集成到您的 Astro 应用程序中。此模板包括结账会话、Webhook 处理、客户门户和现代 UI 组件，帮助您快速开始接受付款。
+
+<Info>
+此模板使用 Astro 5、TypeScript、Tailwind CSS 4 和 `@dodopayments/astro` 适配器。
+</Info>
+
+### 特性
+
+- **快速设置** - 在 5 分钟内开始
+- **支付集成** - 使用 `@dodopayments/astro` 预配置的结账流程
+- **现代 UI** - 干净的深色主题定价页面，使用 Tailwind CSS
+- **Webhook 处理程序** - 准备好的支付事件 Webhook 端点
+- **客户门户** - 一键订阅管理
+- **TypeScript** - 完全类型化，具有最小、专注的类型
+- **预填充结账** - 演示传递客户数据以改善用户体验
+
+## 先决条件
+
+在开始之前，请确保您拥有：
+
+- **Node.js LTS 版本**（Astro 5 所需）
+- **Dodo Payments 账户**（从仪表板访问 API 和 Webhook 密钥）
+
+## 快速开始
+
+<Steps>
+<Step title="克隆仓库">
+
+```bash
+git clone https://github.com/dodopayments/dodo-astro-minimal-boilerplate.git
+cd dodo-astro-minimal-boilerplate
+```
+
+</Step>
+
+<Step title="安装依赖">
+
+```bash
+npm install
+```
+
+</Step>
+
+<Step title="获取 API 凭证">
+在 [Dodo Payments](https://dodopayments.com/) 注册并从仪表板获取您的凭证：
+
+- **API 密钥：** [仪表板 → 开发者 → API 密钥](https://app.dodopayments.com/developer/api-keys)
+- **Webhook 密钥：** [仪表板 → 开发者 → Webhooks](https://app.dodopayments.com/developer/webhooks)
+
+<Tip>
+在开发时确保您处于 **测试模式**！
+</Tip>
+</Step>
+
+<Step title="配置环境变量">
+在根目录中创建一个 `.env` 文件：
+
+```bash
+cp .env.example .env
+```
+
+使用您的 Dodo Payments 凭证更新值：
+
+```env
+DODO_PAYMENTS_API_KEY=your_api_key_here
+DODO_PAYMENTS_WEBHOOK_KEY=your_webhook_signing_key_here
+DODO_PAYMENTS_RETURN_URL=http://localhost:4321/
+DODO_PAYMENTS_ENVIRONMENT=test_mode
+```
+
+<Warning>
+切勿将您的 `.env` 文件提交到版本控制。它已包含在 `.gitignore` 中。
+</Warning>
+</Step>
+
+<Step title="添加您的产品">
+使用您在 Dodo Payments 中的实际产品 ID 更新 `src/lib/products.ts`：
+
+```typescript
+export const products: Product[] = [
+  {
+    product_id: "pdt_001", // Replace with your product ID
+    name: "Basic Plan",
+    description: "Get access to basic features and support",
+    price: 9999, // in cents
+    features: [
+      "Access to basic features",
+      "Email support",
+      "1 Team member",
+      "Basic analytics",
+    ],
+  },
+  // ... add more products
+];
+```
+
+</Step>
+
+<Step title="运行开发服务器">
+
+```bash
+npm run dev
+```
+
+打开 [http://localhost:4321](http://localhost:4321) 查看您的定价页面！
+</Step>
+</Steps>
+
+## 项目结构
+
+```text
+src/
+├── components/
+│   ├── Footer.astro           # Reusable footer
+│   ├── Header.astro           # Navigation header
+│   └── ProductCard.astro      # Product pricing card
+├── layouts/
+│   └── Layout.astro           # Root layout
+├── lib/
+│   └── products.ts            # Product definitions
+├── pages/
+│   ├── index.astro            # Pricing page (home)
+│   └── api/
+│       ├── checkout.ts        # Checkout session handler
+│       ├── customer-portal.ts # Customer portal redirect
+│       └── webhook.ts         # Webhook event handler
+└── styles/
+    └── global.css             # Global styles with Tailwind
+```
+
+## 自定义
+
+### 更新产品信息
+
+编辑 `src/lib/products.ts` 以修改：
+- 产品 ID（来自您的 Dodo 仪表板）
+- 定价
+- 特性
+- 描述
+
+### 预填充客户数据
+
+在 `src/components/ProductCard.astro` 中，将硬编码的值替换为您的实际用户数据：
+
+```typescript
+customer: {
+  name: "John Doe",
+  email: "john@example.com",
+},
+```
+
+### 更新客户门户
+
+在 `src/components/Header.astro` 中，将硬编码的客户 ID 替换为您身份验证系统或数据库中的实际客户 ID：
+
+```typescript
+const CUSTOMER_ID = "cus_001"; // Replace with actual customer ID
+```
+
+您可以完成一次测试购买以获取测试的客户 ID。
+
+## Webhook 事件
+
+该模板演示了在 `src/pages/api/webhook.ts` 中处理 Webhook 事件：
+
+- `onSubscriptionActive` - 当订阅变为活动状态时触发
+- `onSubscriptionCancelled` - 当订阅被取消时触发
+
+在这些处理程序中添加您的业务逻辑：
+
+```typescript
+onSubscriptionActive: async (payload) => {
+  // Grant access to your product
+  // Update user database
+  // Send welcome email
+},
+```
+
+根据需要添加更多 Webhook 事件。
+
+对于本地开发，您可以使用 [ngrok](https://ngrok.com/) 创建一个安全的隧道到您的本地服务器，并将其用作您的 Webhook URL。
+
+## 部署
+
+此模板使用静态输出和按需渲染的 API 路由。您需要为您的部署平台安装一个适配器：
+
+| 平台 | 指南 |
+|----------|-------|
+| Vercel | [部署到 Vercel](https://docs.astro.build/en/guides/deploy/vercel/) |
+| Netlify | [部署到 Netlify](https://docs.astro.build/en/guides/deploy/netlify/) |
+| Cloudflare | [部署到 Cloudflare](https://docs.astro.build/en/guides/deploy/cloudflare/) |
+
+请参阅 [Astro 的部署指南](https://docs.astro.build/en/guides/deploy/) 以获取所有平台的信息。
+
+### 更新 Webhook URL
+
+部署后，在 [Dodo Payments 仪表板](https://app.dodopayments.com/developer/webhooks) 中更新您的 Webhook URL：
+
+```text
+https://your-domain.com/api/webhook
+```
+
+还请记得在您的生产环境中更新 `DODO_PAYMENTS_WEBHOOK_KEY` 环境变量，以匹配您部署域的 Webhook 签名密钥。
+
+## 故障排除
+
+<AccordionGroup>
+<Accordion title="模块未找到或构建错误">
+删除 `node_modules` 并重新安装依赖：
+
+```bash
+rm -rf node_modules package-lock.json
+npm install
+```
+
+</Accordion>
+
+<Accordion title="结账重定向失败">
+**常见原因：**
+- 无效的产品 ID - 验证它是否存在于您的 Dodo 仪表板中
+- `.env` 中的 API 密钥或环境设置错误
+- 检查浏览器控制台和终端中的错误
+</Accordion>
+
+<Accordion title="Webhooks 未接收事件">
+对于本地测试，请使用 [ngrok](https://ngrok.com) 来暴露您的服务器：
+
+```bash
+ngrok http 4321
+```
+
+在您的 [Dodo 仪表板](https://app.dodopayments.com/developer/webhooks) 中将 Webhook URL 更新为 ngrok URL。请记得在 .env 文件中更新正确的 Webhook 验证密钥。
+</Accordion>
+
+<Accordion title="客户门户链接无效">
+在 `src/components/Header.astro` 中，将硬编码的 `CUSTOMER_ID` 替换为您 Dodo 仪表板中的实际客户 ID。
+
+或者集成您的身份验证系统和数据库以动态获取客户 ID。
+</Accordion>
+
+<Accordion title="构建因适配器错误而失败">
+此模板使用静态输出和按需 API 路由。您需要安装一个适配器以进行部署：
+
+请参阅 [Astro 的部署指南](https://docs.astro.build/en/guides/deploy/) 以获取详细信息。
+</Accordion>
+</AccordionGroup>
+
+## 了解更多
+
+- [Dodo Payments 文档](https://docs.dodopayments.com/)
+- [结账会话文档](https://docs.dodopayments.com/developer-resources/checkout-sessions)
+- [Webhook 文档](https://docs.dodopayments.com/developer-resources/webhooks)
+
+## 支持
+
+需要有关模板的帮助吗？
+
+- 加入我们的 [Discord 社区](https://discord.gg/bYqAp4ayYh) 进行提问和讨论
+- 查看 [GitHub 仓库](https://github.com/dodopayments/dodo-astro-minimal-boilerplate) 以获取问题和更新
+- 联系我们的 [支持团队](mailto:support@dodopayments.com) 寻求帮助

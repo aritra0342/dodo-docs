@@ -1,0 +1,216 @@
+---
+title: Microsoft Teams
+description: Kirim notifikasi Dodo Payments ke saluran Microsoft Teams dengan
+  Kartu Adaptif yang kaya.
+icon: microsoft
+---
+
+## Pendahuluan
+
+Jaga tim bisnis Anda tetap terhubung dengan notifikasi pembayaran waktu nyata di Microsoft Teams. Integrasi ini mengirimkan peristiwa pembayaran sebagai Kartu Adaptif yang kaya—sempurna untuk lingkungan perusahaan di mana Teams adalah alat kolaborasi utama.
+
+<Info>
+Panduan ini mengasumsikan Anda memiliki akses admin untuk membuat webhook di ruang kerja Microsoft Teams Anda.
+</Info>
+
+## Memulai
+
+<Steps>
+<Step title="Buka Bagian Webhook">
+  Di dasbor Dodo Payments Anda, navigasikan ke <b>Webhook → + Tambah Endpoint</b> dan perluas dropdown integrasi.
+  <Frame>
+    <img src="/images/integrations/teams.png" alt="Tambah Endpoint dan dropdown integrasi" />
+  </Frame>
+</Step>
+
+<Step title="Pilih Microsoft Teams">
+  Pilih kartu integrasi <b>Microsoft Teams</b>.
+</Step>
+
+<Step title="Buat Webhook Teams">
+  Di Teams, pergi ke saluran Anda → ⋯ → Konektor → Incoming Webhook → Konfigurasi. Salin URL webhook.
+</Step>
+
+<Step title="Tempel URL Webhook">
+  Tempel URL webhook Teams ke dalam konfigurasi endpoint.
+</Step>
+
+<Step title="Sesuaikan Transformasi">
+  Edit kode transformasi untuk memformat pesan sebagai Kartu Adaptif untuk Teams.
+</Step>
+
+<Step title="Uji & Buat">
+  Uji dengan payload contoh dan klik <b>Buat</b> untuk mengaktifkan.
+</Step>
+
+<Step title="Selesai!">
+  🎉 Saluran Teams Anda sekarang akan menerima pembaruan Dodo Payments sebagai Kartu Adaptif.
+</Step>
+</Steps>
+
+## Contoh Kode Transformasi
+
+### Kartu Pembayaran Dasar
+
+```javascript payment_card.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.payload = {
+      type: "message",
+      attachments: [{
+        contentType: "application/vnd.microsoft.card.adaptive",
+        content: {
+          type: "AdaptiveCard",
+          body: [
+            {
+              type: "TextBlock",
+              text: "✅ Payment Successful",
+              weight: "Bolder",
+              size: "Medium"
+            },
+            {
+              type: "FactSet",
+              facts: [
+                { title: "Amount", value: `$${(p.total_amount / 100).toFixed(2)}` },
+                { title: "Customer", value: p.customer.email },
+                { title: "Payment ID", value: p.payment_id }
+              ]
+            }
+          ]
+        }
+      }]
+    };
+  }
+  return webhook;
+}
+```
+
+### Manajemen Langganan
+
+```javascript subscription_card.js icon="js" expandable
+function handler(webhook) {
+  const s = webhook.payload.data;
+  switch (webhook.eventType) {
+    case "subscription.active":
+      webhook.payload = {
+        type: "message",
+        attachments: [{
+          contentType: "application/vnd.microsoft.card.adaptive",
+          content: {
+            type: "AdaptiveCard",
+            body: [
+              {
+                type: "TextBlock",
+                text: "📄 Subscription Activated",
+                weight: "Bolder",
+                color: "Good"
+              },
+              {
+                type: "FactSet",
+                facts: [
+                  { title: "Customer", value: s.customer.email },
+                  { title: "Product", value: s.product_id },
+                  { title: "Amount", value: `$${(s.recurring_pre_tax_amount / 100).toFixed(2)}/${s.payment_frequency_interval}` },
+                  { title: "Next Billing", value: new Date(s.next_billing_date).toLocaleDateString() }
+                ]
+              }
+            ]
+          }
+        }]
+      };
+      break;
+    case "subscription.cancelled":
+      webhook.payload = {
+        type: "message",
+        attachments: [{
+          contentType: "application/vnd.microsoft.card.adaptive",
+          content: {
+            type: "AdaptiveCard",
+            body: [
+              {
+                type: "TextBlock",
+                text: "⚠️ Subscription Cancelled",
+                weight: "Bolder",
+                color: "Warning"
+              },
+              {
+                type: "FactSet",
+                facts: [
+                  { title: "Customer", value: s.customer.email },
+                  { title: "Product", value: s.product_id },
+                  { title: "Cancelled At", value: new Date(s.cancelled_at).toLocaleDateString() }
+                ]
+              }
+            ]
+          }
+        }]
+      };
+      break;
+  }
+  return webhook;
+}
+```
+
+### Peringatan Sengketa
+
+```javascript dispute_card.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType.startsWith("dispute.")) {
+    const d = webhook.payload.data;
+    const color = d.dispute_status === "won" ? "Good" : d.dispute_status === "lost" ? "Attention" : "Warning";
+    const title = d.dispute_status === "won" ? "🏆 Dispute Won" : d.dispute_status === "lost" ? "❌ Dispute Lost" : "🚨 Dispute Update";
+    
+    webhook.payload = {
+      type: "message",
+      attachments: [{
+        contentType: "application/vnd.microsoft.card.adaptive",
+        content: {
+          type: "AdaptiveCard",
+          body: [
+            {
+              type: "TextBlock",
+              text: title,
+              weight: "Bolder",
+              color: color
+            },
+            {
+              type: "FactSet",
+              facts: [
+                { title: "Payment ID", value: d.payment_id },
+                { title: "Amount", value: `$${(d.amount / 100).toFixed(2)}` },
+                { title: "Status", value: d.dispute_status },
+                { title: "Stage", value: d.dispute_stage }
+              ]
+            }
+          ]
+        }
+      }]
+    };
+  }
+  return webhook;
+}
+```
+
+## Tips
+
+- Gunakan Kartu Adaptif untuk format yang kaya dan interaktif
+- Pilih warna yang sesuai: Baik (hijau), Peringatan (kuning), Perhatian (merah)
+- Jaga set fakta tetap ringkas dan mudah dibaca
+- Uji dengan penguji webhook Teams sebelum menerapkan
+
+## Pemecahan Masalah
+
+<AccordionGroup>
+<Accordion title="Tidak ada pesan di Teams">
+- Verifikasi bahwa URL webhook benar dan aktif
+- Periksa bahwa transformasi mengembalikan JSON Kartu Adaptif yang valid
+- Pastikan webhook memiliki izin untuk memposting di saluran
+</Accordion>
+
+<Accordion title="Masalah format kartu">
+- Validasi skema Kartu Adaptif di penguji webhook Teams
+- Periksa bahwa semua field yang diperlukan ada
+- Pastikan nilai warna valid (Baik, Peringatan, Perhatian, Default)
+</Accordion>
+</AccordionGroup>

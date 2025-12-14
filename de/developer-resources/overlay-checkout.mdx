@@ -1,0 +1,510 @@
+---
+title: Overlay Checkout
+description: Eine moderne TypeScript-Bibliothek zum Einbetten des Dodo Payments
+  Overlay-Checkouts und zum Anhören von Checkout-Ereignissen in Echtzeit.
+icon: cart-shopping
+---
+
+## Übersicht
+
+Das Dodo Payments Checkout SDK bietet eine nahtlose Möglichkeit, unser Zahlungs-Overlay in Ihre Webanwendung zu integrieren. Es wurde mit TypeScript und modernen Webstandards entwickelt und bietet eine robuste Lösung für die Zahlungsabwicklung mit Echtzeit-Ereignisverarbeitung und anpassbaren Themen.
+
+<Frame>
+    <img src="/images/cover-images/overlay-checkout.png" alt="Overlay Checkout Cover Image"/>
+</Frame>
+
+## Demo
+
+<Card title="Interaktive Demo" icon="play" href="https://atlas.dodopayments.com/pricing">
+Sehen Sie den Overlay-Checkout in Aktion mit unserer Live-Demo.
+</Card>
+
+## Schnellstart
+
+Starten Sie mit dem Dodo Payments Checkout SDK in nur wenigen Codezeilen:
+
+```typescript
+import { DodoPayments } from "dodopayments-checkout";
+
+// Initialize the SDK
+DodoPayments.Initialize({
+  mode: "test", // 'test' or 'live'
+  onEvent: (event) => {
+    console.log("Checkout event:", event);
+  },
+});
+
+// Open checkout
+DodoPayments.Checkout.open({
+  checkoutUrl: "https://checkout.dodopayments.com/session/cks_123"
+});
+```
+
+<Tip>
+Holen Sie sich Ihre Checkout-URL von der [create checkout session API](/api-reference/checkout-sessions/create).
+</Tip>
+
+## Schritt-für-Schritt-Integrationsanleitung
+
+<Steps>
+<Step title="SDK installieren">
+
+Installieren Sie das Dodo Payments Checkout SDK mit Ihrem bevorzugten Paketmanager:
+
+<CodeGroup>
+
+```bash npm
+npm install dodopayments-checkout
+```
+
+```bash yarn
+yarn add dodopayments-checkout
+```
+
+```bash pnpm
+pnpm add dodopayments-checkout
+```
+
+</CodeGroup>
+
+</Step>
+
+<Step title="SDK initialisieren">
+
+Initialisieren Sie das SDK in Ihrer Anwendung, typischerweise in Ihrer Hauptkomponente oder dem Einstiegspunkt der App:
+
+```typescript
+import { DodoPayments } from "dodopayments-checkout";
+
+DodoPayments.Initialize({
+  mode: "test", // Change to 'live' for production
+  onEvent: (event) => {
+    console.log("Checkout event:", event);
+    
+    // Handle different events
+    switch (event.event_type) {
+      case "checkout.opened":
+        // Checkout overlay has been opened
+        break;
+      case "checkout.closed":
+        // Checkout has been closed
+        break;
+      case "checkout.error":
+        // Handle errors
+        console.error("Checkout error:", event.data?.message);
+        break;
+    }
+  },
+});
+```
+
+<Warning>
+Initialisieren Sie das SDK immer, bevor Sie versuchen, den Checkout zu öffnen. Die Initialisierung sollte einmal erfolgen, wenn Ihre Anwendung geladen wird.
+</Warning>
+
+</Step>
+
+<Step title="Erstellen Sie eine Checkout-Button-Komponente">
+
+Erstellen Sie eine Komponente, die das Checkout-Overlay öffnet:
+
+```typescript
+// components/CheckoutButton.tsx
+"use client";
+
+import { Button } from "@/components/ui/button";
+import { DodoPayments } from "dodopayments-checkout";
+import { useEffect, useState } from "react";
+
+export function CheckoutButton() {
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    // Initialize the SDK
+    DodoPayments.Initialize({
+      mode: "test",
+      onEvent: (event) => {
+        switch (event.event_type) {
+          case "checkout.opened":
+            setIsLoading(false);
+            break;
+          case "checkout.error":
+            setIsLoading(false);
+            console.error("Checkout error:", event.data?.message);
+            break;
+        }
+      },
+    });
+  }, []);
+
+  const handleCheckout = async () => {
+    try {
+      setIsLoading(true);
+      await DodoPayments.Checkout.open({
+        checkoutUrl: "https://checkout.dodopayments.com/session/cks_123"
+      });
+    } catch (error) {
+      console.error("Failed to open checkout:", error);
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <Button 
+      onClick={handleCheckout}
+      disabled={isLoading}
+    >
+      {isLoading ? "Loading..." : "Checkout Now"}
+    </Button>
+  );
+}
+```
+
+</Step>
+
+<Step title="Fügen Sie den Checkout zu Ihrer Seite hinzu">
+
+Verwenden Sie die Checkout-Button-Komponente in Ihrer Anwendung:
+
+```typescript
+// app/page.tsx
+import { CheckoutButton } from "@/components/CheckoutButton";
+
+export default function Home() {
+  return (
+    <main className="flex min-h-screen flex-col items-center justify-center p-24">
+      <h1>Welcome to Our Store</h1>
+      <CheckoutButton />
+    </main>
+  );
+}
+```
+
+</Step>
+
+<Step title="Erfolgs- und Fehlerseiten behandeln">
+
+Erstellen Sie Seiten, um Checkout-Weiterleitungen zu behandeln:
+
+```typescript
+// app/success/page.tsx
+export default function SuccessPage() {
+  return (
+    <div className="flex min-h-screen flex-col items-center justify-center">
+      <h1>Payment Successful!</h1>
+      <p>Thank you for your purchase.</p>
+    </div>
+  );
+}
+
+// app/failure/page.tsx
+export default function FailurePage() {
+  return (
+    <div className="flex min-h-screen flex-col items-center justify-center">
+      <h1>Payment Failed</h1>
+      <p>Please try again or contact support.</p>
+    </div>
+  );
+}
+```
+
+</Step>
+
+<Step title="Testen Sie Ihre Integration">
+
+1. Starten Sie Ihren Entwicklungsserver:
+
+```bash
+npm run dev
+```
+
+2. Testen Sie den Checkout-Fluss:
+   - Klicken Sie auf die Checkout-Schaltfläche
+   - Überprüfen Sie, ob das Overlay erscheint
+   - Testen Sie den Zahlungsfluss mit Testanmeldeinformationen
+   - Bestätigen Sie, dass die Weiterleitungen korrekt funktionieren
+
+<Check>
+Sie sollten Checkout-Ereignisse in der Konsole Ihres Browsers protokolliert sehen.
+</Check>
+
+</Step>
+
+<Step title="Live gehen">
+
+Wenn Sie bereit für die Produktion sind:
+
+1. Ändern Sie den Modus auf `'live'`:
+
+```typescript
+DodoPayments.Initialize({
+  mode: "live",
+  onEvent: (event) => {
+    console.log("Checkout event:", event);
+  }
+});
+```
+
+2. Aktualisieren Sie Ihre Checkout-URLs, um Live-Checkout-Sitzungen von Ihrem Backend zu verwenden
+3. Testen Sie den gesamten Fluss in der Produktion
+4. Überwachen Sie Ereignisse und Fehler
+
+</Step>
+</Steps>
+
+## API-Referenz
+
+### Konfiguration
+
+#### Initialisierungsoptionen
+
+```typescript
+interface InitializeOptions {
+  mode: "test" | "live";
+  onEvent: (event: CheckoutEvent) => void;
+}
+```
+
+| Option | Typ | Erforderlich | Beschreibung |
+|--------|------|----------|-------------|
+| `mode` | `"test" \| "live"` | Ja | Umgebungsmodus: `'test'` für die Entwicklung, `'live'` für die Produktion |
+| `onEvent` | `function` | Ja | Rückruffunktion zur Verarbeitung von Checkout-Ereignissen |
+
+#### Checkout-Optionen
+
+```typescript
+interface CheckoutOptions {
+  checkoutUrl: string;
+}
+```
+
+| Option | Typ | Erforderlich | Beschreibung |
+|--------|------|----------|-------------|
+| `checkoutUrl` | `string` | Ja | Checkout-Sitzungs-URL von der [create checkout session API](/api-reference/checkout-sessions/create) |
+
+### Methoden
+
+#### Checkout öffnen
+
+Öffnet das Checkout-Overlay mit der angegebenen Checkout-Sitzungs-URL.
+
+```typescript
+DodoPayments.Checkout.open({
+  checkoutUrl: "https://checkout.dodopayments.com/session/cks_123"
+});
+```
+
+#### Checkout schließen
+
+Schließt das Checkout-Overlay programmgesteuert.
+
+```typescript
+DodoPayments.Checkout.close();
+```
+
+#### Status überprüfen
+
+Gibt an, ob das Checkout-Overlay derzeit geöffnet ist.
+
+```typescript
+const isOpen = DodoPayments.Checkout.isOpen();
+// Returns: boolean
+```
+
+### Ereignisse
+
+Das SDK bietet Echtzeitereignisse, auf die Sie über den `onEvent` Rückruf hören können:
+
+```typescript
+DodoPayments.Initialize({
+  onEvent: (event: CheckoutEvent) => {
+    switch (event.event_type) {
+      case "checkout.opened":
+        // Checkout overlay has been opened
+        break;
+      case "checkout.payment_page_opened":
+        // Payment page has been displayed
+        break;
+      case "checkout.customer_details_submitted":
+        // Customer and billing details submitted
+        break;
+      case "checkout.closed":
+        // Checkout has been closed
+        break;
+      case "checkout.redirect":
+        // Checkout will perform a redirect
+        break;
+      case "checkout.error":
+        // An error occurred
+        console.error("Error:", event.data?.message);
+        break;
+    }
+  }
+});
+```
+
+| Ereignistyp | Beschreibung |
+|------------|-------------|
+| `checkout.opened` | Checkout-Overlay wurde geöffnet |
+| `checkout.payment_page_opened` | Zahlungsseite wurde angezeigt |
+| `checkout.customer_details_submitted` | Kunden- und Rechnungsdetails wurden übermittelt |
+| `checkout.closed` | Checkout-Overlay wurde geschlossen |
+| `checkout.redirect` | Checkout wird eine Weiterleitung durchführen |
+| `checkout.error` | Ein Fehler ist während des Checkouts aufgetreten |
+
+## Implementierungsoptionen
+
+### Paketmanager-Installation
+
+Installieren Sie über npm, yarn oder pnpm, wie in der [Schritt-für-Schritt-Integrationsanleitung](#step-by-step-integration-guide) gezeigt.
+
+### CDN-Implementierung
+
+Für eine schnelle Integration ohne Build-Schritt können Sie unser CDN verwenden:
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dodo Payments Checkout</title>
+    
+    <!-- Load DodoPayments -->
+    <script src="https://cdn.jsdelivr.net/npm/dodopayments-checkout@latest/dist/index.js"></script>
+    <script>
+        // Initialize the SDK
+        DodoPaymentsCheckout.DodoPayments.Initialize({
+            mode: "test", // Change to 'live' for production
+            onEvent: (event) => {
+                console.log('Checkout event:', event);
+            }
+        });
+    </script>
+</head>
+<body>
+    <button onclick="openCheckout()">Checkout Now</button>
+
+    <script>
+        function openCheckout() {
+            DodoPaymentsCheckout.DodoPayments.Checkout.open({
+                checkoutUrl: "https://checkout.dodopayments.com/session/cks_123"
+            });
+        }
+    </script>
+</body>
+</html>
+```
+
+## TypeScript-Unterstützung
+
+Das SDK ist in TypeScript geschrieben und enthält umfassende Typdefinitionen. Alle öffentlichen APIs sind vollständig typisiert, um die Entwicklererfahrung und IntelliSense-Unterstützung zu verbessern.
+
+```typescript
+import { DodoPayments, CheckoutEvent } from "dodopayments-checkout";
+
+DodoPayments.Initialize({
+  mode: "test",
+  onEvent: (event: CheckoutEvent) => {
+    // event is fully typed
+    console.log(event.event_type, event.data);
+  },
+});
+```
+
+## Fehlerbehandlung
+
+Das SDK bietet detaillierte Fehlermeldungen über das Ereignissystem. Implementieren Sie immer eine ordnungsgemäße Fehlerbehandlung in Ihrem `onEvent` Rückruf:
+
+```typescript
+DodoPayments.Initialize({
+  onEvent: (event: CheckoutEvent) => {
+    if (event.event_type === "checkout.error") {
+      console.error("Checkout error:", event.data?.message);
+      // Handle error appropriately
+      // You may want to show a user-friendly error message
+      // or retry the checkout process
+    }
+  }
+});
+```
+
+<Warning>
+Behandeln Sie immer das `checkout.error` Ereignis, um eine gute Benutzererfahrung zu gewährleisten, wenn Fehler auftreten.
+</Warning>
+
+## Best Practices
+
+1. **Einmal initialisieren**: Initialisieren Sie das SDK einmal, wenn Ihre Anwendung geladen wird, nicht bei jedem Checkout-Versuch
+2. **Fehlerbehandlung**: Implementieren Sie immer eine ordnungsgemäße Fehlerbehandlung in Ihrem Ereignisrückruf
+3. **Testmodus**: Verwenden Sie `test` Modus während der Entwicklung und wechseln Sie erst bei Produktionsbereitschaft zu `live`
+4. **Ereignisbehandlung**: Behandeln Sie alle relevanten Ereignisse für eine vollständige Benutzererfahrung
+5. **Gültige URLs**: Verwenden Sie immer gültige Checkout-URLs von der create checkout session API
+6. **TypeScript**: Verwenden Sie TypeScript für bessere Typensicherheit und Entwicklererfahrung
+7. **Ladezustände**: Zeigen Sie Ladezustände an, während der Checkout geöffnet wird, um die Benutzererfahrung zu verbessern
+
+## Fehlersuche
+
+<AccordionGroup>
+<Accordion title="Checkout öffnet sich nicht">
+
+**Mögliche Ursachen:**
+- SDK nicht initialisiert, bevor `open()` aufgerufen wird
+- Ungültige Checkout-URL
+- JavaScript-Fehler in der Konsole
+- Netzwerkverbindungsprobleme
+
+**Lösungen:**
+- Überprüfen Sie, ob die SDK-Initialisierung vor dem Öffnen des Checkouts erfolgt
+- Überprüfen Sie auf Konsolenfehler
+- Stellen Sie sicher, dass die Checkout-URL gültig und von der create checkout session API stammt
+- Überprüfen Sie die Netzwerkverbindung
+
+</Accordion>
+
+<Accordion title="Ereignisse werden nicht ausgelöst">
+
+**Mögliche Ursachen:**
+- Ereignishandler nicht richtig eingerichtet
+- JavaScript-Fehler verhindern die Ereignisweiterleitung
+- SDK nicht korrekt initialisiert
+
+**Lösungen:**
+- Bestätigen Sie, dass der Ereignishandler in `Initialize()` richtig konfiguriert ist
+- Überprüfen Sie die Browserkonsole auf JavaScript-Fehler
+- Stellen Sie sicher, dass die SDK-Initialisierung erfolgreich abgeschlossen wurde
+- Testen Sie zunächst mit einem einfachen Ereignishandler
+
+</Accordion>
+
+<Accordion title="Styling-Probleme">
+
+**Mögliche Ursachen:**
+- CSS-Konflikte mit Ihren Anwendungsstilen
+- Theme-Einstellungen wurden nicht korrekt angewendet
+- Probleme mit responsive Design
+
+**Lösungen:**
+- Überprüfen Sie auf CSS-Konflikte in den DevTools des Browsers
+- Stellen Sie sicher, dass die Theme-Einstellungen korrekt sind
+- Testen Sie auf verschiedenen Bildschirmgrößen
+- Stellen Sie sicher, dass keine z-index-Konflikte mit dem Overlay bestehen
+
+</Accordion>
+</AccordionGroup>
+
+## Browserunterstützung
+
+Das Dodo Payments Checkout SDK unterstützt die folgenden Browser:
+
+- Chrome (neueste)
+- Firefox (neueste)
+- Safari (neueste)
+- Edge (neueste)
+- IE11+
+
+<Note>
+Apple Pay wird derzeit nicht im Overlay-Checkout-Erlebnis unterstützt. Wir planen, die Unterstützung für Apple Pay in einer zukünftigen Version hinzuzufügen.
+</Note>
+
+Für weitere Hilfe besuchen Sie unsere [Discord-Community](https://discord.gg/bYqAp4ayYh) oder kontaktieren Sie unser Entwickler-Support-Team.

@@ -1,0 +1,121 @@
+---
+title: v1.66.0 (8 Desember 2025)
+description: Webhook subscription.updated, checkout alamat minimal, kunci API
+  hanya-baca, UPI AutoPay & langganan RuPay untuk semua bisnis
+icon: arrows-turn-right
+---
+
+## Fitur Baru 🚀
+
+1. **`subscription.updated` Webhook**  
+   Sebuah event webhook baru yang dipicu pada setiap pembaruan objek langganan, memberikan notifikasi waktu nyata tentang setiap perubahan pada langganan Anda.
+   
+   Gunakan webhook ini untuk:
+   - Mendapatkan notifikasi instan ketika detail langganan berubah
+   - Menjaga status aplikasi Anda tetap sinkron dengan Dodo Payments
+   - Merespons pembaruan langganan tanpa melakukan polling ke API
+   
+   <Tip>
+   Berlangganan ke `subscription.updated` untuk menghilangkan kebutuhan untuk polling dan menjaga sistem Anda tetap sinkron dengan perubahan langganan waktu nyata.
+   </Tip>
+   
+   Pelajari lebih lanjut: [Webhook Langganan](/developer-resources/webhooks/intents/subscription)
+
+2. **Dukungan Alamat Minimal di Checkout**  
+
+   <Frame>
+   <img src="/images/changelog/minimal-address.png" alt="Dukungan Alamat Minimal di Checkout" />
+   </Frame>
+
+   Kurangi gesekan checkout dengan mode pengumpulan alamat minimal yang baru. Alih-alih mengumpulkan detail alamat lengkap, mode alamat minimal hanya mengumpulkan:
+   
+   - **Negara**: Selalu diperlukan untuk penentuan pajak
+   - **Kode Pos**: Hanya dikumpulkan di daerah di mana diperlukan untuk perhitungan pajak penjualan, PPN, atau GST
+   
+   <Check>
+   Hasil: Penyelesaian checkout yang jauh lebih cepat dengan lebih sedikit kolom formulir untuk pelanggan.
+   </Check>
+   
+   **Aktifkan alamat minimal:**
+   
+   <Tabs>
+   <Tab title="Sesi Checkout">
+
+   ```javascript
+   const session = await client.checkoutSessions.create({
+     product_cart: [{ product_id: 'prod_123', quantity: 1 }],
+     minimal_address: true
+   });
+   ```
+
+   </Tab>
+   
+   <Tab title="Tautan Pembayaran Statis">
+   Tambahkan `minimalAddress=true` ke URL tautan pembayaran Anda:
+   
+
+   ```
+   https://checkout.dodopayments.com/buy/prod_123?minimalAddress=true
+   ```
+
+   </Tab>
+   </Tabs>
+   
+   <Info>
+   Secara default, checkout terus mengumpulkan alamat lengkap. Kami akan secara bertahap mengalihkan semua tautan checkout ke mode alamat minimal. Aktifkan fitur ini sekarang untuk mulai mendapatkan manfaat dari pengurangan gesekan checkout.
+   </Info>
+
+3. **Kunci API Hanya-Baca**  
+   Buat kunci API dengan izin hanya-baca untuk integrasi yang lebih aman. Saat membuat kunci API baru, hapus centang **Aktifkan akses tulis** untuk membuat kunci hanya-baca.
+   
+   Kunci hanya-baca dapat:
+   - Mengambil data pembayaran, langganan, dan pelanggan
+   - Mendaftar produk dan mengambil detail
+   - Mengakses laporan dan analitik
+   
+   Kunci hanya-baca **tidak dapat**:
+   - Membuat atau memodifikasi pembayaran
+   - Memperbarui langganan
+   - Mengubah konfigurasi produk
+   
+   <Tip>
+   Hapus centang "Aktifkan akses tulis" untuk integrasi dasbor, alat analitik, dan sistem apa pun yang hanya perlu melihat data tanpa melakukan perubahan.
+   </Tip>
+
+4. **Langganan UPI AutoPay & Kartu RuPay - Peluncuran Penuh**  
+   Langganan UPI AutoPay dan kartu RuPay sekarang tersedia untuk semua bisnis. Ini memungkinkan pembayaran berulang untuk pelanggan India dengan:
+   
+   - **UPI AutoPay**: Biaya berulang otomatis melalui mandat UPI
+   - **Kartu RuPay**: Dukungan langganan untuk jaringan kartu domestik India
+   
+   <Check>
+   Hasil: Pilihan pembayaran langganan yang diperluas untuk pasar India dengan penanganan mandat yang sesuai dengan RBI.
+   </Check>
+   
+   Pelajari lebih lanjut: [Langganan dengan Mandat Sesuai RBI](/features/subscription#subscriptions-with-rbi-compliant-mandates)
+
+5. **API Prabaca Perubahan Rencana**  
+   Sebuah endpoint API baru untuk prabaca perubahan rencana langganan sebelum berkomitmen pada mereka. Dapatkan jumlah biaya yang tepat dan lihat bagaimana langganan akan terlihat setelah perubahan - tanpa melakukan modifikasi nyata.
+   
+
+   ```javascript
+   const preview = await client.subscriptions.previewChangePlan('sub_123', {
+     product_id: 'prod_pro_plan',
+     proration_billing_mode: 'prorated_immediately',
+     quantity: 1
+   });
+   
+   console.log('Charge amount:', preview.immediate_charge.summary);
+   console.log('New plan details:', preview.new_plan);
+   ```
+
+   
+   Gunakan ini untuk:
+   - Menunjukkan kepada pelanggan persis apa yang akan mereka bayar sebelum mengonfirmasi peningkatan/penurunan
+   - Membangun kalkulator harga dan alat perbandingan rencana
+   - Mengurangi tiket dukungan dengan meningkatkan transparansi harga
+   
+   Pelajari lebih lanjut: [API Prabaca Perubahan Rencana](/api-reference/subscriptions/preview-change-plan)
+
+6. **Perbaikan dan Peningkatan Umum**  
+   Rilis ini mencakup penyempurnaan UI, peningkatan kinerja, dan menyelesaikan bug kecil untuk pengalaman yang lebih andal dan terintegrasi.

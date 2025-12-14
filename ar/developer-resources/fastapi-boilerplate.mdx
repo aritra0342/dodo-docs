@@ -1,0 +1,399 @@
+---
+sidebarTitle: FastAPI
+title: نموذج FastAPI
+description: ابدأ بسرعة مع نموذج FastAPI الخاص بنا لدمج مدفوعات دودي في تطبيقات
+  بايثون الخلفية الخاصة بك
+icon: python
+tag: جديد
+---
+
+<Card title="مستودع GitHub" icon="github" href="https://github.com/dodopayments/fastapi-boilerplate">
+  نموذج كامل لـ FastAPI + مدفوعات دودي
+</Card>
+
+## نظرة عامة
+
+يوفر نموذج FastAPI نقطة انطلاق جاهزة للإنتاج لدمج مدفوعات دودي مع بايثون الخلفية الخاصة بك. يتضمن هذا القالب معالجة جلسات الدفع، والتحقق من الويب هوك، ودمج بوابة العملاء، وأنماط API غير المتزامنة لمساعدتك في البدء في قبول المدفوعات بسرعة.
+
+<Info>
+يستخدم هذا النموذج FastAPI مع أنماط async/await، وPydantic للتحقق، و`dodopayments` SDK بايثون لدمج API بسلاسة.
+</Info>
+
+### الميزات
+
+- **إعداد سريع** - ابدأ في أقل من 5 دقائق
+- **دعم غير متزامن** - مبني على أنماط async/await الأصلية لـ FastAPI
+- **جلسات الدفع** - تدفق دفع مُعد مسبقًا باستخدام SDK بايثون
+- **معالجة الويب هوك** - نقطة نهاية ويب هوك آمنة مع التحقق من التوقيع
+- **بوابة العملاء** - إنشاء جلسات بوابة العملاء بسهولة
+- **أمان النوع** - تحقق كامل من Pydantic وتلميحات النوع
+- **تكوين البيئة** - إعداد متغيرات البيئة الجاهزة للاستخدام
+
+## المتطلبات المسبقة
+
+قبل أن تبدأ، تأكد من أن لديك:
+
+- **بايثون 3.9+** (موصى به: بايثون 3.11+)
+- **pip** أو **uv** لإدارة الحزم
+- **حساب مدفوعات دودي** (للوصول إلى مفاتيح API وWebhook من لوحة التحكم)
+
+## بدء سريع
+
+<Steps>
+<Step title="استنساخ المستودع">
+
+```bash
+git clone https://github.com/dodopayments/fastapi-boilerplate.git
+cd fastapi-boilerplate
+```
+
+</Step>
+
+<Step title="إنشاء بيئة افتراضية">
+قم بإعداد بيئة بايثون معزولة:
+
+```bash
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+```
+
+أو باستخدام uv لإدارة التبعيات بشكل أسرع:
+
+```bash
+uv venv
+source .venv/bin/activate
+```
+
+</Step>
+
+<Step title="تثبيت التبعيات">
+
+```bash
+pip install -r requirements.txt
+```
+
+أو مع uv:
+
+```bash
+uv pip install -r requirements.txt
+```
+
+</Step>
+
+<Step title="الحصول على بيانات اعتماد API">
+قم بالتسجيل في [مدفوعات دودي](https://dodopayments.com/) واحصل على بيانات اعتمادك من لوحة التحكم:
+
+- **مفتاح API:** [لوحة التحكم → المطور → مفاتيح API](https://app.dodopayments.com/developer/api-keys)
+- **مفتاح الويب هوك:** [لوحة التحكم → المطور → الويب هوك](https://app.dodopayments.com/developer/webhooks)
+
+<Tip>
+تأكد من أنك في **وضع الاختبار** أثناء التطوير!
+</Tip>
+</Step>
+
+<Step title="تكوين متغيرات البيئة">
+قم بإنشاء ملف `.env` في الدليل الجذر:
+
+```bash
+cp .env.example .env
+```
+
+قم بتحديث القيم باستخدام بيانات اعتماد مدفوعات دودي الخاصة بك:
+
+```bash .env
+DODO_PAYMENTS_API_KEY=your_api_key_here
+DODO_PAYMENTS_WEBHOOK_KEY=your_webhook_signing_key_here
+DODO_PAYMENTS_ENVIRONMENT=test_mode
+```
+
+<Warning>
+لا تقم أبداً بإدخال ملف `.env` في التحكم في الإصدار. إنه مدرج بالفعل في `.gitignore`.
+</Warning>
+</Step>
+
+<Step title="تشغيل خادم التطوير">
+
+```bash
+uvicorn main:app --reload
+```
+
+افتح [http://localhost:8000/docs](http://localhost:8000/docs) لرؤية وثائق API التفاعلية!
+
+<Check>
+يجب أن ترى واجهة Swagger الخاصة بـ FastAPI مع جميع نقاط النهاية المتاحة جاهزة للاختبار.
+</Check>
+</Step>
+</Steps>
+
+## هيكل المشروع
+
+```text
+fastapi-boilerplate/
+├── main.py                 # FastAPI application entry point
+├── routers/
+│   ├── checkout.py         # Checkout session endpoints
+│   ├── webhook.py          # Webhook handler endpoint
+│   └── customer_portal.py  # Customer portal endpoints
+├── config.py               # Environment configuration
+├── requirements.txt        # Python dependencies
+├── .env.example            # Environment template
+└── README.md
+```
+
+## نقاط نهاية API
+
+يتضمن النموذج نقاط النهاية المُعدة مسبقًا التالية:
+
+| نقطة النهاية | الطريقة | الوصف |
+|----------|--------|-------------|
+| `/checkout` | POST | إنشاء جلسة دفع جديدة |
+| `/webhook` | POST | معالجة ويب هوك مدفوعات دودي |
+| `/customer-portal` | POST | توليد عنوان URL لبوابة العملاء |
+
+## أمثلة على الكود
+
+### إنشاء جلسة دفع
+
+```python
+from fastapi import APIRouter, HTTPException
+from dodopayments import AsyncDodoPayments
+from pydantic import BaseModel
+from config import settings
+
+router = APIRouter()
+dodo = AsyncDodoPayments(
+    bearer_token=settings.DODO_PAYMENTS_API_KEY,
+    environment=settings.DODO_PAYMENTS_ENVIRONMENT
+)
+
+class CheckoutRequest(BaseModel):
+    product_id: str
+    quantity: int = 1
+    customer_email: str | None = None
+    customer_name: str | None = None
+
+@router.post("/checkout")
+async def create_checkout(request: CheckoutRequest):
+    try:
+        session = await dodo.checkout_sessions.create(
+            product_cart=[{
+                "product_id": request.product_id,
+                "quantity": request.quantity
+            }],
+            customer={
+                "email": request.customer_email,
+                "name": request.customer_name
+            } if request.customer_email else None,
+            return_url="http://localhost:8000/success"
+        )
+        return {"checkout_url": session.url, "session_id": session.session_id}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+```
+
+### معالجة الويب هوك
+
+```python
+from fastapi import APIRouter, Request, HTTPException
+import hmac
+import hashlib
+from config import settings
+
+router = APIRouter()
+
+def verify_webhook_signature(payload: bytes, signature: str) -> bool:
+    expected = hmac.new(
+        settings.DODO_PAYMENTS_WEBHOOK_KEY.encode(),
+        payload,
+        hashlib.sha256
+    ).hexdigest()
+    return hmac.compare_digest(expected, signature)
+
+@router.post("/webhook")
+async def handle_webhook(request: Request):
+    payload = await request.body()
+    signature = request.headers.get("webhook-signature", "")
+    
+    if not verify_webhook_signature(payload, signature):
+        raise HTTPException(status_code=401, detail="Invalid signature")
+    
+    event = await request.json()
+    event_type = event.get("type")
+    
+    match event_type:
+        case "payment.succeeded":
+            # Handle successful payment
+            payment_id = event["data"]["payment_id"]
+            print(f"Payment succeeded: {payment_id}")
+            
+        case "subscription.active":
+            # Handle subscription activation
+            subscription_id = event["data"]["subscription_id"]
+            print(f"Subscription activated: {subscription_id}")
+            
+        case "refund.succeeded":
+            # Handle refund
+            refund_id = event["data"]["refund_id"]
+            print(f"Refund processed: {refund_id}")
+    
+    return {"status": "received"}
+```
+
+### دمج بوابة العملاء
+
+```python
+from fastapi import APIRouter, HTTPException
+from dodopayments import AsyncDodoPayments
+from pydantic import BaseModel
+from config import settings
+
+router = APIRouter()
+dodo = AsyncDodoPayments(
+    bearer_token=settings.DODO_PAYMENTS_API_KEY,
+    environment=settings.DODO_PAYMENTS_ENVIRONMENT
+)
+
+class PortalRequest(BaseModel):
+    customer_id: str
+
+@router.post("/customer-portal")
+async def create_portal_session(request: PortalRequest):
+    try:
+        session = await dodo.customers.create_customer_portal(
+            customer_id=request.customer_id
+        )
+        return {"portal_url": session.url}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+```
+
+## أحداث الويب هوك
+
+يظهر النموذج كيفية التعامل مع أحداث الويب هوك الشائعة:
+
+| الحدث | الوصف |
+|-------|-------------|
+| `payment.succeeded` | تم إكمال الدفع بنجاح |
+| `payment.failed` | فشل محاولة الدفع |
+| `subscription.active` | الاشتراك نشط الآن |
+| `subscription.cancelled` | تم إلغاء الاشتراك |
+| `refund.succeeded` | تم معالجة الاسترداد بنجاح |
+
+أضف منطق عملك داخل معالج الويب هوك لـ:
+- تحديث أذونات المستخدم في قاعدة البيانات الخاصة بك
+- إرسال رسائل تأكيد عبر البريد الإلكتروني
+- توفير الوصول إلى المنتجات الرقمية
+- تتبع التحليلات والقياسات
+
+## اختبار الويب هوك محليًا
+
+للتطوير المحلي، استخدم أدوات مثل [ngrok](https://ngrok.com/) لفتح خادمك المحلي:
+
+```bash
+ngrok http 8000
+```
+
+قم بتحديث عنوان URL للويب هوك في [لوحة تحكم مدفوعات دودي](https://app.dodopayments.com/developer/webhooks):
+
+```
+https://your-ngrok-url.ngrok.io/webhook
+```
+
+## النشر
+
+### دوكر
+
+```dockerfile
+FROM python:3.11-slim
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+```
+
+قم بالبناء والتشغيل:
+
+```bash
+docker build -t fastapi-dodo .
+docker run -p 8000:8000 --env-file .env fastapi-dodo
+```
+
+### اعتبارات الإنتاج
+
+<Warning>
+قبل النشر في الإنتاج:
+- قم بتبديل `DODO_PAYMENTS_ENVIRONMENT` إلى `live_mode`
+- استخدم مفاتيح API الإنتاج من لوحة التحكم
+- قم بتحديث عنوان URL للويب هوك إلى نطاق الإنتاج الخاص بك
+- قم بتمكين HTTPS لجميع نقاط النهاية
+</Warning>
+
+## استكشاف الأخطاء وإصلاحها
+
+<AccordionGroup>
+<Accordion title="أخطاء الاستيراد أو الوحدات المفقودة">
+تأكد من تنشيط بيئتك الافتراضية وتثبيت التبعيات:
+
+```bash
+source venv/bin/activate
+pip install -r requirements.txt
+```
+
+</Accordion>
+
+<Accordion title="فشل إنشاء جلسة الدفع">
+**الأسباب الشائعة:**
+- معرف المنتج غير صالح - تحقق من أنه موجود في لوحة تحكم دودي الخاصة بك
+- مفتاح API أو إعداد البيئة غير صحيح في `.env`
+- تحقق من سجلات FastAPI للحصول على رسائل خطأ مفصلة
+</Accordion>
+
+<Accordion title="الويب هوك لا تتلقى الأحداث">
+للاختبار المحلي، استخدم [ngrok](https://ngrok.com) لفتح خادمك:
+
+```bash
+ngrok http 8000
+```
+
+قم بتحديث عنوان URL للويب هوك في [لوحة تحكم دودي](https://app.dodopayments.com/developer/webhooks) إلى عنوان URL الخاص بـ ngrok. تأكد من تحديث ملف `.env` الخاص بك بمفتاح التحقق الصحيح للويب هوك.
+</Accordion>
+
+<Accordion title="فشل التحقق من توقيع الويب هوك">
+- تأكد من أن `DODO_PAYMENTS_WEBHOOK_KEY` تم تعيينه بشكل صحيح في `.env`
+- تحقق من أنك تستخدم جسم الطلب الخام للتحقق من التوقيع
+- تحقق من أنك تقرأ رأس `webhook-signature` بشكل صحيح
+</Accordion>
+</AccordionGroup>
+
+## تعرف على المزيد
+
+<CardGroup cols={2}>
+<Card title="SDK بايثون" icon="python" href="/developer-resources/sdks/python">
+  وثائق كاملة لـ SDK بايثون مع دعم غير متزامن
+</Card>
+
+<Card title="وثائق الويب هوك" icon="webhook" href="/developer-resources/webhooks">
+  تعرف على جميع أحداث الويب هوك وأفضل الممارسات
+</Card>
+
+<Card title="جلسات الدفع" icon="credit-card" href="/developer-resources/checkout-session">
+  استكشاف عميق في تكوين جلسات الدفع
+</Card>
+
+<Card title="مرجع API" icon="book" href="/api-reference/introduction">
+  وثائق كاملة لواجهة برمجة تطبيقات مدفوعات دودي
+</Card>
+</CardGroup>
+
+## الدعم
+
+تحتاج إلى مساعدة بشأن النموذج؟
+
+- انضم إلى [مجتمع Discord](https://discord.gg/bYqAp4ayYh) لطرح الأسئلة والمناقشات
+- تحقق من [مستودع GitHub](https://github.com/dodopayments/fastapi-boilerplate) للمشكلات والتحديثات
+- اتصل بفريق [الدعم](mailto:support@dodopayments.com) لدينا للحصول على المساعدة

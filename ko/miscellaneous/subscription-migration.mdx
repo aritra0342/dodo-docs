@@ -1,0 +1,279 @@
+---
+sidebarTitle: 구독 마이그레이션
+title: Dodo Payments로의 구독 마이그레이션
+description: 현재 결제 프로세서에서 Dodo Payments로 기존 구독자 및 결제 방법을 마이그레이션하는 방법을 알아보세요.
+icon: file-import
+---
+
+## 구독 마이그레이션이란?
+
+구독 마이그레이션은 기존 구독자를 레거시 결제 프로세서에서 Dodo Payments로 전송하여 모든 고객 데이터에 대한 단일 진실 출처를 제공합니다. 마이그레이션이 없으면 현재까지 확보한 고객은 레거시 시스템에 남아 있으며, 새로운 고객만 Dodo Payments에서 확인할 수 있습니다.
+
+마이그레이션 프로세스는 고객에게 원활한 청구 경험을 보장합니다. 고객은 결제 세부 정보를 다시 입력할 필요가 없으며 구독에 대한 중단을 경험하지 않습니다.
+
+<Warning>
+현재 우리는 **카드 토큰**에 대한 마이그레이션만 지원합니다. Apple Pay, Google Pay 및 기타 지갑 결제 방법은 이러한 제공업체가 부과하는 토큰화 제한으로 인해 결제 프로세서 간에 전송할 수 없습니다.
+</Warning>
+
+## 마이그레이션 프로세스 개요
+
+구독 마이그레이션 프로세스는 세 가지 주요 부분으로 구성됩니다:
+
+1. **결제 방법 전송** — 현재 프로세서에서 민감한 카드 데이터의 안전한 전송
+2. **구독자 데이터 전송** — 고객 세부 정보, 구독 계획 및 청구 일정의 내보내기
+3. **가져오기 및 검증** — Dodo Payments에서 결제 방법 및 구독자 데이터 통합
+
+<Note>
+구독 마이그레이션을 시작하려면 [지원 팀](mailto:support@dodopayments.com)에게 문의하세요. 그들은 전 과정을 안내할 전담 솔루션 엔지니어와 연결해 드릴 것입니다.
+</Note>
+
+## 요구 사항
+
+마이그레이션을 시작하기 전에 다음 요구 사항을 충족하는지 확인하세요:
+
+<AccordionGroup>
+<Accordion title="PCI DSS 준수 확인">
+Dodo Payments는 PCI DSS Level 1 준수입니다. 준수 의무를 충족하기 위해, 우리는 다른 PCI DSS Level 1 준수 결제 프로세서로부터만 카드 데이터를 받을 수 있습니다.
+
+현재 프로세서는 다음을 제공해야 합니다:
+- 현재 PCI 준수 인증서(AOC) 또는 Visa의 서비스 제공업체 글로벌 레지스트리 목록
+- 안전한 카드 데이터 내보내기를 지원한다는 확인
+
+현재 프로세서와 공유할 [준수 인증서(AOC)](/assets/dodo-payments-pci-dss-aoc.pdf)를 확인하세요.
+</Accordion>
+
+<Accordion title="Dodo Payments 통합">
+마이그레이션을 시작하기 전에 Dodo Payments 통합을 완료하고 모든 신규 고객이 Dodo Payments 체크아웃으로 안내되도록 하세요. 이는 전환 기간 동안 데이터 불일치를 방지합니다.
+</Accordion>
+
+<Accordion title="데이터 접근 권한">
+현재 프로세서에서 데이터 내보내기를 요청할 수 있는 필요한 권한이 있는지 확인하세요. 일반적으로 다음이 필요합니다:
+- 계정 소유자 확인
+- 민감한 데이터 접근에 대한 서면 승인
+- 프로세서의 보안 검증 단계 완료
+</Accordion>
+</AccordionGroup>
+
+## 단계별 마이그레이션 가이드
+
+<Steps>
+<Step title="현재 프로세서에서 결제 방법 내보내기 요청">
+현재 결제 프로세서의 지원 팀에 연락하여 고객 카드 토큰의 전체 내보내기를 공식적으로 요청하세요.
+
+다음이 필요합니다:
+- 신원 및 권한 확인 제공
+- Dodo Payments의 PGP 공개 키를 사용하여 내보내기를 암호화해 달라고 요청 (아래 제공됨)
+- 암호화된 파일을 우리의 안전한 SFTP 서버로 직접 전송해 달라고 요청
+
+<Info>
+안전한 전송은 서버 간에 SFTP를 통해 직접 이루어집니다. 솔루션 엔지니어가 현재 프로세서와 공유할 SFTP 자격 증명을 제공합니다.
+</Info>
+
+평균적으로 이 프로세스는 약 **2주**가 소요되며, 현재 프로세서의 정책 및 응답 시간에 따라 달라질 수 있습니다.
+</Step>
+
+<Step title="구독자 데이터 내보내기 준비">
+결제 방법 전송이 진행되는 동안 레거시 시스템에서 구독자 데이터를 내보내세요. 솔루션 엔지니어가 CSV 템플릿을 제공하고 필요한 필드를 안내해 드립니다.
+
+### 필요한 구독자 데이터
+
+| 필드 | 설명 |
+|-------|-------------|
+| `customer_id` | 내부 고객 식별자 |
+| `email` | 고객의 이메일 주소 |
+| `name` | 고객의 전체 이름 |
+| `country` | 두 글자 국가 코드 (ISO 3166-1 alpha-2) |
+| `currency` | 세 글자 통화 코드 (ISO 4217) |
+| `payment_amount` | 가장 작은 통화 단위로 된 구독 금액 |
+| `payment_interval` | 청구 주기 (월별, 연간 등) |
+| `next_billing_date` | 다음 예정된 청구 날짜 (ISO 8601) |
+| `card_token` | 현재 프로세서의 고유 토큰 |
+
+<Warning>
+`card_token` 필드는 중요합니다. 이는 가져오기 중에 구독자 기록과 결제 방법을 일치시키는 데 사용됩니다. 결제 방법 내보내기의 토큰과 정확히 일치하는지 확인하세요.
+</Warning>
+
+### 샘플 데이터 형식
+
+```json
+{
+  "customers": [
+    {
+      "customer_id": "cus_abc123",
+      "email": "jane.doe@example.com",
+      "name": "Jane Doe",
+      "country": "US",
+      "currency": "USD",
+      "payment_amount": 2999,
+      "payment_interval": "monthly",
+      "next_billing_date": "2025-01-15T00:00:00Z",
+      "card_token": "tok_xyz789",
+      "metadata": {
+        "plan": "pro",
+        "signup_source": "website"
+      }
+    }
+  ]
+}
+```
+
+</Step>
+
+<Step title="검증 및 테스트">
+가져오기 날짜 전에, 우리 팀은:
+
+- 결제 방법 데이터의 파일 무결성과 암호화를 확인합니다.
+- 구독자 CSV의 올바른 형식을 검증합니다.
+- 샌드박스 환경에서 테스트 가져오기를 실행합니다.
+- 데이터 매핑 문제를 식별하고 해결합니다.
+
+<Check>
+모든 것이 프로덕션 가져오기를 위해 준비되었다는 확인 보고서를 받게 됩니다.
+</Check>
+</Step>
+
+<Step title="프로덕션 가져오기">
+합의된 가져오기 날짜에, 우리 엔지니어링 팀은:
+
+1. PCI 준수 카드 금고에 결제 방법 데이터를 가져옵니다.
+2. 구독자 데이터를 가져옵니다.
+3. 카드 토큰을 사용하여 구독자를 결제 방법과 일치시킵니다.
+4. 모든 마이그레이션된 구독을 활성화합니다.
+
+<Info>
+일반적인 처리 시간은 표준 마이그레이션의 경우 **2-3 영업일**입니다. 이는 구독자 수에 따라 달라집니다.
+</Info>
+</Step>
+
+<Step title="마이그레이션 후 검증">
+가져오기가 완료된 후, 다음을 받게 됩니다:
+
+- 포괄적인 마이그레이션 보고서
+- 이전 구독 ID를 새로운 Dodo Payments ID에 매핑한 CSV
+- Dodo Payments 대시보드에서 모든 마이그레이션된 고객에 대한 접근
+
+우리는 다음을 권장합니다:
+- 대시보드에서 마이그레이션된 구독 샘플을 검증합니다.
+- 샌드박스 모드에서 몇 가지 구독 갱신을 테스트합니다.
+- 새로운 ID로 내부 데이터베이스 참조를 업데이트합니다.
+- 첫 번째 청구 주기에 대해 병행 모니터링을 실행합니다.
+</Step>
+</Steps>
+
+## 마이그레이션 가능한 데이터
+
+구독 마이그레이션 중에 전송할 수 있는 데이터는 다음과 같습니다:
+
+| 데이터 유형 | 지원 여부 | 비고 |
+|-----------|-----------|-------|
+| 신용/직불 카드 번호 | ✅ | PGP를 통해 암호화됨 |
+| 카드 만료 날짜 | ✅ | |
+| 카드 소유자 이름 | ✅ | |
+| 청구 주소 | ✅ | |
+| 고객 이메일 주소 | ✅ | |
+| 고객 메타데이터 | ✅ | 사용자 정의 키-값 쌍 |
+| 구독 세부 정보 | ✅ | 계획, 금액, 간격 |
+| Apple Pay 토큰 | ❌ | 전송할 수 없음 |
+| Google Pay 토큰 | ❌ | 전송할 수 없음 |
+| 기타 지갑 토큰 | ❌ | 전송할 수 없음 |
+| 결제 기록 | ❌ | 현재 프로세서에서 내보내기 |
+
+<Note>
+결제 기록 및 거래 기록은 마이그레이션할 수 없습니다. 전환을 완료하기 전에 현재 프로세서에서 이 데이터를 내보내어 기록으로 보관하는 것을 권장합니다.
+</Note>
+
+## PGP 암호화
+
+민감한 카드 데이터를 전송할 때 최대 보안을 위해 모든 파일은 **반드시** 우리의 PGP 공개 키를 사용하여 암호화되어야 합니다. 이는 전송 수준 암호화 이상의 추가 보호 계층을 제공합니다.
+
+이 키를 현재 결제 프로세서와 공유하여 카드 데이터 내보내기를 암호화하세요:
+
+<Accordion title="Dodo Payments PGP 공개 키">
+
+```
+-----BEGIN PGP PUBLIC KEY BLOCK-----
+
+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
+1OSDhXaPYtJnVApUzaCrC5PJCXU=
+=nHcw
+-----END PGP PUBLIC KEY BLOCK-----
+
+```
+
+</Accordion>
+
+## 타임라인 기대치
+
+| 단계 | 기간 |
+|-------|----------|
+| 초기 설정 및 계획 | 1-2일 |
+| 결제 방법 전송 | ~2주 |
+| 구독자 데이터 준비 | 3-5일 (병행) |
+| 검증 및 테스트 | 2-3일 |
+| 프로덕션 가져오기 | 2-3 영업일 |
+| 마이그레이션 후 검증 | 1-2일 |
+
+<Tip>
+전체 마이그레이션은 일반적으로 시작부터 끝까지 **3-4주**가 소요됩니다. 결제 방법 전송이 진행되는 동안 구독자 데이터 준비를 시작하면 전체 타임라인을 최소화하는 데 도움이 됩니다.
+</Tip>
+
+## 시작하기
+
+Dodo Payments로 구독을 마이그레이션할 준비가 되셨나요? 프로세스를 시작하려면 우리 팀에 문의하세요:
+
+<CardGroup cols={2}>
+<Card title="지원 문의" icon="envelope" href="mailto:support@dodopayments.com">
+마이그레이션을 시작하고 솔루션 엔지니어와 연결되려면 문의하세요.
+</Card>
+
+<Card title="API 문서" icon="code" href="/api-reference">
+Dodo Payments에서 구독이 작동하는 방식을 이해하기 위해 API를 탐색하세요.
+</Card>
+</CardGroup>

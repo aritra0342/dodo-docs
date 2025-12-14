@@ -1,0 +1,115 @@
+---
+title: Close CRM
+description: 将 Dodo Payments 数据与 Close CRM 同步，以跟踪潜在客户并管理销售管道。
+icon: handshake
+---
+
+## 介绍
+
+将您的支付数据直接连接到 Close CRM，以实现无缝的潜在客户管理和销售跟踪。从成功的支付中自动创建联系人和机会，让您的销售团队了解产生收入的活动。
+
+<Info>
+此集成需要具有适当权限的 Close CRM API 密钥。
+</Info>
+
+## 开始使用
+
+<Steps>
+<Step title="打开 Webhook 部分">
+  在您的 Dodo Payments 仪表板中，导航到 <b>Webhooks → + 添加端点</b> 并展开集成下拉菜单。
+  <Frame>
+    <img src="/images/integrations/close-crm.png" alt="添加端点和集成下拉菜单" />
+  </Frame>
+</Step>
+
+<Step title="选择 Close CRM">
+  选择 <b>Close CRM</b> 集成卡片。
+</Step>
+
+<Step title="输入 API 密钥">
+  在配置中提供您的 Close CRM API 密钥。
+</Step>
+
+<Step title="配置转换">
+  编辑转换代码以将支付数据映射到 Close CRM 对象。
+</Step>
+
+<Step title="测试并创建">
+  使用示例有效负载进行测试，然后单击 <b>创建</b> 以激活同步。
+</Step>
+
+<Step title="完成！">
+  🎉 付款事件现在将自动在 Close CRM 中创建/更新记录。
+</Step>
+</Steps>
+
+## 转换代码示例
+
+### 从支付创建联系人
+
+```javascript create_contact.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.url = "https://api.close.com/api/v1/contact/";
+    webhook.payload = {
+      name: p.customer.name,
+      emails: [p.customer.email],
+      phones: [p.customer.phone || ''],
+      custom: {
+        payment_amount: (p.total_amount / 100).toFixed(2),
+        payment_method: p.payment_method || '',
+        dodo_customer_id: p.customer.customer_id
+      }
+    };
+  }
+  return webhook;
+}
+```
+
+### 从订阅创建机会
+
+```javascript create_opportunity.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "subscription.active") {
+    const s = webhook.payload.data;
+    webhook.url = "https://api.close.com/api/v1/opportunity/";
+    webhook.payload = {
+      lead_id: s.customer.customer_id,
+      value: (s.recurring_pre_tax_amount / 100).toFixed(2),
+      value_period: s.payment_frequency_interval,
+      title: `Subscription - ${s.product_id}`,
+      custom: {
+        subscription_id: s.subscription_id,
+        billing_frequency: s.payment_frequency_interval,
+        next_billing: s.next_billing_date
+      }
+    };
+  }
+  return webhook;
+}
+```
+
+## 提示
+
+- 使用 Close CRM 的 API 文档了解字段映射
+- 包含用于支付特定数据的自定义字段
+- 将订阅金额映射到机会值
+- 使用客户 ID 进行正确的潜在客户关联
+
+## 故障排除
+
+<AccordionGroup>
+<Accordion title="在 Close CRM 中未创建记录">
+- 验证 API 密钥是否具有写入权限
+- 检查是否包含所需字段
+- 确保电子邮件格式有效
+- 查看 Close CRM API 速率限制
+</Accordion>
+
+<Accordion title="转换错误">
+- 验证 JSON 结构是否符合 Close CRM API 格式
+- 检查是否存在所有必需字段
+- 确保字段名称与 Close CRM 架构完全匹配
+</Accordion>
+</AccordionGroup>

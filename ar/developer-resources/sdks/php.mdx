@@ -1,0 +1,398 @@
+---
+title: PHP
+description: دمج مدفوعات دودي في تطبيقات PHP الخاصة بك باستخدام SDK حديث متوافق مع PSR-4
+icon: php
+tag: BETA
+---
+
+يوفر SDK PHP طريقة قوية ومرنة لدمج مدفوعات دودي في تطبيقات PHP الخاصة بك. تم بناؤه وفقًا لمعايير PHP الحديثة مع تحميل تلقائي متوافق مع PSR-4، ويقدم تغطية اختبار شاملة ووثائق مفصلة.
+
+<Note>
+مكتبة API PHP الخاصة بمدفوعات دودي حاليًا في **بيتا**. نحن متحمسون لتجربتك معها! يرجى مشاركة أي اقتراحات أو تقارير عن الأخطاء أو طلبات الميزات من خلال [تقديم مشكلة](https://github.com/dodopayments/dodopayments-php/issues).
+</Note>
+
+## التثبيت
+
+قم بتثبيت SDK باستخدام Composer:
+
+```bash
+composer require "dodopayments/client:^3.5.0"
+```
+
+<Info>
+يتطلب SDK PHP 8.1.0 أو أعلى وComposer لإدارة التبعيات.
+</Info>
+
+## البداية السريعة
+
+قم بتهيئة العميل وإنشاء جلسة دفع:
+
+```php
+<?php
+
+use Dodopayments\Client;
+
+$client = new Client(
+  bearerToken: getenv("DODO_PAYMENTS_API_KEY") ?: "My Bearer Token",
+  environment: "test_mode",
+);
+
+$checkoutSessionResponse = $client->checkoutSessions->create(
+  productCart: [["productID" => "product_id", "quantity" => 1]]
+);
+
+var_dump($checkoutSessionResponse->session_id);
+```
+
+<Warning>
+قم بتخزين مفاتيح API الخاصة بك بشكل آمن باستخدام متغيرات البيئة. لا تعرضها أبدًا في قاعدة التعليمات البرمجية الخاصة بك أو تلتزم بها في التحكم في الإصدارات.
+</Warning>
+
+## الميزات الأساسية
+
+<CardGroup cols={2}>
+<Card title="متوافق مع PSR-4" icon="check">
+  يتبع توصيات معايير PHP لتطوير PHP الحديث
+</Card>
+
+<Card title="PHP الحديثة" icon="php">
+  تم بناؤه لـ PHP 8.1+ مع إعلانات نوعية وأنواع صارمة
+</Card>
+
+<Card title="اختبار شامل" icon="vial">
+  تغطية اختبار شاملة للموثوقية والاستقرار
+</Card>
+
+<Card title="معالجة الاستثناءات" icon="shield-check">
+  أنواع استثناءات واضحة لسيناريوهات الأخطاء المختلفة
+</Card>
+</CardGroup>
+
+## كائنات القيمة
+
+يستخدم SDK معلمات مسماة لتحديد الوسائط الاختيارية. يمكنك تهيئة كائنات القيمة باستخدام المُنشئ الثابت `with`:
+
+```php
+<?php
+
+use Dodopayments\Customers\AttachExistingCustomer;
+
+// Recommended: Use static 'with' constructor with named parameters
+$customer = AttachExistingCustomer::with(customerID: "customer_id");
+```
+
+المُنشئون متاحون أيضًا كنمط بديل:
+
+```php
+<?php
+
+use Dodopayments\Customers\AttachExistingCustomer;
+
+// Alternative: Use builder pattern
+$customer = (new AttachExistingCustomer)->withCustomerID("customer_id");
+```
+
+## التكوين
+
+### تكوين إعادة المحاولة
+
+تتم إعادة محاولة بعض الأخطاء تلقائيًا مرتين بشكل افتراضي مع تأخير أسي قصير. الأخطاء التالية تؤدي إلى إعادة المحاولة التلقائية:
+
+- أخطاء الاتصال (مشاكل الاتصال بالشبكة)
+- 408 مهلة الطلب
+- 409 تعارض
+- 429 حد المعدل
+- 500+ أخطاء داخلية
+- المهلات
+
+قم بتكوين سلوك إعادة المحاولة على مستوى عالمي أو لكل طلب:
+
+```php
+<?php
+
+use Dodopayments\Client;
+use Dodopayments\RequestOptions;
+
+// Configure default for all requests (disable retries)
+$client = new Client(maxRetries: 0);
+
+// Or, configure per-request
+$result = $client->checkoutSessions->create(
+  productCart: [["productID" => "product_id", "quantity" => 1]],
+  requestOptions: RequestOptions::with(maxRetries: 5),
+);
+```
+
+## العمليات الشائعة
+
+### إنشاء جلسة دفع
+
+قم بإنشاء جلسة دفع:
+
+```php
+$session = $client->checkoutSessions->create(
+  productCart: [
+    ["productID" => "prod_123", "quantity" => 1]
+  ],
+  returnUrl: "https://yourdomain.com/return"
+);
+
+header('Location: ' . $session->url);
+```
+
+### إدارة العملاء
+
+قم بإنشاء واسترجاع معلومات العملاء:
+
+```php
+// Create a customer
+$customer = $client->customers->create(
+  email: "customer@example.com",
+  name: "John Doe",
+  metadata: [
+    "user_id" => "12345"
+  ]
+);
+
+// Retrieve customer
+$customer = $client->customers->retrieve("cus_123");
+echo "Customer: {$customer->name} ({$customer->email})";
+```
+
+### التعامل مع الاشتراكات
+
+قم بإنشاء وإدارة الاشتراكات المتكررة:
+
+```php
+// Create a subscription
+$subscription = $client->subscriptions->create(
+  customerID: "cus_123",
+  productID: "prod_456",
+  priceID: "price_789"
+);
+
+// Cancel subscription
+$client->subscriptions->cancel($subscription->id);
+```
+
+## الترقيم
+
+العمل مع استجابات القوائم المرقمة:
+
+```php
+$page = $client->payments->list();
+
+var_dump($page);
+
+// Fetch items from the current page
+foreach ($page->getItems() as $item) {
+  var_dump($item->brand_id);
+}
+
+// Auto-paginate: fetch items from all pages
+foreach ($page->pagingEachItem() as $item) {
+  var_dump($item->brand_id);
+}
+```
+
+## معالجة الأخطاء
+
+عندما لا تتمكن المكتبة من الاتصال بـ API أو تتلقى رمز حالة غير ناجح (4xx أو 5xx)، يتم طرح فئة فرعية من `APIException`:
+
+```php
+<?php
+
+use Dodopayments\Core\Exceptions\APIConnectionException;
+use Dodopayments\Core\Exceptions\RateLimitException;
+use Dodopayments\Core\Exceptions\APIStatusException;
+
+try {
+  $checkoutSessionResponse = $client->checkoutSessions->create(
+    productCart: [["productID" => "product_id", "quantity" => 1]]
+  );
+} catch (APIConnectionException $e) {
+  echo "The server could not be reached", PHP_EOL;
+  var_dump($e->getPrevious());
+} catch (RateLimitException $_) {
+  echo "A 429 status code was received; we should back off a bit.", PHP_EOL;
+} catch (APIStatusException $e) {
+  echo "Another non-200-range status code was received", PHP_EOL;
+  echo $e->getMessage();
+}
+```
+
+### أنواع الأخطاء
+
+| السبب            | نوع الخطأ                   |
+| ---------------- | ---------------------------- |
+| HTTP 400         | `BadRequestException`        |
+| HTTP 401         | `AuthenticationException`    |
+| HTTP 403         | `PermissionDeniedException`  |
+| HTTP 404         | `NotFoundException`          |
+| HTTP 409         | `ConflictException`          |
+| HTTP 422         | `UnprocessableEntityException` |
+| HTTP 429         | `RateLimitException`         |
+| HTTP >= 500      | `InternalServerException`    |
+| خطأ HTTP آخر | `APIStatusException`         |
+| مهلة          | `APITimeoutException`        |
+| خطأ في الشبكة    | `APIConnectionException`     |
+
+<Tip>
+قم دائمًا بلف مكالمات API في كتل try-catch للتعامل مع الأخطاء المحتملة بشكل سلس وتقديم ملاحظات ذات مغزى للمستخدمين.
+</Tip>
+
+## الاستخدام المتقدم
+
+### نقاط النهاية غير الموثقة
+
+قم بإجراء طلبات إلى نقاط النهاية غير الموثقة:
+
+```php
+<?php
+
+$response = $client->request(
+  method: "post",
+  path: '/undocumented/endpoint',
+  query: ['dog' => 'woof'],
+  headers: ['useful-header' => 'interesting-value'],
+  body: ['hello' => 'world']
+);
+```
+
+### المعلمات غير الموثقة
+
+أرسل معلمات غير موثقة إلى أي نقطة نهاية أو اقرأ خصائص استجابة غير موثقة:
+
+```php
+<?php
+
+use Dodopayments\RequestOptions;
+
+$checkoutSessionResponse = $client->checkoutSessions->create(
+  productCart: [["productID" => "product_id", "quantity" => 1]],
+  requestOptions: RequestOptions::with(
+    extraQueryParams: ["my_query_parameter" => "value"],
+    extraBodyParams: ["my_body_parameter" => "value"],
+    extraHeaders: ["my-header" => "value"],
+  ),
+);
+```
+
+<Note>
+تتجاوز المعلمات `extra*` التي تحمل نفس الاسم المعلمات الموثقة.
+</Note>
+
+## تكامل الإطار
+
+### لارفيل
+
+قم بإنشاء خدمة لتطبيقات لارفيل:
+
+```php
+<?php
+
+namespace App\Services;
+
+use Dodopayments\Client;
+
+class PaymentService
+{
+    protected $client;
+
+    public function __construct()
+    {
+        $this->client = new Client(
+            bearerToken: config('services.dodo.api_key')
+        );
+    }
+
+    public function createCheckout(array $items)
+    {
+        return $this->client->checkoutSessions->create(
+            productCart: $items,
+            returnUrl: route('checkout.return')
+        );
+    }
+}
+```
+
+أضف التكوين في `config/services.php`:
+
+```php
+'dodo' => [
+    'api_key' => env('DODO_API_KEY'),
+    'environment' => env('DODO_ENVIRONMENT', 'sandbox')
+],
+```
+
+### سيمفوني
+
+قم بإنشاء خدمة في سيمفوني:
+
+```php
+<?php
+
+namespace App\Service;
+
+use Dodopayments\Client;
+
+class DodoPaymentService
+{
+    private Client $client;
+
+    public function __construct(string $apiKey)
+    {
+        $this->client = new Client(bearerToken: $apiKey);
+    }
+
+    public function createPayment(int $amount, string $currency, string $customerId): object
+    {
+        return $this->client->payments->create(
+            amount: $amount,
+            currency: $currency,
+            customerID: $customerId
+        );
+    }
+}
+```
+
+سجل في `config/services.yaml`:
+
+```yaml
+services:
+    App\Service\DodoPaymentService:
+        arguments:
+            $apiKey: '%env(DODO_API_KEY)%'
+```
+
+## الموارد
+
+<CardGroup cols={2}>
+<Card title="مستودع GitHub" icon="github" href="https://github.com/dodopayments/dodopayments-php">
+  عرض الشيفرة المصدرية والمساهمة
+</Card>
+
+<Card title="مرجع API" icon="book" href="/api-reference/introduction">
+  وثائق API الكاملة
+</Card>
+
+<Card title="مجتمع Discord" icon="discord" href="https://discord.gg/bYqAp4ayYh">
+  احصل على المساعدة وتواصل مع المطورين
+</Card>
+
+<Card title="تقديم مشاكل" icon="bug" href="https://github.com/dodopayments/dodopayments-php/issues">
+  الإبلاغ عن الأخطاء أو طلب الميزات
+</Card>
+</CardGroup>
+
+## الدعم
+
+هل تحتاج إلى مساعدة بشأن SDK PHP؟
+
+- **Discord**: انضم إلى [خادم المجتمع](https://discord.gg/bYqAp4ayYh) للحصول على دعم في الوقت الفعلي
+- **البريد الإلكتروني**: اتصل بنا على support@dodopayments.com
+- **GitHub**: افتح مشكلة على [المستودع](https://github.com/dodopayments/dodopayments-php)
+
+## المساهمة
+
+نرحب بالمساهمات! تحقق من [إرشادات المساهمة](https://github.com/dodopayments/dodopayments-php/blob/main/CONTRIBUTING.md) للبدء.

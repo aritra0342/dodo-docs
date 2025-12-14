@@ -1,0 +1,300 @@
+---
+title: DataFast
+description: DataFast 분석을 통해 마케팅 채널에 수익을 귀속시킵니다. 어떤 트래픽 소스가 유료 고객을 유도하는지 추적하고 성장을 최적화하세요.
+icon: chart-bar
+---
+
+## 소개
+
+DataFast는 유료 고객을 유도하는 마케팅 채널을 발견하는 데 도움을 주는 수익 중심의 분석 도구입니다. Dodo Payments와 DataFast를 통합하면 트래픽 소스에 수익을 귀속시키고, 고가치 고객 세그먼트를 식별하며, 데이터 기반 결정을 통해 비즈니스를 성장시킬 수 있습니다.
+
+<Info>
+이 통합에는 DataFast API 키가 필요하며, 이는 [DataFast 대시보드](https://datafa.st/)에서 얻을 수 있습니다.
+</Info>
+
+## 작동 방식
+
+DataFast는 쿠키에 저장된 고유 방문자 ID를 통해 방문자를 추적합니다. 마케팅 채널에 수익을 귀속시키려면 다음을 수행해야 합니다:
+
+1. **체크아웃 세션을 생성할 때 `datafast_visitor_id` 쿠키에서 DataFast의 방문자 ID를 캡처합니다**
+2. **방문자 ID를 결제 메타데이터에 저장합니다**
+3. **결제가 성공할 때 DataFast의 결제 API를 사용하여 결제 데이터를 전송합니다**
+
+이렇게 하면 DataFast가 성공적인 결제를 원래의 트래픽 소스와 일치시킬 수 있어 완전한 수익 귀속이 가능합니다.
+
+## 시작하기
+
+<Steps>
+<Step title="DataFast 스크립트 설치">
+  먼저, 웹사이트에 DataFast 추적 스크립트를 설치합니다. 이렇게 하면 방문자를 추적하는 `datafast_visitor_id` 쿠키가 생성됩니다.
+  
+  플랫폼에 맞는 설치 지침은 [DataFast 문서](https://datafa.st/docs)를 방문하세요.
+</Step>
+
+<Step title="API 키 받기">
+  [DataFast 대시보드](https://datafa.st/)에 로그인하고 웹사이트 설정으로 이동하여 API 키를 얻습니다.
+  
+  <Warning>
+  API 키를 안전하게 보관하고 클라이언트 측 코드에 노출하지 마세요.
+  </Warning>
+</Step>
+
+<Step title="체크아웃에서 방문자 ID 캡처">
+  체크아웃 세션을 생성할 때 쿠키에서 DataFast 방문자 ID를 캡처하고 결제 메타데이터에 추가합니다.
+</Step>
+
+<Step title="웹훅을 통해 결제 데이터 전송">
+  결제가 성공할 때 DataFast의 결제 API에 결제 데이터를 전송하도록 웹훅을 구성합니다.
+</Step>
+
+<Step title="완료!">
+  🎉 이제 수익 데이터가 DataFast 대시보드에 마케팅 채널에 대한 완전한 귀속과 함께 나타납니다.
+</Step>
+</Steps>
+
+## 구현 가이드
+
+### 1단계: 체크아웃 메타데이터에 방문자 ID 추가
+
+체크아웃 세션을 생성할 때 쿠키에서 DataFast 방문자 ID를 캡처하고 결제 메타데이터에 포함시킵니다.
+
+<CodeGroup>
+
+```typescript Next.js
+import { cookies } from 'next/headers';
+import { dodopayments } from '@/lib/dodopayments';
+
+export async function createCheckout(productId: string) {
+  // Capture DataFast visitor ID from cookie
+  const datafastVisitorId = cookies().get('datafast_visitor_id')?.value;
+
+  const payment = await dodopayments.payments.create({
+    product_id: productId,
+    // ... other payment configuration
+    metadata: {
+      datafast_visitor_id: datafastVisitorId, // Store visitor ID in metadata
+    },
+  });
+
+  return payment;
+}
+```
+
+```javascript Express.js
+const express = require('express');
+const router = express.Router();
+
+router.post('/create-checkout', async (req, res) => {
+  // Capture DataFast visitor ID from cookie
+  const datafastVisitorId = req.cookies?.datafast_visitor_id;
+
+  const payment = await dodopayments.payments.create({
+    product_id: req.body.productId,
+    // ... other payment configuration
+    metadata: {
+      datafast_visitor_id: datafastVisitorId, // Store visitor ID in metadata
+    },
+  });
+
+  res.json({ payment });
+});
+```
+
+```javascript Other Frameworks
+// Capture DataFast visitor ID from cookie
+const datafastVisitorId = getCookie('datafast_visitor_id'); // Use your framework's cookie method
+
+const payment = await dodopayments.payments.create({
+  product_id: productId,
+  // ... other payment configuration
+  metadata: {
+    datafast_visitor_id: datafastVisitorId, // Store visitor ID in metadata
+  },
+});
+```
+
+</CodeGroup>
+
+### 2단계: DataFast에 결제 데이터 전송
+
+결제가 성공할 때 DataFast의 결제 API에 결제 데이터를 전송하도록 웹훅 엔드포인트를 구성합니다.
+
+<Steps>
+<Step title="웹훅 섹션 열기">
+  Dodo Payments 대시보드에서 <b>웹훅 → + 엔드포인트 추가</b>로 이동하고 통합 드롭다운을 확장합니다.
+  <Frame>
+    <img src="/images/integrations/datafast/add.png" alt="엔드포인트 추가 및 통합 드롭다운" />
+  </Frame>
+</Step>
+
+<Step title="DataFast 선택">
+  <b>DataFast</b> 통합 카드를 선택합니다.
+</Step>
+
+<Step title="API 키 입력">
+  구성 필드에 DataFast API 키를 입력합니다.
+  <Frame>
+    <img src="/images/integrations/datafast/api-key.png" alt="API 키 추가" />
+  </Frame>
+</Step>
+
+<Step title="변환 구성">
+  결제 데이터를 DataFast의 결제 API에 맞게 형식화하도록 변환 코드를 편집합니다.
+</Step>
+
+<Step title="테스트 및 생성">
+  샘플 페이로드로 테스트하고 <b>생성</b>을 클릭하여 통합을 활성화합니다.
+</Step>
+</Steps>
+
+## 변환 코드 예제
+
+### 기본 결제 귀속
+
+```javascript basic_payment.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const payment = webhook.payload.data;
+    
+    // Only send to DataFast if visitor ID exists in metadata
+    if (payment.metadata?.datafast_visitor_id) {
+      webhook.url = "https://datafa.st/api/v1/payments";
+      webhook.payload = {
+        amount: payment.total_amount / 100, // Convert from cents to dollars
+        currency: payment.currency,
+        transaction_id: payment.payment_id,
+        datafast_visitor_id: payment.metadata.datafast_visitor_id,
+      };
+    } else {
+      // Skip if no visitor ID (prevents unnecessary API calls)
+      return null;
+    }
+  }
+  return webhook;
+}
+```
+
+### 소수점 없는 통화 처리
+
+일부 통화(예: JPY)는 소수점을 사용하지 않습니다. 금액 계산을 적절히 조정하세요:
+
+```javascript zero_decimal.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const payment = webhook.payload.data;
+    
+    if (payment.metadata?.datafast_visitor_id) {
+      // Zero decimal currencies: JPY, KRW, CLP, etc.
+      const zeroDecimalCurrencies = ['JPY', 'KRW', 'CLP', 'VND', 'UGX', 'MGA'];
+      const isZeroDecimal = zeroDecimalCurrencies.includes(payment.currency);
+      
+      webhook.url = "https://datafa.st/api/v1/payments";
+      webhook.payload = {
+        amount: isZeroDecimal 
+          ? payment.total_amount // Use amount as-is for zero decimal currencies
+          : payment.total_amount / 100, // Convert from cents for other currencies
+        currency: payment.currency,
+        transaction_id: payment.payment_id,
+        datafast_visitor_id: payment.metadata.datafast_visitor_id,
+      };
+    } else {
+      return null;
+    }
+  }
+  return webhook;
+}
+```
+
+### 구독 결제
+
+정기 구독 결제의 경우 각 결제를 추적할 수 있습니다:
+
+```javascript subscription_payment.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const payment = webhook.payload.data;
+    
+    // Check if this is a subscription payment
+    const isSubscription = payment.subscription_id !== null;
+    
+    if (payment.metadata?.datafast_visitor_id) {
+      webhook.url = "https://datafa.st/api/v1/payments";
+      webhook.payload = {
+        amount: payment.total_amount / 100,
+        currency: payment.currency,
+        transaction_id: payment.payment_id,
+        datafast_visitor_id: payment.metadata.datafast_visitor_id,
+        // Optional: Add subscription context
+        ...(isSubscription && {
+          subscription_id: payment.subscription_id,
+        }),
+      };
+    } else {
+      return null;
+    }
+  }
+  return webhook;
+}
+```
+
+## 모범 사례
+
+<Tip>
+**방문자 ID를 조기에 캡처하세요**: 사용자가 다른 페이지로 이동했다가 나중에 돌아오더라도 정확한 귀속을 보장하기 위해 체크아웃 흐름에서 가능한 한 빨리 DataFast 방문자 ID를 저장하세요.
+</Tip>
+
+- **메타데이터에 항상 방문자 ID 포함**: 방문자 ID가 없으면 DataFast는 수익을 마케팅 채널에 귀속시킬 수 없습니다.
+- **소수점 없는 통화 처리**: 일부 통화(JPY, KRW 등)는 소수점을 사용하지 않으므로 금액 계산을 적절히 조정하세요.
+- **샘플 결제로 테스트**: 라이브로 전환하기 전에 통합이 올바르게 작동하는지 확인하세요.
+- **DataFast 대시보드 모니터링**: 결제가 올바르게 나타나고 적절한 귀속이 이루어지고 있는지 확인하세요.
+- **웹훅 재시도 사용**: DataFast의 결제 API는 멱등성이 있으므로 웹훅이 실패할 경우 재시도가 안전합니다.
+
+## 문제 해결
+
+<AccordionGroup>
+<Accordion title="DataFast에 결제가 나타나지 않음">
+- DataFast API 키가 올바르고 활성 상태인지 확인하세요.
+- `datafast_visitor_id`가 결제 메타데이터에 캡처되고 저장되고 있는지 확인하세요.
+- 웹훅 변환이 페이로드를 올바르게 형식화하고 있는지 확인하세요.
+- `payment.succeeded` 이벤트에서 웹훅이 트리거되고 있는지 확인하세요.
+- DataFast 대시보드에서 오류 메시지나 API 로그를 확인하세요.
+</Accordion>
+
+<Accordion title="수익 귀속이 작동하지 않음">
+- DataFast 추적 스크립트가 웹사이트에 설치되어 작동하는지 확인하세요.
+- `datafast_visitor_id` 쿠키가 올바르게 설정되고 있는지 확인하세요.
+- 체크아웃 생성과 결제 완료 간에 방문자 ID가 일치하는지 확인하세요.
+- 체크아웃 세션을 생성하기 전에 방문자 ID를 캡처하고 있는지 확인하세요.
+- 추가 지침을 위해 DataFast의 [결제 API 문서](https://datafa.st/docs/payments-api)를 검토하세요.
+</Accordion>
+
+<Accordion title="변환 오류">
+- JSON 구조가 DataFast의 결제 API 형식과 일치하는지 확인하세요.
+- 모든 필수 필드(`amount`, `currency`, `transaction_id`, `datafast_visitor_id`)가 포함되어 있는지 확인하세요.
+- 금액이 올바르게 변환되었는지 확인하세요(대부분의 통화는 100으로 나누고, 소수점 없는 통화는 제외).
+- API 엔드포인트 URL이 올바른지 확인하세요: `https://datafa.st/api/v1/payments`
+- 샘플 웹훅 페이로드로 변환을 테스트하세요.
+</Accordion>
+
+<Accordion title="통화 변환 문제">
+- 소수점 없는 통화(JPY, KRW, CLP, VND, UGX, MGA)의 경우 금액을 100으로 나누지 않고 그대로 전송하세요.
+- 다른 모든 통화의 경우 금액을 100으로 나누어 센트에서 기본 단위로 변환하세요.
+- 통화 코드가 ISO 4217 형식(예: "USD", "EUR", "JPY")과 일치하는지 다시 확인하세요.
+</Accordion>
+</AccordionGroup>
+
+## 추가 리소스
+
+<CardGroup cols={2}>
+<Card title="DataFast 문서" icon="book" href="https://datafa.st/docs/payments-api">
+  DataFast의 결제 API 및 수익 귀속 기능에 대해 자세히 알아보세요.
+</Card>
+
+<Card title="DataFast 대시보드" icon="chart-bar" href="https://datafa.st/">
+  수익 분석 및 귀속 데이터를 보기 위해 DataFast 대시보드에 액세스하세요.
+</Card>
+</CardGroup>
+
+<Info>
+도움이 필요하신가요? 통합에 대한 지원은 [support@dodopayments.com](mailto:support@dodopayments.com)으로 Dodo Payments 지원팀에 문의하세요.
+</Info>

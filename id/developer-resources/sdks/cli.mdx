@@ -1,0 +1,249 @@
+---
+title: CLI
+description: Antarmuka baris perintah untuk berinteraksi dengan API Pembayaran
+  Dodo dari terminal Anda
+icon: terminal
+---
+
+## Instalasi
+
+### Go Install
+
+```bash
+go install github.com/dodopayments/dodopayments-cli/cmd/dodopayments@latest
+```
+
+### Dari Sumber
+
+```bash
+git clone https://github.com/dodopayments/dodopayments-cli.git
+cd dodopayments-cli
+go install ./cmd/dodopayments
+```
+
+## Memulai dengan Cepat
+
+Atur kunci API Anda:
+
+```bash
+export DODO_PAYMENTS_API_KEY=your_api_key_here
+```
+
+Struktur perintah dasar:
+
+```bash
+dodopayments [resource] [command] [flags]
+```
+
+Buat sesi checkout:
+
+```bash
+dodopayments checkout-sessions create \
+  --product-cart.product_id prod_123 \
+  --product-cart.quantity 1 \
+  --return-url https://yourdomain.com/return
+```
+
+## Flag Global
+
+| Flag | Deskripsi |
+|------|-------------|
+| `--format` | Format output: `auto`, `json`, `yaml`, `pretty`, `explore` |
+| `--transform` | Filter respons menggunakan sintaks gjson |
+| `--debug` | Aktifkan logging verbose |
+| `--version`, `-v` | Tampilkan versi CLI |
+
+## Perintah Umum
+
+### Pembayaran
+
+```bash
+# List payments
+dodopayments payments list --limit 20 --format json
+
+# Retrieve payment
+dodopayments payments retrieve pay_123
+
+# Get line items
+dodopayments payments line-items pay_123
+```
+
+### Pelanggan
+
+```bash
+# Create customer
+dodopayments customers create \
+  --email customer@example.com \
+  --name "John Doe"
+
+# List customers
+dodopayments customers list
+
+# Update customer
+dodopayments customers update cus_123 --name "Jane Doe"
+```
+
+### Langganan
+
+```bash
+# Create subscription
+dodopayments subscriptions create \
+  --customer-id cus_123 \
+  --product-id prod_456
+
+# List subscriptions
+dodopayments subscriptions list
+
+# Get usage history
+dodopayments subscriptions usage-history sub_123
+```
+
+### Produk
+
+```bash
+# Create product
+dodopayments products create \
+  --name "Premium Plan" \
+  --price.amount 2999 \
+  --price.currency USD
+
+# List products
+dodopayments products list
+```
+
+## Penagihan Berdasarkan Penggunaan
+
+### Mengimpor Acara
+
+```bash
+dodopayments usage-events ingest \
+  --events.event_id api_call_12345 \
+  --events.customer_id cus_abc123 \
+  --events.event_name api_request \
+  --events.timestamp 2024-01-15T10:30:00Z \
+  --events.metadata.endpoint /api/v1/users
+```
+
+### Mengelola Meter
+
+```bash
+# Create meter
+dodopayments meters create \
+  --name "API Requests" \
+  --event-name api_request \
+  --aggregation count
+
+# List meters
+dodopayments meters list
+```
+
+## Format Output
+
+### JSON (untuk scripting)
+
+```bash
+dodopayments payments list --format json | jq '.data[] | {id, amount}'
+```
+
+### Rapi (untuk dibaca)
+
+```bash
+dodopayments payments retrieve pay_123 --format pretty
+```
+
+### Eksplorasi Interaktif
+
+```bash
+dodopayments payments list --format explore
+```
+
+### Transformasi dengan gjson
+
+```bash
+# Extract all payment IDs
+dodopayments payments list --transform "data.#.id"
+
+# Filter and extract
+dodopayments payments list --transform "data.#(amount>5000)#.id"
+```
+
+<Tip>
+Gunakan `--format json` dengan `jq` untuk pemrosesan data yang kuat dalam skrip shell.
+</Tip>
+
+## Contoh Scripting
+
+```bash
+#!/bin/bash
+
+# Export all payments to CSV
+dodopayments payments list --format json | \
+  jq -r '.data[] | [.id, .amount, .currency, .status] | @csv' > payments.csv
+
+# Create customers from file
+while IFS=',' read -r email name; do
+  dodopayments customers create \
+    --email "$email" \
+    --name "$name" \
+    --format json
+done < customers.csv
+```
+
+## Penyelesaian Shell
+
+Aktifkan penyelesaian otomatis:
+
+```bash
+# Bash
+eval "$(dodopayments completion bash)"
+
+# Zsh
+eval "$(dodopayments completion zsh)"
+
+# Fish
+dodopayments completion fish | source
+```
+
+## Sumber Daya yang Tersedia
+
+CLI menyediakan perintah untuk 24 kategori sumber daya:
+
+- `checkout-sessions` - Manajemen sesi checkout
+- `payments` - Operasi pembayaran
+- `subscriptions` - Penagihan berulang
+- `customers` - Akun pelanggan
+- `products` - Katalog produk
+- `licenses` - Lisensi perangkat lunak
+- `refunds` - Pengembalian pembayaran
+- `disputes` - Sengketa pembayaran
+- `webhooks` - Webhook acara
+- `meters` - Meter penggunaan
+- `usage-events` - Pelacakan penggunaan
+- `discounts` - Kode diskon
+- `payouts` - Pembayaran penjual
+- `brands` - Manajemen multi-merek
+- Plus 10 sumber daya tambahan
+
+<Info>
+Gunakan `dodopayments --help` untuk melihat semua sumber daya yang tersedia dan `dodopayments [resource] --help` untuk perintah spesifik sumber daya.
+</Info>
+
+## Sumber Daya
+
+<CardGroup cols={2}>
+<Card title="Repositori GitHub" icon="github" href="https://github.com/dodopayments/dodopayments-cli">
+  Lihat kode sumber dan rilis
+</Card>
+
+<Card title="Referensi API" icon="book" href="/api-reference/introduction">
+  Dokumentasi API lengkap
+</Card>
+</CardGroup>
+
+## Dukungan
+
+Butuh bantuan dengan CLI?
+
+- **Discord**: Bergabunglah dengan [server komunitas](https://discord.gg/bYqAp4ayYh)
+- **Email**: Hubungi kami di support@dodopayments.com
+- **GitHub**: Buka masalah di [repositori](https://github.com/dodopayments/dodopayments-cli)

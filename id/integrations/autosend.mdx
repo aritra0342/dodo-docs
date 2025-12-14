@@ -1,0 +1,211 @@
+---
+title: AutoSend
+description: Pelajari cara menggunakan API email AutoSend untuk mengirim email
+  transaksi otomatis untuk transaksi Dodo Payments, pengembalian dana, dan
+  peristiwa pembayaran.
+icon: paper-plane
+---
+
+## Pendahuluan
+
+Integrasi AutoSend dan Dodo Payments memungkinkan Anda untuk secara otomatis mengirim notifikasi email waktu nyata untuk semua peristiwa pembayaran, mulai dari transaksi yang berhasil hingga upaya yang gagal dan konfirmasi pengembalian dana.
+
+Kirim email transaksi untuk peristiwa pembayaran menggunakan API email kuat dari AutoSend.
+
+<Info>
+Integrasi ini memerlukan Kunci API AutoSend Anda untuk otentikasi. Anda dapat menemukan kunci API Anda di dasbor AutoSend di bawah Pengaturan > Kunci API.
+</Info>
+
+## Memulai
+
+Ikuti langkah-langkah ini untuk mengintegrasikan AutoSend dengan Dodo Payments:
+
+<Steps>
+<Step title="Buka Bagian Webhook">
+  Arahkan ke bagian Webhooks di dasbor Dodo Payments Anda.
+  
+  <Frame>
+    <img src="/images/integrations/autosend.png" alt="Tambahkan Endpoint dan dropdown integrasi" />
+  </Frame>
+</Step>
+
+<Step title="Pilih Integrasi AutoSend">
+  Pilih AutoSend dari daftar integrasi yang tersedia.
+</Step>
+
+<Step title="Masukkan Kunci API">
+  Berikan kunci API AutoSend Anda untuk otentikasi. Anda dapat menemukan kunci API Anda di dasbor AutoSend di bawah Pengaturan > Kunci API.
+  
+  <Card title="Pelajari cara membuat dan mengelola kunci API" icon="key" href="https://docs.autosend.com/api-keys">
+    Kunjungi dokumentasi AutoSend untuk instruksi rinci tentang cara membuat dan mengelola kunci API.
+  </Card>
+</Step>
+
+<Step title="Konfigurasi Transformasi">
+  Siapkan pengendali transformasi JavaScript untuk menyesuaikan konten email berdasarkan peristiwa pembayaran.
+</Step>
+
+<Step title="Uji & Buat">
+  Uji konfigurasi webhook Anda untuk memastikan email dikirim dengan benar, lalu buat integrasi tersebut.
+</Step>
+
+<Step title="Aktivasi Selesai">
+  🎉 Integrasi AutoSend Anda sekarang aktif dan akan secara otomatis mengirim email untuk peristiwa pembayaran yang telah dikonfigurasi.
+</Step>
+</Steps>
+
+## Contoh Kode
+
+### Email Konfirmasi Pembayaran
+
+Kirim email konfirmasi ketika pembayaran berhasil diproses:
+
+```javascript payment_confirmation.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.url = "https://api.autosend.com/v1/mails/send";
+    webhook.payload = {
+      to: {
+        email: p.customer.email,
+        name: p.customer.name,
+      },
+      from: {
+        email: "payments@mail.yourdomain.com",
+        name: "Your Company",
+      },
+      subject: "Payment Successful - Thank you for your purchase!",
+      templateId: "A-61522f2xxxxxxxxx",
+      dynamicData: {
+        customerName: p.customer.name,
+        amount: p.amount,
+        currency: p.currency,
+        paymentId: p.payment_id,
+        paymentDate: new Date(p.created_at).toLocaleDateString(),
+      },
+      replyTo: {
+        email: "support@yourdomain.com",
+        name: "Support Team",
+      },
+    };
+  }
+  return webhook;
+}
+```
+
+### Email Selamat Datang Langganan
+
+Kirim email selamat datang ketika langganan baru dibuat:
+
+```javascript subscription_welcome.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "subscription.created") {
+    const s = webhook.payload.data;
+    webhook.url = "https://api.autosend.com/v1/mails/send";
+    webhook.payload = {
+      to: {
+        email: s.customer.email,
+        name: s.customer.name,
+      },
+      from: {
+        email: "subscriptions@mail.yourdomain.com",
+        name: "Your Company",
+      },
+      subject: "Welcome to your subscription!",
+      templateId: "A-61522f2xxxxxxxxx",
+      dynamicData: {
+        customerName: s.customer.name,
+        planName: s.plan.name,
+        billingInterval: s.billing_interval,
+        nextBillingDate: new Date(s.next_billing_at).toLocaleDateString(),
+        subscriptionId: s.subscription_id,
+      },
+      replyTo: {
+        email: "support@yourdomain.com",
+        name: "Support Team",
+      },
+    };
+  }
+  return webhook;
+}
+```
+
+### Notifikasi Kegagalan Pembayaran
+
+Kirim email notifikasi ketika pembayaran gagal:
+
+```javascript payment_failure.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.failed") {
+    const p = webhook.payload.data;
+    webhook.url = "https://api.autosend.com/v1/mails/send";
+    webhook.payload = {
+      to: {
+        email: p.customer.email,
+        name: p.customer.name,
+      },
+      from: {
+        email: "billing@mail.yourdomain.com",
+        name: "Your Company Billing",
+      },
+      subject: "Payment Failed - Action Required",
+      templateId: "A-61522f2xxxxxxxxx",
+      dynamicData: {
+        customerName: p.customer.name,
+        amount: p.amount,
+        currency: p.currency,
+        failureReason: p.failure_reason,
+        paymentId: p.payment_id,
+        retryUrl: `https://yourdomain.com/billing/retry/${p.payment_id}`,
+      },
+      replyTo: {
+        email: "billing@yourdomain.com",
+        name: "Billing Support",
+      },
+    };
+  }
+  return webhook;
+}
+```
+
+## Praktik Terbaik
+
+- **Verifikasi domain pengirim Anda**: Pastikan domain email pengirim Anda terverifikasi di AutoSend untuk meningkatkan pengiriman dan menghindari masalah otentikasi. Domain yang terverifikasi membantu mencegah email masuk ke folder spam.
+
+- **Gunakan data dinamis untuk personalisasi**: Gunakan `dynamicData` untuk mempersonalisasi email dengan informasi spesifik pelanggan seperti nama, jumlah pembayaran, dan detail langganan. Email yang dipersonalisasi memiliki tingkat keterlibatan yang lebih tinggi.
+
+- **Tulis subjek yang jelas**: Tulis subjek deskriptif yang jelas menunjukkan tujuan email. Hindari kata-kata yang memicu spam dan jaga subjek tetap singkat (di bawah 50 karakter).
+
+- **Uji sebelum produksi**: Selalu uji email Anda sebelum mengirimnya dalam produksi. Ini memastikan konten email Anda dirender dengan benar dan semua data dinamis dipetakan dengan baik.
+
+## Referensi API
+
+Untuk detail lengkap tentang API AutoSend, termasuk semua parameter yang tersedia dan kode kesalahan, kunjungi [Dokumentasi API AutoSend](https://docs.autosend.com/api-reference/mails/send).
+
+## Pemecahan Masalah
+
+<AccordionGroup>
+<Accordion title="Email tidak terkirim">
+- Verifikasi Kunci API benar dan aktif
+- Periksa bahwa domain pengirim terverifikasi di AutoSend
+- Pastikan alamat email penerima valid
+- Tinjau batas dan kuota pengiriman AutoSend
+- Verifikasi URL endpoint API benar: `https://api.autosend.com/v1/mails/send`
+- Periksa bahwa parameter yang diperlukan ada dalam payload
+</Accordion>
+
+<Accordion title="Kesalahan transformasi">
+- Validasi struktur JSON sesuai dengan format API AutoSend
+- Periksa bahwa semua field yang diperlukan ada (`to`, `from`, `templateId` atau `html`/`text`)
+- Pastikan alamat email diformat dengan benar
+- Verifikasi `templateId` valid jika menggunakan template
+- Periksa bahwa kunci `dynamicData` cocok dengan variabel template Anda
+</Accordion>
+
+<Accordion title="Masalah template">
+- Verifikasi ID template Anda benar dan aktif di AutoSend
+- Pastikan kunci `dynamicData` cocok dengan variabel yang digunakan dalam template Anda
+- Periksa bahwa semua variabel template yang diperlukan disediakan
+- Uji template Anda secara independen di dasbor AutoSend
+</Accordion>
+</AccordionGroup>

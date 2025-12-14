@@ -1,0 +1,572 @@
+---
+title: Netlify Functions
+description: DodoPayments 웹훅을 Netlify Functions에 배포하기
+icon: diamond
+---
+
+<Card title="GitHub Repository" icon="github" href="https://github.com/dodopayments/cloud-functions/tree/main/netlify">
+  전체 소스 코드 및 설정 가이드
+</Card>
+
+## 빠른 설정
+
+### 1. 필수 조건
+- [Netlify 계정](https://app.netlify.com/signup)
+- [Neon 데이터베이스](https://neon.com) 계정
+- [대시보드](https://app.dodopayments.com/)에서 DodoPayments API 키
+
+### 2. 종속성 설치
+
+```bash
+npm install -g netlify-cli
+netlify login
+git clone https://github.com/dodopayments/cloud-functions.git
+cd cloud-functions/netlify
+npm install
+```
+
+### 3. 데이터베이스 설정
+
+1. [Neon](https://neon.com) 가입
+2. 새 프로젝트 생성
+3. SQL 편집기 열기
+4. [`schema.sql`](#database-schema)의 내용을 복사하여 붙여넣기
+5. 쿼리 실행
+6. Neon에서 연결 문자열을 가져오기 → 연결 세부정보
+
+### 4. 초기 환경 변수 설정
+
+```bash
+netlify env:set DATABASE_URL "your-neon-connection-string"
+netlify env:set DODO_PAYMENTS_API_KEY "your-api-key"
+```
+
+> **참고:** 배포 후 웹훅 URL을 얻은 후 `DODO_PAYMENTS_WEBHOOK_KEY`을 설정합니다.
+
+### 5. 초기화 및 배포
+
+```bash
+netlify init       # Link to your site (first time only)
+npm run deploy
+```
+
+### 6. 웹훅 URL 가져오기
+
+당신의 웹훅 URL은 다음과 같습니다:
+
+```
+https://[your-project].netlify.app/.netlify/functions/webhook
+```
+
+### 7. DodoPayments 대시보드에서 웹훅 등록
+
+1. [DodoPayments 대시보드](https://app.dodopayments.com) → 개발자 → 웹훅으로 이동
+2. 새 웹훅 엔드포인트 생성
+3. 웹훅 URL을 엔드포인트로 설정
+4. 다음 구독 이벤트를 활성화:
+   - `subscription.active`
+   - `subscription.cancelled`
+   - `subscription.renewed`
+5. **서명 비밀** 복사
+
+### 8. 웹훅 키 설정 및 재배포
+
+```bash
+netlify env:set DODO_PAYMENTS_WEBHOOK_KEY "your-webhook-signing-key"
+npm run deploy
+```
+
+## 기능
+
+구독 이벤트를 처리하고 PostgreSQL에 저장합니다:
+- **subscription.active** - 고객 및 구독 기록 생성/업데이트
+- **subscription.cancelled** - 구독을 취소로 표시
+- **subscription.renewed** - 다음 청구일 업데이트
+
+## 주요 기능
+
+✅ **서명 검증** - dodopayments 라이브러리 사용  
+✅ **멱등성** - 웹훅 ID로 중복 처리 방지  
+✅ **이벤트 로깅** - `webhook_events` 테이블에 완전한 감사 추적  
+✅ **오류 처리** - 기록되고 재시도 가능
+
+> **참고:** 이 구현은 최소한의 필드로 세 가지 핵심 구독 이벤트 (`subscription.active`, `subscription.cancelled`, `subscription.renewed`)을 처리하는 방법을 보여줍니다. 필요에 따라 추가 이벤트 유형 및 필드를 지원하도록 쉽게 확장할 수 있습니다.
+
+## 구성 파일
+
+<CodeGroup>
+
+  ```json package.json
+  {
+    "name": "dodo-webhook-netlify",
+    "version": "1.0.0",
+    "type": "module",
+    "description": "DodoPayments Webhook Handler for Netlify",
+    "scripts": {
+      "dev": "netlify dev",
+      "deploy": "netlify deploy --prod"
+    },
+    "dependencies": {
+      "@neondatabase/serverless": "^1.0.2",
+      "dodopayments": "^2.4.1"
+    },
+    "devDependencies": {
+      "@netlify/functions": "^5.0.0",
+      "netlify-cli": "^23.9.1",
+      "typescript": "^5.9.3"
+    }
+  }
+  ```
+
+  ```json tsconfig.json
+  {
+    "compilerOptions": {
+      "target": "ES2022",
+      "module": "ES2022",
+      "lib": ["ES2022"],
+      "moduleResolution": "node",
+      "esModuleInterop": true,
+      "strict": true,
+      "skipLibCheck": true,
+      "resolveJsonModule": true,
+      "allowSyntheticDefaultImports": true,
+      "forceConsistentCasingInFileNames": true,
+      "isolatedModules": true,
+      "types": ["node"]
+    },
+    "include": ["functions/*.ts"],
+    "exclude": ["node_modules"]
+  }
+  ```
+
+  ```toml netlify.toml
+  [build]
+    functions = "functions"
+
+  [build.environment]
+    NODE_VERSION = "18"
+
+  [functions]
+    # Functions will be available at /.netlify/functions/[function-name]
+    directory = "functions"
+  ```
+
+</CodeGroup>
+
+## 데이터베이스 스키마
+
+<CodeGroup>
+
+  ```sql schema.sql expandable
+  -- DodoPayments Webhook Database Schema
+  -- Compatible with PostgreSQL (Supabase, Neon, etc.)
+
+  -- Enable UUID extension (if not already enabled)
+  CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+  -- Customers table
+  CREATE TABLE IF NOT EXISTS customers (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    email TEXT NOT NULL,
+    name TEXT NOT NULL,
+    dodo_customer_id TEXT UNIQUE NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  );
+
+  -- Subscriptions table
+  CREATE TABLE IF NOT EXISTS subscriptions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    customer_id UUID NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+    dodo_subscription_id TEXT UNIQUE NOT NULL,
+    product_id TEXT NOT NULL,
+    status TEXT NOT NULL CHECK (status IN ('pending', 'active', 'on_hold', 'cancelled', 'failed', 'expired')),
+    billing_interval TEXT NOT NULL CHECK (billing_interval IN ('day', 'week', 'month', 'year')),
+    amount INTEGER NOT NULL,
+    currency TEXT NOT NULL,
+    next_billing_date TIMESTAMP WITH TIME ZONE NOT NULL,
+    cancelled_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  );
+
+  -- Webhook events log
+  CREATE TABLE IF NOT EXISTS webhook_events (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    webhook_id TEXT UNIQUE,
+    event_type TEXT NOT NULL,
+    data JSONB NOT NULL,
+    processed BOOLEAN DEFAULT FALSE,
+    error_message TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    processed_at TIMESTAMP WITH TIME ZONE,
+    attempts INTEGER DEFAULT 0
+  );
+
+  -- Indexes for better query performance
+  CREATE INDEX IF NOT EXISTS idx_customers_email ON customers(email);
+  CREATE INDEX IF NOT EXISTS idx_customers_dodo_id ON customers(dodo_customer_id);
+  CREATE INDEX IF NOT EXISTS idx_subscriptions_dodo_id ON subscriptions(dodo_subscription_id);
+  CREATE INDEX IF NOT EXISTS idx_subscriptions_customer_id ON subscriptions(customer_id);
+  CREATE INDEX IF NOT EXISTS idx_subscriptions_status ON subscriptions(status);
+  CREATE INDEX IF NOT EXISTS idx_webhook_events_processed ON webhook_events(processed, created_at);
+  CREATE INDEX IF NOT EXISTS idx_webhook_events_type ON webhook_events(event_type);
+  CREATE INDEX IF NOT EXISTS idx_webhook_events_created_at ON webhook_events(created_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_webhook_events_webhook_id ON webhook_events(webhook_id);
+
+  -- Function to automatically update updated_at timestamp
+  CREATE OR REPLACE FUNCTION update_updated_at_column()
+  RETURNS TRIGGER AS $$
+  BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+  END;
+  $$ LANGUAGE plpgsql;
+
+  -- Triggers to automatically update updated_at
+  CREATE TRIGGER update_customers_updated_at
+    BEFORE UPDATE ON customers
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+  CREATE TRIGGER update_subscriptions_updated_at
+    BEFORE UPDATE ON subscriptions
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+  -- Comments for documentation
+  COMMENT ON TABLE customers IS 'Stores customer information from DodoPayments';
+  COMMENT ON TABLE subscriptions IS 'Stores subscription data from DodoPayments';
+  COMMENT ON TABLE webhook_events IS 'Logs all incoming webhook events for audit and retry purposes';
+
+  COMMENT ON COLUMN customers.dodo_customer_id IS 'Unique customer ID from DodoPayments';
+  COMMENT ON COLUMN subscriptions.dodo_subscription_id IS 'Unique subscription ID from DodoPayments';
+  COMMENT ON COLUMN subscriptions.amount IS 'Amount in smallest currency unit (e.g., cents)';
+  COMMENT ON COLUMN subscriptions.currency IS 'Currency used for the subscription payments (e.g., USD, EUR, INR)';
+  COMMENT ON COLUMN webhook_events.attempts IS 'Number of processing attempts for failed webhooks';
+  COMMENT ON COLUMN webhook_events.data IS 'Full webhook payload as JSON';
+  ```
+
+</CodeGroup>
+
+**생성된 테이블:**
+- **customers** - 이메일, 이름, dodo_customer_id
+- **subscriptions** - 상태, 금액, next_billing_date, 고객에 연결됨
+- **webhook_events** - 멱등성을 위한 webhook_id가 있는 이벤트 로그
+
+## 구현 코드
+
+<CodeGroup>
+
+```typescript functions/webhook.ts expandable
+import { Handler, HandlerEvent, HandlerContext } from '@netlify/functions';
+import { neon, NeonQueryFunction } from '@neondatabase/serverless';
+import { DodoPayments } from 'dodopayments';
+
+interface WebhookPayload {
+  business_id: string;
+  type: string;
+  timestamp: string;
+  data: {
+    payload_type: "Payment" | "Subscription" | "Refund" | "Dispute" | "LicenseKey";
+    subscription_id: string;
+    customer: {
+      customer_id: string;
+      email: string;
+      name: string;
+    };
+    product_id: string;
+    status: string;
+    recurring_pre_tax_amount: number;
+    payment_frequency_interval: string;
+    created_at: string;
+    next_billing_date: string;
+    cancelled_at?: string | null;
+    currency: string;
+  };
+}
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, webhook-id, webhook-signature, webhook-timestamp',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+};
+
+async function handleSubscriptionEvent(sql: NeonQueryFunction<false, false>, payload: WebhookPayload, status: string) {
+  if (!payload.data.customer.customer_id || !payload.data.subscription_id) {
+    throw new Error('Missing required fields: customer_id or subscription_id');
+  }
+
+  console.log('🔄 Processing subscription event:', JSON.stringify(payload, null, 2));
+
+  const customer = payload.data.customer;
+
+  // Upsert customer (create if doesn't exist, otherwise use existing)
+  const customerResult = await sql`
+    INSERT INTO customers (email, name, dodo_customer_id, created_at)
+    VALUES (${customer.email}, ${customer.name}, ${customer.customer_id}, ${new Date().toISOString()})
+    ON CONFLICT (dodo_customer_id) 
+    DO UPDATE SET 
+      email = EXCLUDED.email,
+      name = EXCLUDED.name,
+      updated_at = ${new Date().toISOString()}
+    RETURNING id
+  `;
+
+  const customerId = customerResult[0].id;
+  console.log(`✅ Customer upserted with ID: ${customerId}`);
+
+  // Upsert subscription
+  await sql`
+    INSERT INTO subscriptions (
+      customer_id, dodo_subscription_id, product_id, status, 
+      billing_interval, amount, currency, created_at, next_billing_date, cancelled_at, updated_at
+    )
+    VALUES (
+      ${customerId}, ${payload.data.subscription_id},
+      ${payload.data.product_id}, ${status},
+      ${payload.data.payment_frequency_interval.toLowerCase()}, ${payload.data.recurring_pre_tax_amount},
+      ${payload.data.currency}, ${payload.data.created_at}, ${payload.data.next_billing_date},
+      ${payload.data.cancelled_at ?? null}, ${new Date().toISOString()}
+    )
+    ON CONFLICT (dodo_subscription_id) 
+    DO UPDATE SET 
+      customer_id = EXCLUDED.customer_id,
+      product_id = EXCLUDED.product_id,
+      status = EXCLUDED.status,
+      billing_interval = EXCLUDED.billing_interval,
+      amount = EXCLUDED.amount,
+      currency = EXCLUDED.currency,
+      created_at = EXCLUDED.created_at,
+      next_billing_date = EXCLUDED.next_billing_date,
+      cancelled_at = EXCLUDED.cancelled_at,
+      updated_at = EXCLUDED.updated_at
+  `;
+
+  console.log(`✅ Subscription upserted with ${status} status`)
+}
+
+export const handler: Handler = async (event: HandlerEvent, context: HandlerContext) => {
+  // Handle CORS preflight
+  if (event.httpMethod === 'OPTIONS') {
+    return {
+      statusCode: 200,
+      headers: corsHeaders,
+      body: 'ok'
+    };
+  }
+
+  if (event.httpMethod !== 'POST') {
+    return {
+      statusCode: 405,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ error: 'Method not allowed' })
+    };
+  }
+
+  try {
+    const rawBody = event.body || '';
+    console.log('📨 Webhook received');
+
+    const DATABASE_URL = process.env.DATABASE_URL;
+    const API_KEY = process.env.DODO_PAYMENTS_API_KEY;
+    const WEBHOOK_KEY = process.env.DODO_PAYMENTS_WEBHOOK_KEY;
+
+    if (!DATABASE_URL) {
+      console.error('❌ Missing DATABASE_URL environment variable');
+      return {
+        statusCode: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ error: 'Server configuration error' })
+      };
+    }
+
+    // Verify required environment variables
+    if (!API_KEY) {
+      console.error('❌ DODO_PAYMENTS_API_KEY is not configured');
+      return {
+        statusCode: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ error: 'API key not configured' })
+      };
+    }
+
+    if (!WEBHOOK_KEY) {
+      console.error('❌ DODO_PAYMENTS_WEBHOOK_KEY is not configured');
+      return {
+        statusCode: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ error: 'Webhook verification key not configured' })
+      };
+    }
+
+    // Verify webhook signature (required for security)
+    const webhookHeaders = {
+      'webhook-id': event.headers['webhook-id'] || '',
+      'webhook-signature': event.headers['webhook-signature'] || '',
+      'webhook-timestamp': event.headers['webhook-timestamp'] || '',
+    };
+
+    try {
+      const dodoPaymentsClient = new DodoPayments({
+        bearerToken: API_KEY,
+        webhookKey: WEBHOOK_KEY,
+      });
+      const unwrappedWebhook = dodoPaymentsClient.webhooks.unwrap(rawBody, { headers: webhookHeaders });
+      console.log('Unwrapped webhook:', unwrappedWebhook);
+      console.log('✅ Webhook signature verified');
+    } catch (error) {
+      console.error('❌ Webhook verification failed:', error);
+      return {
+        statusCode: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ error: 'Webhook verification failed' })
+      };
+    }
+
+    // Initialize Neon client
+    const sql = neon(DATABASE_URL);
+
+    const payload: WebhookPayload = JSON.parse(rawBody);
+    const eventType = payload.type;
+    const eventData = payload.data;
+    const webhookId = event.headers['webhook-id'] || '';
+
+    console.log(`📋 Webhook payload:`, JSON.stringify(payload, null, 2));
+
+    // Check for duplicate webhook-id (idempotency)
+    if (webhookId) {
+      const existingEvent = await sql`
+        SELECT id FROM webhook_events WHERE webhook_id = ${webhookId}
+      `;
+
+      if (existingEvent.length > 0) {
+        console.log(`⚠️ Webhook ${webhookId} already processed, skipping (idempotency)`);
+        return {
+          statusCode: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ success: true, message: 'Webhook already processed' })
+        };
+      }
+    }
+
+    // Log webhook event with webhook_id for idempotency
+    const logResult = await sql`
+      INSERT INTO webhook_events (webhook_id, event_type, data, processed, created_at)
+      VALUES (${webhookId || null}, ${eventType}, ${JSON.stringify(eventData)}, ${false}, ${new Date().toISOString()})
+      RETURNING id
+    `;
+
+    const loggedEventId = logResult[0].id;
+    console.log('📝 Webhook event logged with ID:', loggedEventId);
+
+    console.log(`🔄 Processing: ${eventType} (${eventData.payload_type || 'unknown payload type'})`);
+
+    try {
+      switch (eventType) {
+        case 'subscription.active':
+          await handleSubscriptionEvent(sql, payload, 'active');
+          break;
+        case 'subscription.cancelled':
+          await handleSubscriptionEvent(sql, payload, 'cancelled');
+          break;
+        case 'subscription.renewed':
+          console.log('🔄 Subscription renewed - keeping active status and updating billing date');
+          await handleSubscriptionEvent(sql, payload, 'active');
+          break;
+        default:
+          console.log(`ℹ️ Event ${eventType} logged but not processed (no handler available)`);
+      }
+
+      await sql`
+        UPDATE webhook_events 
+        SET processed = ${true}, processed_at = ${new Date().toISOString()}
+        WHERE id = ${loggedEventId}
+      `;
+
+      console.log('✅ Webhook marked as processed');
+    } catch (processingError) {
+      console.error('❌ Error processing webhook event:', processingError);
+
+      await sql`
+        UPDATE webhook_events 
+        SET processed = ${false}, 
+            error_message = ${processingError instanceof Error ? processingError.message : 'Unknown error'},
+            processed_at = ${new Date().toISOString()}
+        WHERE id = ${loggedEventId}
+      `;
+
+      throw processingError;
+    }
+
+    console.log('✅ Webhook processed successfully');
+
+    return {
+      statusCode: 200,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        success: true,
+        event_type: eventType,
+        event_id: loggedEventId
+      })
+    };
+
+  } catch (error) {
+    console.error('❌ Webhook processing failed:', error);
+    return {
+      statusCode: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        error: 'Webhook processing failed',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      })
+    };
+  }
+};
+```
+
+</CodeGroup>
+
+## 작동 방식
+
+웹훅 핸들러:
+1. **서명 검증** - HMAC-SHA256을 사용하여 요청이 DodoPayments에서 온 것인지 확인
+2. **중복 확인** - 웹훅 ID를 사용하여 동일한 이벤트를 두 번 처리하지 않도록 방지
+3. **이벤트 기록** - 감사 추적을 위해 `webhook_events` 테이블에 원시 웹훅 저장
+4. **이벤트 처리** - Neon에서 고객 및 구독 생성 또는 업데이트
+5. **오류 처리** - 실패를 기록하고 이벤트를 재시도를 위해 처리되지 않은 것으로 표시
+
+## 테스트
+
+**로컬 개발:**
+
+```bash
+npm run dev  # Available at http://localhost:8888/.netlify/functions/webhook
+```
+
+**Netlify 대시보드에서 로그 보기:**
+1. 사이트 선택 → **Functions** 탭
+2. `webhook` 함수 클릭
+3. 실시간 로그 및 호출 기록 보기
+
+**DodoPayments 대시보드에서 구성:**
+1. 개발자 → 웹훅으로 이동
+2. Netlify Functions URL로 엔드포인트 추가
+3. 활성화: subscription.active, subscription.cancelled, subscription.renewed
+
+## 일반적인 문제
+
+| 문제 | 해결책 |
+|-------|----------|
+| 검증 실패 | DodoPayments 대시보드에서 웹훅 키가 올바른지 확인 |
+| 데이터베이스 연결 오류 | Neon 연결 문자열을 확인하고 풀링된 연결을 사용 |
+| 함수 찾을 수 없음 (404) | `netlify init` 및 `npm run deploy`을 다시 실행 |
+| 환경 변수 사용 불가 | CLI 또는 대시보드에서 변수를 설정한 후 재배포 |
+
+## 리소스
+
+- [Netlify Functions 문서](https://docs.netlify.com/functions/overview/)
+- [Netlify CLI](https://docs.netlify.com/cli/get-started/)
+- [Neon 문서](https://neon.com/docs/)
+- [웹훅 이벤트 가이드](/developer-resources/webhooks/intents/webhook-events-guide)
+- [GitHub Repo](https://github.com/dodopayments/cloud-functions/tree/main/netlify)

@@ -1,0 +1,400 @@
+---
+title: C#
+description: Dodo Payments를 .NET 애플리케이션에 통합하고 최신 async/await 지원을 받으세요.
+icon: c
+tag: BETA
+---
+
+C# SDK는 C#으로 작성된 애플리케이션에서 Dodo Payments REST API에 편리하게 접근할 수 있도록 합니다. 비동기 Task 기반 API를 제공하며 강력한 타입을 지원하고 현재 베타 버전입니다.
+
+<Info>
+C# SDK는 현재 베타 버전입니다. 우리는 개선 작업을 활발히 진행 중이며 귀하의 피드백을 환영합니다.
+</Info>
+
+## 설치
+
+.NET CLI를 사용하여 SDK를 설치하세요:
+
+```bash
+dotnet add package DodoPayments.Client
+```
+
+<Info>
+SDK는 .NET 8.0 이상이 필요합니다. ASP.NET Core, 콘솔 애플리케이션 및 기타 .NET 프로젝트 유형과 함께 작동합니다.
+</Info>
+
+## 빠른 시작
+
+클라이언트를 초기화하고 체크아웃 세션을 생성하세요:
+
+```csharp
+using System;
+using DodoPayments.Client;
+using DodoPayments.Client.Models.CheckoutSessions;
+
+// Configured using the DODO_PAYMENTS_API_KEY and DODO_PAYMENTS_BASE_URL environment variables
+DodoPaymentsClient client = new();
+
+CheckoutSessionCreateParams parameters = new()
+{
+    ProductCart =
+    [
+        new()
+        {
+            ProductID = "product_id",
+            Quantity = 1,
+        },
+    ],
+};
+
+var checkoutSessionResponse = await client.CheckoutSessions.Create(parameters);
+
+Console.WriteLine(checkoutSessionResponse.SessionId);
+```
+
+<Warning>
+API 키는 항상 환경 변수, 사용자 비밀 또는 Azure Key Vault를 사용하여 안전하게 저장하세요. 소스 코드에 하드코딩하거나 버전 관리에 커밋하지 마세요.
+</Warning>
+
+## 주요 기능
+
+<CardGroup cols={2}>
+<Card title="Async/Await" icon="bolt">
+  비차단 작업을 위한 전체 비동기 Task 기반 API
+</Card>
+
+<Card title="Strong Typing" icon="shield-check">
+  널 가능 참조 타입을 통한 포괄적인 타입 안전성
+</Card>
+
+<Card title="Dependency Injection" icon="layer-group">
+  .NET 의존성 주입에 대한 일급 지원
+</Card>
+
+<Card title="Configuration" icon="gear">
+  환경 변수 또는 appsettings.json을 통한 간단한 구성
+</Card>
+</CardGroup>
+
+## 구성
+
+### 환경 변수
+
+환경 변수를 사용하여 구성하세요:
+
+```bash .env
+DODO_PAYMENTS_API_KEY=your_api_key_here
+```
+
+```csharp
+// Automatically reads from environment variables
+DodoPaymentsClient client = new();
+```
+
+### 수동 구성
+
+베어러 토큰으로 수동으로 구성하세요:
+
+```csharp
+DodoPaymentsClient client = new() { BearerToken = "My Bearer Token" };
+```
+
+## 일반 작업
+
+### 체크아웃 세션 생성
+
+체크아웃 세션을 생성하세요:
+
+```csharp
+var parameters = new CheckoutSessionCreateParams
+{
+    ProductCart =
+    [
+        new()
+        {
+            ProductID = "prod_123",
+            Quantity = 1
+        }
+    ],
+    ReturnUrl = "https://yourdomain.com/return"
+};
+
+var session = await client.CheckoutSessions.Create(parameters);
+Console.WriteLine($"Checkout URL: {session.Url}");
+```
+
+### 고객 관리
+
+고객 정보를 생성하고 검색하세요:
+
+```csharp
+// Create a customer
+var createParams = new CustomerCreateParams
+{
+    Email = "customer@example.com",
+    Name = "John Doe",
+    Metadata = new Dictionary<string, string>
+    {
+        { "user_id", "12345" }
+    }
+};
+
+var customer = await client.Customers.Create(createParams);
+
+// Retrieve customer
+var retrieved = await client.Customers.Retrieve("cus_123");
+Console.WriteLine($"Customer: {retrieved.Name} ({retrieved.Email})");
+```
+
+### 구독 처리
+
+정기 구독을 생성하고 관리하세요:
+
+```csharp
+// Create a subscription
+var subscriptionParams = new SubscriptionCreateParams
+{
+    CustomerID = "cus_123",
+    ProductID = "prod_456",
+    PriceID = "price_789"
+};
+
+var subscription = await client.Subscriptions.Create(subscriptionParams);
+
+// Cancel subscription
+await client.Subscriptions.Cancel(subscription.Id);
+```
+
+## ASP.NET Core 통합
+
+### 서비스 등록
+
+`Program.cs`에서 클라이언트를 등록하세요:
+
+```csharp Program.cs
+using DodoPayments.Client;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// Register DodoPayments client
+builder.Services.AddSingleton<DodoPaymentsClient>(sp =>
+{
+    var configuration = sp.GetRequiredService<IConfiguration>();
+    return new DodoPaymentsClient
+    {
+        BearerToken = configuration["DodoPayments:ApiKey"]
+    };
+});
+
+builder.Services.AddControllers();
+
+var app = builder.Build();
+app.MapControllers();
+app.Run();
+```
+
+### 구성
+
+`appsettings.json`에 구성을 추가하세요:
+
+```json appsettings.json
+{
+  "DodoPayments": {
+    "ApiKey": "your_api_key_here"
+  }
+}
+```
+
+### API 컨트롤러
+
+의존성 주입을 사용하여 컨트롤러를 생성하세요:
+
+```csharp
+using Microsoft.AspNetCore.Mvc;
+using DodoPayments.Client;
+using DodoPayments.Client.Models.CheckoutSessions;
+
+[ApiController]
+[Route("api/[controller]")]
+public class PaymentsController : ControllerBase
+{
+    private readonly DodoPaymentsClient _client;
+    private readonly ILogger<PaymentsController> _logger;
+
+    public PaymentsController(DodoPaymentsClient client, ILogger<PaymentsController> logger)
+    {
+        _client = client;
+        _logger = logger;
+    }
+
+    [HttpPost("checkout")]
+    public async Task<IActionResult> CreateCheckout([FromBody] CheckoutRequest request)
+    {
+        try
+        {
+            var parameters = new CheckoutSessionCreateParams
+            {
+                ProductCart = request.Items,
+                ReturnUrl = Url.Action("Return", "Checkout", null, Request.Scheme)
+            };
+
+            var session = await _client.CheckoutSessions.Create(parameters);
+
+            return Ok(new { checkoutUrl = session.Url });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to create checkout");
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+}
+
+public record CheckoutRequest(List<ProductCartItem> Items);
+```
+
+### 서비스 레이어 패턴
+
+비즈니스 로직을 위한 서비스를 생성하세요:
+
+```csharp
+public interface IPaymentService
+{
+    Task<CheckoutSessionResponse> CreateCheckoutAsync(List<ProductCartItem> items);
+    Task<PaymentResponse> ProcessPaymentAsync(decimal amount, string currency, string customerId);
+}
+
+public class PaymentService : IPaymentService
+{
+    private readonly DodoPaymentsClient _client;
+    private readonly ILogger<PaymentService> _logger;
+
+    public PaymentService(DodoPaymentsClient client, ILogger<PaymentService> logger)
+    {
+        _client = client;
+        _logger = logger;
+    }
+
+    public async Task<CheckoutSessionResponse> CreateCheckoutAsync(List<ProductCartItem> items)
+    {
+        var parameters = new CheckoutSessionCreateParams
+        {
+            ProductCart = items,
+            ReturnUrl = "https://yourdomain.com/return"
+        };
+
+        return await _client.CheckoutSessions.Create(parameters);
+    }
+
+    public async Task<PaymentResponse> ProcessPaymentAsync(
+        decimal amount,
+        string currency,
+        string customerId)
+    {
+        try
+        {
+            var parameters = new PaymentCreateParams
+            {
+                Amount = (long)(amount * 100), // Convert to cents
+                Currency = currency,
+                CustomerID = customerId
+            };
+
+            return await _client.Payments.Create(parameters);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to process payment");
+            throw;
+        }
+    }
+}
+```
+
+## 사용자 비밀 (개발)
+
+개발을 위해 사용자 비밀을 사용하여 API 키를 저장하세요:
+
+```bash
+dotnet user-secrets init
+dotnet user-secrets set "DodoPayments:ApiKey" "your_api_key_here"
+```
+
+## 테스트
+
+xUnit을 사용한 예제 단위 테스트:
+
+```csharp
+using Xunit;
+using DodoPayments.Client;
+using DodoPayments.Client.Models.CheckoutSessions;
+
+public class PaymentServiceTests
+{
+    private readonly DodoPaymentsClient _client;
+
+    public PaymentServiceTests()
+    {
+        _client = new DodoPaymentsClient
+        {
+            BearerToken = "test_key"
+        };
+    }
+
+    [Fact]
+    public async Task CreateCheckout_ShouldReturnSession()
+    {
+        // Arrange
+        var parameters = new CheckoutSessionCreateParams
+        {
+            ProductCart =
+            [
+                new()
+                {
+                    ProductID = "prod_test",
+                    Quantity = 1
+                }
+            ]
+        };
+
+        // Act
+        var session = await _client.CheckoutSessions.Create(parameters);
+
+        // Assert
+        Assert.NotNull(session);
+        Assert.NotNull(session.SessionId);
+    }
+}
+```
+
+## 리소스
+
+<CardGroup cols={2}>
+<Card title="GitHub 리포지토리" icon="github" href="https://github.com/dodopayments/dodopayments-csharp">
+  소스 코드를 보고 기여하세요
+</Card>
+
+<Card title="API 참조" icon="book" href="/api-reference/introduction">
+  전체 API 문서
+</Card>
+
+<Card title="Discord 커뮤니티" icon="discord" href="https://discord.gg/bYqAp4ayYh">
+  도움을 받고 개발자와 연결하세요
+</Card>
+
+<Card title="문제 보고" icon="bug" href="https://github.com/dodopayments/dodopayments-csharp/issues">
+  버그를 보고하거나 기능 요청하세요
+</Card>
+</CardGroup>
+
+## 지원
+
+C# SDK에 대한 도움이 필요하신가요?
+
+- **Discord**: 실시간 지원을 위해 [커뮤니티 서버](https://discord.gg/bYqAp4ayYh)에 참여하세요
+- **이메일**: support@dodopayments.com으로 문의하세요
+- **GitHub**: [리포지토리](https://github.com/dodopayments/dodopayments-csharp)에서 문제를 열어주세요
+
+## 기여
+
+SDK가 베타 버전이므로 귀하의 피드백과 기여는 특히 소중합니다! 시작하려면 [기여 가이드라인](https://github.com/dodopayments/dodopayments-csharp/blob/main/CONTRIBUTING.md)을 확인하세요.

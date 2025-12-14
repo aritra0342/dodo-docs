@@ -1,0 +1,145 @@
+---
+sidebarTitle: المقاييس
+title: المقاييس
+description: تحويل أحداث الاستخدام الخام إلى كميات قابلة للفوترة مع التجميع والتصفية.
+icon: sliders
+---
+<Info>
+تقوم المقاييس بتحويل الأحداث الخام إلى كميات قابلة للفوترة. تقوم بتصفية الأحداث وتطبيق دوال التجميع (العدد، المجموع، الحد الأقصى، الأخير) لحساب الاستخدام لكل عميل.
+</Info>
+
+<Frame>
+<img src="/images/usage-based/UBB-2.png" alt="واجهة إنشاء المقياس تظهر اسم الحدث، نوع التجميع، وخيارات التصفية" />
+</Frame>
+
+## موارد API
+
+<AccordionGroup>
+<Accordion title="عرض مراجع API للمقياس">
+<CardGroup cols={2}>
+<Card title="إنشاء مقياس" icon="plus" href="/api-reference/meters/create-meter">
+إنشاء المقاييس برمجياً عبر API.
+</Card>
+
+<Card title="قائمة المقاييس" icon="list" href="/api-reference/meters/get-meters">
+استرجاع جميع المقاييس في حسابك.
+</Card>
+
+<Card title="الحصول على مقياس" icon="eye" href="/api-reference/meters/retrieve-meter">
+استرجاع تفاصيل مقياس محدد بواسطة ID.
+</Card>
+
+<Card title="أرشفة مقياس" icon="arrow-rotate-right" href="/api-reference/meters/archive-meter">
+أرشفة مقياس لإيقاف تتبع الاستخدام.
+</Card>
+
+<Card title="إلغاء أرشفة مقياس" icon="arrow-rotate-left" href="/api-reference/meters/unarchive-meter">
+استعادة مقياس مؤرشف لاستئناف التتبع.
+</Card>
+</CardGroup>
+</Accordion>
+</AccordionGroup>
+
+## إنشاء مقياس
+
+<Steps>
+<Step title="معلومات أساسية">
+<ParamField path="اسم المقياس" type="string" required>
+اسم وصفي (مثل: "طلبات API"، "استخدام الرمز")
+</ParamField>
+
+<ParamField path="اسم الحدث" type="string" required>
+اسم الحدث الدقيق للمطابقة (حساس لحالة الأحرف). أمثلة: `api.call`، `image.generated`
+</ParamField>
+</Step>
+
+<Step title="التجميع">
+<ParamField path="نوع التجميع" type="string" required>
+اختر كيفية تجميع الأحداث:
+
+- **العدد**: إجمالي عدد الأحداث (استدعاءات API، تحميلات)
+- **المجموع**: إضافة القيم الرقمية (الرموز، البايتات)
+- **الحد الأقصى**: أعلى قيمة في الفترة (أقصى عدد من المستخدمين)
+- **الأخير**: أحدث قيمة
+</ParamField>
+
+<ParamField path="على خاصية" type="string">
+مفتاح البيانات الوصفية للتجميع (مطلوب لجميع الأنواع باستثناء العدد). أمثلة: `tokens`، `bytes`، `duration_ms`
+</ParamField>
+
+<ParamField path="وحدة القياس" type="string" required>
+تسمية الوحدة للفواتير. أمثلة: `calls`، `tokens`، `GB`، `hours`
+</ParamField>
+</Step>
+
+<Step title="التصفية (اختياري)">
+<Frame>
+<img src="/images/usage-based/UBB-3.png" alt="تصفية الأحداث" />
+</Frame>
+
+أضف شروطاً لتصفية الأحداث التي يتم احتسابها:
+- **منطق AND**: يجب أن تتطابق جميع الشروط
+- **منطق OR**: يمكن أن تتطابق أي شرط
+
+**المقارنات**: يساوي، لا يساوي، أكبر من، أقل من، يحتوي على
+
+قم بتمكين التصفية، اختر المنطق، أضف الشروط مع مفتاح الخاصية، المقارن، والقيمة.
+</Step>
+
+<Step title="إنشاء">
+راجع التكوين وانقر على **إنشاء مقياس**.
+</Step>
+</Steps>
+
+## عرض التحليلات
+
+<Frame>
+<img src="/images/usage-based/UBB-1.png" alt="تحليلات المقياس" />
+</Frame>
+
+تظهر لوحة معلومات المقياس لديك:
+- **نظرة عامة**: إجمالي الاستخدام ومخطط الاستخدام
+- **الأحداث**: الأحداث الفردية المستلمة
+- **العملاء**: الاستخدام والرسوم لكل عميل
+
+## استكشاف الأخطاء وإصلاحها
+
+<AccordionGroup>
+<Accordion title="الأحداث لا تظهر">
+- يجب أن يتطابق اسم الحدث تمامًا (حساس لحالة الأحرف)
+- تحقق من أن مرشحات المقياس لا تستبعد الأحداث
+- تحقق من وجود معرفات العملاء
+- قم بتعطيل المرشحات مؤقتًا للاختبار
+</Accordion>
+
+<Accordion title="التجميع لا يعمل">
+- تحقق من أن خاصية "على" تتطابق مع مفتاح البيانات الوصفية تمامًا
+- استخدم الأرقام، وليس السلاسل: `tokens: 150` وليس `"150"`
+- تأكد من تضمين الخصائص المطلوبة في جميع الأحداث
+</Accordion>
+
+<Accordion title="المرشحات لا تعمل">
+- تطابق الحالة تمامًا
+- استخدم المشغلين الصحيحين لنوع البيانات
+- تأكد من أن الأحداث تتضمن الخصائص المفلترة
+</Accordion>
+
+<Accordion title="إجماليات الاستخدام غير صحيحة">
+- تحقق من علامة الأحداث لحساب الأحداث الفعلية المستلمة
+- تحقق من نوع التجميع (العدد مقابل المجموع)
+- تأكد من أن القيم رقمية للمجموع/الحد الأقصى
+</Accordion>
+</AccordionGroup>
+
+## الخطوات التالية
+
+<CardGroup cols={2}>
+
+<Card title="إرسال الأحداث" icon="bolt" href="/features/usage-based-billing/event-ingestion">
+ابدأ في إرسال أحداث الاستخدام من تطبيقك إلى مقاييسك.
+</Card>
+
+<Card title="عرض المخططات" icon="copy" href="/features/usage-based-billing/ingestion-blueprints">
+استخدم تكوينات المقاييس الجاهزة لحالات الاستخدام الشائعة.
+</Card>
+</CardGroup>

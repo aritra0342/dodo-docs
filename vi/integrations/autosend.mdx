@@ -1,0 +1,210 @@
+---
+title: AutoSend
+description: Tìm hiểu cách sử dụng API email của AutoSend để gửi email giao dịch
+  tự động cho các giao dịch, hoàn tiền và sự kiện thanh toán của Dodo Payments.
+icon: paper-plane
+---
+
+## Giới thiệu
+
+Tích hợp AutoSend và Dodo Payments cho phép bạn tự động gửi thông báo email theo thời gian thực cho tất cả các sự kiện thanh toán, từ các giao dịch thành công đến các nỗ lực không thành công và xác nhận hoàn tiền.
+
+Gửi email giao dịch cho các sự kiện thanh toán bằng API email mạnh mẽ của AutoSend.
+
+<Info>
+Tích hợp này yêu cầu khóa API AutoSend của bạn để xác thực. Bạn có thể tìm thấy khóa API của mình trong bảng điều khiển AutoSend dưới Cài đặt > Khóa API.
+</Info>
+
+## Bắt đầu
+
+Thực hiện các bước sau để tích hợp AutoSend với Dodo Payments:
+
+<Steps>
+<Step title="Mở phần Webhook">
+  Điều hướng đến phần Webhooks trong bảng điều khiển Dodo Payments của bạn.
+  
+  <Frame>
+    <img src="/images/integrations/autosend.png" alt="Thêm Endpoint và danh sách tích hợp" />
+  </Frame>
+</Step>
+
+<Step title="Chọn Tích hợp AutoSend">
+  Chọn AutoSend từ danh sách các tích hợp có sẵn.
+</Step>
+
+<Step title="Nhập Khóa API">
+  Cung cấp khóa API AutoSend của bạn để xác thực. Bạn có thể tìm thấy khóa API của mình trong bảng điều khiển AutoSend dưới Cài đặt > Khóa API.
+  
+  <Card title="Tìm hiểu cách tạo và quản lý khóa API" icon="key" href="https://docs.autosend.com/api-keys">
+    Truy cập tài liệu AutoSend để biết hướng dẫn chi tiết về cách tạo và quản lý khóa API.
+  </Card>
+</Step>
+
+<Step title="Cấu hình Biến đổi">
+  Thiết lập các trình xử lý biến đổi JavaScript để tùy chỉnh nội dung email dựa trên các sự kiện thanh toán.
+</Step>
+
+<Step title="Kiểm tra & Tạo">
+  Kiểm tra cấu hình webhook của bạn để đảm bảo email được gửi đúng cách, sau đó tạo tích hợp.
+</Step>
+
+<Step title="Kích hoạt Hoàn tất">
+  🎉 Tích hợp AutoSend của bạn hiện đã hoạt động và sẽ tự động gửi email cho các sự kiện thanh toán đã cấu hình.
+</Step>
+</Steps>
+
+## Ví dụ Mã
+
+### Email Xác Nhận Thanh Toán
+
+Gửi email xác nhận khi một khoản thanh toán được xử lý thành công:
+
+```javascript payment_confirmation.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.url = "https://api.autosend.com/v1/mails/send";
+    webhook.payload = {
+      to: {
+        email: p.customer.email,
+        name: p.customer.name,
+      },
+      from: {
+        email: "payments@mail.yourdomain.com",
+        name: "Your Company",
+      },
+      subject: "Payment Successful - Thank you for your purchase!",
+      templateId: "A-61522f2xxxxxxxxx",
+      dynamicData: {
+        customerName: p.customer.name,
+        amount: p.amount,
+        currency: p.currency,
+        paymentId: p.payment_id,
+        paymentDate: new Date(p.created_at).toLocaleDateString(),
+      },
+      replyTo: {
+        email: "support@yourdomain.com",
+        name: "Support Team",
+      },
+    };
+  }
+  return webhook;
+}
+```
+
+### Email Chào Mừng Đăng Ký
+
+Gửi email chào mừng khi một đăng ký mới được tạo:
+
+```javascript subscription_welcome.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "subscription.created") {
+    const s = webhook.payload.data;
+    webhook.url = "https://api.autosend.com/v1/mails/send";
+    webhook.payload = {
+      to: {
+        email: s.customer.email,
+        name: s.customer.name,
+      },
+      from: {
+        email: "subscriptions@mail.yourdomain.com",
+        name: "Your Company",
+      },
+      subject: "Welcome to your subscription!",
+      templateId: "A-61522f2xxxxxxxxx",
+      dynamicData: {
+        customerName: s.customer.name,
+        planName: s.plan.name,
+        billingInterval: s.billing_interval,
+        nextBillingDate: new Date(s.next_billing_at).toLocaleDateString(),
+        subscriptionId: s.subscription_id,
+      },
+      replyTo: {
+        email: "support@yourdomain.com",
+        name: "Support Team",
+      },
+    };
+  }
+  return webhook;
+}
+```
+
+### Thông Báo Thất Bại Thanh Toán
+
+Gửi email thông báo khi một khoản thanh toán thất bại:
+
+```javascript payment_failure.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.failed") {
+    const p = webhook.payload.data;
+    webhook.url = "https://api.autosend.com/v1/mails/send";
+    webhook.payload = {
+      to: {
+        email: p.customer.email,
+        name: p.customer.name,
+      },
+      from: {
+        email: "billing@mail.yourdomain.com",
+        name: "Your Company Billing",
+      },
+      subject: "Payment Failed - Action Required",
+      templateId: "A-61522f2xxxxxxxxx",
+      dynamicData: {
+        customerName: p.customer.name,
+        amount: p.amount,
+        currency: p.currency,
+        failureReason: p.failure_reason,
+        paymentId: p.payment_id,
+        retryUrl: `https://yourdomain.com/billing/retry/${p.payment_id}`,
+      },
+      replyTo: {
+        email: "billing@yourdomain.com",
+        name: "Billing Support",
+      },
+    };
+  }
+  return webhook;
+}
+```
+
+## Thực Hành Tốt Nhất
+
+- **Xác minh miền gửi của bạn**: Đảm bảo miền email gửi của bạn đã được xác minh trong AutoSend để cải thiện khả năng gửi và tránh các vấn đề xác thực. Các miền đã được xác minh giúp ngăn chặn email rơi vào thư mục spam.
+
+- **Sử dụng dữ liệu động để cá nhân hóa**: Sử dụng trường `dynamicData` để cá nhân hóa email với thông tin cụ thể của khách hàng như tên, số tiền thanh toán và chi tiết đăng ký. Email cá nhân hóa có tỷ lệ tương tác cao hơn.
+
+- **Viết tiêu đề rõ ràng**: Viết tiêu đề mô tả rõ ràng chỉ ra mục đích của email. Tránh các từ kích hoạt spam và giữ cho tiêu đề ngắn gọn (dưới 50 ký tự).
+
+- **Kiểm tra trước khi sản xuất**: Luôn kiểm tra email của bạn trước khi gửi chúng trong sản xuất. Điều này đảm bảo nội dung email của bạn hiển thị đúng cách và tất cả dữ liệu động được ánh xạ chính xác.
+
+## Tài Liệu API
+
+Để biết chi tiết đầy đủ về API AutoSend, bao gồm tất cả các tham số và mã lỗi có sẵn, hãy truy cập [Tài liệu API AutoSend](https://docs.autosend.com/api-reference/mails/send).
+
+## Khắc Phục Sự Cố
+
+<AccordionGroup>
+<Accordion title="Email không được gửi">
+- Xác minh rằng Khóa API là chính xác và đang hoạt động
+- Kiểm tra rằng miền gửi đã được xác minh trong AutoSend
+- Đảm bảo địa chỉ email người nhận là hợp lệ
+- Xem xét giới hạn và hạn ngạch gửi của AutoSend
+- Xác minh rằng URL điểm cuối API là chính xác: `https://api.autosend.com/v1/mails/send`
+- Kiểm tra rằng các tham số cần thiết có mặt trong payload
+</Accordion>
+
+<Accordion title="Lỗi biến đổi">
+- Xác thực cấu trúc JSON phù hợp với định dạng API AutoSend
+- Kiểm tra rằng tất cả các trường cần thiết đều có mặt (`to`, `from`, `templateId` hoặc `html`/`text`)
+- Đảm bảo địa chỉ email được định dạng đúng
+- Xác minh `templateId` là hợp lệ nếu sử dụng mẫu
+- Kiểm tra rằng các khóa `dynamicData` khớp với các biến mẫu của bạn
+</Accordion>
+
+<Accordion title="Vấn đề mẫu">
+- Xác minh rằng ID mẫu của bạn là chính xác và đang hoạt động trong AutoSend
+- Đảm bảo các khóa `dynamicData` khớp với các biến được sử dụng trong mẫu của bạn
+- Kiểm tra rằng tất cả các biến mẫu cần thiết đều được cung cấp
+- Kiểm tra mẫu của bạn độc lập trong bảng điều khiển AutoSend
+</Accordion>
+</AccordionGroup>

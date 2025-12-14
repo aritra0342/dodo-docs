@@ -1,0 +1,216 @@
+---
+title: Microsoft Teams
+description: Gửi thông báo Dodo Payments đến các kênh Microsoft Teams với các
+  Adaptive Cards phong phú.
+icon: microsoft
+---
+
+## Giới thiệu
+
+Giữ cho nhóm kinh doanh của bạn luôn được cập nhật với thông báo thanh toán theo thời gian thực trong Microsoft Teams. Tích hợp này cung cấp các sự kiện thanh toán dưới dạng các Adaptive Cards phong phú—hoàn hảo cho các môi trường doanh nghiệp nơi Teams là công cụ hợp tác chính.
+
+<Info>
+Hướng dẫn này giả định rằng bạn có quyền quản trị để tạo webhooks trong không gian làm việc Microsoft Teams của bạn.
+</Info>
+
+## Bắt đầu
+
+<Steps>
+<Step title="Mở phần Webhook">
+  Trong bảng điều khiển Dodo Payments của bạn, điều hướng đến <b>Webhooks → + Thêm Điểm cuối</b> và mở rộng menu thả xuống tích hợp.
+  <Frame>
+    <img src="/images/integrations/teams.png" alt="Thêm Điểm cuối và menu thả xuống tích hợp" />
+  </Frame>
+</Step>
+
+<Step title="Chọn Microsoft Teams">
+  Chọn thẻ tích hợp <b>Microsoft Teams</b>.
+</Step>
+
+<Step title="Tạo Webhook Teams">
+  Trong Teams, đi đến kênh của bạn → ⋯ → Kết nối → Webhook đến → Cấu hình. Sao chép URL webhook.
+</Step>
+
+<Step title="Dán URL Webhook">
+  Dán URL webhook Teams vào cấu hình điểm cuối.
+</Step>
+
+<Step title="Tùy chỉnh Chuyển đổi">
+  Chỉnh sửa mã chuyển đổi để định dạng tin nhắn dưới dạng Adaptive Cards cho Teams.
+</Step>
+
+<Step title="Kiểm tra & Tạo">
+  Kiểm tra với các payload mẫu và nhấp vào <b>Tạo</b> để kích hoạt.
+</Step>
+
+<Step title="Xong!">
+  🎉 Kênh Teams của bạn sẽ nhận được các cập nhật Dodo Payments dưới dạng Adaptive Cards.
+</Step>
+</Steps>
+
+## Ví dụ Mã Chuyển đổi
+
+### Thẻ Thanh toán Cơ bản
+
+```javascript payment_card.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.payload = {
+      type: "message",
+      attachments: [{
+        contentType: "application/vnd.microsoft.card.adaptive",
+        content: {
+          type: "AdaptiveCard",
+          body: [
+            {
+              type: "TextBlock",
+              text: "✅ Payment Successful",
+              weight: "Bolder",
+              size: "Medium"
+            },
+            {
+              type: "FactSet",
+              facts: [
+                { title: "Amount", value: `$${(p.total_amount / 100).toFixed(2)}` },
+                { title: "Customer", value: p.customer.email },
+                { title: "Payment ID", value: p.payment_id }
+              ]
+            }
+          ]
+        }
+      }]
+    };
+  }
+  return webhook;
+}
+```
+
+### Quản lý Đăng ký
+
+```javascript subscription_card.js icon="js" expandable
+function handler(webhook) {
+  const s = webhook.payload.data;
+  switch (webhook.eventType) {
+    case "subscription.active":
+      webhook.payload = {
+        type: "message",
+        attachments: [{
+          contentType: "application/vnd.microsoft.card.adaptive",
+          content: {
+            type: "AdaptiveCard",
+            body: [
+              {
+                type: "TextBlock",
+                text: "📄 Subscription Activated",
+                weight: "Bolder",
+                color: "Good"
+              },
+              {
+                type: "FactSet",
+                facts: [
+                  { title: "Customer", value: s.customer.email },
+                  { title: "Product", value: s.product_id },
+                  { title: "Amount", value: `$${(s.recurring_pre_tax_amount / 100).toFixed(2)}/${s.payment_frequency_interval}` },
+                  { title: "Next Billing", value: new Date(s.next_billing_date).toLocaleDateString() }
+                ]
+              }
+            ]
+          }
+        }]
+      };
+      break;
+    case "subscription.cancelled":
+      webhook.payload = {
+        type: "message",
+        attachments: [{
+          contentType: "application/vnd.microsoft.card.adaptive",
+          content: {
+            type: "AdaptiveCard",
+            body: [
+              {
+                type: "TextBlock",
+                text: "⚠️ Subscription Cancelled",
+                weight: "Bolder",
+                color: "Warning"
+              },
+              {
+                type: "FactSet",
+                facts: [
+                  { title: "Customer", value: s.customer.email },
+                  { title: "Product", value: s.product_id },
+                  { title: "Cancelled At", value: new Date(s.cancelled_at).toLocaleDateString() }
+                ]
+              }
+            ]
+          }
+        }]
+      };
+      break;
+  }
+  return webhook;
+}
+```
+
+### Cảnh báo Tranh chấp
+
+```javascript dispute_card.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType.startsWith("dispute.")) {
+    const d = webhook.payload.data;
+    const color = d.dispute_status === "won" ? "Good" : d.dispute_status === "lost" ? "Attention" : "Warning";
+    const title = d.dispute_status === "won" ? "🏆 Dispute Won" : d.dispute_status === "lost" ? "❌ Dispute Lost" : "🚨 Dispute Update";
+    
+    webhook.payload = {
+      type: "message",
+      attachments: [{
+        contentType: "application/vnd.microsoft.card.adaptive",
+        content: {
+          type: "AdaptiveCard",
+          body: [
+            {
+              type: "TextBlock",
+              text: title,
+              weight: "Bolder",
+              color: color
+            },
+            {
+              type: "FactSet",
+              facts: [
+                { title: "Payment ID", value: d.payment_id },
+                { title: "Amount", value: `$${(d.amount / 100).toFixed(2)}` },
+                { title: "Status", value: d.dispute_status },
+                { title: "Stage", value: d.dispute_stage }
+              ]
+            }
+          ]
+        }
+      }]
+    };
+  }
+  return webhook;
+}
+```
+
+## Mẹo
+
+- Sử dụng Adaptive Cards để định dạng phong phú, tương tác
+- Chọn màu sắc phù hợp: Tốt (xanh lá), Cảnh báo (vàng), Chú ý (đỏ)
+- Giữ cho các tập hợp thông tin ngắn gọn và dễ đọc
+- Kiểm tra với trình kiểm tra webhook Teams trước khi triển khai
+
+## Khắc phục sự cố
+
+<AccordionGroup>
+<Accordion title="Không có tin nhắn trong Teams">
+- Xác minh rằng URL webhook là chính xác và đang hoạt động
+- Kiểm tra rằng chuyển đổi trả về JSON Adaptive Card hợp lệ
+- Đảm bảo webhook có quyền đăng bài trong kênh
+</Accordion>
+
+<Accordion title="Vấn đề định dạng thẻ">
+- Xác thực schema Adaptive Card trong trình kiểm tra webhook Teams
+- Kiểm tra rằng tất cả các trường bắt buộc đều có mặt
+- Đảm bảo giá trị màu sắc là hợp lệ (Tốt, Cảnh báo, Chú ý, Mặc định)
+</Accordion>
+</AccordionGroup>

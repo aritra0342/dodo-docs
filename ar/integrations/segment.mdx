@@ -1,0 +1,160 @@
+---
+title: Segment
+description: إرسال أحداث مدفوعات Dodo إلى Segment من أجل التحليلات ودمج منصة بيانات العملاء.
+icon: chart-line
+---
+
+## المقدمة
+
+تتبع أحداث المدفوعات في Segment لتعزيز تحليلاتك، وأتمتة التسويق، ومنصة بيانات العملاء. أرسل أحداث المدفوعات، والاشتراكات، ودورة حياة العملاء إلى أكثر من 300 أداة تابعة تلقائيًا.
+
+<Info>
+تتطلب هذه التكامل مفتاح كتابة من Segment من مساحة عملك في Segment.
+</Info>
+
+## البدء
+
+<Steps>
+<Step title="فتح قسم Webhook">
+  في لوحة معلومات Dodo Payments الخاصة بك، انتقل إلى <b>Webhooks → + إضافة نقطة نهاية</b> وقم بتوسيع قائمة التكاملات.
+  <Frame>
+    <img src="/images/integrations/segment.png" alt="إضافة نقطة نهاية وقائمة التكاملات" />
+  </Frame>
+</Step>
+
+<Step title="اختيار Segment">
+  اختر بطاقة تكامل <b>Segment</b>.
+</Step>
+
+<Step title="إدخال مفتاح الكتابة">
+  قدم مفتاح الكتابة الخاص بك في Segment في الإعدادات.
+</Step>
+
+<Step title="تكوين التحويل">
+  قم بتحرير كود التحويل لتنسيق الأحداث لواجهة برمجة التطبيقات Track الخاصة بـ Segment.
+</Step>
+
+<Step title="اختبار وإنشاء">
+  اختبر باستخدام حمولات عينة وانقر على <b>إنشاء</b> لتفعيل المزامنة.
+</Step>
+
+<Step title="تم!">
+  🎉 سيتم الآن تتبع أحداث المدفوعات في Segment وإرسالها إلى الأدوات المتصلة بك.
+</Step>
+</Steps>
+
+## أمثلة على كود التحويل
+
+### تتبع أحداث المدفوعات
+
+```javascript track_payments.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.url = "https://api.segment.io/v1/track";
+    webhook.payload = {
+      userId: p.customer.customer_id,
+      event: "Payment Completed",
+      properties: {
+        amount: (p.total_amount / 100).toFixed(2),
+        currency: p.currency || "USD",
+        payment_method: p.payment_method || "unknown",
+        payment_id: p.payment_id,
+        customer_email: p.customer.email,
+        customer_name: p.customer.name
+      },
+      timestamp: webhook.payload.timestamp
+    };
+  }
+  return webhook;
+}
+```
+
+### تتبع دورة حياة الاشتراك
+
+```javascript track_subscriptions.js icon="js" expandable
+function handler(webhook) {
+  const s = webhook.payload.data;
+  switch (webhook.eventType) {
+    case "subscription.active":
+      webhook.url = "https://api.segment.io/v1/track";
+      webhook.payload = {
+        userId: s.customer.customer_id,
+        event: "Subscription Started",
+        properties: {
+          subscription_id: s.subscription_id,
+          product_id: s.product_id,
+          amount: (s.recurring_pre_tax_amount / 100).toFixed(2),
+          frequency: s.payment_frequency_interval,
+          next_billing: s.next_billing_date,
+          customer_email: s.customer.email
+        },
+        timestamp: webhook.payload.timestamp
+      };
+      break;
+    case "subscription.cancelled":
+      webhook.url = "https://api.segment.io/v1/track";
+      webhook.payload = {
+        userId: s.customer.customer_id,
+        event: "Subscription Cancelled",
+        properties: {
+          subscription_id: s.subscription_id,
+          product_id: s.product_id,
+          cancelled_at: s.cancelled_at,
+          cancel_at_next_billing: s.cancel_at_next_billing_date,
+          customer_email: s.customer.email
+        },
+        timestamp: webhook.payload.timestamp
+      };
+      break;
+  }
+  return webhook;
+}
+```
+
+### تحديد خصائص العملاء
+
+```javascript identify_customer.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.url = "https://api.segment.io/v1/identify";
+    webhook.payload = {
+      userId: p.customer.customer_id,
+      traits: {
+        email: p.customer.email,
+        name: p.customer.name,
+        total_spent: (p.total_amount / 100).toFixed(2),
+        payment_method: p.payment_method || "unknown",
+        last_payment_date: webhook.payload.timestamp,
+        customer_since: webhook.payload.timestamp
+      }
+    };
+  }
+  return webhook;
+}
+```
+
+## نصائح
+
+- استخدم أسماء أحداث متسقة عبر تكاملك
+- قم بتضمين الخصائص ذات الصلة للتحليلات والتجزئة
+- قم بتعيين طوابع زمنية صحيحة لتتبع الأحداث بدقة
+- استخدم معرفات العملاء كـ userId للتعرف الصحيح على المستخدمين
+
+## استكشاف الأخطاء وإصلاحها
+
+<AccordionGroup>
+<Accordion title="الأحداث لا تظهر في Segment">
+- تحقق من أن مفتاح الكتابة صحيح ونشط
+- تحقق من أن أسماء الأحداث تتبع معايير التسمية في Segment
+- تأكد من تعيين userId بشكل صحيح للتعرف على المستخدم
+- راجع حدود معدل واجهة برمجة التطبيقات في Segment
+</Accordion>
+
+<Accordion title="أخطاء التحويل">
+- تحقق من أن هيكل JSON يتطابق مع تنسيق واجهة برمجة التطبيقات في Segment
+- تحقق من وجود جميع الحقول المطلوبة
+- تأكد من أن أسماء الأحداث هي سلاسل نصية، وليست كائنات
+</Accordion>
+</AccordionGroup>

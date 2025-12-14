@@ -1,0 +1,144 @@
+---
+title: Loops
+description: Envie e-mails transacionais e gerencie a comunicação com o cliente
+  através de Loops com base nos eventos de pagamentos do Dodo Payments.
+icon: infinity
+---
+
+## Introdução
+
+Envie e-mails transacionais e gerencie a comunicação com o cliente automaticamente quando eventos de pagamento ocorrerem. Entregue confirmações de pagamento, atualizações de assinatura e notificações importantes com a infraestrutura de e-mail do Loops.
+
+<Info>
+Esta integração requer sua Chave de API do Loops para autenticação.
+</Info>
+
+## Começando
+
+<Steps>
+<Step title="Abra a Seção de Webhook">
+  No seu painel do Dodo Payments, navegue até <b>Webhooks → + Adicionar Endpoint</b> e expanda o dropdown de integrações.
+  <Frame>
+    <img src="/images/integrations/loops.png" alt="Adicionar Endpoint e dropdown de integrações" />
+  </Frame>
+</Step>
+
+<Step title="Selecione Loops">
+  Escolha o cartão de integração <b>Loops</b>.
+</Step>
+
+<Step title="Insira a Chave da API">
+  Forneça sua Chave de API do Loops na configuração.
+</Step>
+
+<Step title="Configure a Transformação">
+  Edite o código de transformação para formatar e-mails para a API do Loops.
+</Step>
+
+<Step title="Teste e Crie">
+  Teste com cargas úteis de exemplo e clique em <b>Criar</b> para ativar o envio de e-mails.
+</Step>
+
+<Step title="Pronto!">
+  🎉 Eventos de pagamento agora dispararão automaticamente e-mails transacionais via Loops.
+</Step>
+</Steps>
+
+## Exemplos de Código de Transformação
+
+### E-mail de Confirmação de Pagamento
+
+```javascript payment_confirmation.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.url = "https://api.loops.so/v1/events/send";
+    webhook.payload = {
+      eventName: "payment_confirmation",
+      email: p.customer.email,
+      properties: {
+        customer_name: p.customer.name,
+        payment_id: p.payment_id,
+        amount: (p.total_amount / 100).toFixed(2),
+        currency: p.currency || "USD",
+        payment_method: p.payment_method || "unknown",
+        payment_date: new Date(webhook.payload.timestamp).toLocaleDateString()
+      }
+    };
+  }
+  return webhook;
+}
+```
+
+### E-mail de Boas-Vindas de Assinatura
+
+```javascript subscription_welcome.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "subscription.active") {
+    const s = webhook.payload.data;
+    webhook.url = "https://api.loops.so/v1/events/send";
+    webhook.payload = {
+      eventName: "subscription_welcome",
+      email: s.customer.email,
+      properties: {
+        customer_name: s.customer.name,
+        subscription_id: s.subscription_id,
+        product_id: s.product_id,
+        amount: (s.recurring_pre_tax_amount / 100).toFixed(2),
+        frequency: s.payment_frequency_interval,
+        next_billing: s.next_billing_date
+      }
+    };
+  }
+  return webhook;
+}
+```
+
+### Notificação de Falha de Pagamento
+
+```javascript payment_failure.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.failed") {
+    const p = webhook.payload.data;
+    webhook.url = "https://api.loops.so/v1/events/send";
+    webhook.payload = {
+      eventName: "payment_failed",
+      email: p.customer.email,
+      properties: {
+        customer_name: p.customer.name,
+        payment_id: p.payment_id,
+        amount: (p.total_amount / 100).toFixed(2),
+        error_message: p.error_message || "Payment processing failed",
+        retry_link: `https://yourdomain.com/retry-payment/${p.payment_id}`
+      }
+    };
+  }
+  return webhook;
+}
+```
+
+## Dicas
+
+- Use nomes de eventos descritivos para melhor organização dos templates de e-mail
+- Inclua propriedades relevantes do cliente para personalização
+- Configure templates de e-mail no painel do Loops para cada evento
+- Use nomes de propriedades consistentes entre eventos
+- Teste a entrega de e-mails antes de entrar em produção
+
+## Solução de Problemas
+
+<AccordionGroup>
+<Accordion title="E-mails não estão sendo enviados">
+- Verifique se a Chave da API está correta e ativa
+- Confira se os nomes dos eventos correspondem aos seus templates do Loops
+- Assegure-se de que os endereços de e-mail dos destinatários são válidos
+- Revise os limites e cotas de envio do Loops
+</Accordion>
+
+<Accordion title="Erros de Transformação">
+- Valide se a estrutura JSON corresponde ao formato da API do Loops
+- Verifique se todos os campos obrigatórios estão presentes
+- Assegure-se de que os nomes dos eventos estão formatados corretamente
+- Verifique as permissões da chave da API
+</Accordion>
+</AccordionGroup>

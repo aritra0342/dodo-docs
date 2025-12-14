@@ -1,0 +1,1231 @@
+---
+title: AI SDK 및 LLM Blueprint로 AI 채팅 앱 구축하기
+description: 자동 토큰 추적 및 사용 기반 청구 기능을 갖춘 AI 채팅 앱을 구축하는 과정을 따라가세요.
+icon: code
+---
+
+<Tip>
+  <strong>Sentra가 통합 코드를 작성하도록 하세요.</strong><br />
+  VS Code, Cursor 또는 Windsurf에서 AI 어시스턴트를 사용하여 원하는 내용을 설명하기만 하면 SDK/API 코드, LLM Blueprint 통합 코드, 웹훅 등을 생성할 수 있습니다.  
+  <a href="https://dodopayments.com/sentra" target="_blank" rel="noopener noreferrer" >
+    Sentra 사용해보기: AI 기반 통합 &rarr;
+  </a>
+</Tip>
+
+이 튜토리얼에서는 자동 사용 기반 청구 기능을 갖춘 **AI 채팅 애플리케이션**을 구축합니다. 청구 미터기, 제품 구성 및 대화를 지원하고 실시간으로 토큰 사용량을 추적하는 애플리케이션 코드를 처음부터 끝까지 모두 생성할 것입니다.
+
+<Note>
+이 튜토리얼은 백엔드와 프론트엔드 모두를 포함한 완전한 작동 애플리케이션을 제공합니다. 채팅 앱은 Google의 Gemini AI를 사용하며 수동 계산 없이 자동으로 토큰 사용량을 추적합니다.
+</Note>
+
+이 튜토리얼이 끝나면 다음과 같은 작동하는 채팅 애플리케이션을 갖게 됩니다:
+- Google Gemini(AI SDK)를 사용하여 AI 대화 지원
+- 자동으로 토큰 사용량 추적(수동 코드 없음)
+- 실제 토큰 소비에 따라 고객에게 요금 청구
+- 아름다운 채팅 인터페이스 포함
+
+<Frame>
+    <img src="/images/cookbooks/ai-chat-app/ai-chat-demo.png" alt="AI Chat Demo"/>
+</Frame>
+
+## 우리가 구축할 내용
+
+AI 채팅 서비스를 이해하는 것부터 시작해봅시다:
+
+- **서비스**: Google Gemini(AI SDK)를 사용하는 AI 기반 채팅
+- **가격 모델**: 토큰당 요금($0.01 per 1,000 tokens)
+- **무료 티어**: 고객당 월 10,000개의 무료 토큰
+- **기능**: 대화 기록, 자동 토큰 추적
+
+<Info>
+시작하기 전에 다음을 확인하세요:
+- Dodo Payments 계정
+- Google AI API 키 ([aistudio에서 가져오기](https://aistudio.google.com/api-keys))
+- Node.js v16+ 설치
+</Info>
+
+---
+
+## 1단계: 사용량 미터기 생성하기
+
+Dodo Payments 대시보드에서 AI 토큰 사용량을 추적할 미터기를 생성하는 것부터 시작하겠습니다.
+
+<Tip>
+**우리가 구축할 내용**: 채팅 대화에서 소비된 모든 토큰을 합산하는 "AI 토큰 사용량 미터기"라는 이름의 미터기입니다.
+</Tip>
+
+<Steps>
+<Step title="미터기 섹션 열기">
+1. Dodo Payments 대시보드에 로그인합니다.
+2. 왼쪽 사이드바에서 제품을 클릭합니다.
+3. **미터기**를 클릭합니다.
+4. **미터기 생성** 버튼을 클릭합니다.
+
+<Frame>
+  <img src="/images/cookbooks/ai-chat-app/create-meter.png" alt="Create Meter"/>
+</Frame>
+
+토큰 추적을 구성할 수 있는 양식을 보게 될 것입니다.
+</Step>
+
+<Step title="기본 미터기 정보 입력하기">
+이제 AI 채팅 서비스에 대한 구체적인 세부정보를 입력하겠습니다:
+
+**미터기 이름** → `AI Token Usage Meter`
+
+**설명** → `Tracks token consumption from AI chat conversations using AI SDK`
+
+**이벤트 이름** → `ai_chat_usage`
+
+<Warning>
+이벤트 이름 `ai_chat_usage`은 나중에 애플리케이션 코드에서 보낼 내용과 정확히 일치해야 합니다. 이벤트 이름은 대소문자를 구분합니다!
+</Warning>
+</Step>
+
+<Step title="토큰 계산 방법 구성하기">
+집계 설정(미터기가 이벤트를 계산하는 방법):
+
+**집계 유형**: 드롭다운에서 **합계**를 선택합니다.
+
+**집계 기준**: 입력 → `totalTokens`
+
+**측정 단위**: 입력 → `tokens`
+
+<Info>
+우리는 "합계"를 사용하고 있습니다. 왜냐하면 여러 채팅 메시지에서 소비된 모든 토큰을 합산하고 싶기 때문입니다. SDK는 각 이벤트에서 `totalTokens`를 자동으로 보냅니다.
+</Info>
+</Step>
+
+<Step title="미터기 생성하기">
+1. 모든 설정이 위의 값과 일치하는지 다시 확인합니다.
+2. **미터기 생성**을 클릭합니다.
+
+<Frame>
+  <img src="/images/cookbooks/ai-chat-app/meter-configuration.png" alt="Meter Configuration"/>
+</Frame>
+
+<Check>
+**미터기 생성 완료!** "AI 토큰 사용량 미터기"가 이제 토큰을 계산할 준비가 되었습니다. 다음으로 청구 제품에 연결하겠습니다.
+</Check>
+</Step>
+</Steps>
+
+## 2단계: API 키 가져오기
+
+앱을 구축하기 전에 필요한 API 키를 모아봅시다.
+
+<Steps>
+<Step title="Dodo Payments API 키 가져오기">
+1. Dodo Payments 대시보드에서 **개발자** → **API 키**로 이동합니다.
+2. **API 키 생성**을 클릭합니다.
+3. API 키를 복사합니다 - `test_abc123...`와 같은 형식입니다.
+
+<Note>
+이 API 키를 저장하세요 - 나중에 `.env` 파일에 추가할 것입니다.
+</Note>
+</Step>
+
+<Step title="Google AI API 키 가져오기">
+1. [aistudio.google.com](https://aistudio.google.com/api-keys) 방문
+2. **API 키 가져오기**를 클릭합니다.
+3. 새 API 키를 생성하거나 기존 키를 사용합니다.
+4. 키를 복사합니다.
+
+<Note>
+이 키를 안전하게 보관하세요 - 나중에 `.env` 파일에 추가할 것입니다.
+</Note>
+</Step>
+</Steps>
+
+---
+
+## 3단계: 청구 제품 생성하기
+
+이제 가격($0.01 per 1,000 tokens 및 10,000개의 무료 토큰)을 정의하는 제품을 생성해야 합니다. 이는 미터기를 실제 청구에 연결합니다.
+
+<Tip>
+**우리가 구축할 내용**: 토큰 소비에 따라 요금을 부과하는 "AI 채팅 서비스"라는 제품으로, 관대한 무료 티어를 제공합니다.
+</Tip>
+
+<Steps>
+<Step title="제품으로 이동하기">
+1. Dodo Payments 대시보드에서 왼쪽 사이드바의 **제품**을 클릭합니다.
+2. **제품 생성**을 클릭합니다.
+3. 제품 유형으로 **사용 기반**을 선택합니다.
+
+이는 Dodo Payments에 청구가 미터기 사용량을 기반으로 한다는 것을 알려줍니다. 고정 구독이 아닙니다.
+</Step>
+
+<Step title="제품 세부정보 입력하기">
+필수 세부정보를 입력합니다:
+
+**제품 이름**: → `AI Chat Service`
+
+**설명**: → `AI-powered chat service with automatic token-based billing`
+
+**제품 이미지**: 관련 이미지를 업로드합니다.
+
+<Info>
+이것들은 고객 청구서에 나타나므로 명확하고 전문적으로 만들어야 합니다.
+</Info>
+</Step>
+
+<Step title="미터기 연결하기">
+미터기를 연결하기 전에 제품의 가격 유형으로 **사용 기반 청구**를 선택했는지 확인하세요.
+
+또한, 고객이 사용량에 따라 요금만 부과되도록 **고정 가격**을 `0`로 설정합니다. 기본 요금은 없습니다.
+
+이제 방금 생성한 미터기를 연결합니다:
+
+1. **연결된 미터기** 섹션으로 스크롤합니다.
+2. **미터기 추가**를 클릭합니다.
+3. 드롭다운에서 **"AI 토큰 사용량 미터기"**(이전에 생성한 것)를 선택합니다.
+4. 제품 구성에 나타나는지 확인합니다.
+
+<Check>
+미터기가 이제 이 제품에 성공적으로 연결되었습니다.
+</Check>
+</Step>
+
+<Step title="가격 설정하기">
+여기서 비즈니스 모델을 정의합니다:
+
+**단위당 가격**: 입력 → `0.00001` (이는 $0.01 per 1,000 tokens 또는 $0.00001 per token입니다)
+
+**무료 한도**: 입력 → `10000` (고객은 월 10,000개의 무료 토큰을 받습니다)
+
+<Frame>
+  <img src="/images/cookbooks/ai-chat-app/product-pricing.png" alt="Product Pricing"/>
+</Frame>
+
+<Tip>
+**청구 작동 방식**: 고객이 한 달에 25,000개의 토큰을 사용하면 15,000개의 토큰에 대해 요금이 청구됩니다 (25,000 - 10,000 무료) = 15,000 × $0.00001 = $0.15
+</Tip>
+</Step>
+
+<Step title="제품 저장하기">
+1. 모든 설정을 검토합니다:
+   - 이름: AI 채팅 서비스
+   - 미터기: AI 토큰 사용량 미터기
+   - 가격: $0.01 per 1,000 tokens
+   - 무료 티어: 10,000 tokens
+2. **변경 사항 저장**을 클릭합니다.
+
+<Check>
+**제품 생성 완료!** 이제 청구가 구성되었습니다. 고객은 자동으로 토큰 사용량에 따라 요금이 청구됩니다.
+</Check>
+</Step>
+</Steps>
+
+## 4단계: 테스트 구매하기
+
+앱을 구축하기 전에 구매를 통해 테스트 고객을 생성해봅시다.
+
+<Steps>
+<Step title="결제 링크 가져오기">
+1. Dodo Payments 대시보드에서 **제품**으로 이동합니다.
+2. "AI 채팅 서비스" 제품을 찾습니다.
+3. 제품 옆의 **공유** 버튼을 클릭합니다.
+4. 나타나는 결제 링크를 복사합니다.
+</Step>
+
+<Step title="테스트 구매 완료하기">
+1. 새 브라우저 탭에서 결제 링크를 엽니다.
+2. 테스트 결제 세부정보를 입력하고 구매를 완료합니다.
+
+<Check>
+결제가 성공적으로 완료되면 애플리케이션 코드에서 사용할 고객 ID를 얻게 됩니다.
+</Check>
+</Step>
+
+<Step title="고객 ID 찾기">
+1. Dodo Payments 대시보드로 돌아갑니다.
+2. 왼쪽 사이드바에서 **판매** -> **고객**으로 이동합니다.
+3. 방금 생성한 고객(테스트 이메일로)을 찾습니다.
+4. 고객 ID를 복사합니다 - `cus_123`와 같은 형식입니다.
+
+<Note>
+이 고객 ID를 저장하세요 - 채팅 애플리케이션을 테스트할 때 사용할 것입니다.
+</Note>
+</Step>
+</Steps>
+
+## 5단계: 채팅 애플리케이션 구축하기
+
+이제 청구 설정이 완료되고 테스트 고객이 생성되었습니다. 자동 토큰 추적 기능을 갖춘 AI 채팅 애플리케이션을 구축해봅시다.
+
+<Steps>
+<Step title="프로젝트 설정하기">
+새 디렉토리를 만들고 프로젝트를 초기화합니다:
+
+```bash
+mkdir ai-chat-app
+cd ai-chat-app
+npm init -y
+```
+
+</Step>
+
+<Step title="의존성 설치하기">
+필요한 패키지를 설치합니다:
+
+```bash
+npm install express ai @ai-sdk/google @dodopayments/ingestion-blueprints dotenv
+npm install --save-dev typescript @types/express @types/node tsx
+```
+
+</Step>
+
+<Step title="TypeScript 구성하기">
+`tsconfig.json`를 생성합니다:
+
+```json tsconfig.json
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "outDir": "./dist",
+    "rootDir": "./src"
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules"]
+}
+```
+
+`package.json`를 업데이트하여 모듈 유형 및 스크립트를 추가합니다:
+
+```json package.json
+{
+  "type": "module",
+  "scripts": {
+    "dev": "tsx src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js"
+  }
+}
+```
+
+</Step>
+
+<Step title="프로젝트 구조 생성하기">
+폴더와 파일을 생성합니다:
+
+```bash
+mkdir src public
+```
+
+</Step>
+
+<Step title="환경 변수 설정하기">
+프로젝트 루트에 `.env` 파일을 생성합니다:
+
+```bash .env
+DODO_PAYMENTS_API_KEY=your_dodo_api_key_here
+DODO_ENVIRONMENT=test_mode
+GOOGLE_GENERATIVE_AI_API_KEY=your_google_api_key_here
+PORT=3000
+```
+
+자리 표시자 값을 2단계에서 가져온 실제 API 키로 교체합니다.
+</Step>
+
+<Step title="백엔드 서버 생성하기">
+`src/server.ts`를 생성하고 이 전체 서버 코드를 복사합니다:
+
+</Step>
+</Steps>
+
+다음은 통합 청구 기능을 갖춘 전체 AI 채팅 서버입니다:
+
+<CodeGroup>
+
+```typescript src/server.ts expandable
+import express, { Request, Response } from 'express';
+import { generateText } from 'ai';
+import { google } from '@ai-sdk/google';
+import { createLLMTracker } from '@dodopayments/ingestion-blueprints';
+import 'dotenv/config';
+
+const app = express();
+app.use(express.json());
+app.use(express.static('public'));
+
+// Replace with your test customer ID
+const CUSTOMER_ID = 'cus_123';
+
+// Create tracker once with your meter event name
+const llmTracker = createLLMTracker({
+  apiKey: process.env.DODO_PAYMENTS_API_KEY!,
+  environment: process.env.DODO_ENVIRONMENT as 'test_mode' | 'live_mode',
+  eventName: 'ai_chat_usage', // Must match your meter configuration
+});
+
+// Chat endpoint with conversation support
+app.post('/chat', async (req: Request, res: Response) => {
+  try {
+    const { messages } = req.body;
+
+    if (!messages || !Array.isArray(messages)) {
+      return res.status(400).json({ 
+        error: 'Missing required field: messages (array)' 
+      });
+    }
+
+    // Wrap AI SDK with automatic token tracking
+    const trackedClient = llmTracker.wrap({
+      client: { generateText },
+      customerId: CUSTOMER_ID
+    });
+
+    // Generate AI response - tokens are automatically tracked!
+    const response = await trackedClient.generateText({
+      model: google('gemini-2.5-flash'),
+      messages: messages
+    });
+
+    res.json({
+      message: response.text,
+      usage: {
+        totalTokens: response.usage.totalTokens
+      }
+    });
+
+  } catch (error: any) {
+    console.error('Chat error:', error);
+    res.status(500).json({ 
+      error: 'Failed to process chat',
+      details: error.message 
+    });
+  }
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`🚀 Server running at http://localhost:${PORT}`);
+  console.log(`📊 Tracking event: ai_chat_usage`);
+  console.log(`👤 Customer ID: ${CUSTOMER_ID}`);
+  console.log(`🔧 Environment: ${process.env.DODO_ENVIRONMENT}`);
+});
+```
+
+```bash .env
+# Add your API keys here
+DODO_PAYMENTS_API_KEY=your_dodo_api_key_here
+DODO_ENVIRONMENT=test_mode
+GOOGLE_GENERATIVE_AI_API_KEY=your_google_api_key_here
+PORT=3000
+```
+
+```json package.json expandable
+{
+  "name": "ai-chat-app",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "ai": "^3.0.0",
+    "@ai-sdk/google": "^0.0.15",
+    "@dodopayments/ingestion-blueprints": "latest",
+    "dotenv": "^16.0.3"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "@types/express": "^4.17.17",
+    "@types/node": "^20.0.0",
+    "tsx": "^3.12.7"
+  }
+}
+```
+
+</CodeGroup>
+
+---
+
+## 6단계: 채팅 인터페이스 추가하기
+
+이제 전체 대화 기록이 포함된 아름다운 채팅 인터페이스를 추가해봅시다! `public/index.html`를 생성합니다:
+
+```html public/index.html expandable
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI Chat with Usage Billing</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI",
+          Roboto, sans-serif;
+        background: #0f0f1e;
+        background-image: radial-gradient(
+            at 0% 0%,
+            rgba(102, 126, 234, 0.15) 0px,
+            transparent 50%
+          ),
+          radial-gradient(
+            at 100% 100%,
+            rgba(118, 75, 162, 0.15) 0px,
+            transparent 50%
+          ),
+          radial-gradient(
+            at 50% 50%,
+            rgba(102, 126, 234, 0.05) 0px,
+            transparent 50%
+          );
+        height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 0;
+        position: relative;
+        overflow: hidden;
+        margin: 0;
+      }
+
+      .chat-container {
+        background: rgba(22, 22, 35, 0.95);
+        border: 1px solid rgba(102, 126, 234, 0.2);
+        border-radius: 0;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+        width: 100%;
+        max-width: 100%;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        position: relative;
+        z-index: 1;
+      }
+
+      .chat-header {
+        background: linear-gradient(
+          135deg,
+          rgba(102, 126, 234, 0.15) 0%,
+          rgba(118, 75, 162, 0.15) 100%
+        );
+        border-bottom: 1px solid rgba(102, 126, 234, 0.2);
+        color: white;
+        padding: 24px 28px;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .chat-header h1 {
+        font-size: 26px;
+        margin-bottom: 6px;
+        font-weight: 700;
+        letter-spacing: -0.5px;
+        color: #fff;
+      }
+
+      .chat-header p {
+        font-size: 13px;
+        opacity: 0.6;
+        font-weight: 500;
+        letter-spacing: 0.3px;
+      }
+
+      .chat-messages {
+        flex: 1;
+        overflow-y: auto;
+        padding: 32px 10%;
+        background: transparent;
+        will-change: scroll-position;
+        scroll-behavior: smooth;
+      }
+
+      .chat-messages::-webkit-scrollbar {
+        width: 6px;
+      }
+
+      .chat-messages::-webkit-scrollbar-track {
+        background: rgba(255, 255, 255, 0.05);
+      }
+
+      .chat-messages::-webkit-scrollbar-thumb {
+        background: rgba(102, 126, 234, 0.3);
+        border-radius: 3px;
+      }
+
+      .chat-messages::-webkit-scrollbar-thumb:hover {
+        background: rgba(102, 126, 234, 0.5);
+      }
+
+      .message {
+        margin-bottom: 20px;
+        display: flex;
+        gap: 12px;
+        animation: slideIn 0.2s ease-out;
+      }
+
+      @keyframes slideIn {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .message.user {
+        flex-direction: row-reverse;
+      }
+
+      .message-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 20px;
+        flex-shrink: 0;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+      }
+
+      .message.user .message-avatar {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      }
+
+      .message.assistant .message-avatar {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+      }
+
+      .message-content {
+        max-width: 65%;
+      }
+
+      .message-bubble {
+        padding: 14px 18px;
+        border-radius: 18px;
+        line-height: 1.6;
+        word-wrap: break-word;
+        font-size: 15px;
+        position: relative;
+      }
+
+      .message.user .message-bubble {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-bottom-right-radius: 6px;
+        box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+      }
+
+      .message.assistant .message-bubble {
+        background: rgba(255, 255, 255, 0.05);
+        color: rgba(255, 255, 255, 0.95);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-bottom-left-radius: 6px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+      }
+
+      .message-meta {
+        display: flex;
+        gap: 10px;
+        margin-top: 8px;
+        font-size: 11px;
+        color: rgba(255, 255, 255, 0.4);
+        font-weight: 500;
+      }
+
+      .message.user .message-meta {
+        justify-content: flex-end;
+      }
+
+      .token-badge {
+        background: rgba(102, 126, 234, 0.2);
+        color: #a8b9ff;
+        padding: 4px 10px;
+        border-radius: 12px;
+        font-weight: 600;
+        border: 1px solid rgba(102, 126, 234, 0.3);
+      }
+
+      .chat-input-area {
+        padding: 24px 10% 32px;
+        background: rgba(22, 22, 35, 0.95);
+        border-top: 1px solid rgba(102, 126, 234, 0.2);
+      }
+
+      .input-wrapper {
+        display: flex;
+        gap: 12px;
+        align-items: flex-end;
+      }
+
+      #messageInput {
+        flex: 1;
+        background: rgba(255, 255, 255, 0.05);
+        border: 2px solid rgba(102, 126, 234, 0.2);
+        border-radius: 16px;
+        padding: 14px 20px;
+        font-size: 15px;
+        font-family: inherit;
+        resize: none;
+        max-height: 120px;
+        transition: border-color 0.2s ease, background 0.2s ease;
+        color: white;
+        will-change: border-color;
+        overflow: hidden;
+        scrollbar-width: none;
+        /* Firefox */
+      }
+
+      #messageInput::-webkit-scrollbar {
+        display: none;
+      }
+
+      #messageInput::placeholder {
+        color: rgba(255, 255, 255, 0.3);
+      }
+
+      #messageInput:focus {
+        outline: none;
+        border-color: #667eea;
+        background: rgba(255, 255, 255, 0.08);
+      }
+
+      #sendBtn {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        width: 52px;
+        height: 52px;
+        border-radius: 16px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 22px;
+        transition: transform 0.1s ease, box-shadow 0.1s ease;
+        flex-shrink: 0;
+        box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4);
+        position: relative;
+      }
+
+      #sendBtn:hover:not(:disabled) {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.5);
+      }
+
+      #sendBtn:active:not(:disabled) {
+        transform: translateY(0);
+      }
+
+      #sendBtn:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+        box-shadow: none;
+      }
+
+      .typing-indicator {
+        display: none;
+        padding: 14px 18px;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 18px;
+        border-bottom-left-radius: 6px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        width: fit-content;
+      }
+
+      .typing-indicator.show {
+        display: block;
+      }
+
+      .typing-dots {
+        display: flex;
+        gap: 6px;
+      }
+
+      .typing-dots span {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #667eea;
+        animation: typing 1.4s infinite ease-in-out;
+        will-change: transform, opacity;
+      }
+
+      .typing-dots span:nth-child(2) {
+        animation-delay: 0.2s;
+      }
+
+      .typing-dots span:nth-child(3) {
+        animation-delay: 0.4s;
+      }
+
+      @keyframes typing {
+        0%,
+        60%,
+        100% {
+          transform: translateY(0) scale(1);
+          opacity: 0.6;
+        }
+
+        30% {
+          transform: translateY(-12px) scale(1.1);
+          opacity: 1;
+        }
+      }
+
+      .error-message {
+        background: rgba(239, 68, 68, 0.15);
+        color: #fca5a5;
+        padding: 14px 18px;
+        border-radius: 12px;
+        margin-bottom: 12px;
+        display: none;
+        border: 1px solid rgba(239, 68, 68, 0.3);
+        font-size: 14px;
+        font-weight: 500;
+      }
+
+      .error-message.show {
+        display: block;
+        animation: slideIn 0.3s ease;
+      }
+
+      .empty-state {
+        text-align: center;
+        padding: 80px 20px;
+        color: rgba(255, 255, 255, 0.5);
+      }
+
+      .empty-state-icon {
+        font-size: 72px;
+        margin-bottom: 20px;
+        animation: float 3s ease-in-out infinite;
+      }
+
+      @keyframes float {
+        0%,
+        100% {
+          transform: translateY(0px);
+        }
+
+        50% {
+          transform: translateY(-10px);
+        }
+      }
+
+      .empty-state h2 {
+        font-size: 24px;
+        margin-bottom: 10px;
+        color: rgba(255, 255, 255, 0.9);
+        font-weight: 700;
+        letter-spacing: -0.5px;
+      }
+
+      .empty-state p {
+        font-size: 15px;
+        color: rgba(255, 255, 255, 0.4);
+        font-weight: 500;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="chat-container">
+      <div class="chat-header">
+        <h1>🤖 AI Chat Assistant</h1>
+        <p>Powered by AI-SDK & Dodo Payments</p>
+      </div>
+
+      <div class="chat-messages" id="chatMessages">
+        <div class="empty-state" id="emptyState">
+          <div class="empty-state-icon">💬</div>
+          <h2>Start a Conversation</h2>
+          <p>Ask me anything! Your token usage is automatically tracked.</p>
+        </div>
+      </div>
+
+      <div class="chat-input-area">
+        <div class="error-message" id="errorMessage"></div>
+        <div class="input-wrapper">
+          <textarea
+            id="messageInput"
+            placeholder="Type your message here..."
+            rows="1"
+          ></textarea>
+          <button id="sendBtn" onclick="sendMessage()">➤</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      let conversationHistory = [];
+
+      const messageInput = document.getElementById("messageInput");
+      let resizeTimeout;
+      messageInput.addEventListener("input", function () {
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(() => {
+          this.style.height = "auto";
+          this.style.height = Math.min(this.scrollHeight, 120) + "px";
+        }, 10);
+      });
+
+      // Send message on Enter (Shift+Enter for new line)
+      messageInput.addEventListener("keydown", function (e) {
+        if (e.key === "Enter" && !e.shiftKey) {
+          e.preventDefault();
+          sendMessage();
+        }
+      });
+
+      async function sendMessage() {
+        const input = document.getElementById("messageInput");
+        const message = input.value.trim();
+
+        if (!message) return;
+
+        // Hide empty state
+        document.getElementById("emptyState").style.display = "none";
+
+        // Hide error
+        document.getElementById("errorMessage").classList.remove("show");
+
+        // Add user message to UI
+        addMessage("user", message);
+
+        // Add to conversation history
+        conversationHistory.push({
+          role: "user",
+          content: message,
+        });
+
+        // Clear input
+        input.value = "";
+        input.style.height = "auto";
+
+        // Show typing indicator
+        showTypingIndicator();
+
+        // Disable send button
+        const sendBtn = document.getElementById("sendBtn");
+        sendBtn.disabled = true;
+
+        try {
+          const response = await fetch("/chat", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              messages: conversationHistory,
+            }),
+          });
+
+          const data = await response.json();
+
+          if (!response.ok) {
+            throw new Error(data.error || "Failed to get response");
+          }
+
+          // Hide typing indicator
+          hideTypingIndicator();
+
+          // Add assistant response to UI
+          addMessage("assistant", data.message, data.usage);
+
+          // Add to conversation history
+          conversationHistory.push({
+            role: "assistant",
+            content: data.message,
+          });
+        } catch (error) {
+          hideTypingIndicator();
+          showError(error.message);
+          // Remove the last user message from history since it failed
+          conversationHistory.pop();
+        } finally {
+          sendBtn.disabled = false;
+        }
+      }
+
+      function addMessage(role, content, usage = null) {
+        const messagesDiv = document.getElementById("chatMessages");
+
+        const messageDiv = document.createElement("div");
+        messageDiv.className = `message ${role}`;
+
+        const avatar = role === "user" ? "👤" : "🤖";
+
+        let metaHTML = "";
+        if (usage) {
+          metaHTML = `
+                    <div class="message-meta">
+                        <span class="token-badge">📊 ${usage.totalTokens} tokens</span>
+                    </div>
+                `;
+        }
+
+        messageDiv.innerHTML = `
+                <div class="message-avatar">${avatar}</div>
+                <div class="message-content">
+                    <div class="message-bubble">${escapeHtml(content)}</div>
+                    ${metaHTML}
+                </div>
+            `;
+
+        messagesDiv.appendChild(messageDiv);
+        requestAnimationFrame(() => {
+          messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        });
+      }
+
+      function showTypingIndicator() {
+        const messagesDiv = document.getElementById("chatMessages");
+
+        const typingDiv = document.createElement("div");
+        typingDiv.className = "message assistant";
+        typingDiv.id = "typingIndicator";
+        typingDiv.innerHTML = `
+                <div class="message-avatar">🤖</div>
+                <div class="typing-indicator show">
+                    <div class="typing-dots">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </div>
+                </div>
+            `;
+
+        messagesDiv.appendChild(typingDiv);
+        requestAnimationFrame(() => {
+          messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        });
+      }
+
+      function hideTypingIndicator() {
+        const typingIndicator = document.getElementById("typingIndicator");
+        if (typingIndicator) {
+          typingIndicator.remove();
+        }
+      }
+
+      function showError(message) {
+        const errorDiv = document.getElementById("errorMessage");
+        errorDiv.textContent = "❌ " + message;
+        errorDiv.classList.add("show");
+      }
+
+      function escapeHtml(text) {
+        const div = document.createElement("div");
+        div.textContent = text;
+        return div.innerHTML.replace(/\n/g, "<br>");
+      }
+    </script>
+  </body>
+</html>
+```
+
+---
+
+## 7단계: 채팅 애플리케이션 테스트하기
+
+이제 AI 채팅 앱을 테스트하고 청구가 작동하는지 확인해봅시다! 모든 것이 끝에서 끝까지 작동하는지 확인해봅시다.
+
+<Tip>
+**우리가 테스트할 내용**: AI와 대화를 나누고, 토큰 이벤트가 Dodo Payments에 도달하는지 확인하고, 청구 계산이 정확한지 확인합니다.
+</Tip>
+
+<Steps>
+<Step title="서버 시작하기">
+먼저 모든 것이 설정되었는지 확인합니다:
+
+1. `.env` 파일에 2단계에서 가져온 모든 API 키가 있는지 확인합니다.
+2. 개발 서버를 시작합니다:
+
+```bash
+npm run dev
+```
+
+다음과 같은 메시지가 표시되어야 합니다:
+
+```
+🚀 Server running at http://localhost:3000
+📊 Tracking event: ai_chat_usage
+👤 Customer ID: {YOUR CUSTOMER_ID}
+🔧 Environment: test_mode
+```
+
+<Check>
+서버가 실행 중입니다! 이제 채팅을 시작해봅시다.
+</Check>
+</Step>
+
+<Step title="채팅 인터페이스 열기">
+1. 브라우저를 엽니다.
+2. `http://localhost:3000`로 이동합니다.
+3. 아름다운 채팅 인터페이스가 표시되어야 합니다.
+
+<Note>
+`server.ts`에서 실제 테스트 고객 ID로 `CUSTOMER_ID`를 업데이트했는지 확인하세요.
+</Note>
+</Step>
+
+<Step title="첫 번째 대화 나누기">
+테스트해봅시다! 다음 메시지를 시도해보세요:
+
+1. **"인공지능이란 무엇인가요?"**
+2. **"기계 학습은 어떻게 작동하나요?"**
+3. **"신경망을 설명해 주실 수 있나요?"**
+
+각 응답 후 토큰 사용량 표시가 업데이트되는 것을 지켜보세요!
+
+<Check>
+AI가 응답하고 토큰 수가 나타나면 앱이 작동하고 있는 것입니다!
+</Check>
+</Step>
+
+<Step title="Dodo Payments 대시보드 확인하기">
+이제 이벤트가 수신되고 있는지 확인해봅시다:
+
+1. Dodo Payments 대시보드를 엽니다.
+2. **사용 청구** → **AI 토큰 사용량 미터기**로 이동합니다.
+3. **이벤트** 탭을 클릭합니다.
+4. 채팅 이벤트가 나열되어야 합니다.
+
+**확인할 사항:**
+- 이벤트 이름: `ai_chat_usage`
+- 고객 ID: 테스트 고객 ID
+
+<Frame>
+  <img src="/images/cookbooks/ai-chat-app/meter-event.png" alt="Meter Events"/>
+</Frame>
+
+<Check>
+보낸 각 메시지에 대해 하나의 이벤트가 표시되어야 합니다!
+</Check>
+</Step>
+
+<Step title="토큰 계산 확인하기">
+더 많은 메시지를 보내고 토큰 집계가 작동하는지 확인해봅시다:
+
+1. 미터기에서 **고객** 탭으로 이동합니다.
+2. 테스트 고객을 찾습니다.
+3. "소비된 단위" 열을 확인합니다 - 사용된 총 토큰 수가 표시되어야 합니다.
+
+<Frame>
+  <img src="/images/cookbooks/ai-chat-app/aggregation.png" alt="Meter Customer Tokens"/>
+</Frame>
+
+<Info>
+미터기가 모든 `totalTokens` 값을 자동으로 합산하고 있습니다!
+</Info>
+</Step>
+
+<Step title="무료 티어 테스트하기">
+무료 티어를 초과할 만큼 충분한 토큰을 사용해봅시다:
+
+1. 여러 번 대화를 나눕니다(약 15,000개 이상의 총 토큰 목표)
+2. 미터기 대시보드에서 **고객** 탭을 다시 확인합니다.
+3. 이제 다음과 같은 내용이 표시되어야 합니다:
+   - 소비된 단위: 15,000개 이상의 토큰
+   - 청구 가능한 단위: 5,000개 (10,000개의 무료 토큰 적용)
+   - 총 가격: ~$0.05
+
+<Frame>
+  <img src="/images/cookbooks/ai-chat-app/free-tier-test.png" alt="Free Tier Test"/>
+</Frame>
+
+<Check>
+**성공!** 사용 기반 청구가 완벽하게 작동하고 있습니다. 고객은 실제 토큰 소비에 따라 자동으로 요금이 청구됩니다.
+</Check>
+</Step>
+</Steps>
+
+---
+
+## 문제 해결
+
+일반적인 문제와 그 해결 방법:
+
+<AccordionGroup>
+<Accordion title="대시보드에 이벤트가 나타나지 않음">
+**가능한 원인:**
+- 이벤트 이름이 미터기 구성과 정확히 일치하지 않음
+- 고객 ID가 계정에 존재하지 않음
+- API 키가 유효하지 않거나 만료됨
+- 네트워크 연결 문제
+
+**해결 방법:**
+1. 이벤트 이름이 미터기 구성과 정확히 일치하는지 확인합니다(대소문자 구분: `ai_chat_usage`)
+2. 고객 ID가 Dodo Payments 대시보드에 존재하는지 확인합니다.
+3. 간단한 API 호출로 API 키를 테스트합니다.
+4. 서버 로그에서 오류 메시지를 확인합니다.
+</Accordion>
+
+<Accordion title="토큰 수가 0으로 표시됨">
+**가능한 원인:**
+- 모델이 사용 정보를 반환하지 않음
+- 잘못된 SDK 버전
+
+**해결 방법:**
+1. 모델이 사용량을 반환하는지 테스트합니다:
+
+```typescript
+const response = await generateText({...});
+console.log('Usage:', response.usage);
+```
+
+2. 최신 Blueprints SDK로 업데이트합니다: `npm install @dodopayments/ingestion-blueprints@latest`
+</Accordion>
+
+<Accordion title="API 키 유효하지 않음 오류">
+**가능한 원인:**
+- 환경에 대한 잘못된 API 키
+- `.env` 파일에 여분의 공백 또는 따옴표가 있음
+
+**해결 방법:**
+- 테스트 키가 `test_`로 시작하고, 라이브 키가 `live_`로 시작하는지 확인합니다.
+- `.env` 파일에서 키 주위의 따옴표를 제거합니다.
+- 필요시 새 키를 생성합니다.
+</Accordion>
+</AccordionGroup>
+
+도움이 필요하신가요?
+- [Discord 커뮤니티](https://discord.gg/bYqAp4ayYh)
+- support@dodopayments.com
+
+---
+
+## 축하합니다! AI 채팅 앱을 구축했습니다
+
+이제 자동 토큰 사용량 추적 및 청구 기능을 갖춘 완전한 기능의 AI 채팅 애플리케이션이 준비되었습니다. 🎉
+
+### 더 알아보기
+
+<CardGroup cols={2}>
+  <Card title="LLM Blueprint" icon="robot" href="/developer-resources/ingestion-blueprints/llm">
+    LLM 수집 블루프린트에 대해 더 알아보기
+  </Card>
+  
+  <Card title="Ingestion Blueprints SDK" icon="github" href="https://github.com/dodopayments/ingestion-blueprints">
+    더 많은 예제를 위한 GitHub 리포지토리 확인하기
+  </Card>
+  
+  <Card title="커뮤니티 참여하기" icon="discord" href="https://discord.gg/bYqAp4ayYh">
+    Discord에서 도움을 받고 프로젝트를 공유하세요
+  </Card>
+</CardGroup>

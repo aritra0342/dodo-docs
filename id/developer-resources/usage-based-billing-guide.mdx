@@ -1,0 +1,742 @@
+---
+title: Panduan Integrasi Penagihan Berdasarkan Penggunaan
+description: Pelajari cara mengatur meter dan mengirimkan peristiwa penggunaan
+  untuk memungkinkan penagihan berdasarkan penggunaan yang akurat dengan Dodo
+  Payments.
+icon: arrow-trend-up
+---
+
+<CardGroup cols={2}>
+<Card title="Referensi API - Pengambilan Peristiwa" icon="code" href="/api-reference/usage-events/ingest-events">
+  Akses dokumentasi API lengkap untuk mengumpulkan peristiwa penggunaan dan menguji permintaan serta respons pengambilan peristiwa secara interaktif.
+</Card>
+
+<Card title="Referensi API - Pembuatan Meter" icon="code" href="/api-reference/meters/create-meter">
+  Jelajahi dokumentasi API lengkap untuk membuat meter dan menguji permintaan serta respons pembuatan meter secara interaktif.
+</Card>
+</CardGroup>
+
+## Membuat Meter
+
+Meter mendefinisikan bagaimana peristiwa penggunaan Anda digabungkan dan diukur untuk tujuan penagihan.
+
+Sebelum membuat meter, rencanakan strategi pelacakan penggunaan Anda:
+- Identifikasi peristiwa penggunaan apa yang ingin Anda lacak
+- Tentukan bagaimana peristiwa harus digabungkan (jumlah, jumlah, dll.)
+- Definisikan persyaratan penyaringan untuk kasus penggunaan tertentu
+
+### Langkah-Langkah Pembuatan Meter
+
+Ikuti panduan komprehensif ini untuk mengatur meter penggunaan Anda:
+
+<Steps>
+<Step title="Konfigurasi Informasi Dasar">
+Atur detail dasar untuk meter Anda.
+
+<ParamField path="Nama Meter" type="string" required>
+Pilih nama yang jelas dan deskriptif yang mengidentifikasi apa yang dilacak oleh meter ini.
+
+Contoh: "Token", "Panggilan API", "Penggunaan Penyimpanan", "Jam Komputasi"
+</ParamField>
+
+<ParamField path="Deskripsi" type="string">
+Berikan penjelasan rinci tentang apa yang diukur oleh meter ini.
+
+Contoh: "Menghitung setiap permintaan POST /v1/orders yang dibuat oleh pelanggan"
+</ParamField>
+
+<ParamField path="Nama Peristiwa" type="string" required>
+Tentukan pengidentifikasi peristiwa yang akan memicu meter ini.
+
+Contoh: "token", "api.call", "storage.usage", "compute.session"
+</ParamField>
+
+<Info>
+Nama peristiwa harus cocok persis dengan apa yang Anda kirim dalam peristiwa penggunaan Anda. Nama peristiwa bersifat case-sensitive.
+</Info>
+</Step>
+
+<Step title="Konfigurasi Pengaturan Agregasi">
+Tentukan bagaimana meter menghitung penggunaan dari peristiwa Anda.
+
+<ParamField path="Tipe Agregasi" type="string" required>
+Pilih bagaimana peristiwa harus digabungkan:
+
+<Tabs>
+<Tab title="Jumlah">
+Hanya menghitung jumlah peristiwa yang diterima.
+
+Kasus penggunaan: Panggilan API, tampilan halaman, unggahan file
+
+Perhitungan: Total jumlah peristiwa
+</Tab>
+
+<Tab title="Jumlah">
+Menjumlahkan nilai dari properti tertentu dalam peristiwa Anda.
+
+Kasus penggunaan: Transfer data, konsumsi penyimpanan, waktu pemrosesan
+
+Perhitungan: Jumlah semua nilai properti
+</Tab>
+
+<Tab title="Maks">
+Mencatat nilai tertinggi dari properti tertentu selama periode penagihan.
+
+Kasus penggunaan: Pengguna bersamaan puncak, penyimpanan maksimum yang digunakan, bandwidth tertinggi
+
+Perhitungan: Nilai properti maksimum yang diamati
+</Tab>
+
+<Tab title="Terakhir">
+Menggunakan nilai terbaru dari properti tertentu.
+
+Kasus penggunaan: Tingkat rencana saat ini, pengaturan konfigurasi terbaru
+
+Perhitungan: Nilai properti terakhir yang tercatat
+</Tab>
+</Tabs>
+</ParamField>
+
+<ParamField path="Atas Properti" type="string">
+Nama properti dari metadata peristiwa untuk digabungkan.
+
+<Warning>
+Bidang ini diperlukan saat menggunakan tipe agregasi Jumlah, Maks, atau Terakhir.
+</Warning>
+</ParamField>
+
+<ParamField path="Satuan Pengukuran" type="string" required>
+Tentukan label unit untuk tujuan tampilan dalam laporan dan penagihan.
+
+Contoh: "panggilan", "GB", "jam", "token"
+</ParamField>
+</Step>
+
+<Step title="Konfigurasi Penyaringan Peristiwa (Opsional)">
+Atur kriteria untuk mengontrol peristiwa mana yang termasuk dalam meter.
+
+<Info>
+Penyaringan peristiwa memungkinkan Anda untuk membuat aturan canggih yang menentukan peristiwa mana yang berkontribusi pada perhitungan penggunaan Anda. Ini berguna untuk mengecualikan peristiwa pengujian, menyaring berdasarkan tingkat pengguna, atau fokus pada tindakan tertentu.
+</Info>
+
+**Aktifkan Penyaringan Peristiwa**
+
+Alihkan **Aktifkan Penyaringan Peristiwa** untuk mengaktifkan pemrosesan peristiwa bersyarat.
+
+**Pilih Logika Filter**
+
+Pilih bagaimana beberapa kondisi dievaluasi:
+
+<Tabs>
+<Tab title="Logika DAN">
+Semua kondisi harus benar agar peristiwa dihitung. Gunakan ini ketika Anda perlu peristiwa memenuhi beberapa kriteria ketat secara bersamaan.
+
+**Contoh:** Hitung panggilan API di mana `user_tier = "premium"` DAN `endpoint = "/api/v2/users"`
+</Tab>
+
+<Tab title="Logika ATAU">
+Setidaknya satu kondisi harus benar agar peristiwa dihitung. Gunakan ini ketika Anda ingin menyertakan peristiwa yang memenuhi salah satu dari beberapa kriteria.
+
+**Contoh:** Hitung peristiwa di mana `method = "POST"` ATAU `method = "PUT"` ATAU `method = "DELETE"`
+</Tab>
+</Tabs>
+
+**Mengatur Kondisi Filter**
+
+<Steps>
+<Step title="Tambahkan Kondisi">
+Klik **Tambahkan kondisi** untuk membuat aturan filter baru.
+</Step>
+
+<Step title="Konfigurasi Kunci Properti">
+Tentukan nama properti dari metadata peristiwa Anda.
+</Step>
+
+<Step title="Pilih Pembanding">
+Pilih dari operator yang tersedia:
+- `equals` - Kecocokan tepat
+- `not equals` - Filter pengecualian
+- `greater than` - Perbandingan numerik  
+- `greater than or equals` - Perbandingan numerik (inklusif)
+- `less than` - Perbandingan numerik
+- `less than or equals` - Perbandingan numerik (inklusif)
+- `contains` - String berisi substring
+- `does not contain` - Filter pengecualian string
+</Step>
+
+<Step title="Tetapkan Nilai Perbandingan">
+Tetapkan nilai target untuk perbandingan.
+</Step>
+
+<Step title="Tambahkan Grup">
+Gunakan **Tambahkan Grup** untuk membuat grup kondisi tambahan untuk logika kompleks.
+</Step>
+</Steps>
+
+<Warning>
+Properti yang difilter harus disertakan dalam metadata peristiwa Anda agar kondisi berfungsi dengan baik. Peristiwa yang tidak memiliki properti yang diperlukan akan dikecualikan dari perhitungan.
+</Warning>
+</Step>
+
+<Step title="Buat Meter">
+Tinjau konfigurasi meter Anda dan klik **Buat Meter**.
+
+<Check>
+Meter Anda sekarang siap untuk menerima dan mengagregasi peristiwa penggunaan.
+</Check>
+
+</Step>
+</Steps>
+
+## Menghubungkan Meter dalam Produk
+
+Setelah Anda membuat meter, Anda perlu menghubungkannya ke produk untuk memungkinkan penagihan berdasarkan penggunaan. Proses ini menghubungkan data penggunaan meter Anda ke aturan harga untuk penagihan pelanggan.
+
+Menghubungkan meter ke produk menetapkan koneksi antara pelacakan penggunaan dan penagihan:
+- Produk mendefinisikan aturan harga dan perilaku penagihan
+- Meter menyediakan data penggunaan untuk perhitungan penagihan
+- Beberapa meter dapat dihubungkan ke satu produk untuk skenario penagihan yang kompleks
+
+### Proses Konfigurasi Produk
+
+Ubah data penggunaan Anda menjadi biaya yang dapat ditagih dengan mengonfigurasi pengaturan produk Anda dengan benar:
+
+<Steps>
+<Step title="Pilih Tipe Produk Penagihan Berdasarkan Penggunaan">
+Navigasikan ke halaman pembuatan atau pengeditan produk Anda dan pilih **Berdasarkan Penggunaan** sebagai tipe produk.
+
+</Step>
+
+<Step title="Pilih Meter Terkait">
+Klik pada **Meter Terkait** untuk membuka panel pemilihan meter dari sisi.
+
+Panel ini memungkinkan Anda untuk mengonfigurasi meter mana yang akan melacak penggunaan untuk produk ini.
+</Step>
+
+<Step title="Tambahkan Meter Anda">
+Di panel pemilihan meter:
+
+1. Klik **Tambahkan Meter** untuk melihat meter yang tersedia
+2. Pilih meter yang Anda buat dari daftar dropdown
+3. Meter yang dipilih akan muncul dalam konfigurasi produk Anda
+
+</Step>
+
+<Step title="Konfigurasi Harga Per Unit">
+Tetapkan harga untuk setiap unit penggunaan yang dilacak oleh meter Anda.
+
+<ParamField path="Harga Per Unit" type="number" required>
+Tentukan berapa banyak yang harus dikenakan untuk setiap unit yang diukur oleh meter Anda.
+
+**Contoh**: Menetapkan `$0.50` per unit berarti:
+- 1.000 unit yang dikonsumsi = 1.000 × $0,50 = 500,00 yang ditagih
+- 500 unit yang dikonsumsi = 500 × $0,50 = 250,00 yang ditagih
+- 100 unit yang dikonsumsi = 100 × $0,50 = 50,00 yang ditagih
+</ParamField>
+
+</Step>
+
+<Step title="Tetapkan Ambang Bebas (Opsional)">
+Konfigurasi batas penggunaan gratis sebelum penagihan dimulai.
+
+<ParamField path="Ambang Bebas" type="number">
+Jumlah unit yang dapat dikonsumsi pelanggan tanpa biaya sebelum perhitungan penggunaan berbayar dimulai.
+
+**Cara kerjanya**:
+- Ambang bebas: 100 unit
+- Harga per unit: $0,50
+- Penggunaan pelanggan: 250 unit
+- **Perhitungan**: (250 - 100) × $0,50 = **$75,00** yang ditagih
+</ParamField>
+
+<Info>
+Ambang bebas sangat ideal untuk model freemium, periode percobaan, atau memberikan pelanggan dengan alokasi dasar yang termasuk dalam rencana mereka.
+</Info>
+
+<Check>
+Ambang bebas berlaku untuk setiap siklus penagihan, memberikan pelanggan alokasi baru setiap bulan atau sesuai dengan jadwal penagihan Anda.
+</Check>
+</Step>
+
+<Step title="Simpan Konfigurasi">
+Tinjau konfigurasi meter dan harga Anda, lalu klik **Simpan Perubahan** untuk menyelesaikan pengaturan.
+
+<Check>
+Produk Anda sekarang dikonfigurasi untuk penagihan berdasarkan penggunaan dan akan secara otomatis menagih pelanggan berdasarkan konsumsi yang diukur.
+</Check>
+
+**Apa yang terjadi selanjutnya**:
+- Peristiwa penggunaan yang dikirim ke meter Anda akan dilacak dan diagregasi
+- Perhitungan penagihan akan menerapkan aturan harga Anda secara otomatis
+- Pelanggan akan dikenakan biaya berdasarkan konsumsi aktual selama setiap siklus penagihan
+</Step>
+</Steps>
+
+<Note>
+Ingat bahwa Anda dapat menambahkan hingga 10 meter per produk, memungkinkan pelacakan penggunaan yang canggih di berbagai dimensi seperti panggilan API, penyimpanan, waktu komputasi, dan metrik kustom.
+</Note>
+
+## Mengirim Peristiwa Penggunaan
+
+Setelah meter Anda dikonfigurasi, Anda dapat mulai mengirim peristiwa penggunaan dari aplikasi Anda untuk melacak penggunaan pelanggan.
+
+### Struktur Peristiwa
+
+Setiap peristiwa penggunaan harus mencakup bidang yang diperlukan ini:
+
+<ParamField body="event_id" type="string" required>
+Pengidentifikasi unik untuk peristiwa spesifik ini. Harus unik di seluruh peristiwa.
+</ParamField>
+
+<ParamField body="customer_id" type="string" required>
+ID pelanggan Dodo Payments yang harus dikaitkan dengan penggunaan ini.
+</ParamField>
+
+<ParamField body="event_name" type="string" required>
+Nama peristiwa yang cocok dengan konfigurasi meter Anda. Nama peristiwa memicu meter yang sesuai.
+</ParamField>
+
+<ParamField body="timestamp" type="string">
+Timestamp ISO 8601 saat peristiwa terjadi. Secara default ke waktu saat ini jika tidak disediakan.
+</ParamField>
+
+<ParamField body="metadata" type="object">
+Properti tambahan untuk penyaringan dan agregasi. Sertakan nilai apa pun yang dirujuk dalam "Atas Properti" meter Anda atau kondisi penyaringan.
+</ParamField>
+
+### Contoh API Peristiwa Penggunaan
+
+Kirim peristiwa penggunaan ke meter yang telah Anda konfigurasi menggunakan API Peristiwa:
+
+<CodeGroup>
+
+```javascript Node.js
+const response = await fetch('https://test.dodopayments.com/events/ingest', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${process.env.DODO_API_KEY}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    events: [
+      {
+        event_id: "api_call_1234",
+        customer_id: "cus_atXa1lklCRRzMicTqfiw2", 
+        event_name: "api.call",
+        timestamp: new Date().toISOString(),
+        metadata: {
+          endpoint: "/v1/orders",
+          method: "POST",
+          response_size: 1024
+        }
+      }
+    ]
+  })
+});
+```
+
+```python Python
+import requests
+from datetime import datetime
+
+response = requests.post(
+    'https://test.dodopayments.com/events/ingest',
+    headers={
+        'Authorization': f'Bearer {api_key}',
+        'Content-Type': 'application/json'
+    },
+    json={
+        'events': [
+            {
+                'event_id': 'api_call_1234',
+                'customer_id': 'cus_atXa1lklCRRzMicTqfiw2',
+                'event_name': 'api.call',
+                'timestamp': datetime.now().isoformat(),
+                'metadata': {
+                    'endpoint': '/v1/orders',
+                    'method': 'POST',
+                    'response_size': 1024
+                }
+            }
+        ]
+    }
+)
+```
+
+```curl cURL
+curl -X POST 'https://test.dodopayments.com/events/ingest' \
+  -H 'Authorization: Bearer YOUR_API_KEY' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "events": [
+      {
+        "event_id": "api_call_1234",
+        "customer_id": "cus_atXa1lklCRRzMicTqfiw2",
+        "event_name": "api.call", 
+        "timestamp": "2024-01-15T10:30:00Z",
+        "metadata": {
+          "endpoint": "/v1/orders",
+          "method": "POST",
+          "response_size": 1024
+        }
+      }
+    ]
+  }'
+```
+
+</CodeGroup>
+
+## Analitik Penagihan Berdasarkan Penggunaan
+
+Pantau dan analisis data penagihan berdasarkan penggunaan Anda dengan dasbor analitik yang komprehensif. Lacak pola konsumsi pelanggan, kinerja meter, dan tren penagihan untuk mengoptimalkan strategi harga Anda dan memahami perilaku penggunaan.
+
+### Analitik Ikhtisar
+
+Tab Ikhtisar memberikan pandangan komprehensif tentang kinerja penagihan berdasarkan penggunaan Anda:
+
+#### Metrik Aktivitas
+
+Lacak statistik penggunaan kunci di berbagai periode waktu:
+
+<ParamField path="Bulan Ini" type="metric">
+Menunjukkan aktivitas penggunaan untuk periode penagihan saat ini, membantu Anda memahami pola konsumsi bulanan.
+</ParamField>
+
+<ParamField path="Sepanjang Waktu" type="metric">
+Menampilkan statistik penggunaan kumulatif sejak Anda mulai melacak, memberikan wawasan pertumbuhan jangka panjang.
+</ParamField>
+
+<Tip>
+Gunakan pemilih periode waktu untuk membandingkan penggunaan di berbagai bulan dan mengidentifikasi tren musiman atau pola pertumbuhan.
+</Tip>
+
+#### Grafik Kuantitas Meter
+
+<Frame>
+<img src="/images/guides/usage-based-billing/meter-quantities-chart.png" alt="Grafik kuantitas meter menunjukkan tren penggunaan dari waktu ke waktu dengan visualisasi gradasi ungu" />
+</Frame>
+
+Grafik kuantitas meter memvisualisasikan tren penggunaan dari waktu ke waktu dengan fitur berikut:
+
+- **Visualisasi deret waktu**: Lacak pola penggunaan di seluruh hari, minggu, atau bulan
+- **Dukungan beberapa meter**: Lihat data dari berbagai meter secara bersamaan
+- **Analisis tren**: Identifikasi lonjakan penggunaan, pola, dan trajektori pertumbuhan
+
+<Info>
+Grafik secara otomatis diskalakan berdasarkan volume penggunaan Anda dan rentang waktu yang dipilih, memberikan visibilitas yang jelas ke dalam fluktuasi kecil maupun perubahan penggunaan yang besar.
+</Info>
+
+### Analitik Peristiwa
+
+<Frame>
+<img src="/images/guides/usage-based-billing/events-table.png" alt="Tabel peristiwa menunjukkan nama peristiwa, ID, dan kontrol paginasi untuk analisis peristiwa yang mendetail" />
+</Frame>
+
+Tab Peristiwa memberikan visibilitas granular ke dalam peristiwa penggunaan individu:
+
+#### Tampilan Informasi Peristiwa
+
+Tabel peristiwa memberikan pandangan yang jelas tentang peristiwa penggunaan individu dengan kolom berikut:
+
+- **Nama Peristiwa**: Tindakan atau pemicu spesifik yang menghasilkan peristiwa penggunaan
+- **ID Peristiwa**: Pengidentifikasi unik untuk setiap instance peristiwa
+- **ID Pelanggan**: Pelanggan yang terkait dengan peristiwa
+- **Timestamp**: Saat peristiwa terjadi
+
+<Info>
+Tampilan ini memungkinkan Anda untuk melacak dan memantau peristiwa penggunaan individu di seluruh basis pelanggan Anda, memberikan transparansi ke dalam perhitungan penagihan dan pola penggunaan.
+</Info>
+
+### Analitik Pelanggan
+
+Tab Pelanggan memberikan tampilan tabel terperinci dari data penggunaan pelanggan dengan informasi berikut:
+
+#### Kolom Data yang Tersedia
+
+<ParamField path="Email Pelanggan" type="string">
+Alamat email pelanggan untuk identifikasi.
+</ParamField>
+
+<ParamField path="ID Langganan" type="string">
+Pengidentifikasi unik untuk langganan pelanggan.
+</ParamField>
+
+<ParamField path="Ambang Bebas" type="number">
+Jumlah unit gratis yang termasuk dalam rencana pelanggan sebelum biaya diterapkan.
+</ParamField>
+
+<ParamField path="Harga Per Unit" type="currency">
+Biaya per unit untuk penggunaan di luar ambang bebas.
+</ParamField>
+
+<ParamField path="Peristiwa Terakhir" type="timestamp">
+Timestamp dari peristiwa penggunaan terbaru pelanggan.
+</ParamField>
+
+<ParamField path="Total Harga" type="currency">
+Jumlah total yang ditagih kepada pelanggan untuk penagihan berdasarkan penggunaan.
+</ParamField>
+
+<ParamField path="Unit yang Dikonsumsi" type="number">
+Jumlah total unit yang telah dikonsumsi pelanggan.
+</ParamField>
+
+<ParamField path="Unit yang Dikenakan Biaya" type="number">
+Jumlah unit yang melebihi ambang bebas dan dikenakan biaya.
+</ParamField>
+
+#### Fitur Tabel
+
+- **Penyaringan Kolom**: Gunakan fitur "Edit Kolom" untuk menampilkan/menyembunyikan kolom data tertentu
+- **Pembaruan Waktu Nyata**: Data penggunaan mencerminkan metrik konsumsi yang paling terkini
+
+## Contoh Agregasi
+
+Berikut adalah contoh praktis tentang bagaimana berbagai tipe agregasi bekerja:
+
+### Memahami Tipe Agregasi
+
+Berbagai tipe agregasi melayani skenario penagihan yang berbeda. Pilih tipe yang tepat berdasarkan bagaimana Anda ingin mengukur dan mengenakan biaya untuk penggunaan.
+
+### Contoh Implementasi Praktis
+
+Contoh-contoh ini menunjukkan aplikasi dunia nyata dari setiap tipe agregasi dengan peristiwa contoh dan hasil yang diharapkan.
+
+<AccordionGroup>
+<Accordion title="Agregasi Jumlah - Panggilan API">
+Skenario: Lacak total jumlah permintaan API
+
+Konfigurasi Meter:
+- Nama Peristiwa: `api.call`
+- Tipe Agregasi: Jumlah
+- Satuan Pengukuran: `calls`
+
+**Contoh Peristiwa**:
+
+```json
+{
+  "events": [
+    {"event_id": "call_1", "customer_id": "cus_123", "event_name": "api.call"},
+    {"event_id": "call_2", "customer_id": "cus_123", "event_name": "api.call"},
+    {"event_id": "call_3", "customer_id": "cus_123", "event_name": "api.call"}
+  ]
+}
+```
+
+Hasil: 3 panggilan ditagih kepada pelanggan
+</Accordion>
+
+<Accordion title="Agregasi Jumlah - Transfer Data">
+Skenario: Tagih berdasarkan total byte yang ditransfer
+
+Konfigurasi Meter:
+- Nama Peristiwa: `data.transfer`
+- Tipe Agregasi: Jumlah
+- Atas Properti: `bytes`
+- Satuan Pengukuran: `GB`
+
+**Contoh Peristiwa**:
+
+```json
+{
+  "events": [
+    {
+      "event_id": "transfer_1",
+      "customer_id": "cus_123", 
+      "event_name": "data.transfer",
+      "metadata": {"bytes": 1073741824}
+    },
+    {
+      "event_id": "transfer_2",
+      "customer_id": "cus_123",
+      "event_name": "data.transfer", 
+      "metadata": {"bytes": 536870912}
+    }
+  ]
+}
+```
+
+Hasil: 1,5 GB total transfer ditagih kepada pelanggan
+</Accordion>
+
+<Accordion title="Agregasi Maks - Pengguna Bersamaan Puncak">
+Skenario: Tagih berdasarkan jumlah pengguna bersamaan tertinggi
+
+Konfigurasi Meter:
+- Nama Peristiwa: `concurrent.users`
+- Tipe Agregasi: Maks
+- Atas Properti: `count`
+- Satuan Pengukuran: `users`
+
+**Contoh Peristiwa**:
+
+```json
+{
+  "events": [
+    {
+      "event_id": "peak_1",
+      "customer_id": "cus_123",
+      "event_name": "concurrent.users", 
+      "metadata": {"count": 15}
+    },
+    {
+      "event_id": "peak_2",
+      "customer_id": "cus_123",
+      "event_name": "concurrent.users",
+      "metadata": {"count": 23}
+    },
+    {
+      "event_id": "peak_3",
+      "customer_id": "cus_123",
+      "event_name": "concurrent.users",
+      "metadata": {"count": 18}
+    }
+  ]
+}
+```
+
+Hasil: 23 pengguna bersamaan puncak ditagih kepada pelanggan
+</Accordion>
+</AccordionGroup>
+
+### Contoh Penyaringan Peristiwa
+
+<Tabs>
+<Tab title="Filter berdasarkan Endpoint API">
+Hanya hitung panggilan API ke endpoint tertentu:
+
+Konfigurasi Filter:
+- Properti: `endpoint`
+- Pembanding: `equals`
+- Nilai: `/v1/orders`
+
+Contoh Peristiwa:
+
+```json
+{
+  "event_id": "call_1",
+  "customer_id": "cus_123",
+  "event_name": "api.call",
+  "metadata": {
+    "endpoint": "/v1/orders",
+    "method": "POST"
+  }
+}
+```
+
+Hasil: Peristiwa yang cocok dengan kriteria filter akan dihitung. Peristiwa dengan endpoint yang berbeda akan diabaikan.
+</Tab>
+
+<Tab title="Filter berdasarkan Rentang Nilai">
+Hanya hitung unggahan file besar:
+
+Konfigurasi Filter:
+- Properti: `file_size`
+- Pembanding: `greater_than`
+- Nilai: `1048576` (1MB dalam byte)
+
+Contoh Peristiwa:
+
+```json
+{
+  "event_id": "upload_1",
+  "customer_id": "cus_123", 
+  "event_name": "file.upload",
+  "metadata": {
+    "file_size": 5242880,
+    "file_type": "image"
+  }
+}
+```
+
+Hasil: File yang lebih besar dari 1MB akan dihitung. File yang lebih kecil akan diabaikan.
+</Tab>
+
+<Tab title="Filter Kompleks Multi-Kondisi">
+Hitung panggilan API premium selama jam kerja:
+
+Konfigurasi Filter (menggunakan logika DAN):
+- Properti: `plan_type`, Pembanding: `equals`, Nilai: `premium`
+- Properti: `hour`, Pembanding: `greater_than_or_equal`, Nilai: `9`
+- Properti: `hour`, Pembanding: `less_than`, Nilai: `17`
+
+Contoh Peristiwa:
+
+```json
+{
+  "event_id": "call_1",
+  "customer_id": "cus_123",
+  "event_name": "api.call",
+  "metadata": {
+    "plan_type": "premium",
+    "hour": 14,
+    "endpoint": "/v1/analytics"
+  }
+}
+```
+
+Hasil: Panggilan API premium selama jam kerja (9 AM - 5 PM) akan dihitung.
+</Tab>
+</Tabs>
+
+## Pemecahan Masalah
+
+Atasi masalah umum dengan implementasi penagihan berdasarkan penggunaan dan pastikan pelacakan serta penagihan yang akurat.
+
+### Masalah Umum
+
+Sebagian besar masalah penagihan berdasarkan penggunaan jatuh ke dalam kategori ini:
+- Masalah pengiriman dan pemrosesan peristiwa
+- Masalah konfigurasi meter
+- Kesalahan tipe data dan format
+- Masalah ID pelanggan dan otentikasi
+
+### Langkah-Langkah Debugging
+
+Saat memecahkan masalah penagihan berdasarkan penggunaan:
+1. Verifikasi pengiriman peristiwa di tab analitik Peristiwa
+2. Periksa konfigurasi meter cocok dengan struktur peristiwa Anda
+3. Validasi ID pelanggan dan otentikasi API
+4. Tinjau kondisi penyaringan dan pengaturan agregasi
+
+### Solusi dan Perbaikan
+
+<AccordionGroup>
+<Accordion title="Peristiwa tidak muncul di meter">
+Penyebab umum:
+- Nama peristiwa tidak cocok persis dengan konfigurasi meter
+- Kondisi penyaringan peristiwa mengecualikan peristiwa Anda
+- ID pelanggan tidak ada di akun Dodo Payments Anda
+- Timestamp peristiwa berada di luar periode penagihan saat ini
+
+Solusi:
+- Verifikasi ejaan nama peristiwa dan sensitivitas huruf besar/kecil
+- Tinjau dan uji kondisi penyaringan Anda
+- Konfirmasi ID pelanggan valid dan aktif
+- Periksa timestamp peristiwa terbaru dan diformat dengan benar
+</Accordion>
+
+<Accordion title="Agregasi tidak berfungsi seperti yang diharapkan">
+Penyebab umum:
+- Nama Atas Properti tidak cocok dengan kunci metadata peristiwa
+- Nilai metadata adalah tipe data yang salah (string vs angka)
+- Properti metadata yang diperlukan hilang
+
+Solusi:
+- Pastikan kunci metadata cocok persis dengan pengaturan Atas Properti Anda
+- Ubah angka string menjadi angka sebenarnya dalam peristiwa Anda
+- Sertakan semua properti yang diperlukan dalam setiap peristiwa
+</Accordion>
+
+<Accordion title="Penyaringan tidak berfungsi">
+Penyebab umum:
+- Nama properti filter tidak cocok dengan metadata peristiwa
+- Pembanding yang salah untuk tipe data (string vs angka)
+- Sensitivitas huruf besar/kecil dalam perbandingan string
+
+Solusi:
+- Periksa kembali nama properti cocok persis
+- Gunakan pembanding yang sesuai untuk tipe data Anda
+- Pertimbangkan sensitivitas huruf besar/kecil saat menyaring string
+</Accordion>
+</AccordionGroup>

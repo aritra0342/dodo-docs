@@ -1,0 +1,201 @@
+---
+title: API Gateway Blueprint
+description: تتبع مكالمات API واستخدام مستوى البوابة للفوترة. مثالي لمنصات
+  API-as-a-service التي تتطلب تتبع الطلبات عالية الحجم.
+icon: cloud
+---
+
+## حالات الاستخدام
+
+استكشف السيناريوهات الشائعة المدعومة من API Gateway Blueprint:
+
+<CardGroup cols={2}>
+<Card title="API-as-a-Service" icon="server">
+تتبع الاستخدام لكل عميل لمنصات API وفرض رسوم بناءً على عدد المكالمات.
+</Card>
+<Card title="تحديد المعدل" icon="gauge">
+مراقبة أنماط استخدام API وتنفيذ تحديد المعدل بناءً على الاستخدام.
+</Card>
+<Card title="مراقبة الأداء" icon="chart-line">
+تتبع أوقات الاستجابة ومعدلات الأخطاء جنبًا إلى جنب مع بيانات الفوترة.
+</Card>
+<Card title="SaaS متعدد المستأجرين" icon="users">
+فرض رسوم على العملاء بناءً على استهلاكهم لـ API عبر نقاط النهاية المختلفة.
+</Card>
+</CardGroup>
+
+<Info>
+مثالي لتتبع استخدام نقاط نهاية API، وتحديد المعدل، وتنفيذ فوترة API بناءً على الاستخدام.
+</Info>
+
+## البدء السريع
+
+تتبع مكالمات API على مستوى البوابة مع التجميع التلقائي للسيناريوهات عالية الحجم:
+
+<Steps>
+<Step title="تثبيت SDK">
+
+```bash
+npm install @dodopayments/ingestion-blueprints
+```
+
+</Step>
+
+<Step title="احصل على مفاتيح API الخاصة بك">
+- **مفتاح API لدفع دودي**: احصل عليه من [لوحة معلومات دودي للدفع](https://app.dodopayments.com/developer/api-keys)
+</Step>
+
+<Step title="إنشاء عداد">
+قم بإنشاء عداد في [لوحة معلومات دودي للدفع](https://app.dodopayments.com/):
+- **اسم الحدث**: `api_call` (أو الاسم المفضل لديك)
+- **نوع التجميع**: `count` لتتبع عدد المكالمات
+- قم بتكوين خصائص إضافية إذا كنت تتتبع بيانات التعريف مثل أوقات الاستجابة، رموز الحالة، إلخ.
+</Step>
+
+<Step title="تتبع مكالمات API">
+<CodeGroup>
+
+```javascript Single API Call
+import { Ingestion, trackAPICall } from '@dodopayments/ingestion-blueprints';
+
+const ingestion = new Ingestion({
+  apiKey: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'test_mode',
+  eventName: 'api_call'
+});
+
+// Track a single API call
+await trackAPICall(ingestion, {
+  customerId: 'customer_123',
+  metadata: {
+    endpoint: '/api/v1/users',
+    method: 'GET',
+    status_code: 200,
+    response_time_ms: 45
+  }
+});
+```
+
+```javascript High-Volume with Batching
+import { Ingestion, createBatch } from '@dodopayments/ingestion-blueprints';
+
+const ingestion = new Ingestion({
+  apiKey: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'live_mode',
+  eventName: 'api_call'
+});
+
+// Create batch for high-volume tracking
+const batch = createBatch(ingestion, {
+  maxSize: 100,      // Flush after 100 events
+  flushInterval: 5000 // Or flush every 5 seconds
+});
+
+// Add API calls to batch
+batch.add({
+  customerId: 'customer_123',
+  metadata: {
+    endpoint: '/api/v1/products',
+    method: 'GET',
+    status_code: 200
+  }
+});
+
+// Clean up when done
+await batch.cleanup();
+```
+
+```javascript Express.js Middleware
+import express from 'express';
+import { Ingestion, createBatch } from '@dodopayments/ingestion-blueprints';
+
+const app = express();
+
+const ingestion = new Ingestion({
+  apiKey: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'live_mode',
+  eventName: 'api_call'
+});
+
+const batch = createBatch(ingestion, {
+  maxSize: 50,
+  flushInterval: 10000
+});
+
+// Middleware to track all API calls
+app.use((req, res, next) => {
+  const startTime = Date.now();
+  
+  res.on('finish', () => {
+    const responseTime = Date.now() - startTime;
+    
+    batch.add({
+      customerId: req.user?.id || 'anonymous',
+      metadata: {
+        endpoint: req.path,
+        method: req.method,
+        status_code: res.statusCode,
+        response_time_ms: responseTime
+      }
+    });
+  });
+  
+  next();
+});
+
+// Cleanup on shutdown
+process.on('SIGTERM', async () => {
+  await batch.cleanup();
+  process.exit(0);
+});
+```
+
+</CodeGroup>
+</Step>
+</Steps>
+
+## التكوين
+
+### تكوين الإدخال
+
+<ParamField path="apiKey" type="string" required>
+مفتاح API الخاص بك من لوحة معلومات دودي للدفع.
+</ParamField>
+
+<ParamField path="environment" type="string" required>
+وضع البيئة: `test_mode` أو `live_mode`.
+</ParamField>
+
+<ParamField path="eventName" type="string" required>
+اسم الحدث الذي يتطابق مع تكوين العداد الخاص بك.
+</ParamField>
+
+### خيارات تتبع مكالمات API
+
+<ParamField path="customerId" type="string" required>
+معرف العميل لفوترة النسبة.
+</ParamField>
+
+<ParamField path="metadata" type="object">
+بيانات تعريف اختيارية حول مكالمة API مثل نقطة النهاية، الطريقة، رمز الحالة، وقت الاستجابة، إلخ.
+</ParamField>
+
+### تكوين التجميع
+
+<ParamField path="maxSize" type="number">
+الحد الأقصى لعدد الأحداث قبل التفريغ التلقائي. الافتراضي: `100`.
+</ParamField>
+
+<ParamField path="flushInterval" type="number">
+فترة التفريغ التلقائي بالمللي ثانية. الافتراضي: `5000` (5 ثواني).
+</ParamField>
+
+## أفضل الممارسات
+
+<Tip>
+**استخدم التجميع للحجم الكبير**: للتطبيقات التي تتعامل مع أكثر من 10 طلبات في الثانية، استخدم `createBatch()` لتقليل الحمل وتحسين الأداء.
+</Tip>
+
+<Warning>
+**قم دائمًا بتنظيف التجميعات**: اتصل بـ `batch.cleanup()` عند إيقاف تشغيل التطبيق لتفريغ الأحداث المعلقة ومنع فقدان البيانات.
+</Warning>

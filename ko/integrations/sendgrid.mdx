@@ -1,0 +1,166 @@
+---
+title: SendGrid
+description: SendGrid의 Mail Send API를 사용하여 Dodo Payments 이벤트에 따라 트랜잭션 이메일을 전송합니다.
+icon: inbox
+---
+
+## 소개
+
+SendGrid를 사용하여 결제 확인, 구독 업데이트 및 중요한 알림에 대한 트랜잭션 이메일을 자동으로 전송합니다. 결제 이벤트에 따라 개인화된 이메일을 동적 콘텐츠와 전문 템플릿으로 트리거합니다.
+
+<Info>
+이 통합은 Mail Send 권한이 있는 SendGrid API 키가 필요합니다.
+</Info>
+
+## 시작하기
+
+<Steps>
+<Step title="웹훅 섹션 열기">
+  Dodo Payments 대시보드에서 <b>Webhooks → + Add Endpoint</b>로 이동하고 통합 드롭다운을 확장합니다.
+  <Frame>
+    <img src="/images/integrations/sendgrid.png" alt="Add Endpoint and integrations dropdown" />
+  </Frame>
+</Step>
+
+<Step title="SendGrid 선택">
+  <b>SendGrid</b> 통합 카드를 선택합니다.
+</Step>
+
+<Step title="API 키 입력">
+  구성에서 SendGrid API 키를 제공합니다.
+</Step>
+
+<Step title="변환 구성">
+  SendGrid의 Mail Send API에 맞게 이메일 형식을 지정하기 위해 변환 코드를 편집합니다.
+</Step>
+
+<Step title="테스트 및 생성">
+  샘플 페이로드로 테스트하고 <b>Create</b>를 클릭하여 이메일 전송을 활성화합니다.
+</Step>
+
+<Step title="완료!">
+  🎉 결제 이벤트가 이제 SendGrid를 통해 자동으로 트랜잭션 이메일을 트리거합니다.
+</Step>
+</Steps>
+
+## 변환 코드 예제
+
+### 결제 확인 이메일
+
+```javascript payment_confirmation.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.url = "https://api.sendgrid.com/v3/mail/send";
+    webhook.payload = {
+      personalizations: [
+        {
+          to: [{ email: p.customer.email }],
+          dynamic_template_data: {
+            customer_name: p.customer.name,
+            payment_amount: (p.total_amount / 100).toFixed(2),
+            payment_id: p.payment_id,
+            payment_date: new Date(webhook.payload.timestamp).toLocaleDateString(),
+            currency: p.currency || "USD"
+          }
+        }
+      ],
+      from: {
+        email: "payments@yourdomain.com",
+        name: "Your Company"
+      },
+      template_id: "d-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    };
+  }
+  return webhook;
+}
+```
+
+### 구독 환영 이메일
+
+```javascript subscription_welcome.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "subscription.active") {
+    const s = webhook.payload.data;
+    webhook.url = "https://api.sendgrid.com/v3/mail/send";
+    webhook.payload = {
+      personalizations: [
+        {
+          to: [{ email: s.customer.email }],
+          dynamic_template_data: {
+            customer_name: s.customer.name,
+            subscription_id: s.subscription_id,
+            product_name: s.product_id,
+            amount: (s.recurring_pre_tax_amount / 100).toFixed(2),
+            frequency: s.payment_frequency_interval,
+            next_billing: new Date(s.next_billing_date).toLocaleDateString()
+          }
+        }
+      ],
+      from: {
+        email: "welcome@yourdomain.com",
+        name: "Your Company"
+      },
+      template_id: "d-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    };
+  }
+  return webhook;
+}
+```
+
+### 결제 실패 알림
+
+```javascript payment_failure.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.failed") {
+    const p = webhook.payload.data;
+    webhook.url = "https://api.sendgrid.com/v3/mail/send";
+    webhook.payload = {
+      personalizations: [
+        {
+          to: [{ email: p.customer.email }],
+          dynamic_template_data: {
+            customer_name: p.customer.name,
+            payment_amount: (p.total_amount / 100).toFixed(2),
+            error_message: p.error_message || "Payment processing failed",
+            payment_id: p.payment_id,
+            retry_link: `https://yourdomain.com/retry-payment/${p.payment_id}`
+          }
+        }
+      ],
+      from: {
+        email: "support@yourdomain.com",
+        name: "Your Company Support"
+      },
+      template_id: "d-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    };
+  }
+  return webhook;
+}
+```
+
+## 팁
+
+- 개인화된 콘텐츠를 위해 SendGrid 동적 템플릿 사용
+- 템플릿 변수에 관련 결제 데이터 포함
+- 적절한 발신자 주소 및 발신자 이름 설정
+- 일관된 이메일 형식을 위해 템플릿 ID 사용
+- 준수를 위해 구독 취소 링크 포함
+
+## 문제 해결
+
+<AccordionGroup>
+<Accordion title="이메일이 전송되지 않음">
+- API 키에 Mail Send 권한이 있는지 확인
+- 템플릿 ID가 유효하고 활성 상태인지 확인
+- 수신자 이메일 주소가 유효한지 확인
+- SendGrid 전송 한도 및 쿼터 검토
+</Accordion>
+
+<Accordion title="변환 오류">
+- JSON 구조가 SendGrid API 형식과 일치하는지 검증
+- 모든 필수 필드가 있는지 확인
+- 템플릿 데이터 변수가 올바르게 형식화되었는지 확인
+- SendGrid에서 발신 이메일 주소가 확인되었는지 검증
+</Accordion>
+</AccordionGroup>

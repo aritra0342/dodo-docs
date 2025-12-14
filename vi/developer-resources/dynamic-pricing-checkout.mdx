@@ -1,0 +1,530 @@
+---
+sidebarTitle: Thanh Toán Giá Động
+title: Thanh Toán Giá Động với Pay What You Want
+description: Tạo các liên kết thanh toán linh hoạt với giá biến đổi bằng cách sử
+  dụng một sản phẩm duy nhất. Bật Pay What You Want để cho phép khách hàng chọn
+  giá của họ hoặc thiết lập các khoản tiền động một cách lập trình.
+icon: tags
+---
+
+**Giá động** cho phép bạn cung cấp giá biến đổi cho các sản phẩm của mình mà không cần tạo nhiều mục sản phẩm. Bằng cách bật **Pay What You Want (PWYW)** trên một sản phẩm duy nhất, bạn có thể thiết lập các giới hạn giá tối thiểu và tối đa, sau đó truyền các khoản tiền động khi tạo các liên kết phiên thanh toán.
+
+Cách tiếp cận này lý tưởng khi bạn cần:
+- **Giá biến đổi** mà không cần quản lý nhiều sản phẩm
+- **Giá do khách hàng quyết định** nơi người mua chọn số tiền của họ
+- **Kiểm soát giá lập trình** nơi bạn thiết lập số tiền một cách động qua API
+- **Mô hình giá linh hoạt** cho các sản phẩm kỹ thuật số, quyên góp hoặc các buổi ra mắt thử nghiệm
+
+<Warning>
+Pay What You Want chỉ có sẵn cho các sản phẩm **Thanh Toán Một Lần** (một lần). Nó không thể được sử dụng với các sản phẩm đăng ký.
+</Warning>
+
+## Cách Hoạt Động
+
+Với Pay What You Want được bật, bạn có thể:
+
+1. **Thiết lập giới hạn giá**: Định nghĩa một giá tối thiểu (bắt buộc) và tùy chọn một giá tối đa
+2. **Truyền các khoản tiền động**: Bao gồm một `amount` trong giỏ sản phẩm khi tạo các phiên thanh toán
+3. **Cho phép khách hàng chọn**: Nếu không có số tiền nào được cung cấp, khách hàng có thể nhập giá của riêng họ (trong giới hạn của bạn)
+
+<Info>
+Khi bạn truyền một `amount` trong giỏ sản phẩm, số tiền đó sẽ được sử dụng cho thanh toán. Nếu bạn bỏ qua trường `amount`, khách hàng có thể chọn giá của riêng họ trong quá trình thanh toán (theo các cài đặt tối thiểu/tối đa của bạn).
+</Info>
+
+## Bước 1: Tạo Sản Phẩm với Pay What You Want
+
+Đầu tiên, tạo một sản phẩm một lần trong bảng điều khiển Dodo Payments của bạn và bật giá Pay What You Want.
+
+<Steps>
+<Step title="Tạo một sản phẩm mới">
+Đi đến **Sản Phẩm** trong bảng điều khiển Dodo Payments của bạn và nhấp vào **Thêm Sản Phẩm**.
+</Step>
+
+<Step title="Cấu hình chi tiết sản phẩm">
+Điền vào thông tin sản phẩm cần thiết:
+- **Tên Sản Phẩm**: Tên hiển thị cho sản phẩm của bạn
+- **Mô Tả Sản Phẩm**: Mô tả rõ ràng về những gì khách hàng đang mua
+- **Hình Ảnh Sản Phẩm**: Tải lên một hình ảnh (PNG/JPG/WebP, tối đa 3 MB)
+- **Danh Mục Thuế**: Chọn danh mục thuế phù hợp
+</Step>
+
+<Step title="Thiết lập loại giá">
+Chọn **Loại Giá** là **Thanh Toán Một Lần** (thanh toán một lần).
+</Step>
+
+<Step title="Bật Pay What You Want">
+Trong phần **Giá**, bật công tắc **Pay What You Want**.
+</Step>
+
+<Step title="Thiết lập giá tối thiểu">
+Nhập **Giá Tối Thiểu** mà khách hàng phải trả. Điều này là bắt buộc và đảm bảo bạn duy trì một mức doanh thu tối thiểu.
+
+**Ví dụ**: Nếu giá tối thiểu của bạn là $5.00, nhập `5.00` (hoặc `500` xu).
+</Step>
+
+<Step title="Thiết lập giá tối đa (tùy chọn)">
+Tùy chọn, thiết lập một **Giá Tối Đa** để giới hạn số tiền mà khách hàng có thể trả.
+</Step>
+
+<Step title="Thiết lập giá gợi ý (tùy chọn)">
+Tùy chọn, nhập một **Giá Gợi Ý** sẽ được hiển thị để hướng dẫn khách hàng. Điều này giúp định hình kỳ vọng và có thể cải thiện giá trị đơn hàng trung bình.
+</Step>
+
+<Step title="Lưu sản phẩm">
+Nhấp vào **Thêm Sản Phẩm** để lưu. Lưu ý ID sản phẩm của bạn (ví dụ: `pdt_123abc456def`) để sử dụng trong các phiên thanh toán.
+</Step>
+</Steps>
+
+<Tip>
+Bạn có thể tìm thấy ID sản phẩm của mình trong bảng điều khiển dưới **Sản Phẩm** → **Xem Chi Tiết**, hoặc bằng cách sử dụng [API Danh Sách Sản Phẩm](/api-reference/products/get-products).
+</Tip>
+
+## Bước 2: Tạo Các Phiên Thanh Toán với Giá Động
+
+Khi sản phẩm của bạn đã được cấu hình với Pay What You Want, bạn có thể tạo các phiên thanh toán với các khoản tiền động. Trường `amount` trong giỏ sản phẩm cho phép bạn thiết lập giá một cách lập trình cho mỗi phiên thanh toán.
+
+### Hiểu Về Trường Số Tiền
+
+Khi tạo một phiên thanh toán, bạn có thể bao gồm một trường `amount` trong mỗi mục giỏ sản phẩm:
+
+- **Nếu `amount` được cung cấp**: Phiên thanh toán sử dụng số tiền chính xác này (phải nằm trong giới hạn tối thiểu/tối đa của bạn)
+- **Nếu `amount` bị bỏ qua**: Khách hàng có thể nhập giá của riêng họ trong quá trình thanh toán (trong giới hạn của bạn)
+
+<Warning>
+Trường `amount` chỉ áp dụng cho các sản phẩm Pay What You Want. Đối với các sản phẩm thông thường, trường này sẽ bị bỏ qua.
+</Warning>
+
+### Ví Dụ Mã
+
+<CodeGroup>
+
+```typescript TypeScript
+import DodoPayments from 'dodopayments';
+
+// Initialize the Dodo Payments client
+const client = new DodoPayments({
+  bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+});
+
+async function createDynamicPricingCheckout(
+  productId: string,
+  amountInCents: number,
+  returnUrl: string
+) {
+  try {
+    const session = await client.checkoutSessions.create({
+      product_cart: [
+        {
+          product_id: productId,
+          quantity: 1,
+          // Dynamic amount in cents (e.g., 1500 = $15.00)
+          amount: amountInCents
+        }
+      ],
+      return_url: returnUrl,
+      // Optional: Pre-fill customer information
+      customer: {
+        email: 'customer@example.com',
+        name: 'John Doe'
+      },
+      // Optional: Add metadata for tracking
+      metadata: {
+        order_id: 'order_123',
+        pricing_tier: 'custom'
+      }
+    });
+
+    console.log('Checkout URL:', session.checkout_url);
+    console.log('Session ID:', session.session_id);
+    
+    return session;
+  } catch (error) {
+    console.error('Failed to create checkout session:', error);
+    throw error;
+  }
+}
+
+// Example: Create checkout with $25.00 (2500 cents)
+const session = await createDynamicPricingCheckout(
+  'prod_123abc456def',
+  2500, // $25.00 in cents
+  'https://yoursite.com/checkout/success'
+);
+
+// Example: Create checkout with $10.00 (1000 cents)
+const session2 = await createDynamicPricingCheckout(
+  'prod_123abc456def',
+  1000, // $10.00 in cents
+  'https://yoursite.com/checkout/success'
+);
+```
+
+```python Python
+import os
+from dodopayments import DodoPayments
+
+# Initialize the Dodo Payments client
+client = DodoPayments(
+    bearer_token=os.environ.get("DODO_PAYMENTS_API_KEY"),
+)
+
+def create_dynamic_pricing_checkout(
+    product_id: str,
+    amount_in_cents: int,
+    return_url: str
+):
+    """
+    Create a checkout session with dynamic pricing.
+    
+    Args:
+        product_id: The product ID with Pay What You Want enabled
+        amount_in_cents: The amount in cents (e.g., 2500 for $25.00)
+        return_url: URL to redirect after payment completion
+    
+    Returns:
+        Session object with checkout_url and session_id
+    """
+    try:
+        session = client.checkout_sessions.create(
+            product_cart=[
+                {
+                    "product_id": product_id,
+                    "quantity": 1,
+                    # Dynamic amount in cents (e.g., 1500 = $15.00)
+                    "amount": amount_in_cents
+                }
+            ],
+            return_url=return_url,
+            # Optional: Pre-fill customer information
+            customer={
+                "email": "customer@example.com",
+                "name": "John Doe"
+            },
+            # Optional: Add metadata for tracking
+            metadata={
+                "order_id": "order_123",
+                "pricing_tier": "custom"
+            }
+        )
+        
+        print(f"Checkout URL: {session.checkout_url}")
+        print(f"Session ID: {session.session_id}")
+        
+        return session
+    except Exception as error:
+        print(f"Failed to create checkout session: {error}")
+        raise error
+
+# Example: Create checkout with $25.00 (2500 cents)
+session = create_dynamic_pricing_checkout(
+    "prod_123abc456def",
+    2500,  # $25.00 in cents
+    "https://yoursite.com/checkout/success"
+)
+
+# Example: Create checkout with $10.00 (1000 cents)
+session2 = create_dynamic_pricing_checkout(
+    "prod_123abc456def",
+    1000,  # $10.00 in cents
+    "https://yoursite.com/checkout/success"
+)
+```
+
+</CodeGroup>
+
+<Note>
+**Định Dạng Số Tiền**: Trường `amount` phải ở đơn vị thấp nhất của tiền tệ. Đối với USD, điều này có nghĩa là xu (ví dụ: $25.00 = `2500`). Đối với các loại tiền tệ khác, sử dụng đơn vị nhỏ nhất (ví dụ: paise cho INR).
+</Note>
+
+## Bước 3: Cho Khách Hàng Chọn Giá Của Họ
+
+Nếu bạn muốn khách hàng chọn giá của riêng họ trong quá trình thanh toán, chỉ cần bỏ qua trường `amount` từ giỏ sản phẩm. Trang thanh toán sẽ hiển thị một trường nhập liệu nơi khách hàng có thể nhập bất kỳ số tiền nào trong giới hạn tối thiểu và tối đa của bạn.
+
+<CodeGroup>
+
+```typescript TypeScript
+async function createCustomerChoiceCheckout(
+  productId: string,
+  returnUrl: string
+) {
+  try {
+    const session = await client.checkoutSessions.create({
+      product_cart: [
+        {
+          product_id: productId,
+          quantity: 1
+          // No amount field - customer will choose their price
+        }
+      ],
+      return_url: returnUrl,
+      customer: {
+        email: 'customer@example.com',
+        name: 'John Doe'
+      }
+    });
+
+    return session;
+  } catch (error) {
+    console.error('Failed to create checkout session:', error);
+    throw error;
+  }
+}
+```
+
+```python Python
+def create_customer_choice_checkout(
+    product_id: str,
+    return_url: str
+):
+    """
+    Create a checkout session where customers choose their own price.
+    """
+    try:
+        session = client.checkout_sessions.create(
+            product_cart=[
+                {
+                    "product_id": product_id,
+                    "quantity": 1
+                    # No amount field - customer will choose their price
+                }
+            ],
+            return_url=return_url,
+            customer={
+                "email": "customer@example.com",
+                "name": "John Doe"
+            }
+        )
+        
+        return session
+    except Exception as error:
+        print(f"Failed to create checkout session: {error}")
+        raise error
+```
+
+</CodeGroup>
+
+## Các Trường Hợp Sử Dụng Thông Thường
+
+### Trường Hợp Sử Dụng 1: Giá Theo Bậc Dựa Trên Loại Người Dùng
+
+Cung cấp các mức giá khác nhau cho các phân khúc khách hàng khác nhau bằng cách sử dụng cùng một sản phẩm:
+
+```typescript
+// Student discount: $10.00
+const studentSession = await createDynamicPricingCheckout(
+  'prod_123abc456def',
+  1000, // $10.00
+  'https://yoursite.com/success'
+);
+
+// Regular price: $25.00
+const regularSession = await createDynamicPricingCheckout(
+  'prod_123abc456def',
+  2500, // $25.00
+  'https://yoursite.com/success'
+);
+
+// Premium price: $50.00
+const premiumSession = await createDynamicPricingCheckout(
+  'prod_123abc456def',
+  5000, // $50.00
+  'https://yoursite.com/success'
+);
+```
+
+### Trường Hợp Sử Dụng 2: Giá Động Dựa Trên Số Lượng
+
+Điều chỉnh giá dựa trên số lượng đã mua:
+
+```typescript
+async function createQuantityBasedCheckout(
+  productId: string,
+  quantity: number
+) {
+  // Base price: $20.00 per unit
+  // Discount: 10% for 2+ items, 20% for 5+ items
+  const basePrice = 2000; // $20.00 in cents
+  let discount = 0;
+  
+  if (quantity >= 5) {
+    discount = 0.20; // 20% off
+  } else if (quantity >= 2) {
+    discount = 0.10; // 10% off
+  }
+  
+  const totalAmount = Math.round(basePrice * quantity * (1 - discount));
+  
+  const session = await client.checkoutSessions.create({
+    product_cart: [
+      {
+        product_id: productId,
+        quantity: quantity,
+        amount: totalAmount
+      }
+    ],
+    return_url: 'https://yoursite.com/success'
+  });
+  
+  return session;
+}
+```
+
+### Trường Hợp Sử Dụng 3: Giá Dựa Trên Thời Gian Hoặc Khuyến Mãi
+
+Áp dụng giá khuyến mãi trong các khoảng thời gian cụ thể:
+
+```typescript
+async function createPromotionalCheckout(productId: string) {
+  const isPromoActive = checkIfPromotionActive(); // Your logic
+  const regularPrice = 3000; // $30.00
+  const promoPrice = 2000; // $20.00
+  
+  const amount = isPromoActive ? promoPrice : regularPrice;
+  
+  const session = await client.checkoutSessions.create({
+    product_cart: [
+      {
+        product_id: productId,
+        quantity: 1,
+        amount: amount
+      }
+    ],
+    return_url: 'https://yoursite.com/success',
+    metadata: {
+      pricing_type: isPromoActive ? 'promotional' : 'regular'
+    }
+  });
+  
+  return session;
+}
+```
+
+## Các Thực Hành Tốt Nhất
+
+<CardGroup cols={2}>
+<Card title="Thiết Lập Giới Hạn Hợp Lý" icon="sliders">
+Chọn một giá tối thiểu mà bao gồm chi phí của bạn trong khi vẫn dễ tiếp cận. Sử dụng một giá gợi ý để hướng dẫn kỳ vọng của khách hàng.
+</Card>
+
+<Card title="Xác Thực Các Khoản Tiền" icon="shield-check">
+Luôn xác thực rằng các khoản tiền động nằm trong giới hạn tối thiểu và tối đa của sản phẩm trước khi tạo các phiên thanh toán.
+</Card>
+
+<Card title="Theo Dõi Quyết Định Giá" icon="chart-line">
+Sử dụng siêu dữ liệu để theo dõi lý do tại sao các khoản tiền cụ thể được chọn (ví dụ: `pricing_tier`, `discount_code`, `user_segment`).
+</Card>
+
+<Card title="Xử Lý Các Trường Hợp Đặc Biệt" icon="exclamation-triangle">
+Đảm bảo ứng dụng của bạn xử lý các trường hợp mà số tiền vượt quá giới hạn tối đa hoặc thấp hơn mức tối thiểu một cách hợp lý.
+</Card>
+</CardGroup>
+
+## Xác Thực và Xử Lý Lỗi
+
+Luôn xác thực các khoản tiền so với các cài đặt tối thiểu và tối đa của sản phẩm của bạn:
+
+<CodeGroup>
+
+```typescript TypeScript
+async function createValidatedCheckout(
+  productId: string,
+  amountInCents: number,
+  minAmount: number,
+  maxAmount: number | null
+) {
+  // Validate minimum
+  if (amountInCents < minAmount) {
+    throw new Error(
+      `Amount ${amountInCents} is below minimum ${minAmount}`
+    );
+  }
+  
+  // Validate maximum (if set)
+  if (maxAmount !== null && amountInCents > maxAmount) {
+    throw new Error(
+      `Amount ${amountInCents} exceeds maximum ${maxAmount}`
+    );
+  }
+  
+  // Create checkout session
+  return await client.checkoutSessions.create({
+    product_cart: [
+      {
+        product_id: productId,
+        quantity: 1,
+        amount: amountInCents
+      }
+    ],
+    return_url: 'https://yoursite.com/success'
+  });
+}
+```
+
+```python Python
+def create_validated_checkout(
+    product_id: str,
+    amount_in_cents: int,
+    min_amount: int,
+    max_amount: int | None
+):
+    """
+    Create a checkout session with amount validation.
+    """
+    # Validate minimum
+    if amount_in_cents < min_amount:
+        raise ValueError(
+            f"Amount {amount_in_cents} is below minimum {min_amount}"
+        )
+    
+    # Validate maximum (if set)
+    if max_amount is not None and amount_in_cents > max_amount:
+        raise ValueError(
+            f"Amount {amount_in_cents} exceeds maximum {max_amount}"
+        )
+    
+    # Create checkout session
+    return client.checkout_sessions.create(
+        product_cart=[
+            {
+                "product_id": product_id,
+                "quantity": 1,
+                "amount": amount_in_cents
+            }
+        ],
+        return_url="https://yoursite.com/success"
+    )
+```
+
+</CodeGroup>
+
+## Tài Liệu API
+
+<CardGroup cols={2}>
+
+<Card title="Tính Năng Pay What You Want" icon="dollar-sign" href="/features/pay-what-you-want">
+Tìm hiểu thêm về mô hình giá Pay What You Want và các khả năng của nó.
+</Card>
+
+<Card title="Hướng Dẫn Phiên Thanh Toán" icon="cart-shopping" href="/developer-resources/checkout-session">
+Khám phá các tính năng và tùy chọn tùy chỉnh nâng cao cho phiên thanh toán.
+</Card>
+</CardGroup>
+
+## Khắc Phục Sự Cố
+
+<AccordionGroup>
+<Accordion title="Số tiền bị bỏ qua">
+Nếu trường `amount` của bạn bị bỏ qua, hãy xác minh rằng:
+- Sản phẩm đã được bật **Pay What You Want** trong bảng điều khiển
+- Sản phẩm là một sản phẩm **Thanh Toán Một Lần**, không phải là sản phẩm đăng ký
+- Số tiền ở định dạng chính xác (đơn vị tiền tệ thấp nhất, ví dụ: xu cho USD)
+</Accordion>
+
+<Accordion title="Số tiền vượt quá tối đa hoặc thấp hơn tối thiểu">
+API sẽ từ chối các phiên thanh toán mà số tiền vi phạm giới hạn giá của sản phẩm của bạn. Luôn xác thực các khoản tiền trước khi tạo các phiên thanh toán, hoặc để khách hàng chọn giá của họ bằng cách bỏ qua trường `amount`.
+</Accordion>
+
+<Accordion title="Khách hàng không thể nhập giá của họ">
+Nếu khách hàng không thấy trường nhập giá, hãy đảm bảo bạn đã bỏ qua trường `amount` từ giỏ sản phẩm. Khi `amount` được cung cấp, thanh toán sẽ sử dụng số tiền chính xác đó.
+</Accordion>
+</AccordionGroup>

@@ -1,0 +1,168 @@
+---
+sidebarTitle: Pendahuluan
+title: Penagihan Berdasarkan Penggunaan
+description: Kenakan biaya kepada pelanggan berdasarkan apa yang mereka gunakan
+  dengan pengukuran fleksibel dan penagihan otomatis.
+icon: box
+---
+
+Penagihan berdasarkan penggunaan memungkinkan Anda mengenakan biaya kepada pelanggan untuk apa yang mereka gunakan—panggilan API, penyimpanan, token AI, atau metrik apa pun yang Anda definisikan. Pelanggan membayar berdasarkan konsumsi, bukan biaya tetap.
+
+<Info>
+**Cocok untuk**: API, layanan AI, platform infrastruktur, dan produk apa pun di mana nilai meningkat seiring penggunaan.
+</Info>
+
+## Cara Kerjanya
+
+<Steps>
+<Step title="Kirim Peristiwa Penggunaan">
+Aplikasi Anda mengirim peristiwa saat tindakan yang dapat dikenakan biaya terjadi.
+
+```javascript
+{
+  "event_id": "evt_123",
+  "customer_id": "cus_abc",
+  "event_name": "api.call",
+  "metadata": { "endpoint": "/v1/users" }
+}
+```
+
+</Step>
+
+<Step title="Pengukur Mengagregasi Penggunaan">
+Pengukur mengagregasi peristiwa menjadi kuantitas yang dapat dikenakan biaya menggunakan agregasi Hitung, Jumlah, Maks, atau Terakhir.
+</Step>
+
+<Step title="Penagihan Otomatis">
+Tetapkan harga per unit dan ambang batas gratis. Pelanggan ditagih secara otomatis setiap siklus.
+</Step>
+</Steps>
+
+## Konsep Inti
+
+### Peristiwa
+
+Peristiwa mewakili tindakan penggunaan dalam aplikasi Anda. Setiap peristiwa mencakup:
+- **Nama Peristiwa**: Jenis penggunaan (misalnya, `api.call`)
+- **ID Pelanggan**: Siapa yang menggunakannya
+- **Metadata**: Properti tambahan untuk agregasi
+
+### Pengukur
+
+Pengukur mengagregasi peristiwa menjadi kuantitas yang dapat dikenakan biaya:
+- **Hitung**: Total peristiwa (panggilan API)
+- **Jumlah**: Tambahkan nilai (total byte)
+- **Maks**: Nilai tertinggi (pengguna puncak)
+- **Terakhir**: Nilai terbaru
+
+<Frame>
+<img src="/images/usage-based/UBB-2.png" alt="Antarmuka pembuatan pengukur" />
+</Frame>
+
+### Produk dengan Penetapan Harga Berdasarkan Penggunaan
+
+Tetapkan harga per unit dan ambang batas gratis opsional:
+
+<Frame>
+<img src="/images/usage-based/UBB-4.png" alt="Konfigurasi harga" />
+</Frame>
+
+**Contoh**: 2.500 panggilan - 1.000 gratis = 1.500 × $0,02 = $30,00
+
+### Kredit Pelanggan
+
+Berikan kredit penggunaan yang termasuk kepada pelanggan yang diperbarui setiap siklus penagihan. Kredit diterapkan sebelum penggunaan berbayar.
+
+## Memulai dengan Cepat
+
+<Steps>
+<Step title="Buat Pengukur">
+Di dasbor Anda: **Pengukur** → **Buat Pengukur**
+
+1. Tetapkan nama peristiwa (misalnya, `api.call`)
+2. Pilih agregasi (Hitung, Jumlah, Maks, Terakhir)
+3. Tambahkan filter opsional
+</Step>
+
+<Step title="Tambahkan ke Produk">
+Tautkan pengukur ke produk dengan harga:
+
+<Frame>
+<img src="/images/usage-based/UBB-5.png" alt="Menambahkan pengukur ke produk" />
+</Frame>
+
+1. Pilih **Penagihan Berdasarkan Penggunaan**
+2. Pilih pengukur Anda
+3. Tetapkan harga per unit dan ambang batas gratis
+</Step>
+
+<Step title="Kirim Peristiwa">
+
+```javascript
+await fetch('https://test.dodopayments.com/events/ingest', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${process.env.DODO_API_KEY}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    events: [{
+      event_id: "unique_event_id",
+      customer_id: "cus_abc123",
+      event_name: "api.call",
+      metadata: { endpoint: "/v1/users" }
+    }]
+  })
+});
+```
+
+</Step>
+
+<Step title="Pantau Penggunaan">
+<Frame>
+<img src="/images/guides/usage-based-billing/meter-quantities-chart.png" alt="Dasbor pengukur" />
+</Frame>
+
+Periksa dasbor pengukur Anda untuk melihat peristiwa dan agregasi penggunaan. Pelanggan ditagih secara otomatis setiap siklus.
+</Step>
+</Steps>
+
+## Kasus Penggunaan
+
+<CardGroup cols={2}>
+<Card title="API & Infrastruktur" icon="cloud">
+Lacak panggilan API, jam komputasi, bandwidth, penyimpanan. Contoh: $0,001 per panggilan setelah 10.000 gratis.
+</Card>
+
+<Card title="Pelacakan Penggunaan AI" icon="brain">
+Lacak token, generasi, waktu pemrosesan. Contoh: \$0,04 per gambar standar, \$0,08 per HD.
+</Card>
+
+<Card title="Data & Analitik" icon="chart-line">
+Tagih berdasarkan data yang diproses, kueri yang dijalankan, catatan yang dianalisis. Contoh: $5 per GB setelah 10 GB gratis.
+</Card>
+
+<Card title="Komunikasi" icon="message">
+Hitung pesan, menit, data yang ditransfer. Contoh: $0,01 per SMS yang dikirim.
+</Card>
+</CardGroup>
+
+## Langkah Selanjutnya
+
+<CardGroup cols={2}>
+<Card title="Penerimaan Peristiwa" icon="bolt" href="/features/usage-based-billing/event-ingestion">
+Pelajari cara menyusun dan mengirim peristiwa penggunaan dari aplikasi Anda.
+</Card>
+
+<Card title="Panduan Pengukur" icon="sliders" href="/features/usage-based-billing/meters">
+Kuasi konfigurasi pengukur, jenis agregasi, dan penyaringan peristiwa.
+</Card>
+
+<Card title="Tutorial Lengkap" icon="code" href="/developer-resources/usage-based-billing-build-ai-image-generator">
+Bangun generator gambar AI lengkap dengan penagihan berdasarkan penggunaan dari awal.
+</Card>
+
+<Card title="Panduan Integrasi" icon="book" href="/developer-resources/usage-based-billing-guide">
+Panduan komprehensif untuk menerapkan penagihan berdasarkan penggunaan dalam aplikasi Anda.
+</Card>
+</CardGroup>

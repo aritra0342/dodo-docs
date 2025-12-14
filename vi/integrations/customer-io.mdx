@@ -1,0 +1,174 @@
+---
+title: Customer.io
+description: Gửi sự kiện Dodo Payments đến Customer.io để kích hoạt tự động hóa
+  email và hành trình khách hàng.
+icon: chart-area
+---
+
+## Giới thiệu
+
+Kích hoạt các chiến dịch email cá nhân hóa và hành trình khách hàng dựa trên các sự kiện thanh toán. Tự động gửi email chào mừng cho khách hàng mới, cập nhật đăng ký và thông báo lỗi thanh toán qua Customer.io.
+
+<Info>
+Tích hợp này yêu cầu ID trang Customer.io và API Key của bạn.
+</Info>
+
+## Bắt đầu
+
+<Steps>
+<Step title="Mở phần Webhook">
+  Trong bảng điều khiển Dodo Payments của bạn, điều hướng đến <b>Webhooks → + Thêm Điểm cuối</b> và mở rộng menu thả xuống tích hợp.
+  <Frame>
+    <img src="/images/integrations/customer-io.png" alt="Thêm Điểm cuối và menu thả xuống tích hợp" />
+  </Frame>
+</Step>
+
+<Step title="Chọn Customer.io">
+  Chọn thẻ tích hợp <b>Customer.io</b>.
+</Step>
+
+<Step title="Nhập Thông tin xác thực">
+  Cung cấp ID trang Customer.io và API Key của bạn trong cấu hình.
+</Step>
+
+<Step title="Cấu hình Biến đổi">
+  Chỉnh sửa mã biến đổi để định dạng các sự kiện cho API Track của Customer.io.
+</Step>
+
+<Step title="Kiểm tra & Tạo">
+  Kiểm tra với các payload mẫu và nhấp vào <b>Tạo</b> để kích hoạt đồng bộ hóa.
+</Step>
+
+<Step title="Xong!">
+  🎉 Các sự kiện thanh toán sẽ kích hoạt tự động hóa email của Customer.io.
+</Step>
+</Steps>
+
+## Ví dụ Mã Biến đổi
+
+### Theo dõi Sự kiện Thanh toán
+
+```javascript track_payments.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.url = "https://track.customer.io/api/v2/entity";
+    webhook.payload = {
+      type: "person",
+      identifiers: {
+        id: p.customer.customer_id
+      },
+      action: "payment_completed",
+      name: "Payment Completed",
+      attributes: {
+        email: p.customer.email,
+        name: p.customer.name,
+        payment_amount: (p.total_amount / 100).toFixed(2),
+        payment_method: p.payment_method || "unknown",
+        payment_id: p.payment_id,
+        currency: p.currency || "USD"
+      }
+    };
+  }
+  return webhook;
+}
+```
+
+### Theo dõi Vòng đời Đăng ký
+
+```javascript track_subscriptions.js icon="js" expandable
+function handler(webhook) {
+  const s = webhook.payload.data;
+  switch (webhook.eventType) {
+    case "subscription.active":
+      webhook.url = "https://track.customer.io/api/v2/entity";
+      webhook.payload = {
+        type: "person",
+        identifiers: {
+          id: s.customer.customer_id
+        },
+        action: "subscription_started",
+        name: "Subscription Started",
+        attributes: {
+          email: s.customer.email,
+          subscription_id: s.subscription_id,
+          product_id: s.product_id,
+          amount: (s.recurring_pre_tax_amount / 100).toFixed(2),
+          frequency: s.payment_frequency_interval,
+          next_billing: s.next_billing_date
+        }
+      };
+      break;
+    case "subscription.cancelled":
+      webhook.url = "https://track.customer.io/api/v2/entity";
+      webhook.payload = {
+        type: "person",
+        identifiers: {
+          id: s.customer.customer_id
+        },
+        action: "subscription_cancelled",
+        name: "Subscription Cancelled",
+        attributes: {
+          email: s.customer.email,
+          subscription_id: s.subscription_id,
+          cancelled_at: s.cancelled_at,
+          cancel_at_next_billing: s.cancel_at_next_billing_date
+        }
+      };
+      break;
+  }
+  return webhook;
+}
+```
+
+### Theo dõi Thuộc tính Khách hàng
+
+```javascript track_attributes.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.url = "https://track.customer.io/api/v2/entity";
+    webhook.payload = {
+      type: "person",
+      identifiers: {
+        id: p.customer.customer_id
+      },
+      action: "identify",
+      name: "Customer Identified",
+      attributes: {
+        email: p.customer.email,
+        name: p.customer.name,
+        total_spent: (p.total_amount / 100).toFixed(2),
+        payment_method: p.payment_method || "unknown",
+        last_payment_date: webhook.payload.timestamp,
+        customer_since: webhook.payload.timestamp
+      }
+    };
+  }
+  return webhook;
+}
+```
+
+## Mẹo
+
+- Sử dụng tên sự kiện nhất quán phù hợp với các chiến dịch Customer.io của bạn
+- Bao gồm các thuộc tính liên quan để cá nhân hóa
+- Đặt các định danh khách hàng chính xác để theo dõi chính xác
+- Sử dụng tên sự kiện có ý nghĩa cho các kích hoạt chiến dịch
+
+## Khắc phục sự cố
+
+<AccordionGroup>
+<Accordion title="Sự kiện không kích hoạt chiến dịch">
+- Xác minh ID trang và API Key là chính xác
+- Kiểm tra rằng tên sự kiện phù hợp với các chiến dịch Customer.io của bạn
+- Đảm bảo các định danh khách hàng được thiết lập đúng cách
+- Xem xét giới hạn tần suất API của Customer.io
+</Accordion>
+
+<Accordion title="Lỗi Biến đổi">
+- Xác thực cấu trúc JSON phù hợp với định dạng API của Customer.io
+- Kiểm tra rằng tất cả các trường bắt buộc đều có mặt
+- Đảm bảo tên sự kiện và thuộc tính được định dạng đúng cách
+</Accordion>
+</AccordionGroup>

@@ -1,0 +1,164 @@
+---
+title: 객체 저장소 청사진
+description: S3, Google Cloud Storage, Azure Blob 및 기타 객체 저장소 서비스에 대한 파일 업로드 및
+  저장 사용량을 추적합니다.
+icon: box-archive
+---
+
+## 사용 사례
+
+객체 저장소 청사진에서 지원하는 일반적인 시나리오를 탐색합니다:
+
+<CardGroup cols={2}>
+<Card title="파일 호스팅" icon="folder">
+총 저장 사용량 및 업로드 볼륨에 따라 고객에게 요금을 청구합니다.
+</Card>
+<Card title="백업 서비스" icon="shield">
+백업 데이터 업로드를 추적하고 저장된 GB당 요금을 청구합니다.
+</Card>
+<Card title="미디어 CDN" icon="photo-film">
+미디어 업로드를 모니터링하고 저장 및 대역폭에 대해 요금을 청구합니다.
+</Card>
+<Card title="문서 관리" icon="file">
+사용 기반 가격 책정을 위해 고객별로 문서 업로드를 추적합니다.
+</Card>
+</CardGroup>
+
+<Info>
+저장 업로드, 파일 호스팅, CDN 사용 또는 백업 서비스에 따라 요금을 청구하는 데 적합합니다.
+</Info>
+
+## 빠른 시작
+
+소비된 바이트로 객체 저장소 업로드를 추적합니다:
+
+<Steps>
+<Step title="SDK 설치">
+
+```bash
+npm install @dodopayments/ingestion-blueprints
+```
+
+</Step>
+
+<Step title="API 키 받기">
+- **Dodo Payments API 키**: [Dodo Payments 대시보드](https://app.dodopayments.com/developer/api-keys)에서 받습니다.
+- **저장 제공업체 API 키**: AWS S3, Google Cloud Storage, Azure 등에서 받습니다.
+</Step>
+
+<Step title="미터 생성">
+[Dodo Payments 대시보드](https://app.dodopayments.com/)에서 미터를 생성합니다:
+- **이벤트 이름**: `object_storage_upload` (또는 선호하는 이름)
+- **집계 유형**: `sum` 총 업로드된 바이트를 추적합니다.
+- **속성 초과**: `bytes` 저장 크기에 따라 요금을 청구합니다.
+</Step>
+
+<Step title="저장 사용량 추적">
+<CodeGroup>
+
+```javascript AWS S3 Upload
+import { Ingestion, trackObjectStorage } from '@dodopayments/ingestion-blueprints';
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import fs from 'fs';
+
+const ingestion = new Ingestion({
+  apiKey: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'test_mode',
+  eventName: 'object_storage_upload'
+});
+
+const s3 = new S3Client({ region: 'us-east-1' });
+
+// Read the file (example: from disk or request)
+const fileBuffer = fs.readFileSync('./document.pdf');
+
+// Upload to S3
+const command = new PutObjectCommand({
+  Bucket: 'my-bucket',
+  Key: 'uploads/document.pdf',
+  Body: fileBuffer
+});
+
+await s3.send(command);
+
+// Track the upload
+await trackObjectStorage(ingestion, {
+  customerId: 'customer_123',
+  bytes: fileBuffer.length
+});
+```
+
+```javascript Google Cloud Storage
+import { Ingestion, trackObjectStorage } from '@dodopayments/ingestion-blueprints';
+import { Storage } from '@google-cloud/storage';
+import fs from 'fs';
+
+const ingestion = new Ingestion({
+  apiKey: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'test_mode',
+  eventName: 'object_storage_upload'
+});
+
+const storage = new Storage();
+const bucket = storage.bucket('my-bucket');
+
+// Read the file
+const fileBuffer = fs.readFileSync('./image.png');
+
+// Upload to GCS
+await bucket.file('uploads/image.png').save(fileBuffer);
+
+// Track the upload
+await trackObjectStorage(ingestion, {
+  customerId: 'customer_456',
+  bytes: fileBuffer.length,
+  metadata: {
+    bucket: 'my-bucket',
+    key: 'uploads/image.png'
+  }
+});
+```
+
+</CodeGroup>
+</Step>
+</Steps>
+
+## 구성
+
+### 수집 구성
+
+<ParamField path="apiKey" type="string" required>
+대시보드에서 가져온 Dodo Payments API 키입니다.
+</ParamField>
+
+<ParamField path="environment" type="string" required>
+환경 모드: `test_mode` 또는 `live_mode`.
+</ParamField>
+
+<ParamField path="eventName" type="string" required>
+미터 구성과 일치하는 이벤트 이름입니다.
+</ParamField>
+
+### 객체 저장소 추적 옵션
+
+<ParamField path="customerId" type="string" required>
+청구 귀속을 위한 고객 ID입니다.
+</ParamField>
+
+<ParamField path="bytes" type="number">
+업로드된 바이트 수입니다. 바이트 기반 청구에 필요합니다.
+</ParamField>
+
+<ParamField path="metadata" type="object">
+버킷 이름, 콘텐츠 유형 등 업로드에 대한 선택적 메타데이터입니다.
+</ParamField>
+
+## 모범 사례
+
+<Tip>
+**업로드 전 또는 후 추적**: 오류 처리 전략에 따라 실제 업로드 전후에 이벤트를 추적할 수 있습니다.
+</Tip>
+
+<Warning>
+**업로드 실패 처리**: 실패한 작업에 대해 요금을 청구하지 않도록 성공적인 업로드만 추적합니다.
+</Warning>

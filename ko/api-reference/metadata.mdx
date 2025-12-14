@@ -1,0 +1,190 @@
+---
+title: 메타데이터 가이드
+description: Dodo Payments 객체에 대한 추가 정보를 저장하기 위해 메타데이터를 사용하는 방법을 알아보세요.
+icon: tags
+---
+
+## 소개
+
+메타데이터를 사용하면 Dodo Payments의 객체에 대한 추가적인 구조화된 정보를 저장할 수 있습니다. 결제, 구독 등 대부분의 Dodo Payments 객체에 메타데이터를 첨부할 수 있습니다.
+
+## 개요
+
+- 메타데이터 키는 최대 40자까지 가능합니다.
+- 메타데이터 값은 최대 500자까지 가능합니다.
+- 객체당 최대 50개의 메타데이터 키-값 쌍을 가질 수 있습니다.
+- 키는 영숫자, 대시 및 밑줄만 포함해야 합니다.
+- 메타데이터는 API를 통해 검색할 수 없지만 API 응답 및 웹훅에서 반환됩니다.
+
+## 사용 사례
+
+메타데이터는 다음과 같은 용도로 유용합니다:
+
+- 외부 ID 또는 참조 저장
+- 내부 주석 추가
+- Dodo Payments 객체를 시스템에 연결
+- 거래 분류
+- 보고를 위한 사용자 정의 속성 추가
+
+## 메타데이터 추가
+
+API를 통해 객체를 생성하거나 업데이트할 때 메타데이터를 추가할 수 있습니다. 제품의 경우 대시보드 UI에서 직접 메타데이터를 추가할 수도 있습니다.
+
+### API를 통한 추가
+
+```javascript
+// Adding metadata when creating a checkout session
+const checkoutSession = await client.checkoutSessions.create({
+    product_cart: [{ product_id: 'product_id', quantity: 1 }],
+    return_url: 'https://example.com/return',
+    metadata: {
+        order_id: 'ORD-123',
+        campaign_source: 'email',
+        customer_segment: 'premium'
+    }
+});
+
+// Adding metadata when creating a payment
+const payment = await client.payments.create({
+    billing: { city: 'city', country: 'AF', state: 'state', street: 'street', zipcode: 0 },
+    customer: { customer_id: 'customer_id' },
+    product_cart: [{ product_id: 'product_id', quantity: 0 }],
+    metadata:{order_id: 'ORD-123', customer_notes: 'Customer notes'}
+  });
+
+// Adding metadata when creating a product
+const product = await client.products.create({
+    name: 'Premium Software License',
+    price: 9900,
+    currency: 'USD',
+    metadata: {
+        category: 'software',
+        license_type: 'premium',
+        support_tier: 'priority'
+    }
+});
+
+// Adding metadata when creating a customer
+const customer = await client.customers.create({
+    email: 'customer@example.com',
+    name: 'John Doe',
+    metadata: {
+        crm_id: 'CRM-12345',
+        customer_segment: 'enterprise',
+        referral_source: 'website'
+    }
+});
+```
+
+### 대시보드 UI를 통한 추가 (제품 전용)
+
+제품의 경우 Dodo Payments 대시보드에서 제품을 생성하거나 편집할 때 메타데이터를 직접 추가할 수 있습니다. 메타데이터 섹션을 통해 코드를 작성하지 않고도 사용자 정의 키-값 쌍을 쉽게 추가할 수 있습니다.
+
+<Frame>
+<img src="/images/product-catalog/product-metadata-ui.png" alt="Dodo Payments 대시보드의 제품 메타데이터 인터페이스" />
+</Frame>
+
+<Tip>
+제품 메타데이터에 대시보드 UI를 사용하는 것은 제품 정보 및 카테고리를 관리해야 하는 비기술 팀원에게 특히 유용합니다.
+</Tip>
+
+## 메타데이터 검색
+
+메타데이터는 객체를 검색할 때 API 응답에 포함됩니다:
+
+```javascript
+// Retrieving checkout session metadata
+const checkoutSession = await client.checkoutSessions.retrieve('cs_123');
+console.log(checkoutSession.metadata.order_id); // 'ORD-123'
+
+// Retrieving payment metadata
+const payment = await client.payments.retrieve('pay_123');
+console.log(payment.metadata.order_id); // '6735'
+
+// Retrieving customer metadata
+const customer = await client.customers.retrieve('customer_123');
+console.log(customer.metadata.crm_id); // 'CRM-12345'
+
+// Retrieving refund metadata
+const refund = await client.refunds.retrieve('refund_123');
+console.log(refund.metadata.refund_reason); // 'customer_request'
+```
+
+## 검색 및 필터링
+
+메타데이터는 API를 통해 직접 검색할 수 없지만 다음과 같은 방법을 사용할 수 있습니다:
+
+1. 메타데이터에 중요한 식별자를 저장
+2. 기본 ID를 사용하여 객체 검색
+3. 애플리케이션 코드에서 결과 필터링
+
+```javascript
+// Example: Find a checkout session using metadata
+const checkoutSessions = await client.checkoutSessions.list({
+  limit: 100
+});
+
+const matchingSession = checkoutSessions.data.find(
+  session => session.metadata?.order_id === 'ORD-123'
+);
+
+// Example: Find a payment using your order ID
+const payments = await client.payments.list({
+  limit: 100
+});
+
+const matchingPayment = payments.data.find(
+  payment => payment.metadata.order_id === '6735'
+);
+```
+
+## 모범 사례
+
+### 해야 할 일:
+- 메타데이터 키에 대해 일관된 명명 규칙 사용
+- 내부적으로 메타데이터 스키마 문서화
+- 값을 짧고 의미 있게 유지
+- 정적 데이터에만 메타데이터 사용
+- 서로 다른 시스템에 대해 접두사 사용 고려 (예: `crm_id`, `inventory_sku`)
+
+### 하지 말아야 할 일:
+- 메타데이터에 민감한 데이터 저장
+- 자주 변경되는 값에 메타데이터 사용
+- 중요한 비즈니스 로직에 메타데이터 의존
+- 객체의 다른 곳에서 사용할 수 있는 중복 정보 저장
+- 메타데이터 키에 특수 문자 사용
+
+## 지원되는 객체
+
+메타데이터는 다음 객체에서 지원됩니다:
+
+| 객체 유형 | 지원 |
+|------------|---------|
+| 결제 | ✓ |
+| 구독 | ✓ |
+| 제품 | ✓ |
+| 환불 | ✓ |
+| 체크아웃 세션 | ✓ |
+| 고객 | ✓ |
+
+## 웹훅 및 메타데이터
+
+메타데이터는 웹훅 이벤트에 포함되어 사용자 정의 데이터로 알림을 쉽게 처리할 수 있습니다:
+
+```javascript
+// Example webhook handler
+app.post('/webhook', (req, res) => {
+  const event = req.body;
+
+  if (event.type === 'payment.succeeded') {
+    const orderId = event.data.object.metadata.order_id;
+    // Process order using your internal order ID
+  }
+  
+  if (event.type === 'checkout.session.completed') {
+    const orderId = event.data.object.metadata.order_id;
+    const campaignSource = event.data.object.metadata.campaign_source;
+    // Handle checkout session completion with custom metadata
+  }
+});
+```

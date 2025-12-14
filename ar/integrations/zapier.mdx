@@ -1,0 +1,179 @@
+---
+title: Zapier
+description: قم بربط مدفوعات Dodo مع أكثر من 5000 تطبيق من خلال واجهات برمجة
+  التطبيقات الخاصة بـ Zapier لفرص أتمتة غير محدودة.
+icon: bolt
+---
+
+## المقدمة
+
+قم بربط مدفوعات Dodo مع الآلاف من التطبيقات والخدمات من خلال Zapier. قم بأتمتة سير العمل عن طريق تشغيل Zaps عند حدوث أحداث الدفع، من إرسال رسائل البريد الإلكتروني إلى تحديث جداول البيانات، وإنشاء المهام، والمزيد.
+
+<Info>
+تتطلب هذه التكامل عنوان URL لواجهة برمجة التطبيقات من إعداد Zap الخاص بك.
+</Info>
+
+## البدء
+
+<Steps>
+<Step title="افتح قسم واجهة برمجة التطبيقات">
+  في لوحة معلومات مدفوعات Dodo، انتقل إلى <b>Webhooks → + إضافة نقطة نهاية</b> وقم بتوسيع قائمة التكاملات.
+  <Frame>
+    <img src="/images/integrations/zapier.png" alt="إضافة نقطة نهاية وقائمة التكاملات" />
+  </Frame>
+</Step>
+
+<Step title="اختر Zapier">
+  اختر بطاقة تكامل <b>Zapier</b>.
+</Step>
+
+<Step title="إنشاء Zap في Zapier">
+  في Zapier، قم بإنشاء Zap جديد مع "Webhooks by Zapier" كالمشغل. انسخ عنوان URL لواجهة برمجة التطبيقات.
+</Step>
+
+<Step title="ألصق عنوان URL لواجهة برمجة التطبيقات">
+  ألصق عنوان URL لواجهة برمجة التطبيقات الخاصة بـ Zapier في إعداد نقطة النهاية.
+</Step>
+
+<Step title="تكوين التحويل">
+  قم بتحرير كود التحويل لتنسيق البيانات لسير عمل Zapier الخاص بك.
+</Step>
+
+<Step title="اختبر وأنشئ">
+  اختبر باستخدام بيانات عينة وانقر على <b>إنشاء</b> لتفعيل التكامل.
+</Step>
+
+<Step title="تم!">
+  🎉 ستقوم أحداث الدفع الآن بتشغيل سير عمل Zapier الخاص بك تلقائيًا.
+</Step>
+</Steps>
+
+## أمثلة على كود التحويل
+
+### حمولة واجهة برمجة التطبيقات الأساسية
+
+```javascript basic_webhook.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.payload = {
+      event_type: webhook.eventType,
+      payment_id: p.payment_id,
+      amount: (p.total_amount / 100).toFixed(2),
+      currency: p.currency || "USD",
+      customer_email: p.customer.email,
+      customer_name: p.customer.name,
+      payment_method: p.payment_method || "unknown",
+      timestamp: webhook.payload.timestamp
+    };
+  }
+  return webhook;
+}
+```
+
+### معالج أحداث الاشتراك
+
+```javascript subscription_webhook.js icon="js" expandable
+function handler(webhook) {
+  const s = webhook.payload.data;
+  switch (webhook.eventType) {
+    case "subscription.active":
+      webhook.payload = {
+        event_type: "subscription_started",
+        subscription_id: s.subscription_id,
+        customer_email: s.customer.email,
+        customer_name: s.customer.name,
+        product_id: s.product_id,
+        amount: (s.recurring_pre_tax_amount / 100).toFixed(2),
+        frequency: s.payment_frequency_interval,
+        next_billing: s.next_billing_date,
+        timestamp: webhook.payload.timestamp
+      };
+      break;
+    case "subscription.cancelled":
+      webhook.payload = {
+        event_type: "subscription_cancelled",
+        subscription_id: s.subscription_id,
+        customer_email: s.customer.email,
+        cancelled_at: s.cancelled_at,
+        cancel_at_next_billing: s.cancel_at_next_billing_date,
+        timestamp: webhook.payload.timestamp
+      };
+      break;
+  }
+  return webhook;
+}
+```
+
+### معالج تنبيه النزاع
+
+```javascript dispute_webhook.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType.startsWith("dispute.")) {
+    const d = webhook.payload.data;
+    webhook.payload = {
+      event_type: webhook.eventType,
+      dispute_id: d.dispute_id,
+      payment_id: d.payment_id,
+      amount: (d.amount / 100).toFixed(2),
+      status: d.dispute_status,
+      stage: d.dispute_stage,
+      remarks: d.remarks || "",
+      urgent: webhook.eventType === "dispute.opened",
+      timestamp: webhook.payload.timestamp
+    };
+  }
+  return webhook;
+}
+```
+
+## حالات استخدام Zapier الشائعة
+
+<AccordionGroup>
+<Accordion title="إشعارات البريد الإلكتروني">
+- إرسال رسائل بريد إلكتروني عبر Gmail/Outlook لتأكيدات الدفع
+- إنشاء تسلسلات بريد إلكتروني في Mailchimp/ConvertKit
+- إرسال إشعارات عبر Slack/Discord
+- إنشاء سجلات في Google Sheets
+</Accordion>
+
+<Accordion title="تحديثات CRM">
+- إضافة جهات الاتصال إلى HubSpot/Salesforce
+- إنشاء صفقات في Pipedrive/Close
+- تحديث سجلات العملاء في Airtable
+- تسجيل الأنشطة في Monday.com
+</Accordion>
+
+<Accordion title="إدارة المهام">
+- إنشاء مهام في Asana/Trello
+- إضافة عناصر قائمة المهام في Notion
+- إنشاء أحداث تقويمية
+- إرسال إشعارات SMS عبر Twilio
+</Accordion>
+</AccordionGroup>
+
+## نصائح
+
+- احتفظ بهيكل الحمولة بسيطًا لسهولة تحليل Zapier
+- استخدم أسماء حقول متسقة عبر جميع الأحداث
+- تضمين الطوابع الزمنية لتوقيت سير العمل
+- اختبر Zap الخاص بك باستخدام بيانات عينة قبل الذهاب للعرض
+- استخدم الفلاتر المدمجة في Zapier للمنطق الشرطي
+
+## استكشاف الأخطاء وإصلاحها
+
+<AccordionGroup>
+<Accordion title="Zap لا يعمل">
+- تحقق من أن عنوان URL لواجهة برمجة التطبيقات صحيح ونشط
+- تحقق من أن Zap مفعل في Zapier
+- تأكد من أن هيكل الحمولة يتطابق مع توقعات Zapier
+- اختبر تسليم واجهة برمجة التطبيقات في لوحة معلومات Zapier
+</Accordion>
+
+<Accordion title="البيانات لا تتطابق بشكل صحيح">
+- تحقق من أسماء الحقول في خطوات إجراء Zapier
+- تحقق من أن أنواع البيانات تتطابق مع التنسيقات المتوقعة
+- استخدم ميزة الاختبار في Zapier لاستكشاف الأخطاء في المطابقة
+- تأكد من أن كود التحويل يعيد JSON صالح
+</Accordion>
+</AccordionGroup>

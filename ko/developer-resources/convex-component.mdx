@@ -1,0 +1,735 @@
+---
+title: Convex Component
+description: Dodo Payments를 Convex 백엔드와 통합하는 방법을 배우세요. 체크아웃 기능, 고객 포털, 웹훅 및 보안 환경 설정을 다룹니다.
+icon: code-merge
+---
+
+<CardGroup cols={2}>
+<Card title="체크아웃 기능" icon="cart-shopping" href="#checkout-function">
+    Dodo Payments 체크아웃을 세션 기반 흐름으로 통합합니다.
+</Card>
+<Card title="고객 포털" icon="user" href="#customer-portal-function">
+    고객이 구독 및 세부 정보를 관리할 수 있도록 합니다.
+</Card>
+<Card title="웹훅" icon="bell" href="#webhook-handler">
+    Dodo Payments 웹훅 이벤트를 수신하고 처리합니다.
+</Card>
+</CardGroup>
+
+## 설치
+
+<Steps>
+<Step title="패키지 설치">
+프로젝트 루트에서 다음 명령을 실행하세요:
+
+```bash
+npm install @dodopayments/convex
+```
+
+</Step>
+<Step title="Convex 구성에 컴포넌트 추가">
+Dodo Payments 컴포넌트를 Convex 구성에 추가하세요:
+
+```typescript
+// convex/convex.config.ts
+import { defineApp } from "convex/server";
+import dodopayments from "@dodopayments/convex/convex.config";
+
+const app = defineApp();
+app.use(dodopayments);
+export default app;
+```
+
+`convex.config.ts`를 편집한 후, `npx convex dev`를 한 번 실행하여 필요한 타입을 생성합니다.
+</Step>
+<Step title="환경 변수 설정">
+Convex 대시보드에서 환경 변수를 설정하세요 (**설정** → **환경 변수**). 대시보드에 접근하려면 다음을 실행하세요:
+
+```bash
+npx convex dashboard
+```
+
+다음 환경 변수를 추가하세요:
+- `DODO_PAYMENTS_API_KEY` - Dodo Payments API 키
+- `DODO_PAYMENTS_ENVIRONMENT` - `test_mode` 또는 `live_mode`로 설정
+- `DODO_PAYMENTS_WEBHOOK_SECRET` - 웹훅 비밀 (웹훅 처리를 위해 필요)
+
+<Warning>
+항상 민감한 정보에 대해 Convex 환경 변수를 사용하세요. 비밀 정보를 버전 관리에 커밋하지 마세요.
+</Warning>
+</Step>
+</Steps>
+
+## 컴포넌트 설정 예제
+
+<Steps>
+<Step title="내부 쿼리 생성">
+먼저, 데이터베이스에서 고객을 가져오는 내부 쿼리를 생성하세요. 이 쿼리는 결제 기능에서 고객을 식별하는 데 사용됩니다.
+
+<Warning>
+이 쿼리를 사용하기 전에 `convex/schema.ts` 파일에 적절한 스키마를 정의하거나 쿼리를 기존 스키마에 맞게 변경하세요.
+</Warning>
+
+```typescript
+// convex/customers.ts
+import { internalQuery } from "./_generated/server";
+import { v } from "convex/values";
+
+// Internal query to fetch customer by auth ID
+export const getByAuthId = internalQuery({
+  args: { authId: v.string() },
+  handler: async (ctx, { authId }) => {
+    return await ctx.db
+      .query("customers")
+      .withIndex("by_auth_id", (q) => q.eq("authId", authId))
+      .first();
+  },
+});
+```
+
+</Step>
+
+<Step title="DodoPayments 컴포넌트 구성">
+ <CodeGroup>
+
+  ```typescript Convex Component Setup expandable
+ // convex/dodo.ts
+import { DodoPayments, DodoPaymentsClientConfig } from "@dodopayments/convex";
+import { components } from "./_generated/api";
+import { internal } from "./_generated/api";
+
+export const dodo = new DodoPayments(components.dodopayments, {
+  // This function maps your Convex user to a Dodo Payments customer
+  // Customize it based on your authentication provider and database
+  identify: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      return null; // User is not logged in
+    }
+    
+    // Use ctx.runQuery() to lookup customer from your database
+    const customer = await ctx.runQuery(internal.customers.getByAuthId, {
+      authId: identity.subject,
+    });
+    
+    if (!customer) {
+      return null; // Customer not found in database
+    }
+    
+    return {
+      dodoCustomerId: customer.dodoCustomerId, // Replace customer.dodoCustomerId with your field storing Dodo Payments customer ID
+    };
+  },
+  apiKey: process.env.DODO_PAYMENTS_API_KEY!,
+  environment: process.env.DODO_PAYMENTS_ENVIRONMENT as "test_mode" | "live_mode",
+} as DodoPaymentsClientConfig);
+
+// Export the API methods for use in your app
+export const { checkout, customerPortal } = dodo.api();
+  ```
+
+  </CodeGroup>
+</Step>
+</Steps>
+
+<Tabs>
+<Tab title="체크아웃 기능 설정">
+  <Info>
+  이 기능을 사용하여 Dodo Payments 체크아웃을 Convex 앱에 통합하세요. 전체 기능 지원이 포함된 세션 기반 체크아웃을 사용합니다.
+  </Info>
+  <CodeGroup>
+
+  ```typescript Checkout Action expandable
+  // convex/payments.ts
+  import { action } from "./_generated/server";
+  import { v } from "convex/values";
+  import { checkout } from "./dodo";
+
+  export const createCheckout = action({
+    args: { 
+      product_cart: v.array(v.object({
+        product_id: v.string(),
+        quantity: v.number(),
+      })),
+      returnUrl: v.optional(v.string()),
+    },
+    handler: async (ctx, args) => {
+      try {
+        const session = await checkout(ctx, {
+          payload: {
+            product_cart: args.product_cart,
+            return_url: args.returnUrl,
+            billing_currency: "USD",
+            feature_flags: {
+              allow_discount_code: true,
+            },
+          },
+        });
+        if (!session?.checkout_url) {
+          throw new Error("Checkout session did not return a checkout_url");
+        }
+        return session;
+      } catch (error) {
+        console.error("Failed to create checkout session", error);
+        throw new Error("Unable to create checkout session. Please try again.");
+      }
+    },
+  });
+  ```
+
+  </CodeGroup>
+</Tab>
+<Tab title="고객 포털 설정">
+  <Info>
+  이 기능을 사용하여 고객이 Dodo Payments 고객 포털을 통해 구독 및 세부 정보를 관리할 수 있도록 합니다. 고객은 `identify` 기능을 통해 자동으로 식별됩니다.
+  </Info>
+  <CodeGroup>
+
+  ```typescript Customer Portal Action expandable
+  // convex/payments.ts (add to existing file)
+  import { action } from "./_generated/server";
+  import { v } from "convex/values";
+  import { customerPortal } from "./dodo";
+
+  export const getCustomerPortal = action({
+    args: {
+      send_email: v.optional(v.boolean()),
+    },
+      handler: async (ctx, args) => {
+        try {
+          const portal = await customerPortal(ctx, args);
+          if (!portal?.portal_url) {
+            throw new Error("Customer portal did not return a portal_url");
+          }
+          return portal;
+        } catch (error) {
+          console.error("Failed to generate customer portal link", error);
+          throw new Error("Unable to generate customer portal link. Please try again.");
+        }
+      },
+  });
+  ```
+
+  </CodeGroup>
+</Tab>
+<Tab title="웹훅 핸들러 설정">
+  <Info>
+  이 핸들러를 사용하여 Convex 앱에서 Dodo Payments 웹훅 이벤트를 안전하게 수신하고 처리합니다. 모든 웹훅 핸들러는 Convex `ActionCtx`를 첫 번째 매개변수로 수신하여 `ctx.runQuery()` 및 `ctx.runMutation()`를 사용하여 데이터베이스와 상호작용할 수 있습니다.
+  </Info>
+  <CodeGroup>
+
+  ```typescript Convex HTTP Action expandable
+  // convex/http.ts
+  import { createDodoWebhookHandler } from "@dodopayments/convex";
+  import { httpRouter } from "convex/server";
+  import { internal } from "./_generated/api";
+
+  const http = httpRouter();
+
+  http.route({
+    path: "/dodopayments-webhook",
+    method: "POST",
+    handler: createDodoWebhookHandler({
+      // Handle successful payments
+      onPaymentSucceeded: async (ctx, payload) => {
+        console.log("🎉 Payment Succeeded!");
+
+        // Use Convex context to persist payment data
+        await ctx.runMutation(internal.webhooks.createPayment, {
+          paymentId: payload.data.payment_id,
+          businessId: payload.business_id,
+          customerEmail: payload.data.customer.email,
+          amount: payload.data.total_amount,
+          currency: payload.data.currency,
+          status: payload.data.status,
+          webhookPayload: JSON.stringify(payload),
+        });
+      },
+
+      // Handle subscription activation
+      onSubscriptionActive: async (ctx, payload) => {
+        console.log("🎉 Subscription Activated!");
+        // Use Convex context to persist subscription data
+        await ctx.runMutation(internal.webhooks.createSubscription, {
+          subscriptionId: payload.data.subscription_id,
+          businessId: payload.business_id,
+          customerEmail: payload.data.customer.email,
+          status: payload.data.status,
+          webhookPayload: JSON.stringify(payload),
+        });
+      },
+      // Add other event handlers as needed
+    }),
+  });
+
+  export default http;
+  ```
+
+  </CodeGroup>
+  
+  <Warning>
+  처리하려는 각 웹훅 이벤트에 대해 Convex 백엔드에서 해당 데이터베이스 변형을 정의해야 합니다. 예를 들어, 성공적인 결제를 기록하기 위해 <code>createPayment</code> 변형을 생성하거나 구독 상태를 관리하기 위해 <code>createSubscription</code> 변형을 생성하세요.
+  </Warning>
+</Tab>
+</Tabs>
+
+## 체크아웃 기능
+
+<Info>
+Dodo Payments Convex 컴포넌트는 세션 기반 체크아웃을 사용하여 안전하고 사용자 정의 가능한 체크아웃 경험을 제공합니다. 미리 구성된 제품 장바구니와 고객 세부 정보가 포함되어 있습니다. 이는 모든 결제 흐름에 권장되는 접근 방식입니다.
+</Info>
+
+### 사용법
+
+```typescript
+const result = await checkout(ctx, {
+  payload: {
+    product_cart: [{ product_id: "prod_123", quantity: 1 }],
+    customer: { email: "user@example.com" },
+    return_url: "https://example.com/success"
+  }
+});
+```
+
+자세한 내용과 지원되는 필드의 전체 목록은 [체크아웃 세션](/developer-resources/checkout-session)을 참조하세요.
+
+### 응답 형식
+체크아웃 기능은 체크아웃 URL이 포함된 JSON 응답을 반환합니다:
+
+```json
+{
+  "checkout_url": "https://checkout.dodopayments.com/session/..."
+}
+```
+
+## 고객 포털 기능
+
+고객 포털 기능을 사용하면 Dodo Payments 고객 포털을 Convex 애플리케이션에 원활하게 통합할 수 있습니다.
+
+### 사용법
+
+```typescript
+const result = await customerPortal(ctx, {
+  send_email: false
+});
+```
+
+### 매개변수
+<ParamField query="send_email" type="boolean">
+<code>true</code>로 설정하면 고객에게 포털 링크가 포함된 이메일이 전송됩니다.
+</ParamField>
+
+<Info>
+고객은 DodoPayments 설정에서 구성된 `identify` 기능을 사용하여 자동으로 식별됩니다. 이 기능은 고객의 `dodoCustomerId`를 반환해야 합니다.
+</Info>
+
+## 웹훅 핸들러
+
+- **메서드:** POST 요청만 지원됩니다. 다른 메서드는 405를 반환합니다.
+- **서명 검증:** <code>DODO_PAYMENTS_WEBHOOK_SECRET</code>를 사용하여 웹훅 서명을 검증합니다. 검증 실패 시 401을 반환합니다.
+- **페이로드 검증:** Zod로 검증됩니다. 유효하지 않은 페이로드에 대해 400을 반환합니다.
+- **오류 처리:**
+  - 401: 유효하지 않은 서명
+  - 400: 유효하지 않은 페이로드
+  - 500: 검증 중 내부 오류
+- **이벤트 라우팅:** 페이로드 유형에 따라 적절한 이벤트 핸들러를 호출합니다.
+
+### 지원되는 웹훅 이벤트 핸들러
+<CodeGroup>
+
+```typescript Typescript expandable
+onPayload?: (ctx: GenericActionCtx, payload: WebhookPayload) => Promise<void>;
+onPaymentSucceeded?: (ctx: GenericActionCtx, payload: WebhookPayload) => Promise<void>;
+onPaymentFailed?: (ctx: GenericActionCtx, payload: WebhookPayload) => Promise<void>;
+onPaymentProcessing?: (ctx: GenericActionCtx, payload: WebhookPayload) => Promise<void>;
+onPaymentCancelled?: (ctx: GenericActionCtx, payload: WebhookPayload) => Promise<void>;
+onRefundSucceeded?: (ctx: GenericActionCtx, payload: WebhookPayload) => Promise<void>;
+onRefundFailed?: (ctx: GenericActionCtx, payload: WebhookPayload) => Promise<void>;
+onDisputeOpened?: (ctx: GenericActionCtx, payload: WebhookPayload) => Promise<void>;
+onDisputeExpired?: (ctx: GenericActionCtx, payload: WebhookPayload) => Promise<void>;
+onDisputeAccepted?: (ctx: GenericActionCtx, payload: WebhookPayload) => Promise<void>;
+onDisputeCancelled?: (ctx: GenericActionCtx, payload: WebhookPayload) => Promise<void>;
+onDisputeChallenged?: (ctx: GenericActionCtx, payload: WebhookPayload) => Promise<void>;
+onDisputeWon?: (ctx: GenericActionCtx, payload: WebhookPayload) => Promise<void>;
+onDisputeLost?: (ctx: GenericActionCtx, payload: WebhookPayload) => Promise<void>;
+onSubscriptionActive?: (ctx: GenericActionCtx, payload: WebhookPayload) => Promise<void>;
+onSubscriptionOnHold?: (ctx: GenericActionCtx, payload: WebhookPayload) => Promise<void>;
+onSubscriptionRenewed?: (ctx: GenericActionCtx, payload: WebhookPayload) => Promise<void>;
+onSubscriptionPlanChanged?: (ctx: GenericActionCtx, payload: WebhookPayload) => Promise<void>;
+onSubscriptionCancelled?: (ctx: GenericActionCtx, payload: WebhookPayload) => Promise<void>;
+onSubscriptionFailed?: (ctx: GenericActionCtx, payload: WebhookPayload) => Promise<void>;
+onSubscriptionExpired?: (ctx: GenericActionCtx, payload: WebhookPayload) => Promise<void>;
+onLicenseKeyCreated?: (ctx: GenericActionCtx, payload: WebhookPayload) => Promise<void>;
+```
+
+</CodeGroup>
+
+## 프론트엔드 사용법
+
+<Info>
+Convex 훅을 사용하여 React 컴포넌트에서 체크아웃 기능을 사용하세요.
+</Info>
+
+<CodeGroup>
+
+```tsx React Checkout Component expandable
+import { useAction } from "convex/react";
+import { api } from "../convex/_generated/api";
+
+export function CheckoutButton() {
+  const createCheckout = useAction(api.payments.createCheckout);
+
+  const handleCheckout = async () => {
+    try {
+      const { checkout_url } = await createCheckout({
+        product_cart: [{ product_id: "prod_123", quantity: 1 }],
+        returnUrl: "https://example.com/success"
+      });
+      if (!checkout_url) {
+        throw new Error("Missing checkout_url in response");
+      }
+      window.location.href = checkout_url;
+    } catch (error) {
+      console.error("Failed to create checkout", error);
+      throw new Error("Unable to create checkout. Please try again.");
+    }
+  };
+
+  return <button onClick={handleCheckout}>Buy Now</button>;
+}
+```
+
+</CodeGroup>
+
+<CodeGroup>
+
+```tsx Customer Portal Component expandable
+import { useAction } from "convex/react";
+import { api } from "../convex/_generated/api";
+
+export function CustomerPortalButton() {
+  const getPortal = useAction(api.payments.getCustomerPortal);
+
+  const handlePortal = async () => {
+    try {
+      const { portal_url } = await getPortal({ send_email: false });
+      if (!portal_url) {
+        throw new Error("Missing portal_url in response");
+      }
+      window.location.href = portal_url;
+    } catch (error) {
+      console.error("Unable to open customer portal", error);
+      alert("We couldn't open the customer portal. Please try again.");
+    }
+  };
+
+  return <button onClick={handlePortal}>Manage Subscription</button>;
+}
+```
+
+</CodeGroup>
+
+---
+
+## LLM에 대한 프롬프트
+
+```
+You are an expert Convex developer assistant. Your task is to guide a user through integrating the @dodopayments/convex component into their existing Convex application.
+
+The @dodopayments/convex adapter provides a Convex component for Dodo Payments' Checkout, Customer Portal, and Webhook functionalities, built using the official Convex component architecture pattern.
+
+First, install the necessary package:
+
+npm install @dodopayments/convex
+
+Here's how you should structure your response:
+
+1. Ask the user which functionalities they want to integrate.
+
+"Which parts of the @dodopayments/convex component would you like to integrate into your project? You can choose one or more of the following:
+
+- Checkout Function (for handling product checkouts)
+- Customer Portal Function (for managing customer subscriptions/details)
+- Webhook Handler (for receiving Dodo Payments webhook events)
+- All (integrate all three)"
+
+2. Based on the user's selection, provide detailed integration steps for each chosen functionality.
+
+If Checkout Function is selected:
+
+Purpose: This function handles session-based checkout flows and returns checkout URLs for programmatic handling.
+
+Integration Steps:
+
+Step 1: Add the component to your Convex configuration.
+
+// convex/convex.config.ts
+import { defineApp } from "convex/server";
+import dodopayments from "@dodopayments/convex/convex.config";
+
+const app = defineApp();
+app.use(dodopayments);
+export default app;
+
+Step 2: Guide the user to set up environment variables in the Convex dashboard. Instruct them to open the dashboard by running:
+
+npx convex dashboard
+
+Then add the required environment variables (e.g., DODO_PAYMENTS_API_KEY, DODO_PAYMENTS_ENVIRONMENT, DODO_PAYMENTS_WEBHOOK_SECRET) in **Settings → Environment Variables**. Do not use .env files for backend functions.
+
+Step 3: Create an internal query to fetch customers from your database.
+Note: Ensure the user has appropriate schema defined in their convex/schema.ts file or modify the query to match their existing schema.
+
+// convex/customers.ts
+import { internalQuery } from "./_generated/server";
+import { v } from "convex/values";
+
+// Internal query to fetch customer by auth ID
+export const getByAuthId = internalQuery({
+  args: { authId: v.string() },
+  handler: async (ctx, { authId }) => {
+    return await ctx.db
+      .query("customers")
+      .withIndex("by_auth_id", (q) => q.eq("authId", authId))
+      .first();
+  },
+});
+
+Step 4: Create your payment functions file.
+
+// convex/dodo.ts
+import { DodoPayments, DodoPaymentsClientConfig } from "@dodopayments/convex";
+import { components } from "./_generated/api";
+import { internal } from "./_generated/api";
+
+export const dodo = new DodoPayments(components.dodopayments, {
+  // This function maps your Convex user to a Dodo Payments customer
+  // Customize it based on your authentication provider and user database
+  identify: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      return null; // User is not logged in
+    }
+    
+    // Use ctx.runQuery() to lookup customer from your database
+    const customer = await ctx.runQuery(internal.customers.getByAuthId, {
+      authId: identity.subject,
+    });
+    
+    if (!customer) {
+      return null; // Customer not found in database
+    }
+    
+    return {
+      dodoCustomerId: customer.dodoCustomerId, // Replace customer.dodoCustomerId with your field storing Dodo Payments customer ID
+    };
+  },
+  apiKey: process.env.DODO_PAYMENTS_API_KEY!,
+  environment: process.env.DODO_PAYMENTS_ENVIRONMENT as "test_mode" | "live_mode",
+} as DodoPaymentsClientConfig);
+
+// Export the API methods for use in your app
+export const { checkout, customerPortal } = dodo.api();
+
+Step 5: Create actions that use the checkout function.
+
+// convex/payments.ts
+import { action } from "./_generated/server";
+import { v } from "convex/values";
+import { checkout } from "./dodo";
+
+// Checkout session with full feature support
+export const createCheckout = action({
+  args: { 
+    product_cart: v.array(v.object({
+      product_id: v.string(),
+      quantity: v.number(),
+    })),
+    returnUrl: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    return await checkout(ctx, {
+      payload: {
+        product_cart: args.product_cart,
+        return_url: args.returnUrl,
+        billing_currency: "USD",
+        feature_flags: {
+          allow_discount_code: true,
+        },
+      },
+    });
+  },
+});
+
+Step 6: Use in your frontend.
+
+// Your frontend component
+import { useAction } from "convex/react";
+import { api } from "../convex/_generated/api";
+
+export function CheckoutButton() {
+  const createCheckout = useAction(api.payments.createCheckout);
+
+  const handleCheckout = async () => {
+    const { checkout_url } = await createCheckout({
+      product_cart: [{ product_id: "prod_123", quantity: 1 }],
+    });
+    window.location.href = checkout_url;
+  };
+
+  return <button onClick={handleCheckout}>Buy Now</button>;
+}
+
+Configuration Details:
+
+- `checkout()`: Checkout session with full feature support using session checkout.
+- Returns: `{"checkout_url": "https://checkout.dodopayments.com/..."}`
+
+For complete API documentation, refer to:
+- Checkout Sessions: https://docs.dodopayments.com/developer-resources/checkout-session
+- One-time Payments: https://docs.dodopayments.com/api-reference/payments/post-payments
+- Subscriptions: https://docs.dodopayments.com/api-reference/subscriptions/post-subscriptions
+
+If Customer Portal Function is selected:
+
+Purpose: This function allows customers to manage their subscriptions and payment methods. The customer is automatically identified via the `identify` function.
+
+Integration Steps:
+
+Follow Steps 1-4 from the Checkout Function section, then:
+
+Step 5: Create a customer portal action.
+
+// convex/payments.ts (add to existing file)
+import { action } from "./_generated/server";
+import { v } from "convex/values";
+import { customerPortal } from "./dodo";
+
+export const getCustomerPortal = action({
+  args: {
+    send_email: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
+    try {
+      const portal = await customerPortal(ctx, args);
+      if (!portal?.portal_url) {
+        throw new Error("Customer portal did not return a portal_url");
+      }
+      return portal;
+    } catch (error) {
+      console.error("Failed to generate customer portal link", error);
+      throw new Error("Unable to generate customer portal link. Please retry.");
+    }
+  },
+});
+
+Step 6: Use in your frontend.
+
+// Your frontend component
+import { useAction } from "convex/react";
+import { api } from "../convex/_generated/api";
+
+export function CustomerPortalButton() {
+  const getPortal = useAction(api.payments.getCustomerPortal);
+
+  const handlePortal = async () => {
+    const { portal_url } = await getPortal({ send_email: false });
+    window.location.href = portal_url;
+  };
+
+  return <button onClick={handlePortal}>Manage Subscription</button>;
+}
+
+Configuration Details:
+- Requires authenticated user (via `identify` function).
+- Customer identification is handled automatically by the `identify` function.
+- `send_email`: Optional boolean to send portal link via email.
+
+If Webhook Handler is selected:
+
+Purpose: This handler processes incoming webhook events from Dodo Payments, allowing your application to react to events like successful payments or subscription changes.
+
+Integration Steps:
+
+Step 1: Add the webhook secret to your environment variables in the Convex dashboard. You can open the dashboard by running:
+
+Guide the user to open the Convex dashboard by running:
+
+npx convex dashboard
+
+In the dashboard, go to **Settings → Environment Variables** and add:
+
+- `DODO_PAYMENTS_WEBHOOK_SECRET=whsec_...`
+
+Do not use .env files for backend functions; always set secrets in the Convex dashboard.
+
+Step 2: Create a file `convex/http.ts`:
+
+// convex/http.ts
+import { createDodoWebhookHandler } from "@dodopayments/convex";
+import { httpRouter } from "convex/server";
+import { internal } from "./_generated/api";
+
+const http = httpRouter();
+
+http.route({
+  path: "/dodopayments-webhook",
+  method: "POST",
+  handler: createDodoWebhookHandler({
+    // Handle successful payments
+    onPaymentSucceeded: async (ctx, payload) => {
+      console.log("🎉 Payment Succeeded!");
+
+      // Use Convex context to persist payment data
+      await ctx.runMutation(internal.webhooks.createPayment, {
+        paymentId: payload.data.payment_id,
+        businessId: payload.business_id,
+        customerEmail: payload.data.customer.email,
+        amount: payload.data.total_amount,
+        currency: payload.data.currency,
+        status: payload.data.status,
+        webhookPayload: JSON.stringify(payload),
+      });
+    },
+
+    // Handle subscription activation
+    onSubscriptionActive: async (ctx, payload) => {
+      console.log("🎉 Subscription Activated!");
+      // Use Convex context to persist subscription data
+      await ctx.runMutation(internal.webhooks.createSubscription, {
+        subscriptionId: payload.data.subscription_id,
+        businessId: payload.business_id,
+        customerEmail: payload.data.customer.email,
+        status: payload.data.status,
+        webhookPayload: JSON.stringify(payload),
+      });
+    },
+    // Add other event handlers as needed
+  }),
+});
+
+export default http;
+
+Note: Make sure to define the corresponding database mutations in your Convex backend for each webhook event you want to handle. For example, create a `createPayment` mutation to record successful payments or a `createSubscription` mutation to manage subscription state.
+
+Now, you can set the webhook endpoint URL in your Dodo Payments dashboard to `https://<your-convex-deployment-url>/dodopayments-webhook`.
+
+Environment Variable Setup:
+
+Set up the following environment variables in your Convex dashboard if you haven't already (Settings → Environment Variables):
+
+- `DODO_PAYMENTS_API_KEY` - Your Dodo Payments API key
+- `DODO_PAYMENTS_ENVIRONMENT` - Set to `test_mode` or `live_mode`
+- `DODO_PAYMENTS_WEBHOOK_SECRET` - Your webhook secret (required for webhook handling)
+
+Usage in your component configuration:
+
+apiKey: process.env.DODO_PAYMENTS_API_KEY
+environment: process.env.DODO_PAYMENTS_ENVIRONMENT as "test_mode" | "live_mode"
+
+Important: Never commit sensitive environment variables directly into your code. Always use Convex environment variables for all sensitive information.
+
+If the user needs assistance setting up environment variables or deployment, ask them about their specific setup and provide guidance accordingly.
+
+Run `npx convex dev` after setting up the component to generate the necessary types.
+```

@@ -1,0 +1,163 @@
+---
+title: Modelo de Intervalo de Tempo
+description: Rastreie o consumo de recursos com base no tempo decorrido para
+  computação, funções serverless, contêineres e cobrança por tempo de execução.
+icon: clock
+---
+
+## Casos de Uso
+
+Explore cenários comuns suportados pelo Modelo de Intervalo de Tempo:
+
+<CardGroup cols={2}>
+<Card title="Funções Serverless" icon="function">
+Cobrança com base no tempo de execução da função e uso de memória.
+</Card>
+<Card title="Tempo de Execução de Contêiner" icon="container-storage">
+Rastreie o tempo de execução do contêiner para cobrança baseada em uso.
+</Card>
+<Card title="Instâncias de Computação" icon="server">
+Monitore o tempo de execução da VM e cobre por minuto ou hora.
+</Card>
+<Card title="Trabalhos em Segundo Plano" icon="briefcase">
+Rastreie o tempo de processamento para exportações de dados, relatórios e trabalhos em lote.
+</Card>
+</CardGroup>
+
+<Info>
+Perfeito para cobrança com base no tempo de computação, duração da execução da função, tempo de execução do contêiner ou qualquer uso baseado em tempo.
+</Info>
+
+## Início Rápido
+
+Rastreie o uso de recursos por duração de tempo:
+
+<Steps>
+<Step title="Instale o SDK">
+
+```bash
+npm install @dodopayments/ingestion-blueprints
+```
+
+</Step>
+
+<Step title="Obtenha suas Chaves de API">
+- **Chave da API do Dodo Payments**: Obtenha-a no [Painel do Dodo Payments](https://app.dodopayments.com/developer/api-keys)
+</Step>
+
+<Step title="Crie um Medidor">
+Crie um medidor no seu [Painel do Dodo Payments](https://app.dodopayments.com/):
+- **Nome do Evento**: `time_range_usage` (ou seu nome preferido)
+- **Tipo de Agregação**: `sum` para rastrear a duração total
+- **Sobre a Propriedade**: `durationSeconds`, `durationMinutes`, ou `durationMs`
+</Step>
+
+<Step title="Rastreie o Uso do Tempo">
+<CodeGroup>
+
+```javascript Serverless Functions
+import { Ingestion, trackTimeRange } from '@dodopayments/ingestion-blueprints';
+
+const ingestion = new Ingestion({
+  apiKey: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'test_mode',
+  eventName: 'function_execution'
+});
+
+// Track function execution time
+const startTime = Date.now();
+
+// Execute your function (example: image processing)
+const result = await yourImageProcessingLogic();
+
+const durationMs = Date.now() - startTime;
+
+await trackTimeRange(ingestion, {
+  customerId: 'customer_123',
+  durationMs: durationMs
+});
+```
+
+```javascript Container Runtime
+import { Ingestion, trackTimeRange } from '@dodopayments/ingestion-blueprints';
+
+const ingestion = new Ingestion({
+  apiKey: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'test_mode',
+  eventName: 'container_runtime'
+});
+
+// Track container runtime in seconds
+await trackTimeRange(ingestion, {
+  customerId: 'customer_456',
+  durationSeconds: 120
+});
+```
+
+```javascript VM Instance Runtime
+import { Ingestion, trackTimeRange } from '@dodopayments/ingestion-blueprints';
+
+const ingestion = new Ingestion({
+  apiKey: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'test_mode',
+  eventName: 'vm_runtime'
+});
+
+// Track VM runtime in minutes
+await trackTimeRange(ingestion, {
+  customerId: 'customer_789',
+  durationMinutes: 60
+});
+```
+
+</CodeGroup>
+</Step>
+</Steps>
+
+## Configuração
+
+### Configuração de Ingestão
+
+<ParamField path="apiKey" type="string" required>
+Sua chave da API do Dodo Payments do painel.
+</ParamField>
+
+<ParamField path="environment" type="string" required>
+Modo de ambiente: `test_mode` ou `live_mode`.
+</ParamField>
+
+<ParamField path="eventName" type="string" required>
+Nome do evento que corresponde à sua configuração de medidor.
+</ParamField>
+
+### Opções de Rastreio de Intervalo de Tempo
+
+<ParamField path="customerId" type="string" required>
+O ID do cliente para atribuição de cobrança.
+</ParamField>
+
+<ParamField path="durationMs" type="number">
+Duração em milissegundos. Use para precisão sub-segundo.
+</ParamField>
+
+<ParamField path="durationSeconds" type="number">
+Duração em segundos. Mais comum para execução de funções e tarefas curtas.
+</ParamField>
+
+<ParamField path="durationMinutes" type="number">
+Duração em minutos. Útil para recursos de longa duração, como VMs.
+</ParamField>
+
+<ParamField path="metadata" type="object">
+Metadados opcionais sobre o recurso, como CPU, memória, região, etc.
+</ParamField>
+
+## Melhores Práticas
+
+<Tip>
+**Escolha a Unidade Certa**: Use milissegundos para operações curtas, segundos para funções e minutos para recursos de longa duração.
+</Tip>
+
+<Warning>
+**Tempos Precisos**: Use `Date.now()` ou `performance.now()` para rastreamento de tempo preciso, especialmente para funções serverless.
+</Warning>

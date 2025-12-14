@@ -1,0 +1,856 @@
+---
+title: Nuxt Adaptor
+description: Tích hợp Dodo Payments với dự án Nuxt của bạn bằng cách sử dụng
+  mô-đun Nuxt chính thức. Bao gồm thanh toán, cổng thông tin khách hàng, webhook
+  và thiết lập môi trường an toàn.
+icon: code-merge
+---
+
+<CardGroup cols={2}>
+<Card title="Đường dẫn API Thanh toán" icon="cart-shopping" href="#checkout-api-route">
+    Tích hợp thanh toán Dodo vào ứng dụng Nuxt của bạn bằng cách sử dụng một đường dẫn máy chủ.
+</Card>
+<Card title="Đường dẫn API Cổng thông tin Khách hàng" icon="user" href="#customer-portal-api-route">
+    Cho phép khách hàng quản lý đăng ký và thông tin qua một đường dẫn máy chủ Nuxt.
+</Card>
+<Card title="Đường dẫn API Webhook" icon="bell" href="#webhook-api-route">
+    Nhận và xử lý các sự kiện webhook của Dodo Payments một cách an toàn trong Nuxt.
+</Card>
+</CardGroup>
+
+## Tổng quan
+
+<Info>
+Hướng dẫn này giải thích cách tích hợp Dodo Payments vào ứng dụng Nuxt của bạn bằng cách sử dụng mô-đun Nuxt chính thức. Bạn sẽ học cách thiết lập thanh toán, cổng thông tin khách hàng và các đường dẫn API webhook, cũng như cách quản lý biến môi trường một cách an toàn.
+</Info>
+
+## Cài đặt
+
+<Steps>
+<Step title="Cài đặt mô-đun Nuxt">
+Chạy lệnh sau trong thư mục gốc của dự án bạn:
+
+```bash
+npm install @dodopayments/nuxt
+```
+
+</Step>
+<Step title="Đăng ký mô-đun trong nuxt.config.ts">
+Thêm <code>@dodopayments/nuxt</code> vào mảng <code>modules</code> của bạn và cấu hình nó:
+
+```typescript nuxt.config.ts expandable
+export default defineNuxtConfig({
+  modules: ["@dodopayments/nuxt"],
+  devtools: { enabled: true },
+  compatibilityDate: "2025-02-25",
+  runtimeConfig: {
+    private: {
+      bearerToken: process.env.NUXT_PRIVATE_BEARER_TOKEN,
+      webhookKey: process.env.NUXT_PRIVATE_WEBHOOK_KEY,
+      environment: process.env.NUXT_PRIVATE_ENVIRONMENT,
+      returnUrl: process.env.NUXT_PRIVATE_RETURNURL
+    },
+  }
+});
+```
+
+</Step>
+</Steps>
+
+<Warning>
+Không bao giờ cam kết tệp <code>.env</code> hoặc bí mật của bạn vào hệ thống kiểm soát phiên bản.
+</Warning>
+
+## Ví dụ về Xử lý Đường dẫn API
+
+<Info>
+Tất cả các tích hợp Dodo Payments trong Nuxt đều được xử lý qua các đường dẫn máy chủ trong thư mục <code>server/routes/api/</code>.
+</Info>
+
+<Tabs>
+<Tab title="Đường dẫn API Thanh toán">
+<Info>
+Sử dụng trình xử lý này để tích hợp thanh toán Dodo vào ứng dụng Nuxt của bạn. Hỗ trợ các luồng thanh toán tĩnh (GET), động (POST) và theo phiên (POST).
+</Info>
+<CodeGroup>
+
+```typescript server/routes/api/checkout.get.ts expandable
+
+export default defineEventHandler((event) => {
+  const {
+    private: { bearerToken, environment, returnUrl },
+  } = useRuntimeConfig();
+
+  const handler = checkoutHandler({
+    bearerToken: bearerToken,
+    environment: environment,
+    returnUrl: returnUrl,
+  });
+
+  return handler(event);
+});
+```
+
+</CodeGroup>
+
+<CodeGroup>
+
+```typescript server/routes/api/checkout.post.ts expandable
+
+export default defineEventHandler((event) => {
+  const {
+    private: { bearerToken, environment, returnUrl },
+  } = useRuntimeConfig();
+
+  const handler = checkoutHandler({
+    bearerToken: bearerToken,
+    environment: environment,
+    returnUrl: returnUrl,
+    type: "dynamic"
+  });
+
+  return handler(event);
+});
+```
+
+</CodeGroup>
+
+<CodeGroup>
+
+```typescript server/routes/api/checkout.post.ts (Checkout Sessions) expandable
+
+export default defineEventHandler((event) => {
+  const {
+    private: { bearerToken, environment, returnUrl },
+  } = useRuntimeConfig();
+
+  const handler = checkoutHandler({
+    bearerToken: bearerToken,
+    environment: environment,
+    returnUrl: returnUrl,
+    type: "session"
+  });
+
+  return handler(event);
+});
+```
+
+</CodeGroup>
+
+<Warning>
+Nếu <code>productId</code> bị thiếu hoặc không hợp lệ, trình xử lý sẽ trả về phản hồi 400.
+</Warning>
+
+<CodeGroup>
+
+  ```curl Static Checkout Curl example expandable
+  curl --request GET \
+  --url 'https://example.com/api/checkout?productId=pdt_fqJhl7pxKWiLhwQR042rh' \
+  --header 'User-Agent: insomnia/11.2.0' \
+  --cookie mode=test
+  ```
+
+  </CodeGroup>
+  <CodeGroup>
+
+  ```curl Dynamic Checkout Curl example expandable
+  curl --request POST \
+  --url https://example.com/api/checkout \
+  --header 'Content-Type: application/json' \
+  --header 'User-Agent: insomnia/11.2.0' \
+  --cookie mode=test \
+  --data '{
+  "billing": {
+    "city": "Texas",
+    "country": "US",
+    "state": "Texas",
+    "street": "56, hhh",
+    "zipcode": "560000"
+  },
+  "customer": {
+    "email": "test@example.com",
+		"name": "test"
+  },
+  "metadata": {},
+  "payment_link": true,
+	"product_id": "pdt_QMDuvLkbVzCRWRQjLNcs",
+	"quantity": 1,
+	"billing_currency": "USD",
+	"discount_code": "IKHZ23M9GQ",
+    "return_url": "https://example.com",
+	"trial_period_days": 10
+}'
+  ```
+
+</CodeGroup>
+  <CodeGroup>
+
+  ```curl Checkout Session Curl example expandable
+  curl --request POST \
+  --url https://example.com/api/checkout \
+  --header 'Content-Type: application/json' \
+  --header 'User-Agent: insomnia/11.2.0' \
+  --cookie mode=test \
+  --data '{
+  "product_cart": [
+    {
+      "product_id": "pdt_QMDuvLkbVzCRWRQjLNcs",
+      "quantity": 1
+    }
+  ],
+  "customer": {
+    "email": "test@example.com",
+    "name": "test"
+  },
+  "return_url": "https://example.com/success"
+}'
+  ```
+
+</CodeGroup>
+
+</Tab>
+
+<Tab title="Đường dẫn API Cổng thông tin Khách hàng">
+<Info>
+Tạo một đường dẫn GET để cho phép khách hàng truy cập cổng thông tin của họ. Chấp nhận <code>customer_id</code> như một tham số truy vấn.
+</Info>
+<CodeGroup>
+
+```typescript server/routes/api/customer-portal.get.ts expandable
+
+export default defineEventHandler((event) => {
+  const {
+    private: { bearerToken, environment },
+  } = useRuntimeConfig();
+
+  const handler = customerPortalHandler({
+    bearerToken,
+    environment: environment,
+  });
+
+  return handler(event);
+});
+```
+
+</CodeGroup>
+
+**Tham số Truy vấn:**
+- <code>customer_id</code> (bắt buộc): ID khách hàng cho phiên cổng thông tin (ví dụ: <code>?customer_id=cus_123</code>)
+- <code>send_email</code> (tùy chọn, boolean): Nếu <code>true</code>, gửi email cho khách hàng với liên kết cổng thông tin.
+
+<Warning>
+Trả về 400 nếu <code>customer_id</code> bị thiếu.
+</Warning>
+
+<CodeGroup>
+
+  ```curl Customer Portal Curl example expandable
+  curl --request GET \
+  --url 'https://example.com/api/customer-portal?customer_id=cus_9VuW4K7O3GHwasENg31m&send_email=true' \
+  --header 'User-Agent: insomnia/11.2.0' \
+  --cookie mode=test
+  ```
+
+  </CodeGroup>
+</Tab>
+
+<Tab title="Đường dẫn API Webhook">
+<Info>
+Tạo một đường dẫn POST để nhận và xử lý các sự kiện webhook từ Dodo Payments một cách an toàn.
+</Info>
+<CodeGroup>
+
+```typescript server/routes/api/webhook.post.ts expandable
+
+export default defineEventHandler((event) => {
+  const {
+    private: { webhookKey },
+  } = useRuntimeConfig();
+
+  const handler = Webhooks({
+    webhookKey: webhookKey,
+    onPayload: async (payload: any) => {
+      // Handle webhook payload here
+    },
+    // ...add other event handlers as needed
+  });
+
+  return handler(event);
+});
+```
+
+</CodeGroup>
+
+</Tab>
+</Tabs>
+
+## Trình xử lý Đường dẫn Thanh toán
+
+<Info>
+Dodo Payments hỗ trợ ba loại luồng thanh toán để tích hợp thanh toán vào trang web của bạn, bộ điều hợp này hỗ trợ tất cả các loại luồng thanh toán.
+</Info>
+
+- **Liên kết Thanh toán Tĩnh:** URL có thể chia sẻ ngay lập tức để thu thập thanh toán nhanh chóng, không cần mã.
+- **Liên kết Thanh toán Động:** Tạo liên kết thanh toán theo chương trình với các chi tiết tùy chỉnh bằng cách sử dụng API hoặc SDK.
+- **Phiên Thanh toán:** Tạo trải nghiệm thanh toán an toàn, tùy chỉnh với giỏ hàng sản phẩm đã được cấu hình trước và thông tin khách hàng.
+
+<AccordionGroup>
+<Accordion title="Thanh toán Tĩnh (GET)">
+
+### Tham số Truy vấn Hỗ trợ
+<ParamField query="productId" type="string" required>
+Định danh sản phẩm (ví dụ: <code>?productId=pdt_nZuwz45WAs64n3l07zpQR</code>).
+</ParamField>
+<ParamField query="quantity" type="integer">
+Số lượng sản phẩm.
+</ParamField>
+<ParamField query="fullName" type="string">
+Họ và tên của khách hàng.
+</ParamField>
+<ParamField query="firstName" type="string">
+Tên của khách hàng.
+</ParamField>
+<ParamField query="lastName" type="string">
+Họ của khách hàng.
+</ParamField>
+<ParamField query="email" type="string">
+Địa chỉ email của khách hàng.
+</ParamField>
+<ParamField query="country" type="string">
+Quốc gia của khách hàng.
+</ParamField>
+<ParamField query="addressLine" type="string">
+Địa chỉ của khách hàng.
+</ParamField>
+<ParamField query="city" type="string">
+Thành phố của khách hàng.
+</ParamField>
+<ParamField query="state" type="string">
+Tiểu bang/tỉnh của khách hàng.
+</ParamField>
+<ParamField query="zipCode" type="string">
+Mã bưu điện của khách hàng.
+</ParamField>
+<ParamField query="disableFullName" type="boolean">
+Vô hiệu hóa trường họ và tên.
+</ParamField>
+<ParamField query="disableFirstName" type="boolean">
+Vô hiệu hóa trường tên.
+</ParamField>
+<ParamField query="disableLastName" type="boolean">
+Vô hiệu hóa trường họ.
+</ParamField>
+<ParamField query="disableEmail" type="boolean">
+Vô hiệu hóa trường email.
+</ParamField>
+<ParamField query="disableCountry" type="boolean">
+Vô hiệu hóa trường quốc gia.
+</ParamField>
+<ParamField query="disableAddressLine" type="boolean">
+Vô hiệu hóa trường địa chỉ.
+</ParamField>
+<ParamField query="disableCity" type="boolean">
+Vô hiệu hóa trường thành phố.
+</ParamField>
+<ParamField query="disableState" type="boolean">
+Vô hiệu hóa trường tiểu bang.
+</ParamField>
+<ParamField query="disableZipCode" type="boolean">
+Vô hiệu hóa trường mã bưu điện.
+</ParamField>
+<ParamField query="paymentCurrency" type="string">
+Chỉ định loại tiền tệ thanh toán (ví dụ: <code>USD</code>).
+</ParamField>
+<ParamField query="showCurrencySelector" type="boolean">
+Hiển thị trình chọn loại tiền tệ.
+</ParamField>
+<ParamField query="paymentAmount" type="integer">
+Chỉ định số tiền thanh toán (ví dụ: <code>1000</code> cho $10.00).
+</ParamField>
+<ParamField query="showDiscounts" type="boolean">
+Hiển thị các trường giảm giá.
+</ParamField>
+<ParamField query="metadata_*" type="string">
+Bất kỳ tham số truy vấn nào bắt đầu bằng <code>metadata_</code> sẽ được truyền dưới dạng metadata.
+</ParamField>
+
+<Warning>
+Nếu <code>productId</code> bị thiếu, trình xử lý sẽ trả về phản hồi 400. Các tham số truy vấn không hợp lệ cũng dẫn đến phản hồi 400.
+</Warning>
+
+### Định dạng Phản hồi
+Thanh toán tĩnh trả về phản hồi JSON với URL thanh toán:
+
+```json
+{
+  "checkout_url": "https://checkout.dodopayments.com/..."
+}
+```
+
+</Accordion>
+<Accordion title="Thanh toán Động (POST)">
+- Gửi các tham số dưới dạng thân JSON trong yêu cầu POST.
+- Hỗ trợ cả thanh toán một lần và định kỳ.
+- Để có danh sách đầy đủ các trường thân POST được hỗ trợ, hãy tham khảo:
+  - [Thân yêu cầu cho Sản phẩm Thanh toán Một lần](https://docs.dodopayments.com/api-reference/payments/post-payments)
+  - [Thân yêu cầu cho Sản phẩm Đăng ký](https://docs.dodopayments.com/api-reference/subscriptions/post-subscriptions)
+
+### Định dạng Phản hồi
+Thanh toán động trả về phản hồi JSON với URL thanh toán:
+
+```json
+{
+  "checkout_url": "https://checkout.dodopayments.com/..."
+}
+```
+
+</Accordion>
+<Accordion title="Phiên Thanh toán (POST)">
+Các phiên thanh toán cung cấp trải nghiệm thanh toán an toàn hơn, được lưu trữ, xử lý toàn bộ luồng thanh toán cho cả mua hàng một lần và đăng ký với quyền kiểm soát tùy chỉnh đầy đủ.
+
+Tham khảo [Hướng dẫn Tích hợp Phiên Thanh toán](https://docs.dodopayments.com/developer-resources/checkout-session) để biết thêm chi tiết và danh sách đầy đủ các trường được hỗ trợ.
+
+### Định dạng Phản hồi
+Các phiên thanh toán trả về phản hồi JSON với URL thanh toán:
+
+```json
+{
+  "checkout_url": "https://checkout.dodopayments.com/session/..."
+}
+```
+
+</Accordion>
+</AccordionGroup>
+
+## Trình xử lý Đường dẫn Cổng thông tin Khách hàng
+
+Trình xử lý Đường dẫn Cổng thông tin Khách hàng cho phép bạn tích hợp liền mạch cổng thông tin khách hàng Dodo Payments vào ứng dụng Nuxt của bạn.
+
+### Tham số Truy vấn
+<ParamField query="customer_id" type="string" required>
+ID khách hàng cho phiên cổng thông tin (ví dụ: <code>?customer_id=cus_123</code>).
+</ParamField>
+<ParamField query="send_email" type="boolean">
+Nếu được đặt thành <code>true</code>, gửi email cho khách hàng với liên kết cổng thông tin.
+</ParamField>
+
+<Warning>
+Trả về 400 nếu <code>customer_id</code> bị thiếu.
+</Warning>
+
+## Trình xử lý Đường dẫn Webhook
+
+- **Phương thức:** Chỉ hỗ trợ yêu cầu POST. Các phương thức khác trả về 405.
+- **Xác minh Chữ ký:** Xác minh chữ ký webhook bằng cách sử dụng <code>webhookKey</code>. Trả về 401 nếu xác minh thất bại.
+- **Xác thực Tải trọng:** Được xác thực bằng Zod. Trả về 400 cho các tải trọng không hợp lệ.
+- **Xử lý Lỗi:**
+  - 401: Chữ ký không hợp lệ
+  - 400: Tải trọng không hợp lệ
+  - 500: Lỗi nội bộ trong quá trình xác minh
+- **Định tuyến Sự kiện:** Gọi trình xử lý sự kiện thích hợp dựa trên loại tải trọng.
+
+### Các Trình xử lý Sự kiện Webhook Hỗ trợ
+<CodeGroup>
+
+```typescript Typescript expandable
+onPayload?: (payload: WebhookPayload) => Promise<void>;
+onPaymentSucceeded?: (payload: WebhookPayload) => Promise<void>;
+onPaymentFailed?: (payload: WebhookPayload) => Promise<void>;
+onPaymentProcessing?: (payload: WebhookPayload) => Promise<void>;
+onPaymentCancelled?: (payload: WebhookPayload) => Promise<void>;
+onRefundSucceeded?: (payload: WebhookPayload) => Promise<void>;
+onRefundFailed?: (payload: WebhookPayload) => Promise<void>;
+onDisputeOpened?: (payload: WebhookPayload) => Promise<void>;
+onDisputeExpired?: (payload: WebhookPayload) => Promise<void>;
+onDisputeAccepted?: (payload: WebhookPayload) => Promise<void>;
+onDisputeCancelled?: (payload: WebhookPayload) => Promise<void>;
+onDisputeChallenged?: (payload: WebhookPayload) => Promise<void>;
+onDisputeWon?: (payload: WebhookPayload) => Promise<void>;
+onDisputeLost?: (payload: WebhookPayload) => Promise<void>;
+onSubscriptionActive?: (payload: WebhookPayload) => Promise<void>;
+onSubscriptionOnHold?: (payload: WebhookPayload) => Promise<void>;
+onSubscriptionRenewed?: (payload: WebhookPayload) => Promise<void>;
+onSubscriptionPlanChanged?: (payload: WebhookPayload) => Promise<void>;
+onSubscriptionCancelled?: (payload: WebhookPayload) => Promise<void>;
+onSubscriptionFailed?: (payload: WebhookPayload) => Promise<void>;
+onSubscriptionExpired?: (payload: WebhookPayload) => Promise<void>;
+onLicenseKeyCreated?: (payload: WebhookPayload) => Promise<void>;
+```
+
+</CodeGroup>
+
+---
+
+## Lời nhắc cho LLM
+
+```
+You are an expert Nuxt developer assistant. Your task is to guide a user through integrating the @dodopayments/nuxt module into their existing Nuxt project.
+
+The @dodopayments/nuxt module provides API route handlers for Dodo Payments' Checkout, Customer Portal, and Webhook functionalities, designed for Nuxt 3 server routes.
+
+First, install the necessary package:
+
+npm install @dodopayments/nuxt
+
+Second, add the configuration to nuxt.config.ts
+
+export default defineNuxtConfig({
+  modules: ["@dodopayments/nuxt"],
+  devtools: { enabled: true },
+  compatibilityDate: "2025-02-25",
+  runtimeConfig: {
+    private: {
+      bearerToken: process.env.NUXT_PRIVATE_BEARER_TOKEN,
+      webhookKey: process.env.NUXT_PRIVATE_BEARER_TOKEN,
+      environment: process.env.NUXT_PRIVATE_ENVIRONMENT,
+      returnUrl: process.env.NUXT_PRIVATE_RETURNURL
+    },
+  }
+});
+
+Here's how you should structure your response:
+
+    Ask the user which functionalities they want to integrate.
+
+"Which parts of the @dodopayments/nuxt module would you like to integrate into your project? You can choose one or more of the following:
+
+    Checkout API Route (for handling product checkouts)
+    Customer Portal API Route (for managing customer subscriptions/details)
+    Webhook API Route (for receiving Dodo Payments webhook events)
+    All (integrate all three)"
+
+    Based on the user's selection, provide detailed integration steps for each chosen functionality.
+
+If Checkout API Route is selected:
+
+Purpose: This route redirects users to the Dodo Payments checkout page.
+File Creation: Create a new file at server/routes/api/checkout.get.ts in your Nuxt project.
+
+Code Snippet:
+
+// server/routes/api/checkout.get.ts
+
+export default defineEventHandler((event) => {
+  const {
+    private: { bearerToken, environment, returnUrl },
+  } = useRuntimeConfig();
+
+  const handler = checkoutHandler({
+    bearerToken: bearerToken,
+    environment: environment,
+    returnUrl: returnUrl,
+  });
+
+  return handler(event);
+});
+
+Configuration & Usage:
+- bearerToken: Your Dodo Payments API key. Set via the NUXT_PRIVATE_BEARER_TOKEN environment variable.
+- returnUrl: (Optional) The URL to redirect the user to after a successful checkout.
+- environment: (Optional) Set to your environment (e.g., "test_mode" or "live_mode").
+
+Static Checkout (GET) Query Parameters:
+- productId (required): Product identifier (e.g., ?productId=pdt_nZuwz45WAs64n3l07zpQR)
+- quantity (optional): Quantity of the product
+- Customer Fields (optional): fullName, firstName, lastName, email, country, addressLine, city, state, zipCode
+- Disable Flags (optional, set to true to disable): disableFullName, disableFirstName, disableLastName, disableEmail, disableCountry, disableAddressLine, disableCity, disableState, disableZipCode
+- Advanced Controls (optional): paymentCurrency, showCurrencySelector, paymentAmount, showDiscounts
+- Metadata (optional): Any query parameter starting with metadata_ (e.g., ?metadata_userId=abc123)
+
+Dynamic Checkout (POST): Parameters are sent as a JSON body. Supports both one-time and recurring payments. For a complete list of supported POST body fields, refer to:
+- Docs - One Time Payment Product: https://docs.dodopayments.com/api-reference/payments/post-payments
+- Docs - Subscription Product: https://docs.dodopayments.com/api-reference/subscriptions/post-subscriptions
+
+Checkout Sessions (POST) - (Recommended) A more customizable checkout experience. Returns JSON with checkout_url: Parameters are sent as a JSON body. Supports both one-time and recurring payments. Returns: {"checkout_url": "https://checkout.dodopayments.com/session/..."}. For a complete list of supported fields, refer to:
+
+  Checkout Sessions Integration Guide: https://docs.dodopayments.com/developer-resources/checkout-session
+
+Error Handling: If productId is missing or other query parameters are invalid, the handler will return a 400 response.
+
+If Customer Portal API Route is selected:
+
+Purpose: This route allows customers to access their Dodo Payments customer portal.
+File Creation: Create a new file at server/routes/api/customer-portal.get.ts in your Nuxt project.
+
+Code Snippet:
+
+// server/routes/api/customer-portal.get.ts
+
+export default defineEventHandler((event) => {
+  const {
+    private: { bearerToken, environment },
+  } = useRuntimeConfig();
+
+  const handler = customerPortalHandler({
+    bearerToken,
+    environment: environment,
+  });
+
+  return handler(event);
+});
+
+Query Parameters:
+- customer_id (required): The customer ID for the portal session (e.g., ?customer_id=cus_123)
+- send_email (optional, boolean): If set to true, sends an email to the customer with the portal link.
+- Returns 400 if customer_id is missing.
+
+If Webhook API Route is selected:
+
+Purpose: This route processes incoming webhook events from Dodo Payments, allowing your application to react to events like successful payments, refunds, or subscription changes.
+File Creation: Create a new file at server/routes/api/webhook.post.ts in your Nuxt project.
+
+Code Snippet:
+
+// server/routes/api/webhook.post.ts
+
+export default defineEventHandler((event) => {
+  const {
+    private: { webhookKey },
+  } = useRuntimeConfig();
+
+  const handler = Webhooks({
+    webhookKey: webhookKey,
+    onPayload: async (payload) => {
+      // handle the payload
+    },
+    // ... other event handlers for granular control
+  });
+
+  return handler(event);
+});
+
+Handler Details:
+- Method: Only POST requests are supported. Other methods return 405.
+- Signature Verification: The handler verifies the webhook signature using webhookKey and returns 401 if verification fails.
+- Payload Validation: The payload is validated with Zod. Returns 400 for invalid payloads.
+
+Error Handling:
+- 401: Invalid signature
+- 400: Invalid payload
+- 500: Internal error during verification
+
+Event Routing: Calls the appropriate event handler based on the payload type. Supported event handlers include:
+- onPayload?: (payload: WebhookPayload) => Promise<void>
+- onPaymentSucceeded?: (payload: WebhookPayload) => Promise<void>
+- onPaymentFailed?: (payload: WebhookPayload) => Promise<void>
+- onPaymentProcessing?: (payload: WebhookPayload) => Promise<void>
+- onPaymentCancelled?: (payload: WebhookPayload) => Promise<void>
+- onRefundSucceeded?: (payload: WebhookPayload) => Promise<void>
+- onRefundFailed?: (payload: WebhookPayload) => Promise<void>
+- onDisputeOpened?: (payload: WebhookPayload) => Promise<void>
+- onDisputeExpired?: (payload: WebhookPayload) => Promise<void>
+- onDisputeAccepted?: (payload: WebhookPayload) => Promise<void>
+- onDisputeCancelled?: (payload: WebhookPayload) => Promise<void>
+- onDisputeChallenged?: (payload: WebhookPayload) => Promise<void>
+- onDisputeWon?: (payload: WebhookPayload) => Promise<void>
+- onDisputeLost?: (payload: WebhookPayload) => Promise<void>
+- onSubscriptionActive?: (payload: WebhookPayload) => Promise<void>
+- onSubscriptionOnHold?: (payload: WebhookPayload) => Promise<void>
+- onSubscriptionRenewed?: (payload: WebhookPayload) => Promise<void>
+- onSubscriptionPlanChanged?: (payload: WebhookPayload) => Promise<void>
+- onSubscriptionCancelled?: (payload: WebhookPayload) => Promise<void>
+- onSubscriptionFailed?: (payload: WebhookPayload) => Promise<void>
+- onSubscriptionExpired?: (payload: WebhookPayload) => Promise<void>
+- onLicenseKeyCreated?: (payload: WebhookPayload) => Promise<void>
+
+Environment Variable Setup:
+To ensure the module functions correctly, set up the following environment variables in your Nuxt project's deployment environment (e.g., Vercel, Netlify, AWS, etc.):
+- NUXT_PRIVATE_BEARER_TOKEN: Your Dodo Payments API Key (required for Checkout and Customer Portal).
+- NUXT_PRIVATE_WEBHOOK_KEY: Your Dodo Payments Webhook Secret (required for Webhook handler).
+- NUXT_PRIVATE_ENVIRONMENT: (Optional) Set to your environment (e.g., "test_mode" or "live_mode").
+- NUXT_PRIVATE_RETURNURL: (Optional) The URL to redirect to after a successful checkout (for Checkout handler).
+
+Usage in your code:
+bearerToken: useRuntimeConfig().private.bearerToken
+webhookKey: useRuntimeConfig().private.webhookKey
+
+Important: Never commit sensitive environment variables directly into your version control. Use environment variables for all sensitive information.
+
+If the user needs assistance setting up environment variables for their specific deployment environment, ask them what platform they are using (e.g., Vercel, Netlify, AWS, etc.), and provide guidance.
+```
+
+```
+You are an expert Nuxt developer assistant. Your task is to guide a user through integrating the @dodopayments/nuxt module into their existing Nuxt project.
+
+The @dodopayments/nuxt module provides API route handlers for Dodo Payments' Checkout, Customer Portal, and Webhook functionalities, designed for Nuxt 3 server routes.
+
+First, install the necessary package:
+
+npm install @dodopayments/nuxt
+
+Second, add the configuration to nuxt.config.ts
+
+export default defineNuxtConfig({
+  modules: ["@dodopayments/nuxt"],
+  devtools: { enabled: true },
+  compatibilityDate: "2025-02-25",
+  runtimeConfig: {
+    private: {
+      bearerToken: process.env.NUXT_PRIVATE_BEARER_TOKEN,
+      webhookKey: process.env.NUXT_PRIVATE_BEARER_TOKEN,
+      environment: process.env.NUXT_PRIVATE_ENVIRONMENT,
+      returnUrl: process.env.NUXT_PRIVATE_RETURNURL
+    },
+  }
+});
+
+Here's how you should structure your response:
+
+    Ask the user which functionalities they want to integrate.
+
+"Which parts of the @dodopayments/nuxt module would you like to integrate into your project? You can choose one or more of the following:
+
+    Checkout API Route (for handling product checkouts)
+    Customer Portal API Route (for managing customer subscriptions/details)
+    Webhook API Route (for receiving Dodo Payments webhook events)
+    All (integrate all three)"
+
+    Based on the user's selection, provide detailed integration steps for each chosen functionality.
+
+If Checkout API Route is selected:
+
+Purpose: This route redirects users to the Dodo Payments checkout page.
+File Creation: Create a new file at server/routes/api/checkout.get.ts in your Nuxt project.
+
+Code Snippet:
+
+// server/routes/api/checkout.get.ts
+
+export default defineEventHandler((event) => {
+  const {
+    private: { bearerToken, environment, returnUrl },
+  } = useRuntimeConfig();
+
+  const handler = checkoutHandler({
+    bearerToken: bearerToken,
+    environment: environment,
+    returnUrl: returnUrl,
+  });
+
+  return handler(event);
+});
+
+Configuration & Usage:
+- bearerToken: Your Dodo Payments API key. Set via the NUXT_PRIVATE_BEARER_TOKEN environment variable.
+- returnUrl: (Optional) The URL to redirect the user to after a successful checkout.
+- environment: (Optional) Set to your environment (e.g., "test_mode" or "live_mode").
+
+Static Checkout (GET) Query Parameters:
+- productId (required): Product identifier (e.g., ?productId=pdt_nZuwz45WAs64n3l07zpQR)
+- quantity (optional): Quantity of the product
+- Customer Fields (optional): fullName, firstName, lastName, email, country, addressLine, city, state, zipCode
+- Disable Flags (optional, set to true to disable): disableFullName, disableFirstName, disableLastName, disableEmail, disableCountry, disableAddressLine, disableCity, disableState, disableZipCode
+- Advanced Controls (optional): paymentCurrency, showCurrencySelector, paymentAmount, showDiscounts
+- Metadata (optional): Any query parameter starting with metadata_ (e.g., ?metadata_userId=abc123)
+
+Dynamic Checkout (POST): Parameters are sent as a JSON body. Supports both one-time and recurring payments. For a complete list of supported POST body fields, refer to:
+- Docs - One Time Payment Product: https://docs.dodopayments.com/api-reference/payments/post-payments
+- Docs - Subscription Product: https://docs.dodopayments.com/api-reference/subscriptions/post-subscriptions
+
+Checkout Sessions (POST) - (Recommended) A more customizable checkout experience. Returns JSON with checkout_url: Parameters are sent as a JSON body. Supports both one-time and recurring payments. Returns: {"checkout_url": "https://checkout.dodopayments.com/session/..."}. For a complete list of supported fields, refer to:
+
+  Checkout Sessions Integration Guide: https://docs.dodopayments.com/developer-resources/checkout-session
+
+Error Handling: If productId is missing or other query parameters are invalid, the handler will return a 400 response.
+
+If Customer Portal API Route is selected:
+
+Purpose: This route allows customers to access their Dodo Payments customer portal.
+File Creation: Create a new file at server/routes/api/customer-portal.get.ts in your Nuxt project.
+
+Code Snippet:
+
+// server/routes/api/customer-portal.get.ts
+
+export default defineEventHandler((event) => {
+  const {
+    private: { bearerToken, environment },
+  } = useRuntimeConfig();
+
+  const handler = customerPortalHandler({
+    bearerToken,
+    environment: environment,
+  });
+
+  return handler(event);
+});
+
+Query Parameters:
+- customer_id (required): The customer ID for the portal session (e.g., ?customer_id=cus_123)
+- send_email (optional, boolean): If set to true, sends an email to the customer with the portal link.
+- Returns 400 if customer_id is missing.
+
+If Webhook API Route is selected:
+
+Purpose: This route processes incoming webhook events from Dodo Payments, allowing your application to react to events like successful payments, refunds, or subscription changes.
+File Creation: Create a new file at server/routes/api/webhook.post.ts in your Nuxt project.
+
+Code Snippet:
+
+// server/routes/api/webhook.post.ts
+
+export default defineEventHandler((event) => {
+  const {
+    private: { webhookKey },
+  } = useRuntimeConfig();
+
+  const handler = Webhooks({
+    webhookKey: webhookKey,
+    onPayload: async (payload) => {
+      // handle the payload
+    },
+    // ... other event handlers for granular control
+  });
+
+  return handler(event);
+});
+
+Handler Details:
+- Method: Only POST requests are supported. Other methods return 405.
+- Signature Verification: The handler verifies the webhook signature using webhookKey and returns 401 if verification fails.
+- Payload Validation: The payload is validated with Zod. Returns 400 for invalid payloads.
+
+Error Handling:
+- 401: Invalid signature
+- 400: Invalid payload
+- 500: Internal error during verification
+
+Event Routing: Calls the appropriate event handler based on the payload type. Supported event handlers include:
+- onPayload?: (payload: WebhookPayload) => Promise<void>
+- onPaymentSucceeded?: (payload: WebhookPayload) => Promise<void>
+- onPaymentFailed?: (payload: WebhookPayload) => Promise<void>
+- onPaymentProcessing?: (payload: WebhookPayload) => Promise<void>
+- onPaymentCancelled?: (payload: WebhookPayload) => Promise<void>
+- onRefundSucceeded?: (payload: WebhookPayload) => Promise<void>
+- onRefundFailed?: (payload: WebhookPayload) => Promise<void>
+- onDisputeOpened?: (payload: WebhookPayload) => Promise<void>
+- onDisputeExpired?: (payload: WebhookPayload) => Promise<void>
+- onDisputeAccepted?: (payload: WebhookPayload) => Promise<void>
+- onDisputeCancelled?: (payload: WebhookPayload) => Promise<void>
+- onDisputeChallenged?: (payload: WebhookPayload) => Promise<void>
+- onDisputeWon?: (payload: WebhookPayload) => Promise<void>
+- onDisputeLost?: (payload: WebhookPayload) => Promise<void>
+- onSubscriptionActive?: (payload: WebhookPayload) => Promise<void>
+- onSubscriptionOnHold?: (payload: WebhookPayload) => Promise<void>
+- onSubscriptionRenewed?: (payload: WebhookPayload) => Promise<void>
+- onSubscriptionPlanChanged?: (payload: WebhookPayload) => Promise<void>
+- onSubscriptionCancelled?: (payload: WebhookPayload) => Promise<void>
+- onSubscriptionFailed?: (payload: WebhookPayload) => Promise<void>
+- onSubscriptionExpired?: (payload: WebhookPayload) => Promise<void>
+- onLicenseKeyCreated?: (payload: WebhookPayload) => Promise<void>
+
+Environment Variable Setup:
+To ensure the module functions correctly, set up the following environment variables in your Nuxt project's deployment environment (e.g., Vercel, Netlify, AWS, etc.):
+- NUXT_PRIVATE_BEARER_TOKEN: Your Dodo Payments API Key (required for Checkout and Customer Portal).
+- NUXT_PRIVATE_WEBHOOK_KEY: Your Dodo Payments Webhook Secret (required for Webhook handler).
+- NUXT_PRIVATE_ENVIRONMENT: (Optional) Set to your environment (e.g., "test_mode" or "live_mode").
+- NUXT_PRIVATE_RETURNURL: (Optional) The URL to redirect to after a successful checkout (for Checkout handler).
+
+Usage in your code:
+bearerToken: useRuntimeConfig().private.bearerToken
+webhookKey: useRuntimeConfig().private.webhookKey
+
+Important: Never commit sensitive environment variables directly into your version control. Use environment variables for all sensitive information.
+
+If the user needs assistance setting up environment variables for their specific deployment environment, ask them what platform they are using (e.g., Vercel, Netlify, AWS, etc.), and provide guidance.
+```

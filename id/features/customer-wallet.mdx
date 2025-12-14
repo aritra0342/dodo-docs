@@ -1,0 +1,295 @@
+---
+title: Dompet Pelanggan
+description: Bangun sistem penagihan berbasis kredit seperti OpenAI atau Claude
+  dengan dompet pelanggan. Lacak saldo, kelola kredit, dan buat alur kerja
+  keuangan yang canggih.
+icon: wallet
+tag: BARU
+---
+
+<CardGroup cols={3}>
+<Card title="Dapatkan Dompet Pelanggan" icon="code" href="/api-reference/customers/get-customer-wallets">
+  Periksa saldo dompet pelanggan di berbagai mata uang.
+</Card>
+
+<Card title="Buat Entri Buku Besar" icon="plus" href="/api-reference/customers/post-customer-wallets-ledger-entries">
+  Tambahkan atau hapus kredit dari dompet pelanggan.
+</Card>
+
+<Card title="Daftar Entri Buku Besar" icon="list" href="/api-reference/customers/get-customer-wallets-ledger-entries">
+  Lihat riwayat transaksi lengkap dengan paginasi.
+</Card>
+</CardGroup>
+
+## Apa itu Dompet Pelanggan?
+
+Anggaplah dompet pelanggan sebagai celengan digital untuk pengguna Anda. Setiap pelanggan secara otomatis mendapatkan satu saat Anda membuat akun mereka. Anda dapat menggunakan dompet ini untuk:
+
+- **Melacak saldo kredit** dalam USD dan INR
+- **Membangun sistem kredit API** seperti OpenAI atau Claude
+- **Membuat penagihan prabayar** di mana pelanggan membeli kredit di muka
+- **Menangani pengembalian dana** sebagai kredit dompet alih-alih uang tunai
+- **Mengelola penagihan yang kompleks** dengan riwayat transaksi yang terperinci
+
+<Info>
+Setiap pelanggan secara otomatis mendapatkan dompet saat Anda membuat akun mereka. Dompet mendukung mata uang USD dan INR dengan saldo terpisah untuk masing-masing.
+</Info>
+
+<Frame>
+  <img src="/images/customer/customer-wallet.png" alt="Dompet Pelanggan" />
+</Frame>
+
+## Cara Kerjanya
+
+Dompet pelanggan sangat sederhana: mereka menyimpan uang (kredit) yang dapat dibelanjakan pelanggan untuk layanan Anda. Ketika seorang pelanggan melakukan pembelian, saldo dompet mereka diperiksa terlebih dahulu, dan kredit yang tersedia digunakan sebelum mengenakan biaya pada metode pembayaran mereka.
+
+### Pengaturan Otomatis
+
+Saat Anda membuat pelanggan baru, Dodo Payments secara otomatis membuat dompet dengan saldo nol. Dompet siap digunakan segera melalui API kami.
+
+### Dukungan Multi-Mata Uang
+
+Setiap dompet dapat menyimpan saldo dalam berbagai mata uang:
+
+<ResponseField name="USD Balance" type="integer">
+Saldo dalam Dolar AS (disimpan dalam sen)
+</ResponseField>
+
+<ResponseField name="INR Balance" type="integer">
+Saldo dalam Rupee India (disimpan dalam paise)
+</ResponseField>
+
+<Info>
+Saat ini, hanya saldo <strong>USD</strong> dan <strong>INR</strong> yang tersedia. Lebih banyak mata uang akan segera hadir.
+</Info>
+
+## Bekerja dengan Dompet
+
+### Periksa Saldo Pelanggan
+
+Lihat berapa banyak kredit yang dimiliki pelanggan di semua mata uang. Sempurna untuk memeriksa apakah mereka memiliki cukup dana sebelum memproses pembelian.
+
+<Card title="Dapatkan Saldo Dompet Pelanggan" icon="wallet" href="/api-reference/customers/get-customer-wallets">
+  Periksa saldo kredit dompet pelanggan dalam semua mata uang yang didukung.
+</Card>
+
+### Tambahkan atau Hapus Kredit
+
+Berikan kredit kepada pelanggan (seperti bonus sambutan) atau kurangi kredit (seperti biaya penggunaan). Anda dapat menambahkan alasan untuk setiap transaksi untuk melacak apa yang terjadi.
+
+<Card title="Buat Entri Buku Besar Dompet Pelanggan" icon="plus" href="/api-reference/customers/post-customer-wallets-ledger-entries">
+  Tambahkan atau hapus kredit dari dompet pelanggan.
+</Card>
+
+### Lihat Riwayat Transaksi
+
+Lihat setiap transaksi kredit dan debit untuk seorang pelanggan. Sangat baik untuk memecahkan masalah penagihan atau menunjukkan kepada pelanggan riwayat pengeluaran mereka.
+
+<Card title="Daftar Entri Buku Besar Dompet Pelanggan" icon="list" href="/api-reference/customers/get-customer-wallets-ledger-entries">
+  Lihat setiap transaksi kredit dan debit untuk seorang pelanggan.
+</Card>
+
+## Contoh Dunia Nyata
+
+### Sistem Kredit API (Seperti OpenAI)
+
+Bangun sistem di mana pelanggan membeli kredit dan menghabiskannya untuk panggilan API:
+
+```javascript
+// Give new customers welcome credits
+async function giveWelcomeCredits(customerId) {
+  await client.customers.wallets.ledgerEntries.create(customerId, {
+    amount: 10000, // $100 in cents
+    currency: 'USD',
+    entry_type: 'credit',
+    reason: 'Welcome bonus - 100 API credits',
+    idempotency_key: `welcome_${customerId}_${Date.now()}`
+  });
+}
+
+// Charge customers for API usage
+async function chargeForApiUsage(customerId, usageCost) {
+  try {
+    await client.customers.wallets.ledgerEntries.create(customerId, {
+      amount: usageCost, // Cost in cents
+      currency: 'USD',
+      entry_type: 'debit',
+      reason: `API usage - ${usageCost} credits consumed`,
+      idempotency_key: `usage_${customerId}_${Date.now()}`
+    });
+  } catch (error) {
+    if (error.status === 400) {
+      console.log('Customer needs to buy more credits');
+    }
+  }
+}
+```
+
+### Sistem Penagihan Prabayar
+
+Biarkan pelanggan membeli kredit di muka dan menghabiskannya seiring waktu:
+
+<Steps>
+<Step title="Sambut Pelanggan Baru">
+Berikan pelanggan baru beberapa kredit gratis untuk memulai.
+
+```javascript
+await client.customers.wallets.ledgerEntries.create(customerId, {
+  amount: 5000, // $50 welcome bonus
+  currency: 'USD',
+  entry_type: 'credit',
+  reason: 'Welcome bonus for new customer',
+  idempotency_key: `welcome_${customerId}`
+});
+```
+
+</Step>
+
+<Step title="Tangani Pembelian Kredit">
+Saat pelanggan membeli kredit, tambahkan ke dompet mereka.
+
+```javascript
+await client.customers.wallets.ledgerEntries.create(customerId, {
+  amount: purchaseAmount, // Amount paid in cents
+  currency: 'USD',
+  entry_type: 'credit',
+  reason: `Credit purchase - ${purchaseAmount} credits`,
+  idempotency_key: `purchase_${paymentId}`
+});
+```
+
+</Step>
+
+<Step title="Kenakan Biaya untuk Penggunaan">
+Kurangi kredit saat pelanggan menggunakan layanan Anda.
+
+```javascript
+await client.customers.wallets.ledgerEntries.create(customerId, {
+  amount: usageCost,
+  currency: 'USD', 
+  entry_type: 'debit',
+  reason: `Service usage - ${usageCost} credits`,
+  idempotency_key: `usage_${usageId}`
+});
+```
+
+</Step>
+
+<Step title="Pantau Saldo">
+Periksa apakah pelanggan kehabisan kredit.
+
+```javascript
+const wallets = await client.customers.wallets.list(customerId);
+const usdWallet = wallets.items.find(w => w.currency === 'USD');
+const balance = usdWallet.balance;
+
+if (balance < 1000) { // Less than $10
+  // Send low balance notification
+  await sendLowBalanceNotification(customerId, balance);
+}
+```
+
+</Step>
+</Steps>
+
+### Dukungan Multi-Mata Uang
+
+Tangani pelanggan di berbagai negara:
+
+<AccordionGroup>
+<Accordion title="Pelanggan AS">
+Berikan kredit USD kepada pelanggan yang berbasis di AS.
+
+```javascript
+await client.customers.wallets.ledgerEntries.create(customerId, {
+  amount: 20000, // $200 in cents
+  currency: 'USD',
+  entry_type: 'credit',
+  reason: 'USD credit purchase',
+  idempotency_key: `usd_purchase_${paymentId}`
+});
+```
+
+</Accordion>
+
+<Accordion title="Pelanggan India">
+Berikan kredit INR kepada pelanggan India.
+
+```javascript
+await client.customers.wallets.ledgerEntries.create(customerId, {
+  amount: 1500000, // ₹15,000 in paise
+  currency: 'INR',
+  entry_type: 'credit',
+  reason: 'INR credit purchase',
+  idempotency_key: `inr_purchase_${paymentId}`
+});
+```
+
+</Accordion>
+</AccordionGroup>
+
+## Praktik Terbaik
+
+### Cegah Transaksi Duplikat
+
+Gunakan kunci idempotensi untuk memastikan Anda tidak secara tidak sengaja mengenakan biaya kepada pelanggan dua kali untuk hal yang sama:
+
+```javascript
+async function addCreditsSafely(customerId, amount, reason) {
+  const idempotencyKey = `${reason}_${customerId}_${Date.now()}`;
+  
+  try {
+    const result = await client.customers.wallets.ledgerEntries.create(customerId, {
+      amount: amount,
+      currency: 'USD',
+      entry_type: 'credit',
+      reason: reason,
+      idempotency_key: idempotencyKey
+    });
+    
+    return { success: true, wallet: result };
+  } catch (error) {
+    if (error.status === 400 && error.message.includes('Insufficient balance')) {
+      return { success: false, error: 'INSUFFICIENT_BALANCE' };
+    }
+    
+    if (error.status === 409) {
+      // Transaction already processed
+      return { success: true, wallet: null, duplicate: true };
+    }
+    
+    throw error;
+  }
+}
+```
+
+### Periksa Saldo Sebelum Mengenakan Biaya
+
+Selalu verifikasi bahwa pelanggan memiliki cukup kredit sebelum memproses operasi yang mahal:
+
+```javascript
+async function checkBalanceBeforeOperation(customerId, requiredAmount) {
+  const wallets = await client.customers.wallets.list(customerId);
+  const usdWallet = wallets.items.find(w => w.currency === 'USD');
+  
+  if (!usdWallet || usdWallet.balance < requiredAmount) {
+    throw new Error('Not enough credits for this operation');
+  }
+  
+  return usdWallet.balance;
+}
+```
+
+## Apa yang Akan Datang Selanjutnya
+
+<Warning>
+Fitur-fitur ini direncanakan untuk rilis mendatang:
+</Warning>
+
+- **Kedaluwarsa Kredit**: Atur kredit untuk kedaluwarsa setelah waktu tertentu
+- **Analitik yang Lebih Baik**: Laporan pengeluaran terperinci dan wawasan penggunaan  
+- **Lebih Banyak Webhook**: Notifikasi waktu nyata untuk perubahan saldo dan kredit rendah
+
+<Tip>
+Mulailah dengan operasi kredit/debit dasar, lalu tambahkan fitur yang lebih kompleks seiring pertumbuhan bisnis Anda.
+</Tip>

@@ -1,0 +1,597 @@
+---
+title: وظائف Supabase Edge
+description: نشر Webhooks DodoPayments إلى وظائف Supabase Edge
+icon: bolt
+---
+
+<Card title="مستودع GitHub" icon="github" href="https://github.com/dodopayments/cloud-functions/tree/main/supabase">
+  الكود المصدري الكامل ودليل الإعداد
+</Card>
+
+<Tip>
+  <strong>تحقق من مجموعة البداية الكاملة لـ Supabase</strong><br />
+  مجموعة بداية اشتراك بسيطة مبنية باستخدام Next.js و Supabase و Dodo Payments. تساعدك هذه القالب على إعداد SaaS قائم على الاشتراك بسرعة مع المصادقة والمدفوعات وwebhooks.
+  <a href="https://github.com/dodopayments/dodo-supabase-subscription-starter" target="_blank" rel="noopener noreferrer" >
+    مجموعة بداية اشتراك Dodo Payments Supabase
+  </a>
+</Tip>
+
+## الإعداد السريع
+
+### 1. المتطلبات الأساسية
+- [حساب Supabase](https://supabase.com/dashboard)
+- مشروع Supabase تم إنشاؤه
+- مفتاح API لـ DodoPayments من [لوحة التحكم](https://app.dodopayments.com/)
+
+### 2. المصادقة والربط
+
+```bash
+npx supabase login
+git clone https://github.com/dodopayments/cloud-functions.git
+cd cloud-functions/supabase
+npx supabase link --project-ref your-project-ref
+```
+
+احصل على مرجع مشروعك من [لوحة تحكم Supabase](https://supabase.com/dashboard) → إعدادات المشروع
+
+### 3. إعداد قاعدة البيانات
+
+1. انتقل إلى [لوحة تحكم Supabase](https://supabase.com/dashboard)
+2. افتح محرر SQL
+3. أنشئ استعلامًا جديدًا
+4. انسخ والصق المحتويات الكاملة لـ [`schema.sql`](#database-schema)
+5. نفذ الاستعلام
+
+### 4. تعيين الأسرار الأولية
+
+يوفر Supabase تلقائيًا `SUPABASE_URL` و `SUPABASE_SERVICE_ROLE_KEY` في وقت التشغيل.
+
+```bash
+npx supabase secrets set DODO_PAYMENTS_API_KEY=your-api-key
+```
+
+> **ملاحظة:** سنقوم بتعيين `DODO_PAYMENTS_WEBHOOK_KEY` بعد النشر بمجرد حصولك على عنوان URL الخاص بـ webhook.
+
+### 5. النشر
+
+تم إعداد الوظيفة بالفعل في `functions/webhook/index.ts` - فقط قم بنشرها:
+
+```bash
+npm run deploy
+```
+
+### 6. احصل على عنوان URL الخاص بـ Webhook
+
+عنوان URL الخاص بـ webhook هو:
+
+```
+https://[project-ref].supabase.co/functions/v1/webhook
+```
+
+### 7. تسجيل Webhook في لوحة تحكم DodoPayments
+
+1. انتقل إلى [لوحة تحكم DodoPayments](https://app.dodopayments.com) → المطور → Webhooks
+2. أنشئ نقطة نهاية webhook جديدة
+3. قم بتكوين عنوان URL الخاص بـ webhook كنقطة النهاية
+4. قم بتمكين هذه الأحداث الاشتراكية:
+   - `subscription.active`
+   - `subscription.cancelled`
+   - `subscription.renewed`
+5. انسخ **سر التوقيع**
+
+### 8. تعيين مفتاح Webhook وإعادة النشر
+
+```bash
+npx supabase secrets set DODO_PAYMENTS_WEBHOOK_KEY=your-webhook-signing-key
+npm run deploy
+```
+
+## ماذا يفعل
+
+يعالج أحداث الاشتراك ويخزنها في PostgreSQL الخاص بـ Supabase:
+- **subscription.active** - ينشئ/يحدث سجلات العملاء والاشتراكات
+- **subscription.cancelled** - يحدد الاشتراك على أنه ملغى
+- **subscription.renewed** - يحدث تاريخ الفوترة التالي
+
+## الميزات الرئيسية
+
+✅ **التحقق من التوقيع** - باستخدام مكتبة dodopayments  
+✅ **التحمل** - يمنع المعالجة المكررة باستخدام معرفات webhook  
+✅ **تسجيل الأحداث** - سجل تدقيق كامل في جدول `webhook_events`  
+✅ **معالجة الأخطاء** - مسجلة وقابلة لإعادة المحاولة
+
+> **ملاحظة:** توضح هذه التنفيذ كيفية التعامل مع ثلاثة أحداث اشتراك أساسية (`subscription.active`، `subscription.cancelled`، `subscription.renewed`) مع الحد الأدنى من الحقول. يمكنك بسهولة توسيعها لدعم أنواع الأحداث والحقول الإضافية بناءً على متطلباتك.
+
+## ملفات التكوين
+
+<CodeGroup>
+
+  ```json package.json
+  {
+    "name": "dodo-webhook-supabase",
+    "version": "1.0.0",
+    "type": "module",
+    "description": "DodoPayments Webhook Handler for Supabase Edge Functions",
+    "scripts": {
+      "dev": "npx supabase functions serve webhook --no-verify-jwt --workdir ..",
+      "deploy": "npx supabase functions deploy webhook --no-verify-jwt --workdir .."
+    }
+  }
+  ```
+
+  ```json tsconfig.json
+  {
+    "compilerOptions": {
+      "target": "ES2022",
+      "module": "ES2022",
+      "lib": ["ES2022", "DOM"],
+      "moduleResolution": "bundler",
+      "esModuleInterop": true,
+      "strict": true,
+      "skipLibCheck": true,
+      "resolveJsonModule": true,
+      "allowSyntheticDefaultImports": true,
+      "forceConsistentCasingInFileNames": true,
+      "isolatedModules": true
+    },
+    "include": ["functions/webhook/*.ts"],
+    "exclude": ["node_modules"]
+  }
+  ```
+
+</CodeGroup>
+
+## مخطط قاعدة البيانات
+
+<CodeGroup>
+
+  ```sql schema.sql expandable
+  -- DodoPayments Webhook Database Schema
+  -- Compatible with PostgreSQL (Supabase, Neon, etc.)
+
+  -- Enable UUID extension (if not already enabled)
+  CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+  -- Customers table
+  CREATE TABLE IF NOT EXISTS customers (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    email TEXT NOT NULL,
+    name TEXT NOT NULL,
+    dodo_customer_id TEXT UNIQUE NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  );
+
+  -- Subscriptions table
+  CREATE TABLE IF NOT EXISTS subscriptions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    customer_id UUID NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+    dodo_subscription_id TEXT UNIQUE NOT NULL,
+    product_id TEXT NOT NULL,
+    status TEXT NOT NULL CHECK (status IN ('pending', 'active', 'on_hold', 'cancelled', 'failed', 'expired')),
+    billing_interval TEXT NOT NULL CHECK (billing_interval IN ('day', 'week', 'month', 'year')),
+    amount INTEGER NOT NULL,
+    currency TEXT NOT NULL,
+    next_billing_date TIMESTAMP WITH TIME ZONE NOT NULL,
+    cancelled_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  );
+
+  -- Webhook events log
+  CREATE TABLE IF NOT EXISTS webhook_events (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    webhook_id TEXT UNIQUE,
+    event_type TEXT NOT NULL,
+    data JSONB NOT NULL,
+    processed BOOLEAN DEFAULT FALSE,
+    error_message TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    processed_at TIMESTAMP WITH TIME ZONE,
+    attempts INTEGER DEFAULT 0
+  );
+
+  -- Indexes for better query performance
+  CREATE INDEX IF NOT EXISTS idx_customers_email ON customers(email);
+  CREATE INDEX IF NOT EXISTS idx_customers_dodo_id ON customers(dodo_customer_id);
+  CREATE INDEX IF NOT EXISTS idx_subscriptions_dodo_id ON subscriptions(dodo_subscription_id);
+  CREATE INDEX IF NOT EXISTS idx_subscriptions_customer_id ON subscriptions(customer_id);
+  CREATE INDEX IF NOT EXISTS idx_subscriptions_status ON subscriptions(status);
+  CREATE INDEX IF NOT EXISTS idx_webhook_events_processed ON webhook_events(processed, created_at);
+  CREATE INDEX IF NOT EXISTS idx_webhook_events_type ON webhook_events(event_type);
+  CREATE INDEX IF NOT EXISTS idx_webhook_events_created_at ON webhook_events(created_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_webhook_events_webhook_id ON webhook_events(webhook_id);
+
+  -- Function to automatically update updated_at timestamp
+  CREATE OR REPLACE FUNCTION update_updated_at_column()
+  RETURNS TRIGGER AS $$
+  BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+  END;
+  $$ LANGUAGE plpgsql;
+
+  -- Triggers to automatically update updated_at
+  CREATE TRIGGER update_customers_updated_at
+    BEFORE UPDATE ON customers
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+  CREATE TRIGGER update_subscriptions_updated_at
+    BEFORE UPDATE ON subscriptions
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+  -- Comments for documentation
+  COMMENT ON TABLE customers IS 'Stores customer information from DodoPayments';
+  COMMENT ON TABLE subscriptions IS 'Stores subscription data from DodoPayments';
+  COMMENT ON TABLE webhook_events IS 'Logs all incoming webhook events for audit and retry purposes';
+
+  COMMENT ON COLUMN customers.dodo_customer_id IS 'Unique customer ID from DodoPayments';
+  COMMENT ON COLUMN subscriptions.dodo_subscription_id IS 'Unique subscription ID from DodoPayments';
+  COMMENT ON COLUMN subscriptions.amount IS 'Amount in smallest currency unit (e.g., cents)';
+  COMMENT ON COLUMN subscriptions.currency IS 'Currency used for the subscription payments (e.g., USD, EUR, INR)';
+  COMMENT ON COLUMN webhook_events.attempts IS 'Number of processing attempts for failed webhooks';
+  COMMENT ON COLUMN webhook_events.data IS 'Full webhook payload as JSON';
+  ```
+
+</CodeGroup>
+
+**الجداول التي تم إنشاؤها:**
+- **customers** - البريد الإلكتروني، الاسم، dodo_customer_id
+- **subscriptions** - الحالة، المبلغ، next_billing_date، مرتبط بالعملاء
+- **webhook_events** - سجل الأحداث مع webhook_id للتحمل
+
+## كود التنفيذ
+
+<CodeGroup>
+
+```typescript functions/webhook/index.ts expandable
+import { serve } from 'https://deno.land/std@0.208.0/http/server.ts';
+import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.38.4';
+import { DodoPayments } from 'https://esm.sh/dodopayments@2.4.1';
+
+export const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, webhook-id, webhook-signature, webhook-timestamp',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+};
+
+interface WebhookPayload {
+  business_id: string;
+  type: string;
+  timestamp: string;
+  data: {
+    payload_type: "Payment" | "Subscription" | "Refund" | "Dispute" | "LicenseKey";
+    subscription_id: string;
+    customer: {
+      customer_id: string;
+      email: string;
+      name: string;
+    };
+    product_id: string;
+    status: string;
+    recurring_pre_tax_amount: number;
+    payment_frequency_interval: string;
+    created_at: string;
+    next_billing_date: string;
+    cancelled_at?: string | null;
+    currency: string;
+  };
+}
+
+// Handle subscription events
+async function handleSubscriptionEvent(supabase: SupabaseClient, payload: WebhookPayload, status: string) {
+  if (!payload.data.customer.customer_id || !payload.data.subscription_id) {
+    throw new Error('Missing required fields: customer_id or subscription_id');
+  }
+
+  try {
+    console.log('🔄 Processing subscription event:', JSON.stringify(payload, null, 2));
+    
+    const customer = payload.data.customer;
+    
+    // Upsert customer (create if doesn't exist, otherwise update)
+    const customerResult = await supabase
+      .from('customers')
+      .upsert({
+        email: customer.email,
+        name: customer.name,
+        dodo_customer_id: customer.customer_id
+      }, {
+        onConflict: 'dodo_customer_id',
+        ignoreDuplicates: false
+      })
+      .select('id')
+      .single();
+
+    if (customerResult.error) {
+      console.error('❌ Failed to upsert customer:', customerResult.error);
+      throw new Error(`Failed to upsert customer: ${customerResult.error.message}`);
+    }
+
+    const customerId = customerResult.data.id;
+    console.log(`✅ Customer upserted with ID: ${customerId}`);
+
+    // Upsert subscription
+    const subscriptionResult = await supabase
+      .from('subscriptions')
+      .upsert({
+        customer_id: customerId,
+        dodo_subscription_id: payload.data.subscription_id,
+        product_id: payload.data.product_id,
+        status,
+        billing_interval: payload.data.payment_frequency_interval.toLowerCase(),
+        amount: payload.data.recurring_pre_tax_amount,
+        currency: payload.data.currency,
+        created_at: payload.data.created_at,
+        next_billing_date: payload.data.next_billing_date,
+        cancelled_at: payload.data.cancelled_at ?? null,
+        updated_at: new Date().toISOString()
+      }, {
+        onConflict: 'dodo_subscription_id',
+        ignoreDuplicates: false
+      })
+      .select();
+
+    if (subscriptionResult.error) {
+      console.error('❌ Failed to upsert subscription:', subscriptionResult.error);
+      throw new Error(`Failed to upsert subscription: ${subscriptionResult.error.message}`);
+    }
+
+    console.log(`✅ Subscription upserted with ${status} status`);
+
+  } catch (error) {
+    console.error('❌ Error in handleSubscriptionEvent:', error);
+    console.error('❌ Raw webhook data:', JSON.stringify(payload, null, 2));
+    throw error;
+  }
+}
+
+serve(async (req: Request) => {
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
+
+  // Validate required environment variables
+  try {
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    
+    if (!supabaseUrl || !supabaseServiceKey) {
+      console.error('❌ Missing required environment variables');
+      return new Response(
+        JSON.stringify({ error: 'Server configuration error' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const rawBody = await req.text();
+    console.log('📨 Webhook received');
+
+    const apiKey = Deno.env.get('DODO_PAYMENTS_API_KEY');
+    const webhookKey = Deno.env.get('DODO_PAYMENTS_WEBHOOK_KEY');
+
+    if (!apiKey) {
+      console.error('❌ DODO_PAYMENTS_API_KEY is not configured');
+      return new Response(
+        JSON.stringify({ error: 'API key not configured' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (!webhookKey) {
+      console.error('❌ DODO_PAYMENTS_WEBHOOK_KEY is not configured');
+      return new Response(
+        JSON.stringify({ error: 'Webhook verification key not configured' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Verify webhook signature (required for security)
+    const webhookHeaders = {
+      'webhook-id': req.headers.get('webhook-id') || '',
+      'webhook-signature': req.headers.get('webhook-signature') || '',
+      'webhook-timestamp': req.headers.get('webhook-timestamp') || '',
+    };
+
+    try {
+      const dodoPaymentsClient = new DodoPayments({
+        bearerToken: apiKey,
+        webhookKey: webhookKey,
+      });
+      const unwrappedWebhook = dodoPaymentsClient.webhooks.unwrap(rawBody, { headers: webhookHeaders });
+      console.log('Unwrapped webhook:', unwrappedWebhook);
+      console.log('✅ Webhook signature verified');
+    } catch (error) {
+      console.error('❌ Webhook verification failed:', error);
+      return new Response(
+        JSON.stringify({ 
+          error: 'Webhook verification failed',
+          details: error instanceof Error ? error.message : 'Invalid signature'
+        }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Initialize Supabase client
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    let payload: WebhookPayload;
+    try {
+      payload = JSON.parse(rawBody) as WebhookPayload;
+    } catch (parseError) {
+      console.error('❌ Failed to parse webhook payload:', parseError);
+      return new Response(
+        JSON.stringify({ error: 'Invalid JSON payload' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const eventType = payload.type;
+    const eventData = payload.data;
+    const webhookId = req.headers.get('webhook-id') || '';
+
+    console.log(`📋 Webhook payload:`, JSON.stringify(payload, null, 2));
+
+    // Check for duplicate webhook-id (idempotency)
+    if (webhookId) {
+      const { data: existingEvent } = await supabase
+        .from('webhook_events')
+        .select('id')
+        .eq('webhook_id', webhookId)
+        .single();
+
+      if (existingEvent) {
+        console.log(`⚠️ Webhook ${webhookId} already processed, skipping (idempotency)`);
+        return new Response(
+          JSON.stringify({ success: true, message: 'Webhook already processed' }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
+    // Log webhook event with webhook_id for idempotency
+    const logResult = await supabase.from('webhook_events').insert([{
+      webhook_id: webhookId || null,
+      event_type: eventType,
+      data: eventData,
+      processed: false,
+      created_at: new Date().toISOString()
+    }]).select('id').single();
+
+    if (logResult.error) {
+      console.error('❌ Failed to log webhook event:', logResult.error);
+      return new Response(
+        JSON.stringify({ error: 'Failed to log webhook event' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const loggedEventId = logResult.data.id;
+    console.log('📝 Webhook event logged with ID:', loggedEventId);
+
+    console.log(`🔄 Processing: ${eventType} (${eventData.payload_type || 'unknown payload type'})`);
+
+    try {
+      switch (eventType) {
+        case 'subscription.active':
+          await handleSubscriptionEvent(supabase, payload, 'active');
+          break;
+        case 'subscription.cancelled':
+          await handleSubscriptionEvent(supabase, payload, 'cancelled');
+          break;
+        case 'subscription.renewed':
+          console.log('🔄 Subscription renewed - keeping active status and updating billing date');
+          await handleSubscriptionEvent(supabase, payload, 'active');
+          break;
+        default:
+          console.log(`ℹ️ Event ${eventType} logged but not processed (no handler available)`);
+      }
+      
+      const updateResult = await supabase
+        .from('webhook_events')
+        .update({ 
+          processed: true, 
+          processed_at: new Date().toISOString() 
+        })
+        .eq('id', loggedEventId);
+      
+      if (updateResult.error) {
+        console.error('❌ Failed to mark webhook as processed:', updateResult.error);
+      } else {
+        console.log('✅ Webhook marked as processed');
+      }
+    } catch (processingError) {
+      console.error('❌ Error processing webhook event:', processingError);
+      
+      await supabase
+        .from('webhook_events')
+        .update({ 
+          processed: false,
+          error_message: processingError instanceof Error ? processingError.message : 'Unknown error',
+          processed_at: new Date().toISOString()
+        })
+        .eq('id', loggedEventId);
+      
+      throw processingError;
+    }
+
+    console.log('✅ Webhook processed successfully');
+
+    return new Response(
+      JSON.stringify({ 
+        success: true, 
+        event_type: eventType,
+        event_id: loggedEventId
+      }),
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+
+  } catch (error) {
+    console.error('❌ Webhook processing failed:', error);
+    return new Response(
+      JSON.stringify({ 
+        error: 'Webhook processing failed',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+});
+```
+
+</CodeGroup>
+
+## كيف يعمل
+
+وظيفة Edge المستندة إلى Deno:
+1. **التحقق من التوقيع** - يستخدم مكتبة dodopayments للتحقق من HMAC-SHA256
+2. **التحقق من التحمل** - يبحث عن معرف webhook لمنع المعالجة المكررة
+3. **تسجيل الحدث** - يخزن بيانات webhook الخام في جدول `webhook_events`
+4. **معالجة التحديثات** - ينشئ أو يحدث العملاء والاشتراكات عبر عميل Supabase
+5. **معالجة الأخطاء** - يسجل الفشل ويحدد الحدث لإعادة المحاولة
+
+## الاختبار
+
+**التطوير المحلي:**
+
+```bash
+cd supabase
+npm run dev
+# Available at http://localhost:54321/functions/v1/webhook
+```
+
+<Note>
+العلم `--no-verify-jwt` مطلوب لأن webhooks لا تتضمن رموز JWT. يتم توفير الأمان من خلال التحقق من توقيع webhook.
+</Note>
+
+**عرض السجلات:**
+
+```bash
+npx supabase functions logs webhook
+```
+
+أو في [لوحة تحكم Supabase](https://supabase.com/dashboard) → وظائف Edge → webhook → علامة التبويب السجلات
+
+**تكوين في لوحة تحكم DodoPayments:**
+1. انتقل إلى المطورين → Webhooks
+2. أضف نقطة النهاية مع عنوان URL الخاص بـ Supabase
+3. قم بتمكين: subscription.active، subscription.cancelled، subscription.renewed
+
+## المشكلات الشائعة
+
+| المشكلة | الحل |
+|-------|----------|
+| فشل التحقق | تحقق من أن مفتاح webhook صحيح من لوحة تحكم DodoPayments |
+| خطأ في إذن قاعدة البيانات | تأكد من استخدام مفتاح خدمة الدور |
+| خطأ في التحقق من JWT | نشر مع `--no-verify-jwt` العلم |
+| الوظيفة غير موجودة | تحقق من أن مرجع المشروع صحيح وأن الوظيفة تم نشرها |
+
+## الموارد
+
+- [وثائق وظائف Supabase Edge](https://supabase.com/docs/guides/functions)
+- [Supabase CLI](https://supabase.com/docs/reference/cli)
+- [بيئة تشغيل Deno](https://deno.land/)
+- [دليل أحداث Webhook](/developer-resources/webhooks/intents/webhook-events-guide)
+- [مستودع GitHub](https://github.com/dodopayments/cloud-functions/tree/main/supabase)

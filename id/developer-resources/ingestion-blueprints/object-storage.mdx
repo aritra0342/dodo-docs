@@ -1,0 +1,164 @@
+---
+title: Blueprint Penyimpanan Objek
+description: Lacak unggahan file dan penggunaan penyimpanan untuk S3, Google
+  Cloud Storage, Azure Blob, dan layanan penyimpanan objek lainnya.
+icon: box-archive
+---
+
+## Kasus Penggunaan
+
+Jelajahi skenario umum yang didukung oleh Blueprint Penyimpanan Objek:
+
+<CardGroup cols={2}>
+<Card title="Hosting File" icon="folder">
+Tagih pelanggan berdasarkan total penggunaan penyimpanan dan volume unggahan.
+</Card>
+<Card title="Layanan Cadangan" icon="shield">
+Lacak unggahan data cadangan dan biaya per GB yang disimpan.
+</Card>
+<Card title="Media CDN" icon="photo-film">
+Monitor unggahan media dan tagih untuk penyimpanan dan bandwidth.
+</Card>
+<Card title="Manajemen Dokumen" icon="file">
+Lacak unggahan dokumen per pelanggan untuk penetapan harga berbasis penggunaan.
+</Card>
+</CardGroup>
+
+<Info>
+Sempurna untuk penagihan berdasarkan unggahan penyimpanan, hosting file, penggunaan CDN, atau layanan cadangan.
+</Info>
+
+## Memulai dengan Cepat
+
+Lacak unggahan penyimpanan objek dengan byte yang digunakan:
+
+<Steps>
+<Step title="Instal SDK">
+
+```bash
+npm install @dodopayments/ingestion-blueprints
+```
+
+</Step>
+
+<Step title="Dapatkan Kunci API Anda">
+- **Kunci API Dodo Payments**: Dapatkan dari [Dasbor Dodo Payments](https://app.dodopayments.com/developer/api-keys)
+- **Kunci API Penyedia Penyimpanan**: Dari AWS S3, Google Cloud Storage, Azure, dll.
+</Step>
+
+<Step title="Buat Meter">
+Buat meter di [Dasbor Dodo Payments](https://app.dodopayments.com/):
+- **Nama Acara**: `object_storage_upload` (atau nama yang Anda pilih)
+- **Tipe Agregasi**: `sum` untuk melacak total byte yang diunggah
+- **Atas Properti**: `bytes` untuk menagih berdasarkan ukuran penyimpanan
+</Step>
+
+<Step title="Lacak Penggunaan Penyimpanan">
+<CodeGroup>
+
+```javascript AWS S3 Upload
+import { Ingestion, trackObjectStorage } from '@dodopayments/ingestion-blueprints';
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import fs from 'fs';
+
+const ingestion = new Ingestion({
+  apiKey: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'test_mode',
+  eventName: 'object_storage_upload'
+});
+
+const s3 = new S3Client({ region: 'us-east-1' });
+
+// Read the file (example: from disk or request)
+const fileBuffer = fs.readFileSync('./document.pdf');
+
+// Upload to S3
+const command = new PutObjectCommand({
+  Bucket: 'my-bucket',
+  Key: 'uploads/document.pdf',
+  Body: fileBuffer
+});
+
+await s3.send(command);
+
+// Track the upload
+await trackObjectStorage(ingestion, {
+  customerId: 'customer_123',
+  bytes: fileBuffer.length
+});
+```
+
+```javascript Google Cloud Storage
+import { Ingestion, trackObjectStorage } from '@dodopayments/ingestion-blueprints';
+import { Storage } from '@google-cloud/storage';
+import fs from 'fs';
+
+const ingestion = new Ingestion({
+  apiKey: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'test_mode',
+  eventName: 'object_storage_upload'
+});
+
+const storage = new Storage();
+const bucket = storage.bucket('my-bucket');
+
+// Read the file
+const fileBuffer = fs.readFileSync('./image.png');
+
+// Upload to GCS
+await bucket.file('uploads/image.png').save(fileBuffer);
+
+// Track the upload
+await trackObjectStorage(ingestion, {
+  customerId: 'customer_456',
+  bytes: fileBuffer.length,
+  metadata: {
+    bucket: 'my-bucket',
+    key: 'uploads/image.png'
+  }
+});
+```
+
+</CodeGroup>
+</Step>
+</Steps>
+
+## Konfigurasi
+
+### Konfigurasi Ingesti
+
+<ParamField path="apiKey" type="string" required>
+Kunci API Dodo Payments Anda dari dasbor.
+</ParamField>
+
+<ParamField path="environment" type="string" required>
+Mode lingkungan: `test_mode` atau `live_mode`.
+</ParamField>
+
+<ParamField path="eventName" type="string" required>
+Nama acara yang sesuai dengan konfigurasi meter Anda.
+</ParamField>
+
+### Opsi Lacak Penyimpanan Objek
+
+<ParamField path="customerId" type="string" required>
+ID pelanggan untuk atribusi penagihan.
+</ParamField>
+
+<ParamField path="bytes" type="number">
+Jumlah byte yang diunggah. Diperlukan untuk penagihan berbasis byte.
+</ParamField>
+
+<ParamField path="metadata" type="object">
+Metadata opsional tentang unggahan seperti nama bucket, tipe konten, dll.
+</ParamField>
+
+## Praktik Terbaik
+
+<Tip>
+**Lacak Sebelum atau Setelah Unggahan**: Anda dapat melacak acara sebelum atau setelah unggahan yang sebenarnya tergantung pada strategi penanganan kesalahan Anda.
+</Tip>
+
+<Warning>
+**Tangani Kegagalan Unggahan**: Hanya lacak unggahan yang berhasil untuk menghindari penagihan untuk operasi yang gagal.
+</Warning>

@@ -1,0 +1,817 @@
+---
+title: دليل ترقية وتخفيض الاشتراك
+description: تعلم كيفية تغيير خطة اشتراك العميل، التعامل مع النسب المئوية،
+  ومعالجة الويب هوكس بشكل موثوق.
+icon: arrows-rotate
+---
+
+<CardGroup cols={2}>
+<Card title="مرجع واجهة برمجة التطبيقات لتغيير الخطة" icon="code" href="/api-reference/subscriptions/change-plan">
+  الوصول إلى الوثائق الكاملة لواجهة برمجة التطبيقات لتغيير خطط الاشتراك واختبار طلبات تغيير الخطة بشكل تفاعلي.
+</Card>
+
+<Card title="معاينة واجهة برمجة التطبيقات لتغيير الخطة" icon="eye" href="/api-reference/subscriptions/preview-change-plan">
+  معاينة المبلغ الدقيق الذي سيتم تحصيله قبل الالتزام بتغيير الخطة.
+</Card>
+
+<Card title="دليل تكامل الاشتراك" icon="book" href="/developer-resources/subscription-integration-guide">
+  تعلم كيفية إنشاء وإدارة الاشتراكات من الصفر مع دليل التكامل الشامل لدينا.
+</Card>
+</CardGroup>
+
+## ما هي ترقية أو تخفيض الاشتراك؟
+
+تغيير الخطط يتيح لك نقل العميل بين مستويات أو كميات الاشتراك. استخدمه لـ:
+- مواءمة الأسعار مع الاستخدام أو الميزات
+- الانتقال من شهري إلى سنوي (أو العكس)
+- ضبط الكمية للمنتجات المعتمدة على المقاعد
+
+<Info>
+يمكن أن تؤدي تغييرات الخطط إلى تحصيل رسوم فورية اعتمادًا على وضع النسبة المئوية الذي تختاره.
+</Info>
+
+## متى يجب استخدام تغييرات الخطط
+
+- ترقية عندما يحتاج العميل إلى المزيد من الميزات أو الاستخدام أو المقاعد
+- تخفيض عندما ينخفض الاستخدام
+- نقل المستخدمين إلى منتج أو سعر جديد دون إلغاء اشتراكهم
+
+## المتطلبات الأساسية
+
+قبل تنفيذ تغييرات خطة الاشتراك، تأكد من أن لديك:
+
+- حساب تاجر Dodo Payments مع منتجات اشتراك نشطة
+- بيانات اعتماد واجهة برمجة التطبيقات (مفتاح API ومفتاح سر الويب هوك) من لوحة التحكم
+- اشتراك نشط موجود لتعديله
+- نقطة نهاية الويب هوك مكونة للتعامل مع أحداث الاشتراك
+
+<Info>
+للحصول على تعليمات إعداد مفصلة، راجع [دليل التكامل](/developer-resources/integration-guide#dashboard-setup).
+</Info>
+
+## دليل التنفيذ خطوة بخطوة
+
+اتبع هذا الدليل الشامل لتنفيذ تغييرات خطة الاشتراك في تطبيقك:
+
+<Steps>
+<Step title="فهم متطلبات تغيير الخطة">
+قبل التنفيذ، حدد:
+- أي منتجات اشتراك يمكن تغييرها إلى أي أخرى
+- ما هو وضع النسبة المئوية الذي يناسب نموذج عملك
+- كيفية التعامل مع تغييرات الخطط الفاشلة بشكل سلس
+- أي أحداث ويب هوك يجب تتبعها لإدارة الحالة
+
+<Tip>
+اختبر تغييرات الخطط بدقة في وضع الاختبار قبل التنفيذ في الإنتاج.
+</Tip>
+</Step>
+
+<Step title="اختر استراتيجية النسبة المئوية الخاصة بك">
+اختر النهج الفوترة الذي يتماشى مع احتياجات عملك:
+
+<Tabs>
+<Tab title="prorated_immediately">
+أفضل لـ: تطبيقات SaaS التي ترغب في تحصيل رسوم بشكل عادل عن الوقت غير المستخدم
+- يحسب المبلغ الدقيق النسبي بناءً على الوقت المتبقي في الدورة
+- يفرض مبلغًا نسبيًا بناءً على الوقت غير المستخدم المتبقي في الدورة
+- يوفر فوترة شفافة للعملاء
+</Tab>
+
+<Tab title="difference_immediately">
+أفضل لـ: سيناريوهات الترقية/التخفيض الواضحة
+- ترقية: فرض الفرق الفوري (على سبيل المثال، $30→$80 = فرض $50)
+- تخفيض: ائتمان القيمة المتبقية للتجديدات المستقبلية
+- يبسط منطق الفوترة والتواصل مع العملاء
+</Tab>
+
+<Tab title="full_immediately">
+أفضل لـ: عندما تريد إعادة تعيين دورة الفوترة
+- يفرض المبلغ الكامل للخطة الجديدة على الفور
+- يتجاهل الوقت المتبقي من الخطة القديمة
+- مفيد للانتقالات من سنوي إلى شهري
+</Tab>
+</Tabs>
+</Step>
+
+<Step title="تنفيذ واجهة برمجة التطبيقات لتغيير الخطة">
+استخدم واجهة برمجة التطبيقات لتغيير الخطة لتعديل تفاصيل الاشتراك:
+
+<ParamField path="subscription_id" type="string" required>
+معرف الاشتراك النشط الذي سيتم تعديله.
+</ParamField>
+
+<ParamField path="product_id" type="string" required>
+معرف المنتج الجديد لتغيير الاشتراك إليه.
+</ParamField>
+
+<ParamField path="quantity" type="integer" default="1">
+عدد الوحدات للخطة الجديدة (للمنتجات المعتمدة على المقاعد).
+</ParamField>
+
+<ParamField path="proration_billing_mode" type="string" required>
+كيفية التعامل مع الفوترة الفورية: `prorated_immediately`، `full_immediately`، أو `difference_immediately`.
+</ParamField>
+
+<ParamField path="addons" type="array">
+إضافات اختيارية للخطة الجديدة. ترك هذا فارغًا يزيل أي إضافات موجودة.
+</ParamField>
+</Step>
+
+<Step title="التعامل مع أحداث الويب هوك">
+قم بإعداد معالجة الويب هوك لتتبع نتائج تغيير الخطة:
+
+- `subscription.active`: تم تغيير الخطة بنجاح، تم تحديث الاشتراك
+- `subscription.plan_changed`: تم تغيير خطة الاشتراك (ترقية/تخفيض/تحديث الإضافة)
+- `subscription.on_hold`: فشل تحصيل رسوم تغيير الخطة، تم إيقاف الاشتراك
+- `payment.succeeded`: تم تحصيل الرسوم الفورية لتغيير الخطة بنجاح
+- `payment.failed`: فشل التحصيل الفوري
+
+<Warning>
+تحقق دائمًا من توقيعات الويب هوك وطبق معالجة الأحداث غير القابلة للتكرار.
+</Warning>
+</Step>
+
+<Step title="تحديث حالة تطبيقك">
+استنادًا إلى أحداث الويب هوك، قم بتحديث تطبيقك:
+- منح/إلغاء الميزات بناءً على الخطة الجديدة
+- تحديث لوحة معلومات العميل بتفاصيل الخطة الجديدة
+- إرسال رسائل تأكيد عبر البريد الإلكتروني حول تغييرات الخطة
+- تسجيل تغييرات الفوترة لأغراض التدقيق
+</Step>
+
+<Step title="اختبار ومراقبة">
+اختبر تنفيذك بدقة:
+- اختبار جميع أوضاع النسبة المئوية مع سيناريوهات مختلفة
+- التحقق من أن معالجة الويب هوك تعمل بشكل صحيح
+- مراقبة معدلات نجاح تغيير الخطة
+- إعداد تنبيهات لتغييرات الخطة الفاشلة
+
+<Check>
+تنفيذ تغيير خطة الاشتراك الخاص بك جاهز الآن للاستخدام في الإنتاج.
+</Check>
+</Step>
+</Steps>
+
+## معاينة تغييرات الخطة
+
+قبل الالتزام بتغيير الخطة، استخدم واجهة برمجة التطبيقات للمعاينة لإظهار للعملاء بالضبط ما سيتم تحصيله منهم:
+
+<Tabs>
+<Tab title="Node.js SDK">
+
+```javascript
+const preview = await client.subscriptions.previewChangePlan('sub_123', {
+  product_id: 'prod_pro',
+  quantity: 1,
+  proration_billing_mode: 'prorated_immediately'
+});
+
+// Show customer the charge before confirming
+console.log('Immediate charge:', preview.immediate_charge.summary);
+console.log('New plan details:', preview.new_plan);
+```
+
+</Tab>
+
+<Tab title="Python SDK">
+
+```python
+preview = client.subscriptions.preview_change_plan(
+    subscription_id="sub_123",
+    product_id="prod_pro",
+    quantity=1,
+    proration_billing_mode="prorated_immediately"
+)
+
+# Show customer the charge before confirming
+print("Immediate charge:", preview.immediate_charge.summary)
+print("New plan details:", preview.new_plan)
+```
+
+</Tab>
+</Tabs>
+
+<Tip>
+استخدم واجهة برمجة التطبيقات للمعاينة لبناء حوارات تأكيد تظهر للعملاء المبلغ الدقيق الذي سيتم تحصيله منهم قبل تأكيد تغيير الخطة.
+</Tip>
+
+## واجهة برمجة التطبيقات لتغيير الخطة
+
+استخدم واجهة برمجة التطبيقات لتغيير الخطة لتعديل المنتج والكمية وسلوك النسبة المئوية للاشتراك النشط.
+
+### أمثلة بدء سريعة
+
+<Tabs>
+  <Tab title="Node.js SDK">
+
+    ```javascript
+    import DodoPayments from 'dodopayments';
+
+    const client = new DodoPayments({
+      bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+      environment: 'test_mode', // defaults to 'live_mode'
+    });
+
+    async function changePlan() {
+      const result = await client.subscriptions.changePlan('sub_123', {
+        product_id: 'prod_new',
+        quantity: 3,
+        proration_billing_mode: 'prorated_immediately',
+      });
+      console.log(result.status, result.invoice_id, result.payment_id);
+    }
+
+    changePlan();
+    ```
+
+  </Tab>
+  <Tab title="Python SDK">
+
+    ```python
+    import os
+    from dodopayments import DodoPayments
+
+    client = DodoPayments(
+        bearer_token=os.environ.get("DODO_PAYMENTS_API_KEY"),
+        environment="test_mode",  # defaults to "live_mode"
+    )
+
+    result = client.subscriptions.change_plan(
+        subscription_id="sub_123",
+        product_id="prod_new",
+        quantity=3,
+        proration_billing_mode="prorated_immediately",
+    )
+    print(result.status, result.get("invoice_id"), result.get("payment_id"))
+    ```
+
+  </Tab>
+  <Tab title="Go SDK">
+
+    ```go
+    package main
+
+    import (
+      "context"
+      "fmt"
+      "github.com/dodopayments/dodopayments-go"
+      "github.com/dodopayments/dodopayments-go/option"
+    )
+
+    func main() {
+      client := dodopayments.NewClient(option.WithBearerToken("YOUR_TOKEN"))
+      res, err := client.Subscriptions.ChangePlan(context.TODO(), dodopayments.SubscriptionChangePlanParams{
+        SubscriptionID: dodopayments.F("sub_123"),
+        ProductID:             dodopayments.F("prod_new"),
+        Quantity:              dodopayments.F(int64(3)),
+        ProrationBillingMode:  dodopayments.F(dodopayments.SubscriptionChangePlanParamsProrationBillingModeProratedImmediately),
+      })
+      if err != nil { panic(err) }
+      fmt.Println(res.Status, res.InvoiceID, res.PaymentID)
+    }
+    ```
+
+  </Tab>
+  <Tab title="HTTP">
+
+    ```bash
+    curl -X POST "$DODO_API_BASE/subscriptions/sub_123/change-plan" \
+      -H "Authorization: Bearer $DODO_PAYMENTS_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "product_id": "prod_new",
+        "quantity": 3,
+        "proration_billing_mode": "prorated_immediately"
+      }'
+    ```
+
+  </Tab>
+</Tabs>
+
+```json Success
+{
+  "status": "processing",
+  "subscription_id": "sub_123",
+  "invoice_id": "inv_789",
+  "payment_id": "pay_456",
+  "proration_billing_mode": "prorated_immediately"
+}
+```
+
+<Note>
+تُرجع حقول مثل <code>invoice_id</code> و<code>payment_id</code> فقط عندما يتم إنشاء تحصيل فوري و/أو فاتورة أثناء تغيير الخطة. اعتمد دائمًا على أحداث الويب هوك (مثل <code>payment.succeeded</code>، <code>subscription.plan_changed</code>) لتأكيد النتائج.
+</Note>
+
+<Warning>
+إذا فشل التحصيل الفوري، قد ينتقل الاشتراك إلى `subscription.on_hold` حتى ينجح الدفع.
+</Warning>
+
+## إدارة الإضافات
+
+عند تغيير خطط الاشتراك، يمكنك أيضًا تعديل الإضافات:
+
+```javascript
+// Add addons to the new plan
+await client.subscriptions.changePlan('sub_123', {
+  product_id: 'prod_new',
+  quantity: 1,
+  proration_billing_mode: 'difference_immediately',
+  addons: [
+    { addon_id: 'addon_123', quantity: 2 }
+  ]
+});
+
+// Remove all existing addons
+await client.subscriptions.changePlan('sub_123', {
+  product_id: 'prod_new',
+  quantity: 1,
+  proration_billing_mode: 'difference_immediately',
+  addons: [] // Empty array removes all existing addons
+});
+```
+
+<Info>
+تُدرج الإضافات في حساب النسبة المئوية وسيتم تحصيلها وفقًا لوضع النسبة المئوية المحدد.
+</Info>
+
+## أوضاع النسبة المئوية
+
+اختر كيفية تحصيل الرسوم من العميل عند تغيير الخطط:
+
+#### `prorated_immediately`
+- تحصيل الرسوم عن الفرق الجزئي في الدورة الحالية
+- إذا كانت في فترة تجريبية، يتم التحصيل على الفور ويتم الانتقال إلى الخطة الجديدة الآن
+- تخفيض: قد ينتج عنه ائتمان نسبي يُطبق على التجديدات المستقبلية
+
+#### `full_immediately`
+- تحصيل المبلغ الكامل للخطة الجديدة على الفور
+- يتجاهل الوقت المتبقي من الخطة القديمة
+
+<Info>
+الائتمانات التي تم إنشاؤها بواسطة التخفيضات باستخدام <code>difference_immediately</code> هي محددة للاشتراك ومتميزة عن <a href="/features/customer-credit">الائتمانات الخاصة بالعملاء</a>. يتم تطبيقها تلقائيًا على التجديدات المستقبلية لنفس الاشتراك ولا يمكن نقلها بين الاشتراكات.
+</Info>
+
+#### `difference_immediately`
+- ترقية: فرض الفرق في السعر بين الخطط القديمة والجديدة على الفور
+- تخفيض: إضافة القيمة المتبقية كائتمان داخلي للاشتراك وتطبيقها تلقائيًا على التجديدات
+
+### سيناريوهات الأمثلة
+
+<AccordionGroup>
+  <Accordion title="ترقية: أساسي ($30) → برو ($80) مع difference_immediately">
+
+    ```javascript
+    await client.subscriptions.changePlan('sub_123', {
+      product_id: 'prod_pro',
+      quantity: 1,
+      proration_billing_mode: 'difference_immediately'
+    })
+    // Immediate charge: $50
+    ```
+
+  </Accordion>
+  <Accordion title="تخفيض: بلس ($50) → ستارتير ($20) مع difference_immediately">
+
+    ```javascript
+    await client.subscriptions.changePlan('sub_123', {
+      product_id: 'prod_starter',
+      quantity: 1,
+      proration_billing_mode: 'difference_immediately'
+    })
+    // Credit added: $30 (auto-applied to future renewals for this subscription)
+    ```
+
+  </Accordion>
+  <Accordion title="ترقية منتصف الدورة مع prorated_immediately">
+
+    ```javascript
+    await client.subscriptions.changePlan('sub_123', {
+      product_id: 'prod_new',
+      quantity: 1,
+      proration_billing_mode: 'prorated_immediately'
+    })
+    // Immediate prorated charge based on remaining days in cycle
+    ```
+
+  </Accordion>
+  <Accordion title="إعادة تعيين الفوترة مع full_immediately">
+
+    ```javascript
+    await client.subscriptions.changePlan('sub_123', {
+      product_id: 'prod_new',
+      quantity: 1,
+      proration_billing_mode: 'full_immediately'
+    })
+    // Immediate full charge for new plan; no credits calculated
+    ```
+
+  </Accordion>
+</AccordionGroup>
+
+<Tip>
+اختر `prorated_immediately` للمحاسبة العادلة للوقت؛ اختر `full_immediately` لإعادة بدء الفوترة؛ استخدم `difference_immediately` للترقيات البسيطة والائتمان التلقائي عند التخفيضات.
+</Tip>
+
+## التعامل مع الويب هوكس
+
+تتبع حالة الاشتراك من خلال الويب هوكس لتأكيد تغييرات الخطط والمدفوعات.
+
+### أنواع الأحداث التي يجب التعامل معها
+- `subscription.active`: تم تفعيل الاشتراك
+- `subscription.plan_changed`: تم تغيير خطة الاشتراك (ترقية/تخفيض/تغييرات الإضافة)
+- `subscription.on_hold`: فشل التحصيل، تم إيقاف الاشتراك
+- `subscription.renewed`: التجديد ناجح
+- `payment.succeeded`: تم الدفع لتغيير الخطة أو التجديد بنجاح
+- `payment.failed`: فشل الدفع
+
+<Info>
+نوصي بدفع منطق الأعمال من أحداث الاشتراك واستخدام أحداث الدفع للتأكيد والمصالحة.
+</Info>
+
+### تحقق من التوقيعات وتعامل مع النوايا
+
+<Tabs>
+  <Tab title="معالج مسار Next.js">
+
+    ```javascript
+    import { NextRequest, NextResponse } from 'next/server';
+    
+    export async function POST(req) {
+      const webhookId = req.headers.get('webhook-id');
+      const webhookSignature = req.headers.get('webhook-signature');
+      const webhookTimestamp = req.headers.get('webhook-timestamp');
+      const secret = process.env.DODO_WEBHOOK_SECRET;
+    
+      const payload = await req.text();
+      // verifySignature is a placeholder – in production, use a Standard Webhooks library
+      const { valid, event } = await verifySignature(
+        payload,
+        { id: webhookId, signature: webhookSignature, timestamp: webhookTimestamp },
+        secret
+      );
+      if (!valid) return NextResponse.json({ error: 'Invalid signature' }, { status: 400 });
+    
+      switch (event.type) {
+        case 'subscription.active':
+          // mark subscription active in your DB
+          break;
+        case 'subscription.plan_changed':
+          // refresh entitlements and reflect the new plan in your UI
+          break;
+        case 'subscription.on_hold':
+          // notify user to update payment method
+          break;
+        case 'subscription.renewed':
+          // extend access window
+          break;
+        case 'payment.succeeded':
+          // reconcile payment for plan change
+          break;
+        case 'payment.failed':
+          // log and alert
+          break;
+        default:
+          // ignore unknown events
+          break;
+      }
+    
+      return NextResponse.json({ received: true });
+    }
+    ```
+
+  </Tab>
+  <Tab title="Express.js">
+
+    ```javascript
+    import express from 'express';
+    
+    const app = express();
+    app.post('/webhooks/dodo', express.raw({ type: 'application/json' }), async (req, res) => {
+      const webhookId = req.header('webhook-id');
+      const webhookSignature = req.header('webhook-signature');
+      const webhookTimestamp = req.header('webhook-timestamp');
+      const secret = process.env.DODO_WEBHOOK_SECRET;
+      const payload = req.body.toString('utf8');
+    
+      const { valid, event } = await verifySignature(
+        payload,
+        { id: webhookId, signature: webhookSignature, timestamp: webhookTimestamp },
+        secret
+      );
+      if (!valid) return res.status(400).send('Invalid signature');
+    
+      // handle events like above
+      res.json({ received: true });
+    });
+    
+    app.listen(3000);
+    ```
+
+  </Tab>
+</Tabs>
+
+<Note>
+للحصول على مخططات الحمولة التفصيلية، راجع <a href="/developer-resources/webhooks/intents/subscription">حمولات الويب هوك للاشتراك</a> و<a href="/developer-resources/webhooks/intents/payment">حمولات الويب هوك للدفع</a>.
+</Note>
+
+## أفضل الممارسات
+
+اتبع هذه التوصيات لتغييرات خطة الاشتراك الموثوقة:
+
+### استراتيجية تغيير الخطة
+- **اختبر بدقة**: اختبر دائمًا تغييرات الخطط في وضع الاختبار قبل الإنتاج
+- **اختر النسبة المئوية بعناية**: اختر وضع النسبة المئوية الذي يتماشى مع نموذج عملك
+- **تعامل مع الفشل بسلاسة**: نفذ معالجة الأخطاء المناسبة ومنطق إعادة المحاولة
+- **راقب معدلات النجاح**: تتبع معدلات نجاح/فشل تغيير الخطة واستقصاء المشكلات
+
+### تنفيذ الويب هوك
+- **تحقق من التوقيعات**: تحقق دائمًا من توقيعات الويب هوك لضمان الأصالة
+- **نفذ عدم القابلية للتكرار**: تعامل مع أحداث الويب هوك المكررة بسلاسة
+- **قم بالمعالجة بشكل غير متزامن**: لا تقم بحظر استجابات الويب هوك بعمليات ثقيلة
+- **سجل كل شيء**: احتفظ بسجلات مفصلة لأغراض التصحيح والتدقيق
+
+### تجربة المستخدم
+- **تواصل بوضوح**: أبلغ العملاء عن تغييرات الفوترة والتوقيت
+- **قدم تأكيدات**: أرسل رسائل تأكيد عبر البريد الإلكتروني لتغييرات الخطط الناجحة
+- **تعامل مع الحالات الشاذة**: اعتبر فترات التجربة، النسب المئوية، والمدفوعات الفاشلة
+- **قم بتحديث واجهة المستخدم على الفور**: عكس تغييرات الخطط في واجهة تطبيقك
+
+## المشكلات الشائعة والحلول
+
+حل المشكلات النموذجية التي تواجهها أثناء تغييرات خطة الاشتراك:
+
+<AccordionGroup>
+<Accordion title="تم إنشاء التحصيل ولكن الاشتراك لم يتم تحديثه">
+**الأعراض**: نجاح استدعاء واجهة برمجة التطبيقات ولكن الاشتراك يبقى على الخطة القديمة
+
+**الأسباب الشائعة**:
+- فشل معالجة الويب هوك أو تأخيره
+- عدم تحديث حالة التطبيق بعد تلقي الويب هوك
+- مشكلات في معاملات قاعدة البيانات أثناء تحديث الحالة
+
+**الحلول**:
+- تنفيذ معالجة ويب هوك قوية مع منطق إعادة المحاولة
+- استخدام عمليات غير قابلة للتكرار لتحديثات الحالة
+- إضافة مراقبة لاكتشاف وتنبيه الأحداث المفقودة للويب هوك
+- تحقق من أن نقطة نهاية الويب هوك قابلة للوصول وتستجيب بشكل صحيح
+</Accordion>
+
+<Accordion title="الائتمانات غير مطبقة بعد التخفيض">
+**الأعراض**: يقوم العميل بالتخفيض ولكنه لا يرى رصيد الائتمان
+
+**الأسباب الشائعة**:
+- توقعات وضع النسبة المئوية: التخفيضات تعطي ائتمان الفرق الكامل لسعر الخطة مع `difference_immediately`، بينما `prorated_immediately` ينشئ ائتمان نسبي بناءً على الوقت المتبقي في الدورة
+- الائتمانات محددة بالاشتراك ولا تنتقل بين الاشتراكات
+- رصيد الائتمان غير مرئي في لوحة معلومات العميل
+
+**الحلول**:
+- استخدم `difference_immediately` للتخفيضات عندما تريد ائتمانات تلقائية
+- اشرح للعملاء أن الائتمانات تنطبق على التجديدات المستقبلية لنفس الاشتراك
+- تنفيذ بوابة العملاء لعرض أرصدة الائتمان
+- تحقق من معاينة الفاتورة التالية لرؤية الائتمانات المطبقة
+</Accordion>
+
+<Accordion title="فشل التحقق من توقيع الويب هوك">
+**الأعراض**: تم رفض أحداث الويب هوك بسبب توقيع غير صالح
+
+**الأسباب الشائعة**:
+- مفتاح سر الويب هوك غير صحيح
+- تم تعديل جسم الطلب الخام قبل التحقق من التوقيع
+- خوارزمية التحقق من التوقيع غير صحيحة
+
+**الحلول**:
+- تحقق من أنك تستخدم `DODO_WEBHOOK_SECRET` الصحيح من لوحة التحكم
+- اقرأ جسم الطلب الخام قبل أي وسائط تحليل JSON
+- استخدم مكتبة التحقق من الويب هوك القياسية لمنصتك
+- اختبر التحقق من توقيع الويب هوك في بيئة التطوير
+</Accordion>
+
+<Accordion title="فشل تغيير الخطة مع خطأ 422">
+**الأعراض**: واجهة برمجة التطبيقات ترجع خطأ 422 الكيان غير القابل للمعالجة
+
+**الأسباب الشائعة**:
+- معرف الاشتراك أو معرف المنتج غير صالح
+- الاشتراك ليس في حالة نشطة
+- المعلمات المطلوبة مفقودة
+- المنتج غير متاح لتغييرات الخطط
+
+**الحلول**:
+- تحقق من أن الاشتراك موجود ونشط
+- تحقق من أن معرف المنتج صالح ومتاح
+- تأكد من تقديم جميع المعلمات المطلوبة
+- راجع وثائق واجهة برمجة التطبيقات لمتطلبات المعلمات
+</Accordion>
+
+<Accordion title="فشل التحصيل الفوري أثناء تغيير الخطة">
+**الأعراض**: تم بدء تغيير الخطة ولكن فشل التحصيل الفوري
+
+**الأسباب الشائعة**:
+- عدم كفاية الأموال على وسيلة الدفع الخاصة بالعميل
+- وسيلة الدفع منتهية الصلاحية أو غير صالحة
+- البنك رفض المعاملة
+- اكتشاف الاحتيال حظر التحصيل
+
+**الحلول**:
+- التعامل مع أحداث الويب هوك `payment.failed` بشكل مناسب
+- إخطار العميل بتحديث وسيلة الدفع
+- تنفيذ منطق إعادة المحاولة للفشل المؤقت
+- النظر في السماح بتغييرات الخطط مع فشل التحصيل الفوري
+</Accordion>
+
+<Accordion title="الاشتراك معلق بعد تغيير الخطة">
+**الأعراض**: فشل تحصيل رسوم تغيير الخطة وينتقل الاشتراك إلى حالة `on_hold`
+
+**ماذا يحدث**:
+عندما يفشل تحصيل رسوم تغيير الخطة، يتم تلقائيًا وضع الاشتراك في حالة `on_hold`. لن يتم تجديد الاشتراك تلقائيًا حتى يتم تحديث وسيلة الدفع.
+
+**الحل**: تحديث وسيلة الدفع لإعادة تفعيل الاشتراك
+
+لإعادة تفعيل الاشتراك من حالة `on_hold` بعد فشل تغيير الخطة:
+
+1. **تحديث وسيلة الدفع** باستخدام واجهة برمجة التطبيقات لتحديث وسيلة الدفع
+2. **إنشاء تحصيل تلقائي**: تقوم واجهة برمجة التطبيقات تلقائيًا بإنشاء تحصيل للديون المتبقية
+3. **إنشاء فاتورة**: يتم إنشاء فاتورة للتحصيل
+4. **معالجة الدفع**: يتم معالجة الدفع باستخدام وسيلة الدفع الجديدة
+5. **إعادة التفعيل**: عند نجاح الدفع، يتم إعادة تفعيل الاشتراك إلى حالة `active`
+
+<CodeGroup>
+
+```javascript Node.js
+// Reactivate subscription from on_hold after failed plan change
+async function reactivateAfterFailedPlanChange(subscriptionId) {
+  // Update payment method - automatically creates charge for remaining dues
+  const response = await client.subscriptions.updatePaymentMethod(subscriptionId, {
+    type: 'new',
+    return_url: 'https://example.com/return'
+  });
+  
+  if (response.payment_id) {
+    console.log('Charge created for remaining dues:', response.payment_id);
+    console.log('Payment link:', response.payment_link);
+    
+    // Redirect customer to payment_link to complete payment
+    // Monitor webhooks for:
+    // 1. payment.succeeded - charge succeeded
+    // 2. subscription.active - subscription reactivated
+  }
+  
+  return response;
+}
+
+// Or use existing payment method if available
+async function reactivateWithExistingPaymentMethod(subscriptionId, paymentMethodId) {
+  const response = await client.subscriptions.updatePaymentMethod(subscriptionId, {
+    type: 'existing',
+    payment_method_id: paymentMethodId
+  });
+  
+  // Monitor webhooks for payment.succeeded and subscription.active
+  return response;
+}
+```
+
+```python Python
+# Reactivate subscription from on_hold after failed plan change
+def reactivate_after_failed_plan_change(subscription_id):
+    # Update payment method - automatically creates charge for remaining dues
+    response = client.subscriptions.update_payment_method(
+        subscription_id=subscription_id,
+        type="new",
+        return_url="https://example.com/return"
+    )
+    
+    if response.payment_id:
+        print("Charge created for remaining dues:", response.payment_id)
+        print("Payment link:", response.payment_link)
+        
+        # Redirect customer to payment_link to complete payment
+        # Monitor webhooks for:
+        # 1. payment.succeeded - charge succeeded
+        # 2. subscription.active - subscription reactivated
+    
+    return response
+
+# Or use existing payment method if available
+def reactivate_with_existing_payment_method(subscription_id, payment_method_id):
+    response = client.subscriptions.update_payment_method(
+        subscription_id=subscription_id,
+        type="existing",
+        payment_method_id=payment_method_id
+    )
+    
+    # Monitor webhooks for payment.succeeded and subscription.active
+    return response
+```
+
+</CodeGroup>
+
+**أحداث الويب هوك التي يجب مراقبتها**:
+- `subscription.on_hold`: تم وضع الاشتراك في حالة تعليق (يتم استلامها عندما يفشل تحصيل رسوم تغيير الخطة)
+- `payment.succeeded`: تم الدفع للديون المتبقية بنجاح (بعد تحديث وسيلة الدفع)
+- `subscription.active`: تم إعادة تفعيل الاشتراك بعد نجاح الدفع
+
+**أفضل الممارسات**:
+- إخطار العملاء على الفور عندما يفشل تحصيل رسوم تغيير الخطة
+- تقديم تعليمات واضحة حول كيفية تحديث وسيلة الدفع الخاصة بهم
+- مراقبة أحداث الويب هوك لتتبع حالة إعادة التفعيل
+- النظر في تنفيذ منطق إعادة المحاولة التلقائي لفشل الدفع المؤقت
+
+<Card title="مرجع واجهة برمجة التطبيقات لتحديث وسيلة الدفع" icon="code" href="/api-reference/subscriptions/update-payment-method">
+عرض الوثائق الكاملة لواجهة برمجة التطبيقات لتحديث وسائل الدفع وإعادة تفعيل الاشتراكات.
+</Card>
+</Accordion>
+</AccordionGroup>
+
+## اختبار تنفيذك
+
+اتبع هذه الخطوات لاختبار تنفيذ تغيير خطة الاشتراك بدقة:
+
+<Steps>
+<Step title="إعداد بيئة الاختبار">
+- استخدم مفاتيح واجهة برمجة التطبيقات للاختبار والمنتجات التجريبية
+- إنشاء اشتراكات تجريبية مع أنواع خطط مختلفة
+- تكوين نقطة نهاية الويب هوك التجريبية
+- إعداد المراقبة والتسجيل
+</Step>
+
+<Step title="اختبار أوضاع النسبة المئوية المختلفة">
+- اختبار `prorated_immediately` مع مواضع مختلفة لدورة الفوترة
+- اختبار `difference_immediately` للترقيات والتخفيضات
+- اختبار `full_immediately` لإعادة تعيين دورات الفوترة
+- التحقق من أن حسابات الائتمان صحيحة
+</Step>
+
+<Step title="اختبار معالجة الويب هوك">
+- تحقق من استلام جميع أحداث الويب هوك ذات الصلة
+- اختبار التحقق من توقيع الويب هوك
+- التعامل مع أحداث الويب هوك المكررة بسلاسة
+- اختبار سيناريوهات فشل معالجة الويب هوك
+</Step>
+
+<Step title="اختبار سيناريوهات الأخطاء">
+- اختبار مع معرفات اشتراك غير صالحة
+- اختبار مع وسائل دفع منتهية الصلاحية
+- اختبار فشل الشبكة والمهلات
+- اختبار مع أموال غير كافية
+</Step>
+
+<Step title="مراقبة في الإنتاج">
+- إعداد تنبيهات لتغييرات الخطط الفاشلة
+- مراقبة أوقات معالجة الويب هوك
+- تتبع معدلات نجاح تغيير الخطط
+- مراجعة تذاكر دعم العملاء لمشكلات تغيير الخطط
+</Step>
+</Steps>
+
+## معالجة الأخطاء
+
+تعامل مع الأخطاء الشائعة في واجهة برمجة التطبيقات بسلاسة في تنفيذك:
+
+### رموز حالة HTTP
+
+<AccordionGroup>
+<Accordion title="200 OK">
+تم معالجة طلب تغيير الخطة بنجاح. يتم تحديث الاشتراك وبدأت معالجة الدفع.
+</Accordion>
+
+<Accordion title="400 Bad Request">
+معلمات الطلب غير صالحة. تحقق من أن جميع الحقول المطلوبة مقدمة ومهيأة بشكل صحيح.
+</Accordion>
+
+<Accordion title="401 Unauthorized">
+مفتاح واجهة برمجة التطبيقات غير صالح أو مفقود. تحقق من أن `DODO_PAYMENTS_API_KEY` صحيح وله الأذونات المناسبة.
+</Accordion>
+
+<Accordion title="404 Not Found">
+معرف الاشتراك غير موجود أو لا ينتمي إلى حسابك.
+</Accordion>
+
+<Accordion title="422 Unprocessable Entity">
+لا يمكن تغيير الاشتراك (على سبيل المثال، تم إلغاؤه بالفعل، المنتج غير متاح، إلخ).
+</Accordion>
+
+<Accordion title="500 Internal Server Error">
+حدث خطأ في الخادم. أعد المحاولة بعد فترة قصيرة.
+</Accordion>
+</AccordionGroup>
+
+### تنسيق استجابة الخطأ
+
+```json
+{
+  "error": {
+    "code": "subscription_not_found",
+    "message": "The subscription with ID 'sub_123' was not found",
+    "details": {
+      "subscription_id": "sub_123"
+    }
+  }
+}
+```
+
+## الخطوات التالية
+
+- مراجعة <a href="/api-reference/subscriptions/change-plan">واجهة برمجة التطبيقات لتغيير الخطة</a>
+- استكشاف <a href="/features/customer-credit">الائتمانات الخاصة بالعملاء</a>
+- تنفيذ تنبيهات لـ `subscription.on_hold`
+- تحقق من دليل <a href="/developer-resources/webhooks">تكامل الويب هوك</a>

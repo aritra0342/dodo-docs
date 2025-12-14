@@ -1,0 +1,439 @@
+---
+title: 一次性支付集成指南
+description: 本指南将帮助您将 Dodo Payments API 集成到您的网站中。
+icon: code-merge
+---
+
+## 前提条件
+
+要集成 Dodo Payments API，您需要：
+- 一个 Dodo Payments 商户账户
+- 从仪表板获取的 API 凭证（API 密钥和 webhook 密钥）
+
+## 仪表板设置
+
+1. 导航到 [Dodo Payments Dashboard](https://app.dodopayments.com/)
+
+2. 创建一个产品（一次性支付或订阅）
+
+4. 生成您的 API 密钥：
+   - 转到开发者 > API
+   - [详细指南](/api-reference/introduction#api-key-generation)
+   - 复制 env 中名为 DODO_PAYMENTS_API_KEY 的 API 密钥
+
+5. 配置 webhooks：
+   - 转到开发者 > Webhooks
+   - 创建一个用于支付通知的 webhook URL
+   - 复制 env 中的 webhook 密钥
+
+## 集成
+
+### 支付链接
+
+选择适合您用例的集成路径：
+- **结账会话（推荐）**：最适合大多数集成。在您的服务器上创建一个会话，然后将客户重定向到安全的托管结账。
+- **嵌入式结账**：当您需要在页面内嵌入托管结账时使用。
+- **静态支付链接**：无代码，立即可分享的 URL，用于快速收款。
+- **动态支付链接**：以编程方式创建的链接。然而，推荐使用结账会话，它们提供更多灵活性。
+
+#### 1. 结账会话
+
+使用结账会话为一次性支付或订阅创建安全的托管结账体验。您在服务器上创建一个会话，然后将客户重定向到返回的 `checkout_url`。
+
+<Info>
+结账会话默认有效期为 24 小时。如果您传递 <code>confirm=true</code>，会话有效期为 15 分钟，并且必须提供所有必填字段。
+</Info>
+
+<Steps>
+<Step title="创建结账会话">
+  选择您首选的 SDK 或调用 REST API。
+
+  <Tabs>
+  <Tab title="Node.js SDK">
+
+  ```javascript
+  import DodoPayments from 'dodopayments';
+
+  const client = new DodoPayments({
+    bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+    environment: 'test_mode', // defaults to 'live_mode'
+  });
+
+  const session = await client.checkoutSessions.create({
+    product_cart: [{ product_id: 'prod_123', quantity: 1 }],
+    customer: { email: 'customer@example.com', name: 'John Doe' },
+    return_url: 'https://yourapp.com/checkout/success',
+  });
+  ```
+
+  </Tab>
+
+  <Tab title="Python SDK">
+
+  ```python
+  import os
+  from dodopayments import DodoPayments
+
+  client = DodoPayments(
+      bearer_token=os.environ.get("DODO_PAYMENTS_API_KEY"),
+      environment="test_mode",  # defaults to "live_mode"
+  )
+
+  session = client.checkout_sessions.create(
+      product_cart=[{"product_id": "prod_123", "quantity": 1}],
+      customer={"email": "customer@example.com", "name": "John Doe"},
+      return_url="https://yourapp.com/checkout/success",
+  )
+  ```
+
+  </Tab>
+
+  <Tab title="REST API">
+
+  ```javascript
+  const response = await fetch('https://test.dodopayments.com/checkouts', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${process.env.DODO_PAYMENTS_API_KEY}`,
+    },
+    body: JSON.stringify({
+      product_cart: [{ product_id: 'prod_123', quantity: 1 }],
+      customer: { email: 'customer@example.com', name: 'John Doe' },
+      return_url: 'https://yourapp.com/checkout/success',
+    }),
+  });
+  const session = await response.json();
+  ```
+
+  </Tab>
+  </Tabs>
+</Step>
+
+<Step title="重定向客户到结账">
+  创建会话后，重定向到 `checkout_url` 以开始托管流程。
+
+  ```javascript
+  // Example in a browser context
+  window.location.href = session.checkout_url;
+  ```
+
+</Step>
+</Steps>
+
+<Tip>
+优先使用结账会话，这是开始收款最快、最可靠的方法。有关高级自定义，请参阅完整的 <a href="/developer-resources/checkout-session">结账会话指南</a> 和 <a href="/api-reference/checkout-sessions/create">API 参考</a>。
+</Tip>
+
+#### 2. 嵌入式结账
+
+要获得无缝的页面内结账体验，请探索我们的 [嵌入式结账](/developer-resources/overlay-checkout) 集成，允许客户在不离开您网站的情况下完成支付。
+
+#### 3. 静态支付链接
+
+静态支付链接让您通过分享简单的 URL 快速接受支付。您可以通过传递查询参数自定义结账体验，以预填客户详细信息、控制表单字段并添加自定义元数据。
+
+<Steps>
+<Step title="构建您的支付链接">
+  从基本 URL 开始，并附加您的产品 ID：
+
+  ```text
+  https://checkout.dodopayments.com/buy/{productid}
+  ```
+
+</Step>
+<Step title="添加核心参数">
+  包括必要的查询参数：
+  - <ParamField query="quantity" type="integer" default="1">要购买的商品数量。</ParamField>
+  - <ParamField query="redirect_url" type="string" required>支付完成后重定向的 URL。</ParamField>
+  <Note>
+  重定向 URL 将包含支付详细信息作为查询参数，例如：<br/>
+  <code>https://example.com/?payment_id=pay_ts2ySpzg07phGeBZqePbH&status=succeeded</code>
+  </Note>
+</Step>
+<Step title="预填客户信息（可选）">
+  将客户或账单字段作为查询参数添加，以简化结账。
+  <AccordionGroup>
+    <Accordion title="支持的客户字段">
+      - <ParamField query="fullName" type="string">客户的全名（如果提供了 firstName 或 lastName，则忽略）。</ParamField>
+      - <ParamField query="firstName" type="string">客户的名字。</ParamField>
+      - <ParamField query="lastName" type="string">客户的姓氏。</ParamField>
+      - <ParamField query="email" type="string">客户的电子邮件地址。</ParamField>
+      - <ParamField query="country" type="string">客户的国家。</ParamField>
+      - <ParamField query="addressLine" type="string">街道地址。</ParamField>
+      - <ParamField query="city" type="string">城市。</ParamField>
+      - <ParamField query="state" type="string">州或省。</ParamField>
+      - <ParamField query="zipCode" type="string">邮政编码/ZIP 码。</ParamField>
+      - <ParamField query="showDiscounts" type="boolean">true 或 false</ParamField>
+    </Accordion>
+  </AccordionGroup>
+</Step>
+<Step title="控制表单字段（可选）">
+  <Info>
+  您可以禁用特定字段，使其对客户只读。这在您已经拥有客户详细信息时（例如，已登录用户）非常有用。
+  </Info>
+  要禁用字段，请提供其值并将相应的 <code>disable...</code> 标志设置为 <code>true</code>：
+  <CodeGroup>
+
+  ```text Example
+  &email=alice@example.com&disableEmail=true
+  ```
+
+  </CodeGroup>
+  <Tabs>
+    <Tab title="禁用标志表格">
+      | 字段         | 禁用标志         | 必填参数 |
+      |---------------|---------------------|-------------------|
+      | 全名         | `disableFullName`   | `fullName`        |
+      | 名字         | `disableFirstName`  | `firstName`       |
+      | 姓氏         | `disableLastName`   | `lastName`        |
+      | 电子邮件     | `disableEmail`      | `email`           |
+      | 国家         | `disableCountry`    | `country`         |
+      | 地址行       | `disableAddressLine`| `addressLine`     |
+      | 城市         | `disableCity`       | `city`            |
+      | 州           | `disableState`      | `state`           |
+      | 邮政编码     | `disableZipCode`    | `zipCode`         |
+    </Tab>
+  </Tabs>
+  <Tip>
+  禁用字段有助于防止意外更改并确保数据一致性。
+  </Tip>
+  <Note>
+  设置 <code>showDiscounts=false</code> 将禁用并隐藏结账表单中的折扣部分。如果您希望防止客户在结账时输入优惠券或促销代码，请使用此选项。
+  </Note>
+
+</Step>
+<Step title="添加高级控制（可选）">
+  - <ParamField query="paymentCurrency" type="string">指定支付货币。默认为账单国家的货币。</ParamField>
+  - <ParamField query="showCurrencySelector" type="boolean" default="true">显示或隐藏货币选择器。</ParamField>
+  - <ParamField query="paymentAmount" type="integer">以美分为单位的金额（仅适用于随意定价）。</ParamField>
+  - <ParamField query="metadata_*" type="string">自定义元数据字段（例如，<code>metadata_orderId=123</code>）。</ParamField>
+</Step>
+<Step title="分享链接">
+  将完成的支付链接发送给您的客户。当他们访问时，所有查询参数都会被收集并与会话 ID 一起存储。然后，URL 被简化为仅包含会话参数（例如，<code>?session=sess_1a2b3c4d</code>）。存储的信息在页面刷新时保持有效，并在整个结账过程中可访问。
+  <Check>
+  客户的结账体验现在基于您的参数得到了简化和个性化。
+  </Check>
+</Step>
+</Steps>
+
+#### 4. 动态支付链接
+<Tip>
+对于大多数用例，优先使用结账会话，它们提供更多灵活性和控制。
+</Tip>
+
+通过 API 调用或我们的 SDK 创建，包含客户详细信息。以下是一个示例：
+
+有两个 API 用于创建动态支付链接：
+
+- 一次性支付链接 API [API 参考](/api-reference/payments/post-payments)
+- 订阅支付链接 API [API 参考](/api-reference/subscriptions/post-subscriptions)
+
+下面的指南是关于一次性支付链接创建的。
+
+有关集成订阅的详细说明，请参阅此 [订阅集成指南](/developer-resources/subscription-integration-guide)。
+
+<Info>确保您传递 `payment_link = true` 以获取支付链接 </Info>
+
+<Tabs>
+  
+  <Tab title="Node.js SDK">
+
+    ```javascript
+    import DodoPayments from 'dodopayments';
+
+const client = new DodoPayments({
+  bearerToken: process.env['DODO_PAYMENTS_API_KEY'], // This is the default and can be omitted
+  environment: 'test_mode', // defaults to 'live_mode'
+});
+
+async function main() {
+  const payment = await client.payments.create({
+    payment_link: true,
+    billing: { city: 'city', country: 'AF', state: 'state', street: 'street', zipcode: 0 },
+    customer: { email: 'email@email.com', name: 'name' },
+    product_cart: [{ product_id: 'product_id', quantity: 0 }],
+  });
+
+  console.log(payment.payment_id);
+}
+
+main();
+    ```
+
+    
+  </Tab>
+  <Tab title="Python SDK">
+
+    ```python
+    import os
+from dodopayments import DodoPayments
+
+client = DodoPayments(
+    bearer_token=os.environ.get("DODO_PAYMENTS_API_KEY"),  # This is the default and can be omitted (if using same name `DODO_PAYMENTS_API_KEY`)
+    environment="test_mode",  # defaults to "live_mode"
+)
+payment = client.payments.create(
+    payment_link=True,
+    billing={
+        "city": "city",
+        "country": "AF",
+        "state": "state",
+        "street": "street",
+        "zipcode": 0,
+    },
+    customer={
+        "email": "email@email.com",
+        "name": "name",
+    },
+    product_cart=[{
+        "product_id": "product_id",
+        "quantity": 0,
+    }],
+)
+print(payment.payment_link)
+    ```
+
+  </Tab>
+  <Tab title="Go SDK">
+
+    ```go
+    package main
+
+import (
+  "context"
+  "fmt"
+
+  "github.com/dodopayments/dodopayments-go"
+  "github.com/dodopayments/dodopayments-go/option"
+)
+
+func main() {
+  client := dodopayments.NewClient(
+    option.WithBearerToken("My Bearer Token"), // defaults to os.LookupEnv("DODO_PAYMENTS_API_KEY")
+  )
+  payment, err := client.Payments.New(context.TODO(), dodopayments.PaymentNewParams{
+    PaymentLink: dodopayments.F(true),
+    Billing: dodopayments.F(dodopayments.PaymentNewParamsBilling{
+      City: dodopayments.F("city"),
+      Country: dodopayments.F(dodopayments.CountryCodeAf),
+      State: dodopayments.F("state"),
+      Street: dodopayments.F("street"),
+      Zipcode: dodopayments.F(int64(0)),
+    }),
+    Customer: dodopayments.F(dodopayments.PaymentNewParamsCustomer{
+      Email: dodopayments.F("email"),
+      Name: dodopayments.F("name"),
+    }),
+    ProductCart: dodopayments.F([]dodopayments.PaymentNewParamsProductCart{dodopayments.PaymentNewParamsProductCart{
+      ProductID: dodopayments.F("product_id"),
+      Quantity: dodopayments.F(int64(0)),
+    }}),
+  })
+  if err != nil {
+    panic(err.Error())
+  }
+  fmt.Printf("%+v\n", payment.PaymentLink)
+}
+
+    ```
+
+    </Tab>
+<Tab title="API 参考">
+
+    ```javascript
+import { NextRequest, NextResponse } from "next/server";      
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { formData, cartItems } = paymentRequestSchema.parse(body);
+
+    const response = await fetch(`${process.env.NEXT_PUBLIC_DODO_TEST_API}/payments`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${process.env.DODO_API_KEY}`, // Replace with your API secret key generated from the Dodo Payments Dashboard
+      },
+      body: JSON.stringify({
+        billing: {
+          city: formData.city,
+          country: formData.country,
+          state: formData.state,
+          street: formData.addressLine,
+          zipcode: parseInt(formData.zipCode),
+        },
+        customer: {
+          email: formData.email,
+          name: `${formData.firstName} ${formData.lastName}`,
+          phone_number: formData.phoneNumber || undefined,
+        },
+        payment_link: true,
+        product_cart: cartItems.map((id) => ({
+          product_id: id,
+          quantity: 1,
+        })),
+        return_url: process.env.NEXT_PUBLIC_RETURN_URL,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => null);
+      return NextResponse.json(
+        { error: "Payment link creation failed", details: errorData },
+        { status: response.status }
+      );
+    }
+
+    const data = await response.json();
+    return NextResponse.json({ paymentLink: data.payment_link });
+  } catch (err) {
+    console.error("Payment error:", err);
+    return NextResponse.json(
+      {
+        error: err instanceof Error ? err.message : "An unknown error occurred",
+      },
+      { status: 500 }
+    );
+  }
+}
+```
+
+  </Tab>
+</Tabs>
+
+<Info>创建支付链接后，将客户重定向到完成支付。</Info>
+
+### 实现 Webhooks
+
+设置一个 API 端点以接收支付通知。以下是使用 Next.js 的示例：
+
+```javascript
+import { Webhook } from "standardwebhooks";
+import { headers } from "next/headers";
+import { WebhookPayload } from "@/types/api-types";
+
+const webhook = new Webhook(process.env.DODO_WEBHOOK_KEY!); // Replace with your secret key generated from the Dodo Payments Dashboard
+
+export async function POST(request: Request) {
+  const headersList = headers();
+  const rawBody = await request.text();
+
+  const webhookHeaders = {
+    "webhook-id": headersList.get("webhook-id") || "",
+    "webhook-signature": headersList.get("webhook-signature") || "",
+    "webhook-timestamp": headersList.get("webhook-timestamp") || "",
+  };
+
+  await webhook.verify(rawBody, webhookHeaders);
+  const payload = JSON.parse(rawBody) as WebhookPayload;
+  
+  // Process the payload according to your business logic
+}
+```
+
+我们的 webhook 实现遵循 [标准 Webhooks](https://standardwebhooks.com/) 规范。有关 webhook 类型定义，请参阅我们的 [Webhook 事件指南](/developer-resources/webhooks/intents/webhook-events-guide)。
+
+您可以参考这个在 [GitHub](https://github.com/dodopayments/dodo-checkout-demo) 上使用 Next.js 和 TypeScript 的演示实现项目。
+
+您可以在 [这里](https://atlas.dodopayments.com/) 查看实时实现。

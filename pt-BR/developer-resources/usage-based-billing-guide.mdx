@@ -1,0 +1,741 @@
+---
+title: Guia de Integração de Cobrança Baseada em Uso
+description: Aprenda como configurar medidores e enviar eventos de uso para
+  habilitar uma cobrança precisa baseada em uso com Dodo Payments.
+icon: arrow-trend-up
+---
+
+<CardGroup cols={2}>
+<Card title="Referência da API - Ingestão de Eventos" icon="code" href="/api-reference/usage-events/ingest-events">
+  Acesse a documentação completa da API para ingestão de eventos de uso e teste interativamente solicitações e respostas de ingestão de eventos.
+</Card>
+
+<Card title="Referência da API - Criação de Medidores" icon="code" href="/api-reference/meters/create-meter">
+  Explore a documentação completa da API para criar medidores e teste interativamente solicitações e respostas de criação de medidores.
+</Card>
+</CardGroup>
+
+## Criando um Medidor
+
+Os medidores definem como seus eventos de uso são agregados e medidos para fins de cobrança.
+
+Antes de criar um medidor, planeje sua estratégia de rastreamento de uso:
+- Identifique quais eventos de uso você deseja rastrear
+- Determine como os eventos devem ser agregados (contagem, soma, etc.)
+- Defina quaisquer requisitos de filtragem para casos de uso específicos
+
+### Passo a Passo para Criação de Medidores
+
+Siga este guia abrangente para configurar seu medidor de uso:
+
+<Steps>
+<Step title="Configurar Informações Básicas">
+Configure os detalhes fundamentais para seu medidor.
+
+<ParamField path="Nome do Medidor" type="string" required>
+Escolha um nome claro e descritivo que identifique o que este medidor rastreia.
+
+Exemplos: "Tokens", "Chamadas de API", "Uso de Armazenamento", "Horas de Computação"
+</ParamField>
+
+<ParamField path="Descrição" type="string">
+Forneça uma explicação detalhada do que este medidor mede.
+
+Exemplo: "Conta cada solicitação POST /v1/orders feita pelo cliente"
+</ParamField>
+
+<ParamField path="Nome do Evento" type="string" required>
+Especifique o identificador do evento que acionará este medidor.
+
+Exemplos: "token", "api.call", "storage.usage", "compute.session"
+</ParamField>
+
+<Info>
+O nome do evento deve corresponder exatamente ao que você envia em seus eventos de uso. Os nomes dos eventos são sensíveis a maiúsculas e minúsculas.
+</Info>
+</Step>
+
+<Step title="Configurar Configurações de Agregação">
+Defina como o medidor calcula o uso a partir de seus eventos.
+
+<ParamField path="Tipo de Agregação" type="string" required>
+Selecione como os eventos devem ser agregados:
+
+<Tabs>
+<Tab title="Contagem">
+Simplesmente conta o número de eventos recebidos.
+
+Caso de uso: chamadas de API, visualizações de página, uploads de arquivos
+
+Cálculo: Total de eventos
+</Tab>
+
+<Tab title="Soma">
+Soma os valores de uma propriedade específica em seus eventos.
+
+Caso de uso: transferência de dados, consumo de armazenamento, tempo de processamento
+
+Cálculo: Soma de todos os valores da propriedade
+</Tab>
+
+<Tab title="Máximo">
+Registra o maior valor de uma propriedade específica durante o período de cobrança.
+
+Caso de uso: usuários simultâneos máximos, armazenamento máximo utilizado, maior largura de banda
+
+Cálculo: Valor máximo da propriedade observado
+</Tab>
+
+<Tab title="Último">
+Usa o valor mais recente de uma propriedade específica.
+
+Caso de uso: nível de plano atual, configuração mais recente
+
+Cálculo: Último valor da propriedade registrado
+</Tab>
+</Tabs>
+</ParamField>
+
+<ParamField path="Sobre a Propriedade" type="string">
+O nome da propriedade dos metadados do evento para agregar.
+
+<Warning>
+Este campo é obrigatório ao usar os tipos de agregação Soma, Máximo ou Último.
+</Warning>
+</ParamField>
+
+<ParamField path="Unidade de Medida" type="string" required>
+Defina o rótulo da unidade para exibição em relatórios e cobrança.
+
+Exemplos: "chamadas", "GB", "horas", "tokens"
+</ParamField>
+</Step>
+
+<Step title="Configurar Filtragem de Eventos (Opcional)">
+Configure critérios para controlar quais eventos estão incluídos no medidor.
+
+<Info>
+A filtragem de eventos permite que você crie regras sofisticadas que determinam quais eventos contribuem para seus cálculos de uso. Isso é útil para excluir eventos de teste, filtrar por níveis de usuários ou focar em ações específicas.
+</Info>
+
+**Ativar Filtragem de Eventos**
+
+Ative **Ativar Filtragem de Eventos** para ativar o processamento condicional de eventos.
+
+**Escolher Lógica de Filtro**
+
+Selecione como várias condições são avaliadas:
+
+<Tabs>
+<Tab title="Lógica AND">
+Todas as condições devem ser verdadeiras para que um evento seja contado. Use isso quando precisar que os eventos atendam a vários critérios rigorosos simultaneamente.
+
+**Exemplo:** Contar chamadas de API onde `user_tier = "premium"` E `endpoint = "/api/v2/users"`
+</Tab>
+
+<Tab title="Lógica OR">
+Pelo menos uma condição deve ser verdadeira para que um evento seja contado. Use isso quando quiser incluir eventos que atendam a qualquer um de vários critérios.
+
+**Exemplo:** Contar eventos onde `method = "POST"` OU `method = "PUT"` OU `method = "DELETE"`
+</Tab>
+</Tabs>
+
+**Configurando Condições de Filtro**
+
+<Steps>
+<Step title="Adicionar Condição">
+Clique em **Adicionar condição** para criar uma nova regra de filtro.
+</Step>
+
+<Step title="Configurar Chave de Propriedade">
+Especifique o nome da propriedade dos metadados do seu evento.
+</Step>
+
+<Step title="Selecionar Comparador">
+Escolha entre os operadores disponíveis:
+- `equals` - Correspondência exata
+- `not equals` - Filtro de exclusão
+- `greater than` - Comparação numérica  
+- `greater than or equals` - Comparação numérica (inclusiva)
+- `less than` - Comparação numérica
+- `less than or equals` - Comparação numérica (inclusiva)
+- `contains` - String contém substring
+- `does not contain` - Filtro de exclusão de string
+</Step>
+
+<Step title="Definir Valor de Comparação">
+Defina o valor alvo para comparação.
+</Step>
+
+<Step title="Adicionar Grupos">
+Use **Adicionar Grupo** para criar grupos de condições adicionais para lógica complexa.
+</Step>
+</Steps>
+
+<Warning>
+As propriedades filtradas devem estar incluídas nos metadados do seu evento para que as condições funcionem corretamente. Eventos que não possuem as propriedades necessárias serão excluídos da contagem.
+</Warning>
+</Step>
+
+<Step title="Criar Medidor">
+Revise sua configuração de medidor e clique em **Criar Medidor**.
+
+<Check>
+Seu medidor agora está pronto para receber e agregar eventos de uso.
+</Check>
+
+</Step>
+</Steps>
+
+## Vinculando Medidor a um Produto
+
+Depois de criar seu medidor, você precisa vinculá-lo a um produto para habilitar a cobrança baseada em uso. Este processo conecta os dados de uso do seu medidor às regras de preços para a cobrança do cliente.
+
+Vincular medidores a produtos estabelece a conexão entre rastreamento de uso e cobrança:
+- Produtos definem regras de preços e comportamento de cobrança
+- Medidores fornecem dados de uso para cálculos de cobrança
+- Vários medidores podem ser vinculados a um único produto para cenários de cobrança complexos
+
+### Processo de Configuração do Produto
+
+Transforme seus dados de uso em cobranças faturáveis configurando corretamente as configurações do seu produto:
+
+<Steps>
+<Step title="Escolher Tipo de Produto Baseado em Uso">
+Navegue até sua página de criação ou edição de produto e selecione **Baseado em Uso** como o tipo de produto.
+
+</Step>
+
+<Step title="Selecionar Medidor Associado">
+Clique em **Medidor Associado** para abrir o painel de seleção de medidores na lateral.
+
+Este painel permite que você configure quais medidores rastrearão o uso para este produto.
+</Step>
+
+<Step title="Adicionar Seu Medidor">
+No painel de seleção de medidores:
+
+1. Clique em **Adicionar Medidores** para visualizar os medidores disponíveis
+2. Selecione o medidor que você criou na lista suspensa
+3. O medidor selecionado aparecerá na configuração do seu produto
+
+</Step>
+
+<Step title="Configurar Preço por Unidade">
+Defina o preço para cada unidade de uso rastreada pelo seu medidor.
+
+<ParamField path="Preço por Unidade" type="number" required>
+Defina quanto cobrar por cada unidade medida pelo seu medidor.
+
+**Exemplo**: Definir `$0.50` por unidade significa:
+- 1.000 unidades consumidas = 1.000 × $0,50 = 500,00 cobrados
+- 500 unidades consumidas = 500 × $0,50 = 250,00 cobrados
+- 100 unidades consumidas = 100 × $0,50 = 50,00 cobrados
+</ParamField>
+
+</Step>
+
+<Step title="Definir Limite Gratuito (Opcional)">
+Configure uma cota de uso gratuita antes que a cobrança comece.
+
+<ParamField path="Limite Gratuito" type="number">
+Número de unidades que os clientes podem consumir sem cobrança antes que o cálculo de uso pago comece.
+
+**Como funciona**:
+- Limite gratuito: 100 unidades
+- Preço por unidade: $0,50
+- Uso do cliente: 250 unidades
+- **Cálculo**: (250 - 100) × $0,50 = **$75,00** cobrados
+</ParamField>
+
+<Info>
+Limites gratuitos são ideais para modelos freemium, períodos de teste ou para fornecer aos clientes uma cota base incluída em seu plano.
+</Info>
+
+<Check>
+O limite gratuito se aplica a cada ciclo de cobrança, dando aos clientes novas cotas mensalmente ou de acordo com seu cronograma de cobrança.
+</Check>
+</Step>
+
+<Step title="Salvar Configuração">
+Revise sua configuração de medidor e preços, em seguida clique em **Salvar Alterações** para finalizar a configuração.
+
+<Check>
+Seu produto agora está configurado para cobrança baseada em uso e cobrará automaticamente os clientes com base em seu consumo medido.
+</Check>
+
+**O que acontece a seguir**:
+- Eventos de uso enviados ao seu medidor serão rastreados e agregados
+- Cálculos de cobrança aplicarão suas regras de preços automaticamente
+- Os clientes serão cobrados com base no consumo real durante cada ciclo de cobrança
+</Step>
+</Steps>
+
+<Note>
+Lembre-se de que você pode adicionar até 10 medidores por produto, permitindo rastreamento sofisticado de uso em várias dimensões, como chamadas de API, armazenamento, tempo de computação e métricas personalizadas.
+</Note>
+
+## Enviando Eventos de Uso
+
+Uma vez que seu medidor esteja configurado, você pode começar a enviar eventos de uso de sua aplicação para rastrear o uso do cliente.
+
+### Estrutura do Evento
+
+Cada evento de uso deve incluir estes campos obrigatórios:
+
+<ParamField body="event_id" type="string" required>
+Identificador único para este evento específico. Deve ser único entre todos os eventos.
+</ParamField>
+
+<ParamField body="customer_id" type="string" required>
+O ID do cliente Dodo Payments ao qual este uso deve ser atribuído.
+</ParamField>
+
+<ParamField body="event_name" type="string" required>
+O nome do evento que corresponde à sua configuração de medidor. Nomes de eventos acionam o medidor apropriado.
+</ParamField>
+
+<ParamField body="timestamp" type="string">
+Timestamp ISO 8601 quando o evento ocorreu. Padrão para o horário atual se não fornecido.
+</ParamField>
+
+<ParamField body="metadata" type="object">
+Propriedades adicionais para filtragem e agregação. Inclua quaisquer valores referenciados na "Sobre a Propriedade" do seu medidor ou nas condições de filtragem.
+</ParamField>
+
+### Exemplos da API de Eventos de Uso
+
+Envie eventos de uso para seus medidores configurados usando a API de Eventos:
+
+<CodeGroup>
+
+```javascript Node.js
+const response = await fetch('https://test.dodopayments.com/events/ingest', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${process.env.DODO_API_KEY}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    events: [
+      {
+        event_id: "api_call_1234",
+        customer_id: "cus_atXa1lklCRRzMicTqfiw2", 
+        event_name: "api.call",
+        timestamp: new Date().toISOString(),
+        metadata: {
+          endpoint: "/v1/orders",
+          method: "POST",
+          response_size: 1024
+        }
+      }
+    ]
+  })
+});
+```
+
+```python Python
+import requests
+from datetime import datetime
+
+response = requests.post(
+    'https://test.dodopayments.com/events/ingest',
+    headers={
+        'Authorization': f'Bearer {api_key}',
+        'Content-Type': 'application/json'
+    },
+    json={
+        'events': [
+            {
+                'event_id': 'api_call_1234',
+                'customer_id': 'cus_atXa1lklCRRzMicTqfiw2',
+                'event_name': 'api.call',
+                'timestamp': datetime.now().isoformat(),
+                'metadata': {
+                    'endpoint': '/v1/orders',
+                    'method': 'POST',
+                    'response_size': 1024
+                }
+            }
+        ]
+    }
+)
+```
+
+```curl cURL
+curl -X POST 'https://test.dodopayments.com/events/ingest' \
+  -H 'Authorization: Bearer YOUR_API_KEY' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "events": [
+      {
+        "event_id": "api_call_1234",
+        "customer_id": "cus_atXa1lklCRRzMicTqfiw2",
+        "event_name": "api.call", 
+        "timestamp": "2024-01-15T10:30:00Z",
+        "metadata": {
+          "endpoint": "/v1/orders",
+          "method": "POST",
+          "response_size": 1024
+        }
+      }
+    ]
+  }'
+```
+
+</CodeGroup>
+
+## Análise de Cobrança Baseada em Uso
+
+Monitore e analise seus dados de cobrança baseada em uso com um painel de análise abrangente. Rastreie padrões de consumo dos clientes, desempenho dos medidores e tendências de cobrança para otimizar sua estratégia de preços e entender comportamentos de uso.
+
+### Análise Geral
+
+A aba Geral fornece uma visão abrangente do desempenho da sua cobrança baseada em uso:
+
+#### Métricas de Atividade
+
+Rastreie estatísticas de uso chave em diferentes períodos de tempo:
+
+<ParamField path="Mês Atual" type="metric">
+Mostra a atividade de uso para o período de cobrança atual, ajudando você a entender os padrões de consumo mensal.
+</ParamField>
+
+<ParamField path="Todo o Tempo" type="metric">
+Exibe estatísticas cumulativas de uso desde que você começou a rastrear, fornecendo insights de crescimento a longo prazo.
+</ParamField>
+
+<Tip>
+Use o seletor de período de tempo para comparar o uso em diferentes meses e identificar tendências sazonais ou padrões de crescimento.
+</Tip>
+
+#### Gráfico de Quantidades de Medidores
+
+<Frame>
+<img src="/images/guides/usage-based-billing/meter-quantities-chart.png" alt="Gráfico de quantidades de medidores mostrando tendências de uso ao longo do tempo com visualização de gradiente roxo" />
+</Frame>
+
+O gráfico de quantidades de medidores visualiza tendências de uso ao longo do tempo com os seguintes recursos:
+
+- **Visualização de séries temporais**: Rastreie padrões de uso ao longo de dias, semanas ou meses
+- **Suporte a múltiplos medidores**: Veja dados de diferentes medidores simultaneamente
+- **Análise de tendências**: Identifique picos de uso, padrões e trajetórias de crescimento
+
+<Info>
+O gráfico se ajusta automaticamente com base no seu volume de uso e no intervalo de tempo selecionado, proporcionando visibilidade clara tanto em pequenas flutuações quanto em grandes mudanças de uso.
+</Info>
+
+### Análise de Eventos
+
+<Frame>
+<img src="/images/guides/usage-based-billing/events-table.png" alt="Tabela de eventos mostrando nomes de eventos, IDs e controles de paginação para análise detalhada de eventos" />
+</Frame>
+
+A aba de Eventos fornece visibilidade granular sobre eventos de uso individuais:
+
+#### Exibição de Informações do Evento
+
+A tabela de eventos fornece uma visão clara dos eventos de uso individuais com as seguintes colunas:
+
+- **Nome do Evento**: A ação ou gatilho específico que gerou o evento de uso
+- **ID do Evento**: Identificador único para cada instância de evento
+- **ID do Cliente**: O cliente associado ao evento
+- **Timestamp**: Quando o evento ocorreu
+
+<Info>
+Esta visualização permite que você rastreie e monitore eventos de uso individuais em sua base de clientes, proporcionando transparência nos cálculos de cobrança e padrões de uso.
+</Info>
+
+### Análise de Clientes
+
+A aba de Clientes fornece uma tabela detalhada dos dados de uso dos clientes com as seguintes informações:
+
+#### Colunas de Dados Disponíveis
+
+<ParamField path="Email do Cliente" type="string">
+Endereço de e-mail do cliente para identificação.
+</ParamField>
+
+<ParamField path="ID da Assinatura" type="string">
+Identificador único para a assinatura do cliente.
+</ParamField>
+
+<ParamField path="Limite Gratuito" type="number">
+Número de unidades gratuitas incluídas no plano do cliente antes que as cobranças se apliquem.
+</ParamField>
+
+<ParamField path="Preço por Unidade" type="currency">
+O custo por unidade para uso além do limite gratuito.
+</ParamField>
+
+<ParamField path="Último Evento" type="timestamp">
+Timestamp do evento de uso mais recente do cliente.
+</ParamField>
+
+<ParamField path="Preço Total" type="currency">
+Valor total cobrado ao cliente pela cobrança baseada em uso.
+</ParamField>
+
+<ParamField path="Unidades Consumidas" type="number">
+Número total de unidades que o cliente consumiu.
+</ParamField>
+
+<ParamField path="Unidades Cobráveis" type="number">
+Número de unidades que excedem o limite gratuito e estão sendo cobradas.
+</ParamField>
+
+#### Recursos da Tabela
+
+- **Filtragem de Colunas**: Use o recurso "Editar Colunas" para mostrar/ocultar colunas de dados específicas
+- **Atualizações em Tempo Real**: Os dados de uso refletem as métricas de consumo mais atuais
+
+## Exemplos de Agregação
+
+Aqui estão exemplos práticos de como diferentes tipos de agregação funcionam:
+
+### Entendendo Tipos de Agregação
+
+Diferentes tipos de agregação atendem a diferentes cenários de cobrança. Escolha o tipo certo com base em como você deseja medir e cobrar pelo uso.
+
+### Exemplos de Implementação Prática
+
+Estes exemplos demonstram aplicações do mundo real de cada tipo de agregação com eventos de exemplo e resultados esperados.
+
+<AccordionGroup>
+<Accordion title="Agregação de Contagem - Chamadas de API">
+Cenário: Rastrear o número total de solicitações de API
+
+Configuração do Medidor:
+- Nome do Evento: `api.call`
+- Tipo de Agregação: Contagem
+- Unidade de Medida: `calls`
+
+**Eventos de Exemplo**:
+
+```json
+{
+  "events": [
+    {"event_id": "call_1", "customer_id": "cus_123", "event_name": "api.call"},
+    {"event_id": "call_2", "customer_id": "cus_123", "event_name": "api.call"},
+    {"event_id": "call_3", "customer_id": "cus_123", "event_name": "api.call"}
+  ]
+}
+```
+
+Resultado: 3 chamadas cobradas ao cliente
+</Accordion>
+
+<Accordion title="Agregação de Soma - Transferência de Dados">
+Cenário: Cobrar com base no total de bytes transferidos
+
+Configuração do Medidor:
+- Nome do Evento: `data.transfer`
+- Tipo de Agregação: Soma
+- Sobre a Propriedade: `bytes`
+- Unidade de Medida: `GB`
+
+**Eventos de Exemplo**:
+
+```json
+{
+  "events": [
+    {
+      "event_id": "transfer_1",
+      "customer_id": "cus_123", 
+      "event_name": "data.transfer",
+      "metadata": {"bytes": 1073741824}
+    },
+    {
+      "event_id": "transfer_2",
+      "customer_id": "cus_123",
+      "event_name": "data.transfer", 
+      "metadata": {"bytes": 536870912}
+    }
+  ]
+}
+```
+
+Resultado: 1,5 GB de transferência total cobrados ao cliente
+</Accordion>
+
+<Accordion title="Agregação de Máximo - Usuários Simultâneos Máximos">
+Cenário: Cobrar com base na contagem máxima de usuários simultâneos
+
+Configuração do Medidor:
+- Nome do Evento: `concurrent.users`
+- Tipo de Agregação: Máximo
+- Sobre a Propriedade: `count`
+- Unidade de Medida: `users`
+
+**Eventos de Exemplo**:
+
+```json
+{
+  "events": [
+    {
+      "event_id": "peak_1",
+      "customer_id": "cus_123",
+      "event_name": "concurrent.users", 
+      "metadata": {"count": 15}
+    },
+    {
+      "event_id": "peak_2",
+      "customer_id": "cus_123",
+      "event_name": "concurrent.users",
+      "metadata": {"count": 23}
+    },
+    {
+      "event_id": "peak_3",
+      "customer_id": "cus_123",
+      "event_name": "concurrent.users",
+      "metadata": {"count": 18}
+    }
+  ]
+}
+```
+
+Resultado: 23 usuários simultâneos máximos cobrados ao cliente
+</Accordion>
+</AccordionGroup>
+
+### Exemplos de Filtragem de Eventos
+
+<Tabs>
+<Tab title="Filtrar por Endpoint de API">
+Contar apenas chamadas de API para endpoints específicos:
+
+Configuração do Filtro:
+- Propriedade: `endpoint`
+- Comparador: `equals`
+- Valor: `/v1/orders`
+
+Evento de Exemplo:
+
+```json
+{
+  "event_id": "call_1",
+  "customer_id": "cus_123",
+  "event_name": "api.call",
+  "metadata": {
+    "endpoint": "/v1/orders",
+    "method": "POST"
+  }
+}
+```
+
+Resultado: Eventos que correspondem aos critérios de filtro seriam contados. Eventos com endpoints diferentes seriam ignorados.
+</Tab>
+
+<Tab title="Filtrar por Faixa de Valores">
+Contar apenas uploads de arquivos grandes:
+
+Configuração do Filtro:
+- Propriedade: `file_size`
+- Comparador: `greater_than`
+- Valor: `1048576` (1MB em bytes)
+
+Evento de Exemplo:
+
+```json
+{
+  "event_id": "upload_1",
+  "customer_id": "cus_123", 
+  "event_name": "file.upload",
+  "metadata": {
+    "file_size": 5242880,
+    "file_type": "image"
+  }
+}
+```
+
+Resultado: Arquivos maiores que 1MB seriam contados. Arquivos menores seriam ignorados.
+</Tab>
+
+<Tab title="Filtros Complexos de Múltiplas Condições">
+Contar chamadas de API premium durante o horário comercial:
+
+Configuração do Filtro (usando lógica AND):
+- Propriedade: `plan_type`, Comparador: `equals`, Valor: `premium`
+- Propriedade: `hour`, Comparador: `greater_than_or_equal`, Valor: `9`
+- Propriedade: `hour`, Comparador: `less_than`, Valor: `17`
+
+Evento de Exemplo:
+
+```json
+{
+  "event_id": "call_1",
+  "customer_id": "cus_123",
+  "event_name": "api.call",
+  "metadata": {
+    "plan_type": "premium",
+    "hour": 14,
+    "endpoint": "/v1/analytics"
+  }
+}
+```
+
+Resultado: Chamadas de API premium durante o horário comercial (9h - 17h) seriam contadas.
+</Tab>
+</Tabs>
+
+## Resolução de Problemas
+
+Resolva problemas comuns com a implementação de cobrança baseada em uso e garanta rastreamento e cobrança precisos.
+
+### Problemas Comuns
+
+A maioria dos problemas de cobrança baseada em uso se enquadra nas seguintes categorias:
+- Problemas de entrega e processamento de eventos
+- Problemas de configuração de medidores
+- Erros de tipo de dados e formatação
+- Problemas de ID de cliente e autenticação
+
+### Passos de Depuração
+
+Ao solucionar problemas de cobrança baseada em uso:
+1. Verifique a entrega de eventos na aba de análise de Eventos
+2. Verifique se a configuração do medidor corresponde à estrutura do seu evento
+3. Valide IDs de clientes e autenticação da API
+4. Revise as condições de filtragem e configurações de agregação
+
+### Soluções e Correções
+
+<AccordionGroup>
+<Accordion title="Eventos não aparecendo no medidor">
+Causas comuns:
+- O nome do evento não corresponde exatamente à configuração do medidor
+- As condições de filtragem de eventos estão excluindo seus eventos
+- O ID do cliente não existe na sua conta Dodo Payments
+- O timestamp do evento está fora do período de cobrança atual
+
+Soluções:
+- Verifique a ortografia e a sensibilidade a maiúsculas do nome do evento
+- Revise e teste suas condições de filtragem
+- Confirme se o ID do cliente é válido e ativo
+- Verifique se os timestamps dos eventos são recentes e estão formatados corretamente
+</Accordion>
+
+<Accordion title="Agregação não funcionando como esperado">
+Causas comuns:
+- O nome da Propriedade não corresponde às chaves dos metadados do evento
+- Os valores dos metadados estão com o tipo de dado errado (string vs número)
+- Propriedades de metadados obrigatórias estão faltando
+
+Soluções:
+- Certifique-se de que as chaves dos metadados correspondam exatamente à sua configuração de Sobre a Propriedade
+- Converta números em string para números reais em seus eventos
+- Inclua todas as propriedades necessárias em cada evento
+</Accordion>
+
+<Accordion title="Filtragem não funcionando">
+Causas comuns:
+- Os nomes das propriedades de filtro não correspondem aos metadados do evento
+- Comparador errado para o tipo de dado (string vs número)
+- Sensibilidade a maiúsculas e minúsculas em comparações de strings
+
+Soluções:
+- Verifique se os nomes das propriedades correspondem exatamente
+- Use comparadores apropriados para seus tipos de dados
+- Considere a sensibilidade a maiúsculas e minúsculas ao filtrar strings
+</Accordion>
+</AccordionGroup>

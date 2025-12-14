@@ -1,0 +1,399 @@
+---
+title: PHP
+description: Integrasikan Dodo Payments ke dalam aplikasi PHP Anda dengan SDK
+  yang modern dan sesuai dengan PSR-4
+icon: php
+tag: BETA
+---
+
+SDK PHP menyediakan cara yang kuat dan fleksibel untuk mengintegrasikan Dodo Payments ke dalam aplikasi PHP Anda. Dibangun mengikuti standar PHP modern dengan autoloading PSR-4, ini menawarkan cakupan pengujian yang luas dan dokumentasi yang mendetail.
+
+<Note>
+Perpustakaan API PHP Dodo Payments saat ini dalam **beta**. Kami sangat senang Anda dapat bereksperimen dengan ini! Silakan bagikan saran, laporan bug, atau permintaan fitur dengan [mengajukan masalah](https://github.com/dodopayments/dodopayments-php/issues).
+</Note>
+
+## Instalasi
+
+Instal SDK menggunakan Composer:
+
+```bash
+composer require "dodopayments/client:^3.5.0"
+```
+
+<Info>
+SDK memerlukan PHP 8.1.0 atau lebih tinggi dan Composer untuk manajemen ketergantungan.
+</Info>
+
+## Memulai dengan Cepat
+
+Inisialisasi klien dan buat sesi checkout:
+
+```php
+<?php
+
+use Dodopayments\Client;
+
+$client = new Client(
+  bearerToken: getenv("DODO_PAYMENTS_API_KEY") ?: "My Bearer Token",
+  environment: "test_mode",
+);
+
+$checkoutSessionResponse = $client->checkoutSessions->create(
+  productCart: [["productID" => "product_id", "quantity" => 1]]
+);
+
+var_dump($checkoutSessionResponse->session_id);
+```
+
+<Warning>
+Simpan kunci API Anda dengan aman menggunakan variabel lingkungan. Jangan pernah mengeksposnya dalam basis kode Anda atau mengkomitnya ke kontrol versi.
+</Warning>
+
+## Fitur Utama
+
+<CardGroup cols={2}>
+<Card title="Kepatuhan PSR-4" icon="check">
+  Mengikuti Rekomendasi Standar PHP untuk pengembangan PHP modern
+</Card>
+
+<Card title="PHP Modern" icon="php">
+  Dibangun untuk PHP 8.1+ dengan deklarasi tipe dan tipe ketat
+</Card>
+
+<Card title="Pengujian Luas" icon="vial">
+  Cakupan pengujian yang komprehensif untuk keandalan dan stabilitas
+</Card>
+
+<Card title="Penanganan Pengecualian" icon="shield-check">
+  Jenis pengecualian yang jelas untuk berbagai skenario kesalahan
+</Card>
+</CardGroup>
+
+## Objek Nilai
+
+SDK menggunakan parameter bernama untuk menentukan argumen opsional. Anda dapat menginisialisasi objek nilai menggunakan konstruktor statis `with`:
+
+```php
+<?php
+
+use Dodopayments\Customers\AttachExistingCustomer;
+
+// Recommended: Use static 'with' constructor with named parameters
+$customer = AttachExistingCustomer::with(customerID: "customer_id");
+```
+
+Builder juga tersedia sebagai pola alternatif:
+
+```php
+<?php
+
+use Dodopayments\Customers\AttachExistingCustomer;
+
+// Alternative: Use builder pattern
+$customer = (new AttachExistingCustomer)->withCustomerID("customer_id");
+```
+
+## Konfigurasi
+
+### Konfigurasi Ulang
+
+Kesalahan tertentu secara otomatis dicoba ulang 2 kali secara default dengan backoff eksponensial yang singkat. Kesalahan berikut memicu percobaan ulang otomatis:
+
+- Kesalahan koneksi (masalah konektivitas jaringan)
+- 408 Permintaan Timeout
+- 409 Konflik
+- 429 Batas Laju
+- 500+ Kesalahan Internal
+- Timeout
+
+Konfigurasikan perilaku ulang secara global atau per permintaan:
+
+```php
+<?php
+
+use Dodopayments\Client;
+use Dodopayments\RequestOptions;
+
+// Configure default for all requests (disable retries)
+$client = new Client(maxRetries: 0);
+
+// Or, configure per-request
+$result = $client->checkoutSessions->create(
+  productCart: [["productID" => "product_id", "quantity" => 1]],
+  requestOptions: RequestOptions::with(maxRetries: 5),
+);
+```
+
+## Operasi Umum
+
+### Buat Sesi Checkout
+
+Hasilkan sesi checkout:
+
+```php
+$session = $client->checkoutSessions->create(
+  productCart: [
+    ["productID" => "prod_123", "quantity" => 1]
+  ],
+  returnUrl: "https://yourdomain.com/return"
+);
+
+header('Location: ' . $session->url);
+```
+
+### Kelola Pelanggan
+
+Buat dan ambil informasi pelanggan:
+
+```php
+// Create a customer
+$customer = $client->customers->create(
+  email: "customer@example.com",
+  name: "John Doe",
+  metadata: [
+    "user_id" => "12345"
+  ]
+);
+
+// Retrieve customer
+$customer = $client->customers->retrieve("cus_123");
+echo "Customer: {$customer->name} ({$customer->email})";
+```
+
+### Tangani Langganan
+
+Buat dan kelola langganan berulang:
+
+```php
+// Create a subscription
+$subscription = $client->subscriptions->create(
+  customerID: "cus_123",
+  productID: "prod_456",
+  priceID: "price_789"
+);
+
+// Cancel subscription
+$client->subscriptions->cancel($subscription->id);
+```
+
+## Paginasi
+
+Bekerja dengan respons daftar yang dipaginasi:
+
+```php
+$page = $client->payments->list();
+
+var_dump($page);
+
+// Fetch items from the current page
+foreach ($page->getItems() as $item) {
+  var_dump($item->brand_id);
+}
+
+// Auto-paginate: fetch items from all pages
+foreach ($page->pagingEachItem() as $item) {
+  var_dump($item->brand_id);
+}
+```
+
+## Penanganan Kesalahan
+
+Ketika perpustakaan tidak dapat terhubung ke API atau menerima kode status non-sukses (4xx atau 5xx), subclass dari `APIException` dilempar:
+
+```php
+<?php
+
+use Dodopayments\Core\Exceptions\APIConnectionException;
+use Dodopayments\Core\Exceptions\RateLimitException;
+use Dodopayments\Core\Exceptions\APIStatusException;
+
+try {
+  $checkoutSessionResponse = $client->checkoutSessions->create(
+    productCart: [["productID" => "product_id", "quantity" => 1]]
+  );
+} catch (APIConnectionException $e) {
+  echo "The server could not be reached", PHP_EOL;
+  var_dump($e->getPrevious());
+} catch (RateLimitException $_) {
+  echo "A 429 status code was received; we should back off a bit.", PHP_EOL;
+} catch (APIStatusException $e) {
+  echo "Another non-200-range status code was received", PHP_EOL;
+  echo $e->getMessage();
+}
+```
+
+### Jenis Kesalahan
+
+| Penyebab         | Jenis Kesalahan                |
+| ---------------- | ------------------------------ |
+| HTTP 400         | `BadRequestException`        |
+| HTTP 401         | `AuthenticationException`    |
+| HTTP 403         | `PermissionDeniedException`  |
+| HTTP 404         | `NotFoundException`          |
+| HTTP 409         | `ConflictException`          |
+| HTTP 422         | `UnprocessableEntityException` |
+| HTTP 429         | `RateLimitException`         |
+| HTTP >= 500      | `InternalServerException`    |
+| Kesalahan HTTP Lain | `APIStatusException`         |
+| Timeout          | `APITimeoutException`        |
+| Kesalahan Jaringan | `APIConnectionException`     |
+
+<Tip>
+Selalu bungkus panggilan API dalam blok try-catch untuk menangani kesalahan yang mungkin terjadi dengan baik dan memberikan umpan balik yang berarti kepada pengguna.
+</Tip>
+
+## Penggunaan Lanjutan
+
+### Endpoint yang Tidak Didokumentasikan
+
+Lakukan permintaan ke endpoint yang tidak didokumentasikan:
+
+```php
+<?php
+
+$response = $client->request(
+  method: "post",
+  path: '/undocumented/endpoint',
+  query: ['dog' => 'woof'],
+  headers: ['useful-header' => 'interesting-value'],
+  body: ['hello' => 'world']
+);
+```
+
+### Parameter yang Tidak Didokumentasikan
+
+Kirim parameter yang tidak didokumentasikan ke endpoint mana pun atau baca properti respons yang tidak didokumentasikan:
+
+```php
+<?php
+
+use Dodopayments\RequestOptions;
+
+$checkoutSessionResponse = $client->checkoutSessions->create(
+  productCart: [["productID" => "product_id", "quantity" => 1]],
+  requestOptions: RequestOptions::with(
+    extraQueryParams: ["my_query_parameter" => "value"],
+    extraBodyParams: ["my_body_parameter" => "value"],
+    extraHeaders: ["my-header" => "value"],
+  ),
+);
+```
+
+<Note>
+Parameter `extra*` dengan nama yang sama akan menimpa parameter yang didokumentasikan.
+</Note>
+
+## Integrasi Framework
+
+### Laravel
+
+Buat layanan untuk aplikasi Laravel:
+
+```php
+<?php
+
+namespace App\Services;
+
+use Dodopayments\Client;
+
+class PaymentService
+{
+    protected $client;
+
+    public function __construct()
+    {
+        $this->client = new Client(
+            bearerToken: config('services.dodo.api_key')
+        );
+    }
+
+    public function createCheckout(array $items)
+    {
+        return $this->client->checkoutSessions->create(
+            productCart: $items,
+            returnUrl: route('checkout.return')
+        );
+    }
+}
+```
+
+Tambahkan konfigurasi di `config/services.php`:
+
+```php
+'dodo' => [
+    'api_key' => env('DODO_API_KEY'),
+    'environment' => env('DODO_ENVIRONMENT', 'sandbox')
+],
+```
+
+### Symfony
+
+Buat layanan di Symfony:
+
+```php
+<?php
+
+namespace App\Service;
+
+use Dodopayments\Client;
+
+class DodoPaymentService
+{
+    private Client $client;
+
+    public function __construct(string $apiKey)
+    {
+        $this->client = new Client(bearerToken: $apiKey);
+    }
+
+    public function createPayment(int $amount, string $currency, string $customerId): object
+    {
+        return $this->client->payments->create(
+            amount: $amount,
+            currency: $currency,
+            customerID: $customerId
+        );
+    }
+}
+```
+
+Daftarkan di `config/services.yaml`:
+
+```yaml
+services:
+    App\Service\DodoPaymentService:
+        arguments:
+            $apiKey: '%env(DODO_API_KEY)%'
+```
+
+## Sumber Daya
+
+<CardGroup cols={2}>
+<Card title="Repositori GitHub" icon="github" href="https://github.com/dodopayments/dodopayments-php">
+  Lihat kode sumber dan berkontribusi
+</Card>
+
+<Card title="Referensi API" icon="book" href="/api-reference/introduction">
+  Dokumentasi API lengkap
+</Card>
+
+<Card title="Komunitas Discord" icon="discord" href="https://discord.gg/bYqAp4ayYh">
+  Dapatkan bantuan dan terhubung dengan pengembang
+</Card>
+
+<Card title="Laporkan Masalah" icon="bug" href="https://github.com/dodopayments/dodopayments-php/issues">
+  Laporkan bug atau minta fitur
+</Card>
+</CardGroup>
+
+## Dukungan
+
+Butuh bantuan dengan SDK PHP?
+
+- **Discord**: Bergabunglah dengan [server komunitas](https://discord.gg/bYqAp4ayYh) kami untuk dukungan waktu nyata
+- **Email**: Hubungi kami di support@dodopayments.com
+- **GitHub**: Buka masalah di [repositori](https://github.com/dodopayments/dodopayments-php)
+
+## Kontribusi
+
+Kami menyambut kontribusi! Periksa [pedoman kontribusi](https://github.com/dodopayments/dodopayments-php/blob/main/CONTRIBUTING.md) untuk memulai.

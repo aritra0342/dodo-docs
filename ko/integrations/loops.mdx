@@ -1,0 +1,143 @@
+---
+title: 루프
+description: Dodo Payments 이벤트를 기반으로 거래 이메일을 전송하고 고객 커뮤니케이션을 관리합니다.
+icon: infinity
+---
+
+## 소개
+
+결제 이벤트가 발생할 때 자동으로 거래 이메일을 전송하고 고객 커뮤니케이션을 관리합니다. 루프의 이메일 인프라를 통해 결제 확인, 구독 업데이트 및 중요한 알림을 전달합니다.
+
+<Info>
+이 통합은 인증을 위해 귀하의 Loops API 키가 필요합니다.
+</Info>
+
+## 시작하기
+
+<Steps>
+<Step title="웹훅 섹션 열기">
+  Dodo Payments 대시보드에서 <b>Webhooks → + Add Endpoint</b>로 이동하고 통합 드롭다운을 확장합니다.
+  <Frame>
+    <img src="/images/integrations/loops.png" alt="Add Endpoint and integrations dropdown" />
+  </Frame>
+</Step>
+
+<Step title="Loops 선택">
+  <b>Loops</b> 통합 카드를 선택합니다.
+</Step>
+
+<Step title="API 키 입력">
+  구성에서 귀하의 Loops API 키를 제공합니다.
+</Step>
+
+<Step title="변환 구성">
+  루프의 API에 맞게 이메일 형식을 지정하기 위해 변환 코드를 편집합니다.
+</Step>
+
+<Step title="테스트 및 생성">
+  샘플 페이로드로 테스트하고 <b>Create</b>를 클릭하여 이메일 전송을 활성화합니다.
+</Step>
+
+<Step title="완료!">
+  🎉 이제 결제 이벤트가 자동으로 루프를 통해 거래 이메일을 트리거합니다.
+</Step>
+</Steps>
+
+## 변환 코드 예제
+
+### 결제 확인 이메일
+
+```javascript payment_confirmation.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.url = "https://api.loops.so/v1/events/send";
+    webhook.payload = {
+      eventName: "payment_confirmation",
+      email: p.customer.email,
+      properties: {
+        customer_name: p.customer.name,
+        payment_id: p.payment_id,
+        amount: (p.total_amount / 100).toFixed(2),
+        currency: p.currency || "USD",
+        payment_method: p.payment_method || "unknown",
+        payment_date: new Date(webhook.payload.timestamp).toLocaleDateString()
+      }
+    };
+  }
+  return webhook;
+}
+```
+
+### 구독 환영 이메일
+
+```javascript subscription_welcome.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "subscription.active") {
+    const s = webhook.payload.data;
+    webhook.url = "https://api.loops.so/v1/events/send";
+    webhook.payload = {
+      eventName: "subscription_welcome",
+      email: s.customer.email,
+      properties: {
+        customer_name: s.customer.name,
+        subscription_id: s.subscription_id,
+        product_id: s.product_id,
+        amount: (s.recurring_pre_tax_amount / 100).toFixed(2),
+        frequency: s.payment_frequency_interval,
+        next_billing: s.next_billing_date
+      }
+    };
+  }
+  return webhook;
+}
+```
+
+### 결제 실패 알림
+
+```javascript payment_failure.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.failed") {
+    const p = webhook.payload.data;
+    webhook.url = "https://api.loops.so/v1/events/send";
+    webhook.payload = {
+      eventName: "payment_failed",
+      email: p.customer.email,
+      properties: {
+        customer_name: p.customer.name,
+        payment_id: p.payment_id,
+        amount: (p.total_amount / 100).toFixed(2),
+        error_message: p.error_message || "Payment processing failed",
+        retry_link: `https://yourdomain.com/retry-payment/${p.payment_id}`
+      }
+    };
+  }
+  return webhook;
+}
+```
+
+## 팁
+
+- 더 나은 이메일 템플릿 구성을 위해 설명적인 이벤트 이름을 사용하세요
+- 개인화를 위해 관련 고객 속성을 포함하세요
+- 각 이벤트에 대해 Loops 대시보드에서 이메일 템플릿을 설정하세요
+- 이벤트 전반에 걸쳐 일관된 속성 이름을 사용하세요
+- 라이브로 전환하기 전에 이메일 전송을 테스트하세요
+
+## 문제 해결
+
+<AccordionGroup>
+<Accordion title="이메일이 전송되지 않음">
+- API 키가 올바르고 활성 상태인지 확인하세요
+- 이벤트 이름이 Loops 템플릿과 일치하는지 확인하세요
+- 수신자 이메일 주소가 유효한지 확인하세요
+- Loops 전송 한도 및 쿼터를 검토하세요
+</Accordion>
+
+<Accordion title="변환 오류">
+- JSON 구조가 Loops API 형식과 일치하는지 확인하세요
+- 모든 필수 필드가 있는지 확인하세요
+- 이벤트 이름이 올바르게 형식화되었는지 확인하세요
+- API 키 권한을 확인하세요
+</Accordion>
+</AccordionGroup>

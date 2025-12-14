@@ -1,0 +1,142 @@
+---
+title: ديسكورد
+description: أرسل إشعارات دودي بايمنتس في الوقت الفعلي إلى قنوات ديسكورد الخاصة بك.
+icon: discord
+---
+
+## المقدمة
+
+ابقِ فريقك على اطلاع حيث يتعاونون بالفعل. يوفر تكامل ديسكورد إشعارات الدفع والاشتراك والنزاع وغيرها من الأحداث المهمة مباشرة إلى أي قناة تختارها—دون الحاجة إلى الاستطلاعات أو لوحات المعلومات.
+
+<Info>
+يفترض هذا الدليل أن لديك وصولاً إلى قسم التكاملات في لوحة معلومات دودي بايمنتس.
+</Info>
+
+## البدء
+
+<Steps>
+<Step title="افتح قسم Webhook">
+  في لوحة معلومات دودي بايمنتس الخاصة بك، افتح <b>Webhooks → + إضافة نقطة نهاية</b> وقم بتوسيع القائمة المنسدلة للكشف عن التكاملات.
+  <Frame>
+    <img src="/images/integrations/discord.png" alt="إضافة نقطة نهاية وقائمة التكاملات المنسدلة" />
+  </Frame>
+</Step>
+
+<Step title="اختر ديسكورد">
+  اختر بطاقة <b>ديسكورد</b> ثم انقر على <b>اتصل بمساحة عمل ديسكورد الخاصة بك</b>.
+</Step>
+
+<Step title="تفويض الروبوت">
+  امنح الأذونات المطلوبة حتى يتمكن الروبوت من نشر الرسائل في القناة التي اخترتها.
+</Step>
+
+<Step title="تحرير كود التحويل">
+  خصص تحميل البيانات → خريطة التضمين حسب احتياجاتك—أو ابدأ بالقوالب أدناه.
+</Step>
+
+<Step title="اختبر وأنشئ">
+  استخدم تحميلات بيانات نموذجية لمعاينة التضمين، ثم اضغط على <b>إنشاء</b>.
+</Step>
+
+<Step title="تم!">
+  🎉 ستتلقى قناتك في ديسكورد الآن تحديثات دودي بايمنتس مباشرة.
+</Step>
+</Steps>
+
+## أمثلة على كود التحويل
+
+### تضمين الدفع الأدنى
+
+```javascript payment_embed.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.payload = {
+      embeds: [{
+        title: "✅ Payment Successful",
+        description: `**Amount:** $${(p.total_amount / 100).toFixed(2)}\n**Customer:** ${p.customer.email}`,
+        color: 0x2ecc71 // green
+      }]
+    };
+  }
+  return webhook;
+}
+```
+
+### أحداث الاشتراك
+
+```javascript subscription_embed.js icon="js" expandable
+function handler(webhook) {
+  const s = webhook.payload.data;
+  switch (webhook.eventType) {
+    case "subscription.active":
+      webhook.payload = {
+        embeds: [{
+          title: "📄 Subscription Activated",
+          fields: [
+            { name: "Customer", value: s.customer.email, inline: true },
+            { name: "Product", value: s.product_id, inline: true },
+            { name: "Next Billing", value: new Date(s.next_billing_date).toLocaleDateString(), inline: true }
+          ],
+          color: 0x2ecc71
+        }]
+      };
+      break;
+    case "subscription.cancelled":
+      webhook.payload = {
+        embeds: [{
+          title: "⚠️ Subscription Cancelled",
+          fields: [
+            { name: "Customer", value: s.customer.email, inline: true },
+            { name: "Product", value: s.product_id, inline: true }
+          ],
+          color: 0xf1c40f
+        }]
+      };
+      break;
+  }
+  return webhook;
+}
+```
+
+### تنبيهات النزاع
+
+```javascript dispute_embed.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType.startsWith("dispute.")) {
+    const d = webhook.payload.data;
+    webhook.payload = {
+      embeds: [{
+        title: d.dispute_status === "won" ? "🏆 Dispute Won" : d.dispute_status === "lost" ? "❌ Dispute Lost" : "🚨 Dispute Update",
+        fields: [
+          { name: "Payment ID", value: d.payment_id, inline: true },
+          { name: "Amount", value: `$${(d.amount / 100).toFixed(2)}`, inline: true },
+          { name: "Status", value: d.dispute_status, inline: true }
+        ],
+        color: d.dispute_status === "won" ? 0x2ecc71 : d.dispute_status === "lost" ? 0xe74c3c : 0xe67e22
+      }]
+    };
+  }
+  return webhook;
+}
+```
+
+## نصائح
+
+- يفضل استخدام التضمينات للتنسيق الغني والألوان.
+- اجعل العناوين قصيرة؛ ضع التفاصيل في الحقول.
+- استخدم ألوانًا بديهية: الأخضر (نجاح)، الأحمر (فشل)، البرتقالي (تحذيرات).
+
+## استكشاف الأخطاء وإصلاحها
+
+<AccordionGroup>
+<Accordion title="لا توجد رسائل في ديسكورد">
+- تأكد من أن الروبوت لديه وصول إلى القناة.
+- تحقق من أن التحويل يعيد كائن JSON مع `embeds`.
+</Accordion>
+
+<Accordion title="أخطاء التحويل">
+- تحقق من كودك في المحرر – ستمنع أخطاء الصياغة التسليم.
+- تأكد من أن أسماء الحقول تتطابق مع هيكل تحميل بيانات webhook.
+</Accordion>
+</AccordionGroup>

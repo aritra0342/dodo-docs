@@ -1,0 +1,150 @@
+---
+title: HubSpot
+description: 通过 Dodo Payments 事件自动创建和更新 HubSpot 中的联系人、公司和交易。
+icon: hubspot
+---
+
+## 介绍
+
+将您的支付数据直接同步到 HubSpot CRM。从成功的支付中创建联系人，跟踪订阅生命周期，并构建全面的客户档案——所有这些都由 Dodo Payments 事件自动触发。
+
+<Info>
+此集成需要 HubSpot 管理员访问权限以配置 OAuth 范围和 API 权限。
+</Info>
+
+## 开始使用
+
+<Steps>
+<Step title="打开 Webhook 部分">
+  在您的 Dodo Payments 仪表板中，转到 <b>Webhooks → + 添加端点</b> 并展开集成下拉菜单。
+  <Frame>
+    <img src="/images/integrations/hubspot.png" alt="添加端点和集成下拉菜单" />
+  </Frame>
+</Step>
+
+<Step title="选择 HubSpot">
+  选择 <b>HubSpot</b> 集成卡片。
+</Step>
+
+<Step title="连接 HubSpot">
+  点击 <b>连接到 HubSpot</b> 并授权所需的 OAuth 范围。
+</Step>
+
+<Step title="配置转换">
+  编辑转换代码以将支付数据映射到 HubSpot CRM 对象。
+</Step>
+
+<Step title="测试与创建">
+  使用示例有效负载进行测试，然后点击 <b>创建</b> 以激活同步。
+</Step>
+
+<Step title="完成！">
+  🎉 现在，支付事件将自动在您的 HubSpot CRM 中创建/更新记录。
+</Step>
+</Steps>
+
+## 转换代码示例
+
+### 从支付创建联系人
+
+```javascript create_contact.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.url = "https://api.hubapi.com/crm/v3/objects/contacts";
+    webhook.payload = {
+      properties: {
+        email: p.customer.email,
+        firstname: p.customer.name.split(' ')[0] || '',
+        lastname: p.customer.name.split(' ').slice(1).join(' ') || '',
+        phone: p.customer.phone || '',
+        company: p.customer.company || '',
+        amount: (p.total_amount / 100).toString(),
+        payment_method: p.payment_method || '',
+        currency: p.currency || 'USD'
+      }
+    };
+  }
+  return webhook;
+}
+```
+
+### 使用订阅更新联系人
+
+```javascript update_contact.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "subscription.active") {
+    const s = webhook.payload.data;
+    webhook.url = `https://api.hubapi.com/crm/v3/objects/contacts/${s.customer.customer_id}`;
+    webhook.method = "PATCH";
+    webhook.payload = {
+      properties: {
+        subscription_status: "active",
+        subscription_amount: (s.recurring_pre_tax_amount / 100).toString(),
+        subscription_frequency: s.payment_frequency_interval,
+        next_billing_date: s.next_billing_date,
+        product_id: s.product_id
+      }
+    };
+  }
+  return webhook;
+}
+```
+
+### 从支付创建交易
+
+```javascript create_deal.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.url = "https://api.hubapi.com/crm/v3/objects/deals";
+    webhook.payload = {
+      properties: {
+        dealname: `Payment - ${p.customer.email}`,
+        amount: (p.total_amount / 100).toString(),
+        dealstage: "closedwon",
+        closedate: new Date().toISOString(),
+        hs_currency: p.currency || "USD"
+      },
+      associations: [
+        {
+          to: {
+            id: p.customer.customer_id
+          },
+          types: [
+            {
+              associationCategory: "HUBSPOT_DEFINED",
+              associationTypeId: 3
+            }
+          ]
+        }
+      ]
+    };
+  }
+  return webhook;
+}
+```
+
+## 提示
+
+- 使用 HubSpot 的 API 探索器测试对象创建
+- 将支付金额映射到 HubSpot 货币字段
+- 包括客户 ID 以确保正确关联
+- 根据支付状态设置适当的交易阶段
+
+## 故障排除
+
+<AccordionGroup>
+<Accordion title="在 HubSpot 中未创建记录">
+- 验证 OAuth 范围是否包括写入权限
+- 检查所需的 HubSpot 属性是否存在
+- 确保客户电子邮件有效且唯一
+- 查看 HubSpot API 速率限制
+</Accordion>
+
+<Accordion title="转换错误">
+- 验证 JSON 结构是否符合 HubSpot API 格式
+- 检查是否包含所有必需的属性
+- 确保属性名称与 HubSpot 字段名称完全匹配
+</Accordion>
+</AccordionGroup>

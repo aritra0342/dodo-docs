@@ -1,0 +1,116 @@
+---
+title: Close CRM
+description: Sinkronkan data Dodo Payments dengan Close CRM untuk melacak
+  prospek dan mengelola saluran penjualan.
+icon: handshake
+---
+
+## Pendahuluan
+
+Sambungkan data pembayaran Anda langsung ke Close CRM untuk manajemen prospek dan pelacakan penjualan yang mulus. Secara otomatis buat kontak dan peluang dari pembayaran yang berhasil, menjaga tim penjualan Anda tetap terinformasi tentang aktivitas yang menghasilkan pendapatan.
+
+<Info>
+Integrasi ini memerlukan kunci API Close CRM dengan izin yang sesuai.
+</Info>
+
+## Memulai
+
+<Steps>
+<Step title="Buka Bagian Webhook">
+  Di dasbor Dodo Payments Anda, navigasikan ke <b>Webhooks → + Tambah Endpoint</b> dan perluas dropdown integrasi.
+  <Frame>
+    <img src="/images/integrations/close-crm.png" alt="Tambah Endpoint dan dropdown integrasi" />
+  </Frame>
+</Step>
+
+<Step title="Pilih Close CRM">
+  Pilih kartu integrasi <b>Close CRM</b>.
+</Step>
+
+<Step title="Masukkan Kunci API">
+  Berikan kunci API Close CRM Anda dalam konfigurasi.
+</Step>
+
+<Step title="Konfigurasi Transformasi">
+  Edit kode transformasi untuk memetakan data pembayaran ke objek Close CRM.
+</Step>
+
+<Step title="Uji & Buat">
+  Uji dengan payload contoh dan klik <b>Buat</b> untuk mengaktifkan sinkronisasi.
+</Step>
+
+<Step title="Selesai!">
+  🎉 Peristiwa pembayaran sekarang akan secara otomatis membuat/memperbarui catatan di Close CRM.
+</Step>
+</Steps>
+
+## Contoh Kode Transformasi
+
+### Buat Kontak dari Pembayaran
+
+```javascript create_contact.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.url = "https://api.close.com/api/v1/contact/";
+    webhook.payload = {
+      name: p.customer.name,
+      emails: [p.customer.email],
+      phones: [p.customer.phone || ''],
+      custom: {
+        payment_amount: (p.total_amount / 100).toFixed(2),
+        payment_method: p.payment_method || '',
+        dodo_customer_id: p.customer.customer_id
+      }
+    };
+  }
+  return webhook;
+}
+```
+
+### Buat Peluang dari Langganan
+
+```javascript create_opportunity.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "subscription.active") {
+    const s = webhook.payload.data;
+    webhook.url = "https://api.close.com/api/v1/opportunity/";
+    webhook.payload = {
+      lead_id: s.customer.customer_id,
+      value: (s.recurring_pre_tax_amount / 100).toFixed(2),
+      value_period: s.payment_frequency_interval,
+      title: `Subscription - ${s.product_id}`,
+      custom: {
+        subscription_id: s.subscription_id,
+        billing_frequency: s.payment_frequency_interval,
+        next_billing: s.next_billing_date
+      }
+    };
+  }
+  return webhook;
+}
+```
+
+## Tips
+
+- Gunakan dokumentasi API Close CRM untuk memahami pemetaan field
+- Sertakan field kustom untuk data spesifik pembayaran
+- Pemetakan jumlah langganan ke nilai peluang
+- Gunakan ID pelanggan untuk asosiasi prospek yang tepat
+
+## Pemecahan Masalah
+
+<AccordionGroup>
+<Accordion title="Catatan tidak dibuat di Close CRM">
+- Verifikasi kunci API memiliki izin tulis
+- Periksa bahwa field yang diperlukan sudah termasuk
+- Pastikan format email valid
+- Tinjau batas laju API Close CRM
+</Accordion>
+
+<Accordion title="Kesalahan transformasi">
+- Validasi struktur JSON sesuai dengan format API Close CRM
+- Periksa bahwa semua field yang diperlukan ada
+- Pastikan nama field cocok dengan skema Close CRM secara tepat
+</Accordion>
+</AccordionGroup>

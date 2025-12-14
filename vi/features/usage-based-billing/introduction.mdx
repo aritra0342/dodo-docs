@@ -1,0 +1,168 @@
+---
+sidebarTitle: Giới thiệu
+title: Thanh toán dựa trên mức sử dụng
+description: Tính phí khách hàng dựa trên những gì họ thực sự sử dụng với việc
+  đo lường linh hoạt và thanh toán tự động.
+icon: box
+---
+
+Thanh toán dựa trên mức sử dụng cho phép bạn tính phí khách hàng cho những gì họ thực sự sử dụng—các cuộc gọi API, lưu trữ, token AI, hoặc bất kỳ chỉ số nào bạn định nghĩa. Khách hàng trả tiền cho mức tiêu thụ, không phải phí cố định.
+
+<Info>
+**Hoàn hảo cho**: APIs, dịch vụ AI, nền tảng hạ tầng, và bất kỳ sản phẩm nào mà giá trị tăng theo mức sử dụng.
+</Info>
+
+## Cách hoạt động
+
+<Steps>
+<Step title="Gửi sự kiện sử dụng">
+Ứng dụng của bạn gửi sự kiện khi các hành động tính phí xảy ra.
+
+```javascript
+{
+  "event_id": "evt_123",
+  "customer_id": "cus_abc",
+  "event_name": "api.call",
+  "metadata": { "endpoint": "/v1/users" }
+}
+```
+
+</Step>
+
+<Step title="Đồng hồ tổng hợp mức sử dụng">
+Các đồng hồ tổng hợp sự kiện thành các số lượng tính phí bằng cách sử dụng Count, Sum, Max, hoặc Last aggregation.
+</Step>
+
+<Step title="Thanh toán tự động">
+Đặt giá theo đơn vị và ngưỡng miễn phí. Khách hàng sẽ được tính phí tự động mỗi chu kỳ.
+</Step>
+</Steps>
+
+## Khái niệm cốt lõi
+
+### Sự kiện
+
+Sự kiện đại diện cho các hành động sử dụng trong ứng dụng của bạn. Mỗi sự kiện bao gồm:
+- **Tên sự kiện**: Loại sử dụng (ví dụ, `api.call`)
+- **ID khách hàng**: Ai đã sử dụng
+- **Siêu dữ liệu**: Các thuộc tính bổ sung cho việc tổng hợp
+
+### Đồng hồ
+
+Các đồng hồ tổng hợp sự kiện thành các số lượng tính phí:
+- **Count**: Tổng số sự kiện (các cuộc gọi API)
+- **Sum**: Cộng các giá trị (tổng số byte)
+- **Max**: Giá trị cao nhất (người dùng cao điểm)
+- **Last**: Giá trị gần nhất
+
+<Frame>
+<img src="/images/usage-based/UBB-2.png" alt="Giao diện tạo đồng hồ" />
+</Frame>
+
+### Sản phẩm với giá dựa trên mức sử dụng
+
+Đặt giá theo đơn vị và ngưỡng miễn phí tùy chọn:
+
+<Frame>
+<img src="/images/usage-based/UBB-4.png" alt="Cấu hình giá" />
+</Frame>
+
+**Ví dụ**: 2,500 cuộc gọi - 1,000 miễn phí = 1,500 × $0.02 = $30.00
+
+### Tín dụng khách hàng
+
+Cung cấp cho khách hàng tín dụng sử dụng bao gồm được làm mới mỗi chu kỳ thanh toán. Tín dụng sẽ được áp dụng trước mức sử dụng phải trả.
+
+## Bắt đầu nhanh
+
+<Steps>
+<Step title="Tạo một đồng hồ">
+Trong bảng điều khiển của bạn: **Đồng hồ** → **Tạo đồng hồ**
+
+1. Đặt tên sự kiện (ví dụ, `api.call`)
+2. Chọn phương pháp tổng hợp (Count, Sum, Max, Last)
+3. Thêm bộ lọc tùy chọn
+</Step>
+
+<Step title="Thêm vào sản phẩm">
+Liên kết đồng hồ với một sản phẩm có giá:
+
+<Frame>
+<img src="/images/usage-based/UBB-5.png" alt="Thêm đồng hồ vào sản phẩm" />
+</Frame>
+
+1. Chọn **Thanh toán dựa trên mức sử dụng**
+2. Chọn đồng hồ của bạn
+3. Đặt giá theo đơn vị và ngưỡng miễn phí
+</Step>
+
+<Step title="Gửi sự kiện">
+
+```javascript
+await fetch('https://test.dodopayments.com/events/ingest', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${process.env.DODO_API_KEY}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    events: [{
+      event_id: "unique_event_id",
+      customer_id: "cus_abc123",
+      event_name: "api.call",
+      metadata: { endpoint: "/v1/users" }
+    }]
+  })
+});
+```
+
+</Step>
+
+<Step title="Giám sát mức sử dụng">
+<Frame>
+<img src="/images/guides/usage-based-billing/meter-quantities-chart.png" alt="Bảng điều khiển đồng hồ" />
+</Frame>
+
+Kiểm tra bảng điều khiển đồng hồ của bạn để xem các sự kiện và tổng hợp mức sử dụng. Khách hàng sẽ được tính phí tự động mỗi chu kỳ.
+</Step>
+</Steps>
+
+## Trường hợp sử dụng
+
+<CardGroup cols={2}>
+<Card title="APIs & Hạ tầng" icon="cloud">
+Theo dõi các cuộc gọi API, giờ tính toán, băng thông, lưu trữ. Ví dụ: $0.001 cho mỗi cuộc gọi sau 10,000 miễn phí.
+</Card>
+
+<Card title="Theo dõi sử dụng AI" icon="brain">
+Theo dõi token, thế hệ, thời gian xử lý. Ví dụ: \$0.04 cho mỗi hình ảnh tiêu chuẩn, \$0.08 cho mỗi hình ảnh HD.
+</Card>
+
+<Card title="Dữ liệu & Phân tích" icon="chart-line">
+Tính phí theo dữ liệu đã xử lý, truy vấn đã chạy, bản ghi đã phân tích. Ví dụ: $5 cho mỗi GB sau 10 GB miễn phí.
+</Card>
+
+<Card title="Giao tiếp" icon="message">
+Đếm tin nhắn, phút, dữ liệu đã chuyển. Ví dụ: $0.01 cho mỗi SMS đã gửi.
+</Card>
+</CardGroup>
+
+## Các bước tiếp theo
+
+<CardGroup cols={2}>
+<Card title="Nhập sự kiện" icon="bolt" href="/features/usage-based-billing/event-ingestion">
+Tìm hiểu cách cấu trúc và gửi các sự kiện sử dụng từ ứng dụng của bạn.
+</Card>
+
+<Card title="Hướng dẫn về đồng hồ" icon="sliders" href="/features/usage-based-billing/meters">
+Làm chủ cấu hình đồng hồ, các loại tổng hợp và bộ lọc sự kiện.
+</Card>
+
+<Card title="Hướng dẫn hoàn chỉnh" icon="code" href="/developer-resources/usage-based-billing-build-ai-image-generator">
+Xây dựng một trình tạo hình ảnh AI hoàn chỉnh với thanh toán dựa trên mức sử dụng từ đầu.
+</Card>
+
+<Card title="Hướng dẫn tích hợp" icon="book" href="/developer-resources/usage-based-billing-guide">
+Hướng dẫn toàn diện để triển khai thanh toán dựa trên mức sử dụng trong ứng dụng của bạn.
+</Card>
+</CardGroup>

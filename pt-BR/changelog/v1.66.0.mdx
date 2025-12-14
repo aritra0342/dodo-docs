@@ -1,0 +1,122 @@
+---
+title: v1.66.0 (8 de dezembro de 2025)
+description: Webhook de assinatura atualizado, checkout com endereço mínimo,
+  chaves de API somente leitura, UPI AutoPay e assinaturas RuPay para todos os
+  negócios
+icon: arrows-turn-right
+---
+
+## Novos Recursos 🚀
+
+1. **`subscription.updated` Webhook**  
+   Um novo evento de webhook que é acionado em cada atualização de objeto de assinatura, fornecendo notificações em tempo real sobre quaisquer alterações em suas assinaturas.
+   
+   Use este webhook para:
+   - Receber notificações instantâneas quando os detalhes da assinatura mudarem
+   - Manter o estado da sua aplicação sincronizado com o Dodo Payments
+   - Reagir a atualizações de assinatura sem fazer polling na API
+   
+   <Tip>
+   Inscreva-se no `subscription.updated` para eliminar a necessidade de polling e manter seu sistema sincronizado com as mudanças de assinatura em tempo real.
+   </Tip>
+   
+   Saiba mais: [Webhooks de Assinatura](/developer-resources/webhooks/intents/subscription)
+
+2. **Suporte a Endereço Mínimo no Checkout**  
+
+   <Frame>
+   <img src="/images/changelog/minimal-address.png" alt="Suporte a Endereço Mínimo no Checkout" />
+   </Frame>
+
+   Reduza a fricção no checkout com o novo modo de coleta de endereço mínimo. Em vez de coletar todos os detalhes do endereço, o modo de endereço mínimo coleta apenas:
+   
+   - **País**: Sempre necessário para determinação de impostos
+   - **Código Postal**: Coletado apenas em regiões onde é necessário para cálculo de imposto sobre vendas, VAT ou GST
+   
+   <Check>
+   Resultado: Conclusão de checkout significativamente mais rápida com menos campos de formulário para os clientes.
+   </Check>
+   
+   **Ativar endereço mínimo:**
+   
+   <Tabs>
+   <Tab title="Sessões de Checkout">
+
+   ```javascript
+   const session = await client.checkoutSessions.create({
+     product_cart: [{ product_id: 'prod_123', quantity: 1 }],
+     minimal_address: true
+   });
+   ```
+
+   </Tab>
+   
+   <Tab title="Links de Pagamento Estáticos">
+   Anexe `minimalAddress=true` à URL do seu link de pagamento:
+   
+
+   ```
+   https://checkout.dodopayments.com/buy/prod_123?minimalAddress=true
+   ```
+
+   </Tab>
+   </Tabs>
+   
+   <Info>
+   Por padrão, o checkout continua a coletar endereços completos. Gradualmente, iremos transitar todos os links de checkout para o modo de endereço mínimo. Ative a flag de recurso agora para começar a se beneficiar da redução da fricção no checkout.
+   </Info>
+
+3. **Chaves de API Somente Leitura**  
+   Crie chaves de API com permissões somente leitura para integrações mais seguras. Ao criar uma nova chave de API, desmarque **Habilitar acesso de gravação** para criar uma chave somente leitura.
+   
+   Chaves somente leitura podem:
+   - Buscar dados de pagamento, assinatura e cliente
+   - Listar produtos e recuperar detalhes
+   - Acessar relatórios e análises
+   
+   Chaves somente leitura **não podem**:
+   - Criar ou modificar pagamentos
+   - Atualizar assinaturas
+   - Alterar configurações de produtos
+   
+   <Tip>
+   Desmarque "Habilitar acesso de gravação" para integrações de painel, ferramentas de análise e qualquer sistema que precise apenas visualizar dados sem fazer alterações.
+   </Tip>
+
+4. **UPI AutoPay & Assinaturas de Cartão RuPay - Lançamento Completo**  
+   UPI AutoPay e assinaturas de cartão RuPay agora estão disponíveis para todos os negócios. Isso permite pagamentos recorrentes para clientes indianos com:
+   
+   - **UPI AutoPay**: Cobranças recorrentes automatizadas via mandato UPI
+   - **Cartões RuPay**: Suporte a assinaturas para a rede de cartões doméstica da Índia
+   
+   <Check>
+   Resultado: Expansão das opções de pagamento de assinatura para o mercado indiano com manuseio de mandatos em conformidade com o RBI.
+   </Check>
+   
+   Saiba mais: [Assinaturas com Mandatos em Conformidade com o RBI](/features/subscription#subscriptions-with-rbi-compliant-mandates)
+
+5. **API de Pré-visualização de Mudança de Plano**  
+   Um novo endpoint de API para pré-visualizar mudanças de plano de assinatura antes de se comprometer com elas. Obtenha o valor exato da cobrança e veja como a assinatura ficará após a mudança - sem fazer modificações reais.
+   
+
+   ```javascript
+   const preview = await client.subscriptions.previewChangePlan('sub_123', {
+     product_id: 'prod_pro_plan',
+     proration_billing_mode: 'prorated_immediately',
+     quantity: 1
+   });
+   
+   console.log('Charge amount:', preview.immediate_charge.summary);
+   console.log('New plan details:', preview.new_plan);
+   ```
+
+   
+   Use isso para:
+   - Mostrar aos clientes exatamente o que eles pagarão antes de confirmar upgrades/downgrades
+   - Construir calculadoras de preços e ferramentas de comparação de planos
+   - Reduzir tickets de suporte melhorando a transparência de preços
+   
+   Saiba mais: [API de Pré-visualização de Mudança de Plano](/api-reference/subscriptions/preview-change-plan)
+
+6. **Correções Gerais de Bugs e Melhorias**  
+   Esta versão inclui polimento da interface do usuário, melhorias de desempenho e resolve bugs menores para uma experiência mais confiável e simplificada.

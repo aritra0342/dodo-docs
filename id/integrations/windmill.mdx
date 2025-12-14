@@ -1,0 +1,189 @@
+---
+title: Kincir Angin
+description: Trigger alur kerja dan skrip Kincir Angin berdasarkan peristiwa
+  Pembayaran Dodo untuk otomatisasi kustom.
+icon: wind
+---
+
+## Pendahuluan
+
+Eksekusi alur kerja dan skrip kustom di Kincir Angin saat peristiwa pembayaran terjadi. Jalankan operasi basis data, kirim notifikasi, proses data, dan otomatisasi logika bisnis yang kompleks dengan mesin alur kerja Kincir Angin yang kuat.
+
+<Info>
+Integrasi ini memerlukan URL webhook Kincir Angin Anda dari konfigurasi alur kerja.
+</Info>
+
+## Memulai
+
+<Steps>
+<Step title="Buka Bagian Webhook">
+  Di dasbor Pembayaran Dodo Anda, navigasikan ke <b>Webhooks → + Tambah Endpoint</b> dan perluas dropdown integrasi.
+  <Frame>
+    <img src="/images/integrations/windmill.png" alt="Tambah Endpoint dan dropdown integrasi" />
+  </Frame>
+</Step>
+
+<Step title="Pilih Kincir Angin">
+  Pilih kartu integrasi <b>Kincir Angin</b>.
+</Step>
+
+<Step title="Buat Alur Kerja Kincir Angin">
+  Di Kincir Angin, buat alur kerja baru dan salin URL webhook dari konfigurasi pemicu.
+</Step>
+
+<Step title="Tempel URL Webhook">
+  Tempel URL webhook Kincir Angin ke dalam konfigurasi endpoint.
+</Step>
+
+<Step title="Konfigurasi Transformasi">
+  Edit kode transformasi untuk memformat peristiwa untuk alur kerja Kincir Angin Anda.
+</Step>
+
+<Step title="Uji & Buat">
+  Uji dengan payload contoh dan klik <b>Buat</b> untuk mengaktifkan integrasi.
+</Step>
+
+<Step title="Selesai!">
+  🎉 Peristiwa pembayaran sekarang akan memicu alur kerja Kincir Angin Anda secara otomatis.
+</Step>
+</Steps>
+
+## Contoh Kode Transformasi
+
+### Payload Alur Kerja Dasar
+
+```javascript basic_workflow.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.payload = {
+      event_type: webhook.eventType,
+      payment_id: p.payment_id,
+      amount: (p.total_amount / 100).toFixed(2),
+      currency: p.currency || "USD",
+      customer_email: p.customer.email,
+      customer_name: p.customer.name,
+      payment_method: p.payment_method || "unknown",
+      timestamp: webhook.payload.timestamp,
+      metadata: {
+        business_id: p.business_id,
+        product_id: p.product_id
+      }
+    };
+  }
+  return webhook;
+}
+```
+
+### Penangan Alur Kerja Langganan
+
+```javascript subscription_workflow.js icon="js" expandable
+function handler(webhook) {
+  const s = webhook.payload.data;
+  switch (webhook.eventType) {
+    case "subscription.active":
+      webhook.payload = {
+        event_type: "subscription_started",
+        subscription_id: s.subscription_id,
+        customer_email: s.customer.email,
+        customer_name: s.customer.name,
+        product_id: s.product_id,
+        amount: (s.recurring_pre_tax_amount / 100).toFixed(2),
+        frequency: s.payment_frequency_interval,
+        next_billing: s.next_billing_date,
+        customer_id: s.customer.customer_id,
+        timestamp: webhook.payload.timestamp
+      };
+      break;
+    case "subscription.cancelled":
+      webhook.payload = {
+        event_type: "subscription_cancelled",
+        subscription_id: s.subscription_id,
+        customer_email: s.customer.email,
+        cancelled_at: s.cancelled_at,
+        cancel_at_next_billing: s.cancel_at_next_billing_date,
+        customer_id: s.customer.customer_id,
+        timestamp: webhook.payload.timestamp
+      };
+      break;
+  }
+  return webhook;
+}
+```
+
+### Penangan Alur Kerja Sengketa
+
+```javascript dispute_workflow.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType.startsWith("dispute.")) {
+    const d = webhook.payload.data;
+    webhook.payload = {
+      event_type: webhook.eventType,
+      dispute_id: d.dispute_id,
+      payment_id: d.payment_id,
+      amount: (d.amount / 100).toFixed(2),
+      status: d.dispute_status,
+      stage: d.dispute_stage,
+      remarks: d.remarks || "",
+      urgent: webhook.eventType === "dispute.opened",
+      business_id: d.business_id,
+      timestamp: webhook.payload.timestamp
+    };
+  }
+  return webhook;
+}
+```
+
+## Kasus Penggunaan Kincir Angin yang Umum
+
+<AccordionGroup>
+<Accordion title="Operasi Basis Data">
+- Memperbarui catatan pelanggan di PostgreSQL/MySQL
+- Mencatat peristiwa pembayaran ke gudang data
+- Menyinkronkan data ke sistem eksternal
+- Memperbarui tingkat inventaris
+- Melacak metrik analitik
+</Accordion>
+
+<Accordion title="Logika Bisnis">
+- Menghitung metrik pendapatan
+- Memproses pengembalian dana dan penyesuaian
+- Menangani siklus hidup langganan
+- Menghasilkan laporan dan ekspor
+- Memvalidasi data pembayaran
+</Accordion>
+
+<Accordion title="Integrasi Eksternal">
+- Mengirim data ke platform analitik
+- Memperbarui sistem CRM
+- Memicu kampanye email
+- Membuat acara kalender
+- Mengirim notifikasi SMS
+</Accordion>
+</AccordionGroup>
+
+## Tips
+
+- Struktur data payload untuk pemrosesan alur kerja yang mudah
+- Sertakan semua metadata relevan untuk logika bisnis
+- Gunakan penamaan field yang konsisten di seluruh peristiwa
+- Sertakan cap waktu untuk penjadwalan alur kerja
+- Manfaatkan penanganan kesalahan bawaan Kincir Angin
+
+## Pemecahan Masalah
+
+<AccordionGroup>
+<Accordion title="Alur kerja tidak memicu">
+- Verifikasi URL webhook benar dan aktif
+- Periksa bahwa alur kerja Kincir Angin diterbitkan dan aktif
+- Pastikan struktur payload sesuai dengan harapan alur kerja
+- Tinjau log eksekusi Kincir Angin untuk kesalahan
+</Accordion>
+
+<Accordion title="Masalah pemrosesan data">
+- Periksa pemetaan parameter input alur kerja
+- Verifikasi tipe data sesuai dengan format yang diharapkan
+- Uji alur kerja dengan data contoh
+- Tinjau log eksekusi skrip Kincir Angin
+</Accordion>
+</AccordionGroup>

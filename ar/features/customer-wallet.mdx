@@ -1,0 +1,294 @@
+---
+title: محافظ العملاء
+description: قم ببناء أنظمة فواتير قائمة على الائتمان مثل OpenAI أو Claude مع
+  محافظ العملاء. تتبع الأرصدة، إدارة الائتمانات، وإنشاء سير عمل مالي معقد.
+icon: wallet
+tag: جديد
+---
+
+<CardGroup cols={3}>
+<Card title="احصل على محافظ العملاء" icon="code" href="/api-reference/customers/get-customer-wallets">
+  تحقق من أرصدة محافظ العملاء عبر العملات.
+</Card>
+
+<Card title="إنشاء إدخال دفتر الأستاذ" icon="plus" href="/api-reference/customers/post-customer-wallets-ledger-entries">
+  أضف أو أزل الائتمانات من محافظ العملاء.
+</Card>
+
+<Card title="قائمة إدخالات دفتر الأستاذ" icon="list" href="/api-reference/customers/get-customer-wallets-ledger-entries">
+  عرض تاريخ المعاملات الكامل مع الترقيم.
+</Card>
+</CardGroup>
+
+## ما هي محافظ العملاء؟
+
+فكر في محافظ العملاء كصناديق نقود رقمية لمستخدميك. يحصل كل عميل على واحدة تلقائيًا عند إنشاء حسابه. يمكنك استخدام هذه المحافظ لـ:
+
+- **تتبع أرصدة الائتمان** بالدولار الأمريكي والروبية الهندية
+- **بناء أنظمة ائتمان API** مثل OpenAI أو Claude
+- **إنشاء فواتير مسبقة الدفع** حيث يشتري العملاء الائتمانات مسبقًا
+- **التعامل مع المبالغ المستردة** كائتمانات في المحفظة بدلاً من النقد
+- **إدارة الفواتير المعقدة** مع تاريخ معاملات مفصل
+
+<Info>
+يحصل كل عميل تلقائيًا على محفظة عند إنشاء حسابه. تدعم المحافظ عملات الدولار الأمريكي والروبية الهندية مع أرصدة منفصلة لكل منها.
+</Info>
+
+<Frame>
+  <img src="/images/customer/customer-wallet.png" alt="محافظ العملاء" />
+</Frame>
+
+## كيف تعمل؟
+
+محافظ العملاء بسيطة: فهي تحتفظ بالمال (الائتمانات) التي يمكن للعملاء إنفاقها على خدماتك. عندما يقوم العميل بعملية شراء، يتم التحقق من رصيد محفظته أولاً، وتستخدم أي ائتمانات متاحة قبل خصم طريقة الدفع الخاصة به.
+
+### الإعداد التلقائي
+
+عند إنشاء عميل جديد، تقوم Dodo Payments تلقائيًا بإنشاء محفظة برصيد صفر. إنها جاهزة للاستخدام على الفور من خلال واجهة برمجة التطبيقات الخاصة بنا.
+
+### دعم العملات المتعددة
+
+يمكن أن تحتوي كل محفظة على أرصدة بعملات مختلفة:
+
+<ResponseField name="USD Balance" type="integer">
+الرصيد بالدولار الأمريكي (مخزن بالسنتات)
+</ResponseField>
+
+<ResponseField name="INR Balance" type="integer">
+الرصيد بالروبية الهندية (مخزن بالبايس)
+</ResponseField>
+
+<Info>
+حاليًا، تتوفر فقط أرصدة <strong>الدولار الأمريكي</strong> و<strong>الروبية الهندية</strong>. المزيد من العملات قادمة قريبًا.
+</Info>
+
+## العمل مع المحافظ
+
+### تحقق من أرصدة العملاء
+
+انظر كم من الائتمان لدى العميل عبر جميع العملات. مثالي للتحقق مما إذا كان لديهم ما يكفي من الأموال قبل معالجة عملية الشراء.
+
+<Card title="احصل على أرصدة محافظ العملاء" icon="wallet" href="/api-reference/customers/get-customer-wallets">
+  تحقق من أرصدة ائتمان محفظة العميل في جميع العملات المدعومة.
+</Card>
+
+### إضافة أو إزالة الائتمانات
+
+امنح العملاء ائتمانات (مثل مكافآت الترحيب) أو خصم الائتمانات (مثل رسوم الاستخدام). يمكنك إضافة أسباب لكل معاملة لتتبع ما حدث.
+
+<Card title="إنشاء إدخال دفتر الأستاذ لمحفظة العميل" icon="plus" href="/api-reference/customers/post-customer-wallets-ledger-entries">
+  أضف أو أزل الائتمانات من محفظة العميل.
+</Card>
+
+### عرض تاريخ المعاملات
+
+انظر كل معاملة ائتمان وخصم للعميل. رائع لتصحيح مشاكل الفواتير أو إظهار تاريخ إنفاق العملاء.
+
+<Card title="قائمة إدخالات دفتر الأستاذ لمحفظة العميل" icon="list" href="/api-reference/customers/get-customer-wallets-ledger-entries">
+  عرض كل معاملة ائتمان وخصم للعميل.
+</Card>
+
+## أمثلة من العالم الحقيقي
+
+### نظام ائتمان API (مثل OpenAI)
+
+قم ببناء نظام حيث يشتري العملاء الائتمانات وينفقونها على استدعاءات API:
+
+```javascript
+// Give new customers welcome credits
+async function giveWelcomeCredits(customerId) {
+  await client.customers.wallets.ledgerEntries.create(customerId, {
+    amount: 10000, // $100 in cents
+    currency: 'USD',
+    entry_type: 'credit',
+    reason: 'Welcome bonus - 100 API credits',
+    idempotency_key: `welcome_${customerId}_${Date.now()}`
+  });
+}
+
+// Charge customers for API usage
+async function chargeForApiUsage(customerId, usageCost) {
+  try {
+    await client.customers.wallets.ledgerEntries.create(customerId, {
+      amount: usageCost, // Cost in cents
+      currency: 'USD',
+      entry_type: 'debit',
+      reason: `API usage - ${usageCost} credits consumed`,
+      idempotency_key: `usage_${customerId}_${Date.now()}`
+    });
+  } catch (error) {
+    if (error.status === 400) {
+      console.log('Customer needs to buy more credits');
+    }
+  }
+}
+```
+
+### نظام الفواتير المسبقة الدفع
+
+دع العملاء يشترون الائتمانات مسبقًا وينفقونها على مر الزمن:
+
+<Steps>
+<Step title="ترحيب بالعملاء الجدد">
+امنح العملاء الجدد بعض الائتمانات المجانية للبدء.
+
+```javascript
+await client.customers.wallets.ledgerEntries.create(customerId, {
+  amount: 5000, // $50 welcome bonus
+  currency: 'USD',
+  entry_type: 'credit',
+  reason: 'Welcome bonus for new customer',
+  idempotency_key: `welcome_${customerId}`
+});
+```
+
+</Step>
+
+<Step title="التعامل مع مشتريات الائتمان">
+عندما يشتري العملاء الائتمانات، أضفها إلى محفظتهم.
+
+```javascript
+await client.customers.wallets.ledgerEntries.create(customerId, {
+  amount: purchaseAmount, // Amount paid in cents
+  currency: 'USD',
+  entry_type: 'credit',
+  reason: `Credit purchase - ${purchaseAmount} credits`,
+  idempotency_key: `purchase_${paymentId}`
+});
+```
+
+</Step>
+
+<Step title="خصم مقابل الاستخدام">
+خصم الائتمانات عندما يستخدم العملاء خدمتك.
+
+```javascript
+await client.customers.wallets.ledgerEntries.create(customerId, {
+  amount: usageCost,
+  currency: 'USD', 
+  entry_type: 'debit',
+  reason: `Service usage - ${usageCost} credits`,
+  idempotency_key: `usage_${usageId}`
+});
+```
+
+</Step>
+
+<Step title="مراقبة الأرصدة">
+تحقق مما إذا كان العملاء يعانون من نقص في الائتمانات.
+
+```javascript
+const wallets = await client.customers.wallets.list(customerId);
+const usdWallet = wallets.items.find(w => w.currency === 'USD');
+const balance = usdWallet.balance;
+
+if (balance < 1000) { // Less than $10
+  // Send low balance notification
+  await sendLowBalanceNotification(customerId, balance);
+}
+```
+
+</Step>
+</Steps>
+
+### دعم العملات المتعددة
+
+تعامل مع العملاء في دول مختلفة:
+
+<AccordionGroup>
+<Accordion title="عملاء الولايات المتحدة">
+امنح ائتمانات بالدولار الأمريكي للعملاء المقيمين في الولايات المتحدة.
+
+```javascript
+await client.customers.wallets.ledgerEntries.create(customerId, {
+  amount: 20000, // $200 in cents
+  currency: 'USD',
+  entry_type: 'credit',
+  reason: 'USD credit purchase',
+  idempotency_key: `usd_purchase_${paymentId}`
+});
+```
+
+</Accordion>
+
+<Accordion title="عملاء الهند">
+امنح ائتمانات بالروبية الهندية للعملاء الهنود.
+
+```javascript
+await client.customers.wallets.ledgerEntries.create(customerId, {
+  amount: 1500000, // ₹15,000 in paise
+  currency: 'INR',
+  entry_type: 'credit',
+  reason: 'INR credit purchase',
+  idempotency_key: `inr_purchase_${paymentId}`
+});
+```
+
+</Accordion>
+</AccordionGroup>
+
+## أفضل الممارسات
+
+### منع المعاملات المكررة
+
+استخدم مفاتيح idempotency للتأكد من أنك لا تتقاضى رسومًا من العملاء مرتين عن نفس الشيء:
+
+```javascript
+async function addCreditsSafely(customerId, amount, reason) {
+  const idempotencyKey = `${reason}_${customerId}_${Date.now()}`;
+  
+  try {
+    const result = await client.customers.wallets.ledgerEntries.create(customerId, {
+      amount: amount,
+      currency: 'USD',
+      entry_type: 'credit',
+      reason: reason,
+      idempotency_key: idempotencyKey
+    });
+    
+    return { success: true, wallet: result };
+  } catch (error) {
+    if (error.status === 400 && error.message.includes('Insufficient balance')) {
+      return { success: false, error: 'INSUFFICIENT_BALANCE' };
+    }
+    
+    if (error.status === 409) {
+      // Transaction already processed
+      return { success: true, wallet: null, duplicate: true };
+    }
+    
+    throw error;
+  }
+}
+```
+
+### تحقق من الأرصدة قبل الخصم
+
+تحقق دائمًا من أن العملاء لديهم ما يكفي من الائتمانات قبل معالجة العمليات المكلفة:
+
+```javascript
+async function checkBalanceBeforeOperation(customerId, requiredAmount) {
+  const wallets = await client.customers.wallets.list(customerId);
+  const usdWallet = wallets.items.find(w => w.currency === 'USD');
+  
+  if (!usdWallet || usdWallet.balance < requiredAmount) {
+    throw new Error('Not enough credits for this operation');
+  }
+  
+  return usdWallet.balance;
+}
+```
+
+## ما هو قادم بعد ذلك
+
+<Warning>
+هذه الميزات مخطط لها للإصدارات المستقبلية:
+</Warning>
+
+- **انتهاء صلاحية الائتمان**: تعيين الائتمانات لتنتهي بعد فترة معينة
+- **تحليلات أفضل**: تقارير إنفاق مفصلة ورؤى الاستخدام  
+- **المزيد من Webhooks**: إشعارات في الوقت الحقيقي لتغييرات الرصيد وانخفاض الائتمانات
+
+<Tip>
+ابدأ ببساطة مع العمليات الأساسية للائتمان/الخصم، ثم أضف ميزات أكثر تعقيدًا مع نمو عملك.
+</Tip>

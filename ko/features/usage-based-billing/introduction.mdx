@@ -1,0 +1,167 @@
+---
+sidebarTitle: 소개
+title: 사용량 기반 청구
+description: 고객이 실제로 사용하는 것에 따라 요금을 부과하며 유연한 계량 및 자동 청구를 제공합니다.
+icon: box
+---
+
+사용량 기반 청구를 통해 고객이 실제로 사용하는 것에 대해 요금을 부과할 수 있습니다—API 호출, 저장소, AI 토큰 또는 정의한 모든 메트릭에 대해. 고객은 고정 요금이 아닌 소비에 대해 지불합니다.
+
+<Info>
+**적합한 경우**: API, AI 서비스, 인프라 플랫폼 및 사용량에 따라 가치가 증가하는 모든 제품.
+</Info>
+
+## 작동 방식
+
+<Steps>
+<Step title="사용량 이벤트 전송">
+청구 가능한 작업이 발생할 때 애플리케이션이 이벤트를 전송합니다.
+
+```javascript
+{
+  "event_id": "evt_123",
+  "customer_id": "cus_abc",
+  "event_name": "api.call",
+  "metadata": { "endpoint": "/v1/users" }
+}
+```
+
+</Step>
+
+<Step title="계량기 집계 사용량">
+계량기는 Count, Sum, Max 또는 Last 집계를 사용하여 이벤트를 청구 가능한 수량으로 집계합니다.
+</Step>
+
+<Step title="자동 청구">
+단위당 가격과 무료 한도를 설정합니다. 고객은 매 사이클마다 자동으로 청구됩니다.
+</Step>
+</Steps>
+
+## 핵심 개념
+
+### 이벤트
+
+이벤트는 애플리케이션 내의 사용 작업을 나타냅니다. 각 이벤트에는 다음이 포함됩니다:
+- **이벤트 이름**: 사용 유형 (예: `api.call`)
+- **고객 ID**: 사용한 사람
+- **메타데이터**: 집계를 위한 추가 속성
+
+### 계량기
+
+계량기는 이벤트를 청구 가능한 수량으로 집계합니다:
+- **Count**: 총 이벤트 (API 호출)
+- **Sum**: 값 추가 (총 바이트)
+- **Max**: 최고 값 (최대 사용자 수)
+- **Last**: 가장 최근 값
+
+<Frame>
+<img src="/images/usage-based/UBB-2.png" alt="계량기 생성 인터페이스" />
+</Frame>
+
+### 사용량 가격 책정이 있는 제품
+
+단위당 가격과 선택적 무료 한도를 설정합니다:
+
+<Frame>
+<img src="/images/usage-based/UBB-4.png" alt="가격 구성" />
+</Frame>
+
+**예시**: 2,500 호출 - 1,000 무료 = 1,500 × $0.02 = $30.00
+
+### 고객 크레딧
+
+고객에게 포함된 사용량 크레딧을 제공하여 각 청구 주기마다 새로 고칩니다. 크레딧은 유료 사용 전에 적용됩니다.
+
+## 빠른 시작
+
+<Steps>
+<Step title="계량기 생성">
+대시보드에서: **계량기** → **계량기 생성**
+
+1. 이벤트 이름 설정 (예: `api.call`)
+2. 집계 선택 (Count, Sum, Max, Last)
+3. 선택적 필터 추가
+</Step>
+
+<Step title="제품에 추가">
+가격이 있는 제품에 계량기를 연결합니다:
+
+<Frame>
+<img src="/images/usage-based/UBB-5.png" alt="제품에 계량기 추가" />
+</Frame>
+
+1. **사용량 기반 청구** 선택
+2. 계량기 선택
+3. 단위당 가격 및 무료 한도 설정
+</Step>
+
+<Step title="이벤트 전송">
+
+```javascript
+await fetch('https://test.dodopayments.com/events/ingest', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${process.env.DODO_API_KEY}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    events: [{
+      event_id: "unique_event_id",
+      customer_id: "cus_abc123",
+      event_name: "api.call",
+      metadata: { endpoint: "/v1/users" }
+    }]
+  })
+});
+```
+
+</Step>
+
+<Step title="사용량 모니터링">
+<Frame>
+<img src="/images/guides/usage-based-billing/meter-quantities-chart.png" alt="계량기 대시보드" />
+</Frame>
+
+계량기 대시보드에서 이벤트 및 사용량 집계를 확인합니다. 고객은 매 사이클마다 자동으로 청구됩니다.
+</Step>
+</Steps>
+
+## 사용 사례
+
+<CardGroup cols={2}>
+<Card title="API 및 인프라" icon="cloud">
+API 호출, 컴퓨팅 시간, 대역폭, 저장소를 추적합니다. 예: 10,000 무료 이후 호출당 $0.001.
+</Card>
+
+<Card title="AI 사용량 추적" icon="brain">
+토큰, 생성, 처리 시간을 추적합니다. 예: 표준 이미지당 \$0.04, HD당 \$0.08.
+</Card>
+
+<Card title="데이터 및 분석" icon="chart-line">
+처리된 데이터, 실행된 쿼리, 분석된 레코드에 따라 청구합니다. 예: 10GB 무료 이후 GB당 $5.
+</Card>
+
+<Card title="통신" icon="message">
+메시지, 분, 전송된 데이터 수를 계산합니다. 예: 전송된 SMS당 $0.01.
+</Card>
+</CardGroup>
+
+## 다음 단계
+
+<CardGroup cols={2}>
+<Card title="이벤트 수집" icon="bolt" href="/features/usage-based-billing/event-ingestion">
+애플리케이션에서 사용량 이벤트를 구조화하고 전송하는 방법을 알아보세요.
+</Card>
+
+<Card title="계량기 가이드" icon="sliders" href="/features/usage-based-billing/meters">
+계량기 구성, 집계 유형 및 이벤트 필터링을 마스터하세요.
+</Card>
+
+<Card title="완전한 튜토리얼" icon="code" href="/developer-resources/usage-based-billing-build-ai-image-generator">
+사용량 기반 청구로 AI 이미지 생성기를 처음부터 끝까지 구축하세요.
+</Card>
+
+<Card title="통합 가이드" icon="book" href="/developer-resources/usage-based-billing-guide">
+애플리케이션에 사용량 기반 청구를 구현하는 포괄적인 가이드입니다.
+</Card>
+</CardGroup>

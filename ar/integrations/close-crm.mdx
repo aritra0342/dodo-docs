@@ -1,0 +1,115 @@
+---
+title: Close CRM
+description: مزامنة بيانات مدفوعات Dodo مع Close CRM لتتبع العملاء وإدارة مبيعاتك.
+icon: handshake
+---
+
+## المقدمة
+
+قم بتوصيل بيانات الدفع الخاصة بك مباشرةً بـ Close CRM لإدارة العملاء وتتبع المبيعات بسلاسة. أنشئ جهات اتصال وفرصًا تلقائيًا من المدفوعات الناجحة، مما يبقي فريق المبيعات لديك على اطلاع بالأنشطة المولدة للإيرادات.
+
+<Info>
+تتطلب هذه التكامل مفتاح API لـ Close CRM مع الأذونات المناسبة.
+</Info>
+
+## البدء
+
+<Steps>
+<Step title="افتح قسم Webhook">
+  في لوحة معلومات Dodo Payments الخاصة بك، انتقل إلى <b>Webhooks → + إضافة نقطة نهاية</b> وقم بتوسيع قائمة التكاملات.
+  <Frame>
+    <img src="/images/integrations/close-crm.png" alt="إضافة نقطة نهاية وقائمة التكاملات" />
+  </Frame>
+</Step>
+
+<Step title="اختر Close CRM">
+  اختر بطاقة تكامل <b>Close CRM</b>.
+</Step>
+
+<Step title="أدخل مفتاح API">
+  قدم مفتاح API الخاص بـ Close CRM في الإعدادات.
+</Step>
+
+<Step title="تكوين التحويل">
+  قم بتحرير كود التحويل لربط بيانات الدفع بأشياء Close CRM.
+</Step>
+
+<Step title="اختبر وأنشئ">
+  اختبر باستخدام حمولات عينة وانقر على <b>إنشاء</b> لتفعيل المزامنة.
+</Step>
+
+<Step title="تم!">
+  🎉 ستقوم أحداث الدفع الآن بإنشاء/تحديث السجلات تلقائيًا في Close CRM.
+</Step>
+</Steps>
+
+## أمثلة كود التحويل
+
+### إنشاء جهة اتصال من الدفع
+
+```javascript create_contact.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.url = "https://api.close.com/api/v1/contact/";
+    webhook.payload = {
+      name: p.customer.name,
+      emails: [p.customer.email],
+      phones: [p.customer.phone || ''],
+      custom: {
+        payment_amount: (p.total_amount / 100).toFixed(2),
+        payment_method: p.payment_method || '',
+        dodo_customer_id: p.customer.customer_id
+      }
+    };
+  }
+  return webhook;
+}
+```
+
+### إنشاء فرصة من الاشتراك
+
+```javascript create_opportunity.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "subscription.active") {
+    const s = webhook.payload.data;
+    webhook.url = "https://api.close.com/api/v1/opportunity/";
+    webhook.payload = {
+      lead_id: s.customer.customer_id,
+      value: (s.recurring_pre_tax_amount / 100).toFixed(2),
+      value_period: s.payment_frequency_interval,
+      title: `Subscription - ${s.product_id}`,
+      custom: {
+        subscription_id: s.subscription_id,
+        billing_frequency: s.payment_frequency_interval,
+        next_billing: s.next_billing_date
+      }
+    };
+  }
+  return webhook;
+}
+```
+
+## نصائح
+
+- استخدم وثائق API الخاصة بـ Close CRM لفهم ربط الحقول
+- قم بتضمين الحقول المخصصة لبيانات الدفع المحددة
+- اربط مبالغ الاشتراك بقيم الفرص
+- استخدم معرفات العملاء لربط العملاء بشكل صحيح
+
+## استكشاف الأخطاء وإصلاحها
+
+<AccordionGroup>
+<Accordion title="السجلات غير المنشأة في Close CRM">
+- تحقق من أن مفتاح API لديه أذونات الكتابة
+- تحقق من تضمين الحقول المطلوبة
+- تأكد من أن تنسيق البريد الإلكتروني صالح
+- راجع حدود معدل API لـ Close CRM
+</Accordion>
+
+<Accordion title="أخطاء التحويل">
+- تحقق من أن هيكل JSON يتطابق مع تنسيق API لـ Close CRM
+- تحقق من وجود جميع الحقول المطلوبة
+- تأكد من أن أسماء الحقول تتطابق تمامًا مع مخطط Close CRM
+</Accordion>
+</AccordionGroup>

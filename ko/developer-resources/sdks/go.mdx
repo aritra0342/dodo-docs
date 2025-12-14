@@ -1,0 +1,393 @@
+---
+title: Go
+description: Go 애플리케이션에 Dodo Payments를 통합하는 관용적이고 성능이 뛰어난 SDK
+icon: golang
+---
+
+Go SDK는 Dodo Payments를 애플리케이션에 통합하기 위한 깔끔하고 관용적인 Go 인터페이스를 제공합니다. 이 SDK는 컨텍스트 지원, 강력한 타입의 응답, 미들웨어 기능을 제공하며, 동시 사용에 안전합니다.
+
+## 설치
+
+Go 모듈을 사용하여 SDK를 설치합니다:
+
+```bash
+go get github.com/dodopayments/dodopayments-go
+```
+
+<Info>
+SDK는 Go 1.18 및 이후 버전을 지원하며, 최적의 성능을 위해 최신 Go 기능을 활용합니다.
+</Info>
+
+## 빠른 시작
+
+클라이언트를 초기화하고 첫 번째 체크아웃 세션을 생성합니다:
+
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"log"
+
+	"github.com/dodopayments/dodopayments-go"
+	"github.com/dodopayments/dodopayments-go/option"
+)
+
+func main() {
+	client := dodopayments.NewClient(
+		option.WithBearerToken("My Bearer Token"), // defaults to os.LookupEnv("DODO_PAYMENTS_API_KEY")
+		option.WithEnvironmentTestMode(),          // defaults to option.WithEnvironmentLiveMode()
+	)
+	
+	checkoutSessionResponse, err := client.CheckoutSessions.New(context.TODO(), dodopayments.CheckoutSessionNewParams{
+		CheckoutSessionRequest: dodopayments.CheckoutSessionRequestParam{
+			ProductCart: dodopayments.F([]dodopayments.CheckoutSessionRequestProductCartParam{{
+				ProductID: dodopayments.F("product_id"),
+				Quantity:  dodopayments.F(int64(1)),
+			}}),
+		},
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("Session ID: %s\n", checkoutSessionResponse.SessionID)
+}
+```
+
+<Warning>
+API 키는 항상 환경 변수를 사용하여 안전하게 저장하세요. 소스 코드에 하드코딩하지 마세요.
+</Warning>
+
+## 주요 기능
+
+<CardGroup cols={2}>
+<Card title="컨텍스트 지원" icon="clock">
+  취소 및 타임아웃을 위한 context.Context에 대한 완전한 지원
+</Card>
+
+<Card title="강력한 타입" icon="shield-check">
+  컴파일 타임 안전성을 위한 강력한 타입의 요청 및 응답
+</Card>
+
+<Card title="미들웨어" icon="layer-group">
+  로깅, 메트릭 및 사용자 정의 로직을 위한 확장 가능한 미들웨어 지원
+</Card>
+
+<Card title="고루틴 안전" icon="bolt">
+  동시 작업을 위해 설계된 스레드 안전 클라이언트
+</Card>
+</CardGroup>
+
+## 구성
+
+### 컨텍스트 및 타임아웃
+
+Go의 컨텍스트를 활용하여 타임아웃 및 취소를 처리합니다:
+
+```go
+import (
+	"context"
+	"time"
+	
+	"github.com/dodopayments/dodopayments-go"
+	"github.com/dodopayments/dodopayments-go/option"
+)
+
+// Create a context with timeout
+ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+defer cancel()
+
+payment, err := client.Payments.Create(ctx, dodopayments.PaymentCreateParams{
+	Amount:     5000,
+	Currency:   "USD",
+	CustomerID: "cus_123",
+})
+if err != nil {
+	if ctx.Err() == context.DeadlineExceeded {
+		log.Println("Request timed out")
+	} else {
+		log.Fatal(err)
+	}
+}
+```
+
+### 재시도 구성
+
+자동 재시도 동작을 구성합니다:
+
+```go
+// Configure default for all requests (default is 2)
+client := dodopayments.NewClient(
+	option.WithMaxRetries(0), // disable retries
+)
+
+// Override per-request
+client.CheckoutSessions.New(
+	context.TODO(),
+	dodopayments.CheckoutSessionNewParams{
+		CheckoutSessionRequest: dodopayments.CheckoutSessionRequestParam{
+			ProductCart: dodopayments.F([]dodopayments.CheckoutSessionRequestProductCartParam{{
+				ProductID: dodopayments.F("product_id"),
+				Quantity:  dodopayments.F(int64(0)),
+			}}),
+		},
+	},
+	option.WithMaxRetries(5),
+)
+```
+
+## 일반 작업
+
+### 체크아웃 세션 생성
+
+체크아웃 세션을 생성합니다:
+
+```go
+session, err := client.CheckoutSessions.New(ctx, dodopayments.CheckoutSessionNewParams{
+	CheckoutSessionRequest: dodopayments.CheckoutSessionRequestParam{
+		ProductCart: dodopayments.F([]dodopayments.CheckoutSessionRequestProductCartParam{{
+			ProductID: dodopayments.F("prod_123"),
+			Quantity:  dodopayments.F(int64(1)),
+		}}),
+		ReturnURL: dodopayments.F("https://yourdomain.com/return"),
+	},
+})
+if err != nil {
+	log.Fatal(err)
+}
+
+fmt.Printf("Checkout URL: %s\n", session.URL)
+```
+
+### 고객 관리
+
+고객 정보를 생성하고 검색합니다:
+
+```go
+// Create a customer
+customer, err := client.Customers.New(ctx, dodopayments.CustomerNewParams{
+	Email: dodopayments.F("customer@example.com"),
+	Name:  dodopayments.F("John Doe"),
+	Metadata: dodopayments.F(map[string]string{
+		"user_id": "12345",
+	}),
+})
+if err != nil {
+	log.Fatal(err)
+}
+
+// Retrieve customer
+customer, err = client.Customers.Get(ctx, "cus_123")
+if err != nil {
+	log.Fatal(err)
+}
+
+fmt.Printf("Customer: %s (%s)\n", customer.Name, customer.Email)
+```
+
+### 구독 처리
+
+정기 구독을 생성하고 관리합니다:
+
+```go
+// Create a subscription
+subscription, err := client.Subscriptions.New(ctx, dodopayments.SubscriptionNewParams{
+	CustomerID: dodopayments.F("cus_123"),
+	ProductID:  dodopayments.F("prod_456"),
+	PriceID:    dodopayments.F("price_789"),
+})
+if err != nil {
+	log.Fatal(err)
+}
+
+// Get usage history
+usageHistory, err := client.Subscriptions.GetUsageHistory(
+	ctx,
+	subscription.ID,
+	dodopayments.SubscriptionGetUsageHistoryParams{
+		StartDate: dodopayments.F("2024-01-01T00:00:00Z"),
+		EndDate:   dodopayments.F("2024-03-31T23:59:59Z"),
+	},
+)
+if err != nil {
+	log.Fatal(err)
+}
+```
+
+## 사용 기반 청구
+
+### 사용 이벤트 수집
+
+사용자 정의 이벤트를 추적합니다:
+
+```go
+import "github.com/dodopayments/dodopayments-go"
+
+response, err := client.UsageEvents.Ingest(ctx, dodopayments.UsageEventIngestParams{
+	Events: dodopayments.F([]dodopayments.UsageEventIngestParamsEvent{{
+		EventID:    dodopayments.F("api_call_12345"),
+		CustomerID: dodopayments.F("cus_abc123"),
+		EventName:  dodopayments.F("api_request"),
+		Timestamp:  dodopayments.F("2024-01-15T10:30:00Z"),
+		Metadata: dodopayments.F(map[string]string{
+			"endpoint":     "/api/v1/users",
+			"method":       "GET",
+			"tokens_used":  "150",
+		}),
+	}}),
+})
+if err != nil {
+	log.Fatal(err)
+}
+```
+
+### 사용 이벤트 목록
+
+```go
+// List events with filters
+params := dodopayments.UsageEventListParams{
+	CustomerID: dodopayments.F("cus_abc123"),
+	EventName:  dodopayments.F("api_request"),
+}
+
+events, err := client.UsageEvents.List(ctx, params)
+if err != nil {
+	log.Fatal(err)
+}
+
+for _, event := range events.Data {
+	fmt.Printf("Event %s: %s at %s\n", event.EventID, event.EventName, event.Timestamp)
+}
+```
+
+## 오류 처리
+
+특정 오류 유형을 처리합니다:
+
+```go
+payment, err := client.Payments.Create(ctx, dodopayments.PaymentCreateParams{
+	Amount:   5000,
+	Currency: "USD",
+})
+if err != nil {
+	if apiErr, ok := err.(*dodopayments.APIError); ok {
+		fmt.Printf("API Error: %s\n", apiErr.Message)
+		fmt.Printf("Status Code: %d\n", apiErr.StatusCode)
+		fmt.Printf("Request ID: %s\n", apiErr.RequestID)
+		
+		// Handle specific error types
+		switch apiErr.Type {
+		case dodopayments.ErrorTypeAuthentication:
+			log.Println("Authentication failed")
+		case dodopayments.ErrorTypeInvalidRequest:
+			log.Println("Invalid request parameters")
+		case dodopayments.ErrorTypeRateLimit:
+			log.Println("Rate limit exceeded")
+		default:
+			log.Printf("API error: %s\n", apiErr.Message)
+		}
+	} else {
+		log.Fatal(err)
+	}
+}
+```
+
+## 미들웨어
+
+로깅 또는 메트릭을 위한 사용자 정의 미들웨어를 추가합니다:
+
+```go
+func Logger(req *http.Request, next option.MiddlewareNext) (res *http.Response, err error) {
+	// Before the request
+	start := time.Now()
+	log.Printf("Request: %s %s\n", req.Method, req.URL)
+
+	// Forward the request to the next handler
+	res, err = next(req)
+
+	// After the request
+	end := time.Now()
+	log.Printf("Response: %d in %v\n", res.StatusCode, end.Sub(start))
+
+	return res, err
+}
+
+client := dodopayments.NewClient(
+	option.WithMiddleware(Logger),
+)
+```
+
+## 동시성
+
+클라이언트는 동시 사용에 안전합니다:
+
+```go
+package main
+
+import (
+	"context"
+	"sync"
+	"log"
+
+	"github.com/dodopayments/dodopayments-go"
+)
+
+func main() {
+	client := dodopayments.NewClient()
+	
+	var wg sync.WaitGroup
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go func(idx int) {
+			defer wg.Done()
+			
+			payment, err := client.Payments.Create(context.Background(), dodopayments.PaymentCreateParams{
+				Amount:     1000,
+				Currency:   "USD",
+				CustomerID: "cus_123",
+			})
+			if err != nil {
+				log.Printf("Failed to create payment %d: %v", idx, err)
+				return
+			}
+			
+			log.Printf("Created payment %d: %s", idx, payment.ID)
+		}(i)
+	}
+	
+	wg.Wait()
+}
+```
+
+## 리소스
+
+<CardGroup cols={2}>
+<Card title="GitHub 리포지토리" icon="github" href="https://github.com/dodopayments/dodopayments-go">
+  소스 코드를 보고 기여하세요
+</Card>
+
+<Card title="API 참조" icon="book" href="/api-reference/introduction">
+  전체 API 문서
+</Card>
+
+<Card title="Discord 커뮤니티" icon="discord" href="https://discord.gg/bYqAp4ayYh">
+  도움을 받고 개발자와 연결하세요
+</Card>
+
+<Card title="문제 보고" icon="bug" href="https://github.com/dodopayments/dodopayments-go/issues">
+  버그를 보고하거나 기능 요청
+</Card>
+</CardGroup>
+
+## 지원
+
+Go SDK에 대한 도움이 필요하신가요?
+
+- **Discord**: 실시간 지원을 위한 [커뮤니티 서버](https://discord.gg/bYqAp4ayYh)에 참여하세요
+- **이메일**: support@dodopayments.com으로 문의하세요
+- **GitHub**: [리포지토리](https://github.com/dodopayments/dodopayments-go)에서 이슈를 열어주세요
+
+## 기여
+
+기여를 환영합니다! 시작하려면 [기여 가이드라인](https://github.com/dodopayments/dodopayments-go/blob/main/CONTRIBUTING.md)을 확인하세요.

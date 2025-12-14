@@ -1,0 +1,167 @@
+---
+sidebarTitle: 介绍
+title: 基于使用的计费
+description: 根据客户实际使用的情况进行收费，提供灵活的计量和自动计费。
+icon: box
+---
+
+基于使用的计费让您可以根据客户实际使用的情况进行收费——API 调用、存储、AI 令牌或您定义的任何指标。客户为消费付费，而不是固定费用。
+
+<Info>
+**适合**：API、AI 服务、基础设施平台以及任何价值随使用而变化的产品。
+</Info>
+
+## 工作原理
+
+<Steps>
+<Step title="发送使用事件">
+当可计费操作发生时，您的应用程序会发送事件。
+
+```javascript
+{
+  "event_id": "evt_123",
+  "customer_id": "cus_abc",
+  "event_name": "api.call",
+  "metadata": { "endpoint": "/v1/users" }
+}
+```
+
+</Step>
+
+<Step title="计量器汇总使用情况">
+计量器使用计数、总和、最大值或最后一次聚合将事件汇总为可计费数量。
+</Step>
+
+<Step title="自动计费">
+设置每单位的定价和免费阈值。客户在每个周期内自动计费。
+</Step>
+</Steps>
+
+## 核心概念
+
+### 事件
+
+事件代表您应用程序中的使用操作。每个事件包括：
+- **事件名称**：使用类型（例如，`api.call`）
+- **客户 ID**：谁使用了它
+- **元数据**：用于聚合的附加属性
+
+### 计量器
+
+计量器将事件汇总为可计费数量：
+- **计数**：总事件（API 调用）
+- **总和**：添加值（总字节）
+- **最大值**：最高值（峰值用户）
+- **最后**：最近值
+
+<Frame>
+<img src="/images/usage-based/UBB-2.png" alt="创建计量器界面" />
+</Frame>
+
+### 具有使用定价的产品
+
+设置每单位的定价和可选的免费阈值：
+
+<Frame>
+<img src="/images/usage-based/UBB-4.png" alt="定价配置" />
+</Frame>
+
+**示例**：2,500 次调用 - 1,000 次免费 = 1,500 × $0.02 = $30.00
+
+### 客户积分
+
+为客户提供每个计费周期刷新一次的包含使用积分。积分在付费使用之前适用。
+
+## 快速入门
+
+<Steps>
+<Step title="创建计量器">
+在您的仪表板中：**计量器** → **创建计量器**
+
+1. 设置事件名称（例如，`api.call`）
+2. 选择聚合（计数、总和、最大值、最后）
+3. 添加可选过滤器
+</Step>
+
+<Step title="添加到产品">
+将计量器链接到具有定价的产品：
+
+<Frame>
+<img src="/images/usage-based/UBB-5.png" alt="将计量器添加到产品" />
+</Frame>
+
+1. 选择 **基于使用的计费**
+2. 选择您的计量器
+3. 设置每单位的价格和免费阈值
+</Step>
+
+<Step title="发送事件">
+
+```javascript
+await fetch('https://test.dodopayments.com/events/ingest', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${process.env.DODO_API_KEY}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    events: [{
+      event_id: "unique_event_id",
+      customer_id: "cus_abc123",
+      event_name: "api.call",
+      metadata: { endpoint: "/v1/users" }
+    }]
+  })
+});
+```
+
+</Step>
+
+<Step title="监控使用情况">
+<Frame>
+<img src="/images/guides/usage-based-billing/meter-quantities-chart.png" alt="计量器仪表板" />
+</Frame>
+
+检查您的计量器仪表板以查看事件和使用汇总。客户在每个周期内自动计费。
+</Step>
+</Steps>
+
+## 用例
+
+<CardGroup cols={2}>
+<Card title="API 和基础设施" icon="cloud">
+跟踪 API 调用、计算小时、带宽、存储。示例：10,000 次免费后每次调用 $0.001。
+</Card>
+
+<Card title="AI 使用跟踪" icon="brain">
+跟踪令牌、生成、处理时间。示例：每个标准图像 $0.04，每个高清图像 $0.08。
+</Card>
+
+<Card title="数据与分析" icon="chart-line">
+按处理的数据、运行的查询、分析的记录计费。示例：10 GB 免费后每 GB $5。
+</Card>
+
+<Card title="通信" icon="message">
+计算消息、分钟、传输的数据。示例：每发送一条 SMS $0.01。
+</Card>
+</CardGroup>
+
+## 下一步
+
+<CardGroup cols={2}>
+<Card title="事件摄取" icon="bolt" href="/features/usage-based-billing/event-ingestion">
+了解如何从您的应用程序构建和发送使用事件。
+</Card>
+
+<Card title="计量器指南" icon="sliders" href="/features/usage-based-billing/meters">
+掌握计量器配置、聚合类型和事件过滤。
+</Card>
+
+<Card title="完整教程" icon="code" href="/developer-resources/usage-based-billing-build-ai-image-generator">
+从头开始构建一个完整的基于使用的计费 AI 图像生成器。
+</Card>
+
+<Card title="集成指南" icon="book" href="/developer-resources/usage-based-billing-guide">
+全面指南，帮助您在应用程序中实现基于使用的计费。
+</Card>
+</CardGroup>

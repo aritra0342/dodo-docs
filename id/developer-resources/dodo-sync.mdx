@@ -1,0 +1,332 @@
+---
+sidebarTitle: Sinkronisasi Database
+title: Sinkronkan dengan Database Anda
+icon: database
+description: Secara otomatis menyinkronkan data Pembayaran Dodo Anda ke database
+  Anda sendiri untuk analitik, pelaporan, dan integrasi.
+---
+
+Dodo Payments menyediakan fitur sinkronisasi database bawaan yang secara otomatis menyinkronkan data pembayaran Anda dengan database Anda sendiri. Anda dapat menyinkronkan **pembayaran**, **pelanggan**, **langganan**, dan **lisensi** untuk mempertahankan salinan lokal data Anda untuk analitik, pelaporan, atau integrasi dengan sistem lain.
+
+<Info>
+**Implementasi**: Tersedia melalui [paket npm](https://www.npmjs.com/package/dodo-sync) | **Kode Sumber**: [GitHub](https://github.com/dodopayments/dodo-sync)
+</Info>
+
+## Apa yang Dapat Anda Sinkronkan?
+
+Fitur sinkronisasi database kami mendukung penyinkronan entitas Pembayaran Dodo berikut ke database Anda:
+
+<CardGroup cols={2}>
+  <Card title="Pembayaran" icon="credit-card">
+    Sinkronkan semua transaksi pembayaran, termasuk pembayaran satu kali, pengembalian dana, dan pembaruan status pembayaran.
+  </Card>
+  <Card title="Pelanggan" icon="users">
+    Jaga data pelanggan Anda tetap sinkron, termasuk profil pelanggan, informasi kontak, dan metadata.
+  </Card>
+  <Card title="Langganan" icon="repeat">
+    Sinkronkan data langganan, termasuk langganan aktif, siklus penagihan, dan perubahan status langganan.
+  </Card>
+  <Card title="Lisensi" icon="key">
+    Sinkronkan informasi lisensi, termasuk kunci lisensi, aktivasi, dan pembaruan status lisensi.
+  </Card>
+</CardGroup>
+
+Anda dapat menyinkronkan kombinasi entitas ini dengan menentukan mereka dalam parameter `scopes`. Semua operasi sinkronisasi bersifat inkremental dan hanya mentransfer catatan baru atau yang diperbarui untuk kinerja optimal.
+
+## Dukungan Database
+
+Kami saat ini mendukung **MongoDB**, **PostgreSQL**, **MySQL**, dan **ClickHouse**.
+
+Kami sedang aktif bekerja untuk memperluas dukungan untuk:
+- **Database**: Snowflake dan lainnya.
+- **Pipa**: Pipa ETL, sinkronisasi waktu nyata.
+
+<Tip>
+Kami terus memperluas dukungan database. Jika Anda ingin berkontribusi pada integrasi database baru, silakan kirim Pull Request ke [repositori GitHub kami](https://github.com/dodopayments/dodo-sync).
+</Tip>
+
+## Memulai
+
+Anda dapat menggunakan fitur sinkronisasi database kami melalui **CLI** atau secara programatik dalam **kode** Anda. Kedua metode memberikan fungsionalitas yang sama—pilih yang paling sesuai dengan alur kerja Anda.
+
+### Menggunakan CLI
+
+Alat CLI menyediakan cara cepat untuk mengatur dan menjalankan sinkronisasi database. Instal secara global untuk menggunakannya dari mana saja di terminal Anda:
+
+<CodeGroup>
+
+```bash npm
+npm install -g dodo-sync
+```
+
+```bash bun
+bun add -g dodo-sync
+```
+
+</CodeGroup>
+
+#### Menjalankan CLI
+
+CLI mendukung dua mode: **Mode Interaktif** untuk pengaturan yang dipandu, dan **Mode Manual** untuk konfigurasi langsung.
+
+**Mode Interaktif**: Cukup jalankan perintah tanpa argumen untuk memulai wizard pengaturan interaktif.
+
+```bash
+dodo-sync
+```
+
+**Mode Manual**: Berikan argumen langsung untuk melewati wizard.
+
+```bash
+dodo-sync -i [interval] -d [database] -u [database_uri] --scopes [scopes] --api-key [api_key] --env [environment]
+```
+
+**Contoh:**
+
+```bash
+# MongoDB
+dodo-sync -i 600 -d mongodb -u mongodb://mymongodb.url --scopes "licences,payments,customers,subscriptions" --api-key YOUR_API_KEY --env test_mode
+
+# PostgreSQL
+dodo-sync -i 600 -d postgres -u postgresql://user:password@localhost:5432/mydb --scopes "licences,payments,customers,subscriptions" --api-key YOUR_API_KEY --env test_mode
+
+# MySQL
+dodo-sync -i 600 -d mysql -u mysql://user:password@localhost:3306/mydb --scopes "licences,payments,customers,subscriptions" --api-key YOUR_API_KEY --env test_mode
+
+# ClickHouse
+dodo-sync -i 600 -d clickhouse -u http://localhost:8123 --scopes "licences,payments,customers,subscriptions" --api-key YOUR_API_KEY --env test_mode
+```
+
+#### Argumen CLI
+
+<ParamField path="--interval" type="number" alias="-i">
+Interval sinkronisasi dalam detik. Menentukan seberapa sering operasi sinkronisasi dijalankan. Jika tidak diberikan, sinkronisasi akan dijalankan sekali dan keluar.
+</ParamField>
+
+<ParamField path="--database" type="string" alias="-d" required>
+Tipe database yang akan digunakan. Nilai yang didukung: `"mongodb"`, `"postgres"`, `"mysql"`, atau `"clickhouse"`.
+</ParamField>
+
+<ParamField path="--database-uri" type="string" alias="-u" required>
+URI koneksi untuk database Anda:
+- **MongoDB**: `mongodb://localhost:27017` atau `mongodb+srv://user:pass@cluster.mongodb.net/`
+- **PostgreSQL**: `postgresql://user:password@localhost:5432/mydb`
+- **MySQL**: `mysql://user:password@localhost:3306/mydb`
+- **ClickHouse**: `http://localhost:8123`
+</ParamField>
+
+<ParamField path="--scopes" type="string" required>
+Daftar entitas data yang akan disinkronkan, dipisahkan dengan koma. Lingkup yang tersedia: `licences`, `payments`, `customers`, `subscriptions`. Contoh: `"payments,customers"`.
+</ParamField>
+
+<ParamField path="--api-key" type="string" required>
+Kunci API Pembayaran Dodo Anda. Harus dimulai dengan `dp_live_` untuk mode langsung atau `dp_test_` untuk mode uji.
+</ParamField>
+
+<ParamField path="--env" type="string" required>
+Target lingkungan. Harus berupa `"live_mode"` atau `"test_mode"`. Ini menentukan dari lingkungan Pembayaran Dodo mana yang akan disinkronkan.
+</ParamField>
+
+<ParamField path="--rate-limit" type="number" alias="--rl">
+Batas laju dalam permintaan per detik. Mengontrol seberapa cepat mesin sinkronisasi melakukan permintaan API untuk menghindari membanjiri API Pembayaran Dodo.
+</ParamField>
+
+### Menggunakan dalam Kode Anda
+
+Untuk kontrol programatik, integrasikan fitur sinkronisasi langsung ke dalam aplikasi Anda. Instal sebagai ketergantungan dalam proyek Anda:
+
+<CodeGroup>
+
+```bash npm
+npm install dodo-sync
+```
+
+```bash bun
+bun add dodo-sync
+```
+
+</CodeGroup>
+
+#### Sinkronisasi Otomatis (Berdasarkan Interval)
+
+Gunakan sinkronisasi otomatis ketika Anda ingin sinkronisasi berjalan terus-menerus pada interval reguler:
+
+```typescript
+import { DodoSync } from 'dodo-sync';
+
+const syncDodoPayments = new DodoSync({
+  interval: 60, // Sync every 60 seconds
+  database: 'mongodb',
+  databaseURI: process.env.MONGODB_URI, // e.g., 'mongodb://localhost:27017'
+  scopes: ['licences', 'payments', 'customers', 'subscriptions'],
+  dodoPaymentsOptions: {
+    bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+    environment: 'test_mode' // or 'live_mode'
+  }
+});
+
+// Initialize connection
+await syncDodoPayments.init();
+
+// Start the sync loop
+syncDodoPayments.start();
+```
+
+<Tip>
+Opsi `interval` diperlukan saat menggunakan `.start()` untuk sinkronisasi otomatis. Sinkronisasi akan berjalan terus-menerus pada interval yang ditentukan hingga proses dihentikan.
+</Tip>
+
+#### Sinkronisasi Manual
+
+Gunakan sinkronisasi manual ketika Anda ingin memicu operasi sinkronisasi sesuai permintaan (misalnya, dari pekerjaan cron atau titik akhir API):
+
+```typescript
+import { DodoSync } from 'dodo-sync';
+
+const syncDodoPayments = new DodoSync({
+  database: 'mongodb',
+  databaseURI: process.env.MONGODB_URI,
+  scopes: ['licences', 'payments', 'customers', 'subscriptions'],
+  dodoPaymentsOptions: {
+    bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+    environment: 'test_mode'
+  }
+});
+
+// Initialize connection
+await syncDodoPayments.init();
+
+// Trigger a single sync operation
+await syncDodoPayments.run();
+```
+
+<Tip>
+Saat menggunakan sinkronisasi manual, opsi `interval` tidak diperlukan. Anda dapat memanggil `.run()` kapan pun Anda perlu melakukan operasi sinkronisasi.
+</Tip>
+
+#### Contoh PostgreSQL
+
+Berikut cara menggunakan `dodo-sync` dengan PostgreSQL:
+
+```typescript
+import { DodoSync } from 'dodo-sync';
+
+const syncDodoPayments = new DodoSync({
+  interval: 60,
+  database: 'postgres',
+  databaseURI: process.env.POSTGRES_URI, // e.g., 'postgresql://user:password@localhost:5432/mydb'
+  scopes: ['licences', 'payments', 'customers', 'subscriptions'],
+  dodoPaymentsOptions: {
+    bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+    environment: 'test_mode'
+  }
+});
+
+await syncDodoPayments.init();
+syncDodoPayments.start();
+```
+
+#### Contoh MySQL
+
+Berikut cara menggunakan `dodo-sync` dengan MySQL:
+
+```typescript
+import { DodoSync } from 'dodo-sync';
+
+const syncDodoPayments = new DodoSync({
+  interval: 60,
+  database: 'mysql',
+  databaseURI: process.env.MYSQL_URI, // e.g., 'mysql://user:password@localhost:3306/mydb'
+  scopes: ['licences', 'payments', 'customers', 'subscriptions'],
+  dodoPaymentsOptions: {
+    bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+    environment: 'test_mode'
+  }
+});
+
+await syncDodoPayments.init();
+syncDodoPayments.start();
+```
+
+#### Contoh ClickHouse
+
+Berikut cara menggunakan `dodo-sync` dengan ClickHouse:
+
+```typescript
+import { DodoSync } from 'dodo-sync';
+
+const syncDodoPayments = new DodoSync({
+  interval: 60,
+  database: 'clickhouse',
+  databaseURI: process.env.CLICKHOUSE_URI, // e.g., 'http://localhost:8123'
+  scopes: ['licences', 'payments', 'customers', 'subscriptions'],
+  dodoPaymentsOptions: {
+    bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+    environment: 'test_mode'
+  }
+});
+
+await syncDodoPayments.init();
+syncDodoPayments.start();
+```
+
+#### Opsi Konstruktor
+
+<ParamField body="database" type="string" required>
+Nama database yang akan digunakan. Nilai yang didukung: `"mongodb"`, `"postgres"`, `"mysql"`, atau `"clickhouse"`.
+</ParamField>
+
+<ParamField body="databaseURI" type="string" required>
+String koneksi untuk database Anda:
+- **MongoDB**: `mongodb://localhost:27017` atau `mongodb+srv://...`
+- **PostgreSQL**: `postgresql://user:password@localhost:5432/mydb`
+- **MySQL**: `mysql://user:password@localhost:3306/mydb`
+- **ClickHouse**: `http://localhost:8123`
+</ParamField>
+
+<ParamField body="scopes" type="string[]" required>
+Array entitas yang akan disinkronkan. Opsi yang tersedia: `"licences"`, `"payments"`, `"customers"`, `"subscriptions"`. Anda dapat menyertakan kombinasi dari ini.
+</ParamField>
+
+<ParamField body="dodoPaymentsOptions" type="object" required>
+Konfigurasi API Pembayaran Dodo untuk otentikasi dan pemilihan lingkungan. Lihat [tipe SDK TypeScript](https://github.com/dodopayments/dodopayments-typescript/blob/main/src/client.ts) untuk opsi lengkap.
+
+**Properti yang Diperlukan:**
+- `bearerToken`: Kunci API Pembayaran Dodo Anda
+- `environment`: Baik `"test_mode"` atau `"live_mode"`
+</ParamField>
+
+<ParamField body="interval" type="number">
+Waktu dalam detik antara sinkronisasi otomatis. Diperlukan saat menggunakan `.start()` untuk sinkronisasi otomatis. Opsional saat menggunakan `.run()` untuk sinkronisasi manual.
+</ParamField>
+
+<ParamField body="rateLimit" type="number">
+Jumlah permintaan per detik. Mengontrol seberapa cepat mesin sinkronisasi melakukan permintaan API untuk menghindari membanjiri API Pembayaran Dodo.
+</ParamField>
+
+## Informasi Penting
+
+<Warning>
+**MongoDB**: Sebuah database bernama `dodopayments_sync` akan secara otomatis dibuat di server database Anda. Semua data sinkronisasi akan disimpan di sana. Nama database ini saat ini tetap dan tidak dapat diubah.
+
+**PostgreSQL**: Tabel (`Subscriptions`, `Payments`, `Licenses`, `Customers`) akan dibuat di database yang ditentukan dalam URI koneksi Anda. Data disimpan sebagai JSONB.
+
+**MySQL**: Tabel (`Subscriptions`, `Payments`, `Licenses`, `Customers`) akan dibuat di database yang ditentukan dalam URI koneksi Anda. Data disimpan sebagai JSON.
+
+**ClickHouse**: Tabel (`Subscriptions`, `Payments`, `Licenses`, `Customers`) akan dibuat menggunakan mesin ReplacingMergeTree. Saat melakukan kueri, gunakan kata kunci `FINAL` untuk memastikan hasil yang terduplikasi.
+</Warning>
+
+<Info>
+Mesin sinkronisasi melacak perubahan dan hanya menyinkronkan catatan baru atau yang diperbarui, sehingga sinkronisasi berikutnya menjadi efisien bahkan dengan dataset besar.
+</Info>
+
+## Sumber Daya Tambahan
+
+<CardGroup cols={2}>
+  <Card title="Repositori GitHub" icon="github" href="https://github.com/dodopayments/dodo-sync">
+    Lihat kode sumber, laporkan masalah, atau kontribusi perbaikan
+  </Card>
+  <Card title="Paket npm" icon="box-open" href="https://www.npmjs.com/package/dodo-sync">
+    Lihat detail paket dan instruksi instalasi
+  </Card>
+</CardGroup>

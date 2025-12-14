@@ -1,0 +1,440 @@
+---
+title: Kotlin
+description: 将 Dodo Payments 集成到您的 Kotlin 应用程序中，使用现代协程和空安全性
+icon: k
+---
+
+Kotlin SDK 提供了从 Kotlin 编写的应用程序访问 Dodo Payments REST API 的便捷方式。它具有可空值、Sequence、挂起函数和其他 Kotlin 特有的功能，以便于使用。
+
+## 安装
+
+### Gradle (Kotlin DSL)
+
+将依赖项添加到您的 `build.gradle.kts`：
+
+```kotlin build.gradle.kts
+implementation("com.dodopayments.api:dodo-payments-kotlin:1.61.5")
+```
+
+### Maven
+
+将依赖项添加到您的 `pom.xml`：
+
+```xml pom.xml
+<dependency>
+  <groupId>com.dodopayments.api</groupId>
+  <artifactId>dodo-payments-kotlin</artifactId>
+  <version>1.61.5</version>
+</dependency>
+```
+
+<Tip>
+始终使用最新的 SDK 版本以访问最新的 Dodo Payments 功能。请查看 [Maven Central](https://central.sonatype.com/artifact/com.dodopayments.api/dodo-payments-kotlin) 以获取最新版本。
+</Tip>
+
+<Info>
+SDK 需要 Kotlin 1.6 或更高版本，并与 JVM 和 Android 平台兼容。
+</Info>
+
+## 快速开始
+
+初始化客户端并创建结账会话：
+
+```kotlin
+import com.dodopayments.api.client.DodoPaymentsClient
+import com.dodopayments.api.client.okhttp.DodoPaymentsOkHttpClient
+import com.dodopayments.api.models.checkoutsessions.CheckoutSessionRequest
+import com.dodopayments.api.models.checkoutsessions.CheckoutSessionResponse
+
+// Configure using environment variables (DODO_PAYMENTS_API_KEY, DODO_PAYMENTS_BASE_URL)
+// Or system properties (dodopayments.apiKey, dodopayments.baseUrl)
+val client: DodoPaymentsClient = DodoPaymentsOkHttpClient.fromEnv()
+
+val params: CheckoutSessionRequest = CheckoutSessionRequest.builder()
+    .addProductCart(CheckoutSessionRequest.ProductCart.builder()
+        .productId("product_id")
+        .quantity(1)
+        .build())
+    .build()
+    
+val checkoutSessionResponse: CheckoutSessionResponse = client.checkoutSessions().create(params)
+println(checkoutSessionResponse.sessionId())
+```
+
+<Warning>
+始终使用环境变量或加密配置安全存储您的 API 密钥。切勿将其提交到版本控制中。
+</Warning>
+
+## 核心功能
+
+<CardGroup cols={2}>
+<Card title="协程" icon="bolt">
+  完全支持 Kotlin 协程进行异步操作
+</Card>
+
+<Card title="空安全性" icon="shield-check">
+  利用 Kotlin 的空安全性进行稳健的错误处理
+</Card>
+
+<Card title="扩展函数" icon="code">
+  习惯用法的 Kotlin 扩展以增强功能
+</Card>
+
+<Card title="数据类" icon="layer-group">
+  类型安全的数据类，支持复制和解构
+</Card>
+</CardGroup>
+
+## 配置
+
+### 从环境变量
+
+从环境变量或系统属性初始化：
+
+```kotlin
+val client: DodoPaymentsClient = DodoPaymentsOkHttpClient.fromEnv()
+```
+
+### 手动配置
+
+手动配置所有选项：
+
+```kotlin
+import java.time.Duration
+
+val client = DodoPaymentsOkHttpClient.builder()
+    .bearerToken("your_api_key_here")
+    .baseUrl("https://live.dodopayments.com")
+    .maxRetries(3)
+    .timeout(Duration.ofSeconds(30))
+    .build()
+```
+
+### 测试模式
+
+为测试/沙盒环境配置：
+
+```kotlin
+val testClient = DodoPaymentsOkHttpClient.builder()
+    .fromEnv()
+    .testMode()
+    .build()
+```
+
+### 超时和重试
+
+全局或每请求配置：
+
+```kotlin
+import com.dodopayments.api.core.RequestOptions
+
+// Global configuration
+val client = DodoPaymentsOkHttpClient.builder()
+    .fromEnv()
+    .timeout(Duration.ofSeconds(45))
+    .maxRetries(3)
+    .build()
+
+// Per-request timeout override
+val product = client.products().retrieve(
+    "prod_123",
+    RequestOptions.builder()
+        .timeout(Duration.ofSeconds(10))
+        .build()
+)
+```
+
+## 常见操作
+
+### 创建结账会话
+
+生成结账会话：
+
+```kotlin
+val params = CheckoutSessionRequest.builder()
+    .addProductCart(CheckoutSessionRequest.ProductCart.builder()
+        .productId("prod_123")
+        .quantity(1)
+        .build())
+    .returnUrl("https://yourdomain.com/return")
+    .build()
+
+val session = client.checkoutSessions().create(params)
+println("Checkout URL: ${session.url()}")
+```
+
+### 创建产品
+
+创建具有详细配置的产品：
+
+```kotlin
+import com.dodopayments.api.models.products.Product
+import com.dodopayments.api.models.products.ProductCreateParams
+import com.dodopayments.api.models.misc.Currency
+import com.dodopayments.api.models.misc.TaxCategory
+
+val createParams = ProductCreateParams.builder()
+    .name("Premium Subscription")
+    .description("Monthly subscription with all features")
+    .price(
+        ProductCreateParams.RecurringPrice.builder()
+            .currency(Currency.USD)
+            .preTaxAmount(2999) // $29.99 in cents
+            .paymentFrequencyInterval(ProductCreateParams.RecurringPrice.TimeInterval.MONTH)
+            .paymentFrequencyCount(1)
+            .build()
+    )
+    .taxCategory(TaxCategory.DIGITAL_GOODS)
+    .build()
+
+val product: Product = client.products().create(createParams)
+println("Created product ID: ${product.productId()}")
+```
+
+### 激活许可证密钥
+
+为客户激活许可证密钥：
+
+```kotlin
+import com.dodopayments.api.models.licenses.LicenseActivateParams
+import com.dodopayments.api.models.licenses.LicenseActivateResponse
+
+val activateParams = LicenseActivateParams.builder()
+    .licenseKey("XXXX-XXXX-XXXX-XXXX")
+    .instanceName("user-laptop-01")
+    .build()
+
+try {
+    val activationResult: LicenseActivateResponse = client.licenses()
+        .activate(activateParams)
+
+    println("License activated successfully")
+    println("Instance ID: ${activationResult.instanceId()}")
+    println("Expires at: ${activationResult.expiresAt()}")
+} catch (e: UnprocessableEntityException) {
+    println("License activation failed: ${e.message}")
+}
+```
+
+## 基于使用的计费
+
+### 记录使用事件
+
+跟踪计量的使用情况：
+
+```kotlin
+import com.dodopayments.api.models.usageevents.UsageEventCreateParams
+import java.time.OffsetDateTime
+
+val usageParams = UsageEventCreateParams.builder()
+    .meterId("meter_123")
+    .customerId("cust_456")
+    .value(150)
+    .timestamp(OffsetDateTime.now())
+    .build()
+
+client.usageEvents().create(usageParams)
+println("Usage event recorded")
+```
+
+## 异步操作
+
+### 异步客户端
+
+使用异步客户端进行基于协程的操作：
+
+```kotlin
+import com.dodopayments.api.client.DodoPaymentsClientAsync
+import com.dodopayments.api.client.okhttp.DodoPaymentsOkHttpClientAsync
+import kotlinx.coroutines.runBlocking
+
+val asyncClient: DodoPaymentsClientAsync = DodoPaymentsOkHttpClientAsync.fromEnv()
+
+runBlocking {
+    val customer = asyncClient.customers().retrieve("cust_123")
+    println("Customer email: ${customer.email()}")
+}
+```
+
+## 错误处理
+
+使用 Kotlin 的异常处理处理错误：
+
+```kotlin
+import com.dodopayments.api.errors.*
+
+try {
+    val payment = client.payments().create(params)
+    println("Success: ${payment.id()}")
+} catch (e: AuthenticationException) {
+    println("Authentication failed: ${e.message}")
+} catch (e: InvalidRequestException) {
+    println("Invalid request: ${e.message}")
+    e.parameter?.let { println("Parameter: $it") }
+} catch (e: RateLimitException) {
+    println("Rate limit exceeded, retry after: ${e.retryAfter}")
+} catch (e: DodoPaymentsServiceException) {
+    println("API error: ${e.statusCode()} - ${e.message}")
+}
+```
+
+### 函数式错误处理
+
+使用 `Result` 进行函数式错误处理：
+
+```kotlin
+fun safeCreatePayment(client: DodoPaymentsClient): Result<Payment> = runCatching {
+    client.payments().create(params)
+}
+
+// Usage
+safe CreatePayment(client)
+    .onSuccess { payment -> println("Created: ${payment.id()}") }
+    .onFailure { error -> println("Error: ${error.message}") }
+```
+
+<Tip>
+使用 Kotlin 的 `runCatching` 以更函数式的方式处理错误，使用 Result 类型。
+</Tip>
+
+## Android 集成
+
+与 Android 应用程序一起使用：
+
+```kotlin
+import android.app.Application
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.dodopayments.api.client.DodoPaymentsClient
+import kotlinx.coroutines.launch
+
+class PaymentViewModel(application: Application) : ViewModel() {
+    private val client = DodoPaymentsOkHttpClient.builder()
+        .bearerToken(BuildConfig.DODO_API_KEY)
+        .build()
+    
+    fun createCheckout(productId: String) {
+        viewModelScope.launch {
+            try {
+                val session = client.async().checkoutSessions().create(params)
+                // Open checkout URL in browser or WebView
+                openUrl(session.url())
+            } catch (e: Exception) {
+                handleError(e)
+            }
+        }
+    }
+}
+```
+
+## 响应验证
+
+启用响应验证：
+
+```kotlin
+import com.dodopayments.api.core.RequestOptions
+
+// Per-request validation
+val product = client.products().retrieve(
+    "prod_123",
+    RequestOptions.builder()
+        .responseValidation(true)
+        .build()
+)
+
+// Or validate explicitly
+val validatedProduct = product.validate()
+```
+
+## 高级功能
+
+### 代理配置
+
+配置代理设置：
+
+```kotlin
+import java.net.InetSocketAddress
+import java.net.Proxy
+
+val client = DodoPaymentsOkHttpClient.builder()
+    .fromEnv()
+    .proxy(
+        Proxy(
+            Proxy.Type.HTTP,
+            InetSocketAddress("proxy.example.com", 8080)
+        )
+    )
+    .build()
+```
+
+### 临时配置
+
+临时修改客户端配置：
+
+```kotlin
+val customClient = client.withOptions {
+    it.baseUrl("https://example.com")
+    it.maxRetries(5)
+}
+```
+
+## Ktor 集成
+
+与 Ktor 服务器应用程序集成：
+
+```kotlin
+import io.ktor.server.application.*
+import io.ktor.server.request.*
+import io.ktor.server.response.*
+import io.ktor.server.routing.*
+
+fun Application.configureRouting() {
+    val client = DodoPaymentsOkHttpClient.builder()
+        .bearerToken(environment.config.property("dodo.apiKey").getString())
+        .build()
+    
+    routing {
+        post("/create-checkout") {
+            try {
+                val request = call.receive<CheckoutRequest>()
+                val session = client.checkoutSessions().create(params)
+                call.respond(mapOf("checkout_url" to session.url()))
+            } catch (e: DodoPaymentsServiceException) {
+                call.respond(HttpStatusCode.BadRequest, mapOf("error" to e.message))
+            }
+        }
+    }
+}
+```
+
+## 资源
+
+<CardGroup cols={2}>
+<Card title="GitHub 仓库" icon="github" href="https://github.com/dodopayments/dodopayments-kotlin">
+  查看源代码并贡献
+</Card>
+
+<Card title="API 参考" icon="book" href="/api-reference/introduction">
+  完整的 API 文档
+</Card>
+
+<Card title="Discord 社区" icon="discord" href="https://discord.gg/bYqAp4ayYh">
+  获取帮助并与开发者联系
+</Card>
+
+<Card title="报告问题" icon="bug" href="https://github.com/dodopayments/dodopayments-kotlin/issues">
+  报告错误或请求功能
+</Card>
+</CardGroup>
+
+## 支持
+
+需要 Kotlin SDK 的帮助吗？
+
+- **Discord**：加入我们的 [社区服务器](https://discord.gg/bYqAp4ayYh) 以获得实时支持
+- **电子邮件**：通过 support@dodopayments.com 联系我们
+- **GitHub**：在 [仓库](https://github.com/dodopayments/dodopayments-kotlin) 上打开一个问题
+
+## 贡献
+
+我们欢迎贡献！请查看 [贡献指南](https://github.com/dodopayments/dodopayments-kotlin/blob/main/CONTRIBUTING.md) 开始。

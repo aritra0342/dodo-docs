@@ -1,0 +1,463 @@
+---
+title: Langganan Sesuai Permintaan
+description: Integrasikan langganan sesuai permintaan dengan mengotorisasi
+  mandat, membuat biaya variabel, menangani webhook, dan menerapkan kebijakan
+  pengulangan yang aman.
+icon: bolt
+---
+
+## Ikhtisar
+
+Langganan sesuai permintaan memungkinkan Anda untuk mengotorisasi metode pembayaran pelanggan sekali dan kemudian mengenakan biaya variabel kapan pun Anda perlu, alih-alih pada jadwal tetap.
+
+<Info>
+Fitur ini mungkin perlu diaktifkan di akun Anda. Hubungi dukungan jika Anda tidak melihatnya di dasbor Anda.
+</Info>
+
+Gunakan panduan ini untuk:
+- Membuat langganan sesuai permintaan (mengotorisasi mandat dengan harga awal opsional)
+- Memicu biaya berikutnya dengan jumlah kustom
+- Melacak hasil menggunakan webhook
+
+Untuk pengaturan langganan umum, lihat [Panduan Integrasi Langganan](/developer-resources/subscription-integration-guide).
+
+## Prasyarat
+
+- Akun pedagang Dodo Payments dan kunci API
+- Rahasia webhook yang dikonfigurasi dan endpoint untuk menerima peristiwa
+- Produk langganan dalam katalog Anda
+
+<Tip>
+Jika Anda ingin pelanggan menyetujui mandat melalui checkout yang dihosting, set `payment_link: true` dan berikan `return_url`.
+</Tip>
+
+## Cara kerja sesuai permintaan
+
+1. Anda membuat langganan dengan objek `on_demand` untuk mengotorisasi metode pembayaran dan secara opsional mengumpulkan biaya awal.
+2. Kemudian, Anda membuat biaya terhadap langganan tersebut dengan jumlah kustom menggunakan endpoint biaya khusus.
+3. Anda mendengarkan webhook (misalnya, `payment.succeeded`, `payment.failed`) untuk memperbarui sistem Anda.
+
+## Buat langganan sesuai permintaan
+
+Endpoint: [POST /subscriptions](/api-reference/subscriptions/post-subscriptions)
+
+Bidang permintaan kunci (badan):
+
+<AccordionGroup>
+<Accordion title="Parameter Badan Permintaan">
+  <ParamField body="product_id" type="string" required>
+    ID produk untuk langganan.
+  </ParamField>
+
+  <ParamField body="quantity" type="integer" required>
+    Jumlah unit. Minimum 1.
+  </ParamField>
+
+  <ParamField body="billing" type="object" required>
+    Alamat penagihan untuk pelanggan.
+  </ParamField>
+
+  <ParamField body="customer" type="object" required>
+    Baik melampirkan pelanggan yang ada atau memberikan detail pelanggan.
+  </ParamField>
+
+  <ParamField body="payment_link" type="boolean" default="false">
+    Jika benar, membuat tautan checkout yang dihosting untuk otorisasi mandat dan pembayaran awal opsional.
+  </ParamField>
+
+  <ParamField body="return_url" type="string">
+    Di mana untuk mengalihkan pelanggan setelah menyelesaikan checkout yang dihosting.
+  </ParamField>
+
+  <ParamField body="on_demand.mandate_only" type="boolean" required>
+    Jika benar, mengotorisasi metode pembayaran tanpa mengenakan biaya kepada pelanggan selama pembuatan.
+  </ParamField>
+
+  <ParamField body="on_demand.product_price" type="integer">
+    Jumlah biaya awal (dalam unit mata uang terkecil). Jika ditentukan, nilai ini akan menggantikan harga asli produk yang ditetapkan selama pembuatan produk. Jika diabaikan, harga yang disimpan produk akan digunakan. Contoh: untuk mengenakan biaya $1,00, kirim <code>100</code>.
+  </ParamField>
+
+  <ParamField body="on_demand.product_currency" type="string">
+    Penggantian mata uang opsional untuk biaya awal. Secara default menggunakan mata uang produk.
+  </ParamField>
+
+  <ParamField body="on_demand.product_description" type="string">
+    Penggantian deskripsi opsional untuk penagihan dan item baris.
+  </ParamField>
+
+  <ParamField body="on_demand.adaptive_currency_fees_inclusive" type="boolean">
+    Jika benar, menyertakan biaya mata uang adaptif dalam <code>product_price</code>. Jika salah, biaya ditambahkan di atasnya. Diabaikan saat penetapan harga adaptif dinonaktifkan.
+  </ParamField>
+</Accordion>
+</AccordionGroup>
+
+### Buat langganan sesuai permintaan
+
+<Tabs>
+<Tab title="Node.js SDK">
+
+```javascript
+import DodoPayments from 'dodopayments';
+
+const client = new DodoPayments({
+  bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'test_mode', // defaults to 'live_mode'
+});
+
+async function main() {
+  const subscription = await client.subscriptions.create({
+    billing: { city: 'SF', country: 'US', state: 'CA', street: '1 Market St', zipcode: '94105' },
+    customer: { customer_id: 'customer_123' },
+    product_id: 'prod_sub_123',
+    quantity: 1,
+    payment_link: true,
+    return_url: 'https://example.com/billing/success',
+    on_demand: {
+      mandate_only: true, // set false to collect an initial charge
+      // product_price: 1000, // optional: charge $10.00 now if mandate_only is false
+      // product_currency: 'USD',
+      // product_description: 'Custom initial charge',
+      // adaptive_currency_fees_inclusive: false,
+    },
+  });
+
+  // If payment_link was true, redirect the customer to authorize the mandate
+  console.log(subscription.payment_link);
+}
+
+main().catch(console.error);
+```
+
+</Tab>
+<Tab title="Python SDK">
+
+```python
+import os
+from dodopayments import DodoPayments
+
+client = DodoPayments(
+    bearer_token=os.environ.get('DODO_PAYMENTS_API_KEY'),
+    environment="test_mode",  # defaults to "live_mode"
+)
+
+subscription = client.subscriptions.create(
+    billing={
+        "city": "SF",
+        "country": "US",
+        "state": "CA",
+        "street": "1 Market St",
+        "zipcode": "94105",
+    },
+    customer={"customer_id": "customer_123"},
+    product_id="prod_sub_123",
+    quantity=1,
+    payment_link=True,
+    return_url="https://example.com/billing/success",
+    on_demand={
+        "mandate_only": True,
+        # "product_price": 1000,
+        # "product_currency": "USD",
+        # "product_description": "Custom initial charge",
+        # "adaptive_currency_fees_inclusive": False,
+    },
+)
+
+print(subscription.payment_link)
+```
+
+</Tab>
+<Tab title="Go SDK">
+
+```go
+package main
+
+import (
+  "context"
+  "fmt"
+  "github.com/dodopayments/dodopayments-go"
+  "github.com/dodopayments/dodopayments-go/option"
+)
+
+func main() {
+  client := dodopayments.NewClient(
+    option.WithBearerToken("YOUR_API_KEY"),
+  )
+  subscription, err := client.Subscriptions.New(context.TODO(), dodopayments.SubscriptionNewParams{
+    Billing: dodopayments.F(dodopayments.BillingAddressParam{
+      City:    dodopayments.F("SF"),
+      Country: dodopayments.F(dodopayments.CountryCodeUs),
+      State:   dodopayments.F("CA"),
+      Street:  dodopayments.F("1 Market St"),
+      Zipcode: dodopayments.F("94105"),
+    }),
+    Customer: dodopayments.F[dodopayments.CustomerRequestUnionParam](dodopayments.AttachExistingCustomerParam{
+      CustomerID: dodopayments.F("customer_123"),
+    }),
+    ProductID:  dodopayments.F("prod_sub_123"),
+    Quantity:   dodopayments.F(int64(1)),
+    PaymentLink: dodopayments.F(true),
+    ReturnURL:   dodopayments.F("https://example.com/billing/success"),
+    OnDemand: dodopayments.F(dodopayments.OnDemandSubscriptionReqParam{
+      MandateOnly: dodopayments.F(true),
+      // ProductPrice: dodopayments.F(int64(1000)),
+      // ProductCurrency: dodopayments.F(dodopayments.CurrencyUsd),
+      // ProductDescription: dodopayments.F("Custom initial charge"),
+      // AdaptiveCurrencyFeesInclusive: dodopayments.F(false),
+    }),
+  })
+  if err != nil { panic(err) }
+  fmt.Println(subscription.PaymentLink)
+}
+```
+
+</Tab>
+<Tab title="cURL">
+
+```bash
+curl -X POST "$DODO_API/subscriptions" \
+  -H "Authorization: Bearer $DODO_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "billing": {"city": "SF", "country": "US", "state": "CA", "street": "1 Market St", "zipcode": "94105"},
+    "customer": {"customer_id": "customer_123"},
+    "product_id": "prod_sub_123",
+    "quantity": 1,
+    "payment_link": true,
+    "return_url": "https://example.com/billing/success",
+    "on_demand": {
+      "mandate_only": true
+    }
+  }'
+```
+
+</Tab>
+</Tabs>
+
+<Check>
+Set `payment_link: true`, alihkan pelanggan ke `payment_link` untuk menyelesaikan otorisasi mandat.
+</Check>
+
+```json Success
+{
+  "subscription_id": "sub_123",
+  "payment_link": "https://pay.dodopayments.com/checkout/...",
+  "customer": { "customer_id": "customer_123", "email": "alex@example.com", "name": "Alex Doe" },
+  "metadata": {},
+  "recurring_pre_tax_amount": 0,
+  "addons": []
+}
+```
+
+## Kenakan biaya langganan sesuai permintaan
+
+Setelah mandat diotorisasi, buat biaya sesuai kebutuhan.
+
+Endpoint: [POST /subscriptions/\{subscription_id\}/charge](/api-reference/subscriptions/create-charge)
+
+Bidang permintaan kunci (badan):
+
+<AccordionGroup>
+  <Accordion title="Parameter badan permintaan biaya">
+    <ParamField body="product_price" type="integer" required>
+      Jumlah yang akan dikenakan biaya (dalam unit mata uang terkecil). Contoh: untuk mengenakan biaya $25,00, kirim <code>2500</code>.
+    </ParamField>
+
+    <ParamField body="product_currency" type="string">
+      Penggantian mata uang opsional untuk biaya.
+    </ParamField>
+
+    <ParamField body="product_description" type="string">
+      Penggantian deskripsi opsional untuk biaya ini.
+    </ParamField>
+
+    <ParamField body="adaptive_currency_fees_inclusive" type="boolean">
+      Jika benar, menyertakan biaya mata uang adaptif dalam <code>product_price</code>. Jika salah, biaya ditambahkan di atasnya.
+    </ParamField>
+
+    <ParamField body="metadata" type="object">
+      Metadata tambahan untuk pembayaran. Jika diabaikan, metadata langganan digunakan.
+    </ParamField>
+  </Accordion>
+</AccordionGroup>
+
+<Tabs>
+<Tab title="Node.js SDK">
+
+```javascript
+import DodoPayments from 'dodopayments';
+
+const client = new DodoPayments({
+  bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'test_mode', // defaults to 'live_mode'
+});
+
+async function chargeNow(subscriptionId) {
+  const res = await client.subscriptions.charge(subscriptionId, { product_price: 2500 });
+  console.log(res.payment_id);
+}
+
+chargeNow('sub_123').catch(console.error);
+```
+
+</Tab>
+<Tab title="Python SDK">
+
+```python
+import os
+from dodopayments import DodoPayments
+
+client = DodoPayments(
+    bearer_token=os.environ.get('DODO_PAYMENTS_API_KEY'),
+    environment="test_mode",  # defaults to "live_mode"
+)
+
+response = client.subscriptions.charge(
+    subscription_id="sub_123",
+    product_price=2500,
+)
+
+print(response.payment_id)
+```
+
+</Tab>
+<Tab title="Go SDK">
+
+```go
+package main
+
+import (
+  "context"
+  "fmt"
+  "github.com/dodopayments/dodopayments-go"
+  "github.com/dodopayments/dodopayments-go/option"
+)
+
+func main() {
+  client := dodopayments.NewClient(option.WithBearerToken("YOUR_API_KEY"))
+  res, err := client.Subscriptions.Charge(context.TODO(), "sub_123", dodopayments.SubscriptionChargeParams{
+    ProductPrice: dodopayments.F(int64(2500)),
+  })
+  if err != nil { panic(err) }
+  fmt.Println(res.PaymentID)
+}
+```
+
+</Tab>
+<Tab title="cURL">
+
+```bash
+curl -X POST "$DODO_API/subscriptions/sub_123/charge" \
+  -H "Authorization: Bearer $DODO_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "product_price": 2500,
+    "product_description": "Extra usage for March"
+  }'
+```
+
+</Tab>
+</Tabs>
+
+```json Success
+{ "payment_id": "pay_abc123" }
+```
+
+<Warning>
+Mengenakan biaya langganan yang tidak sesuai permintaan mungkin gagal. Pastikan langganan memiliki `on_demand: true` dalam detailnya sebelum mengenakan biaya.
+</Warning>
+
+## Pengulangan pembayaran
+
+Sistem deteksi penipuan kami mungkin memblokir pola pengulangan yang agresif (dan dapat menandainya sebagai pengujian kartu yang potensial). Ikuti kebijakan pengulangan yang aman.
+
+<Warning>
+Pola pengulangan yang mendadak dapat ditandai sebagai penipuan atau pengujian kartu yang dicurigai oleh sistem dan pemroses risiko kami. Hindari pengulangan yang terkluster; ikuti jadwal penundaan dan panduan penyelarasan waktu di bawah ini.
+</Warning>
+
+### Prinsip untuk kebijakan pengulangan yang aman
+
+- **Mekanisme penundaan**: Gunakan penundaan eksponensial antara pengulangan.
+- **Batas pengulangan**: Batasi total pengulangan (maksimal 3–4 percobaan).
+- **Penyaringan cerdas**: Hanya ulangi pada kegagalan yang dapat diulang (misalnya, kesalahan jaringan/penerbit, dana tidak mencukupi); jangan pernah ulangi penolakan keras.
+- **Pencegahan pengujian kartu**: Jangan ulangi kegagalan seperti `DO_NOT_HONOR`, `STOLEN_CARD`, `LOST_CARD`, `PICKUP_CARD`, `FRAUDULENT`, `AUTHENTICATION_FAILURE`.
+- **Variasi metadata (opsional)**: Jika Anda mempertahankan sistem pengulangan Anda sendiri, bedakan pengulangan melalui metadata (misalnya, `retry_attempt`).
+
+### Jadwal pengulangan yang disarankan (langganan)
+
+- **Percobaan pertama**: Segera setelah Anda membuat biaya
+- **Percobaan kedua**: Setelah 3 hari
+- **Percobaan ketiga**: Setelah 7 hari lagi (total 10 hari)
+- **Percobaan keempat (akhir)**: Setelah 7 hari lagi (total 17 hari)
+
+Langkah terakhir: jika masih belum dibayar, tandai langganan sebagai tidak dibayar atau batalkan, berdasarkan kebijakan Anda. Beri tahu pelanggan selama jendela untuk memperbarui metode pembayaran mereka.
+
+### Hindari pengulangan mendadak; sesuaikan dengan waktu otorisasi
+
+- Jangkar pengulangan pada cap waktu otorisasi asli untuk menghindari perilaku "ledakan" di seluruh portofolio Anda.
+- Contoh: Jika pelanggan memulai percobaan atau mandat pada pukul 1:10 siang hari ini, jadwalkan pengulangan berikutnya pada pukul 1:10 siang pada hari-hari berikutnya sesuai dengan penundaan Anda (misalnya, +3 hari → 1:10 siang, +7 hari → 1:10 siang).
+- Sebagai alternatif, jika Anda menyimpan waktu pembayaran terakhir yang berhasil `T`, jadwalkan percobaan berikutnya pada `T + X days` untuk mempertahankan penyelarasan waktu-hari.
+
+<Note>
+Zona waktu dan DST: gunakan standar waktu yang konsisten untuk penjadwalan dan konversi hanya untuk tampilan untuk mempertahankan interval.
+</Note>
+
+### Kode penolakan yang sebaiknya tidak Anda ulangi
+
+- `STOLEN_CARD`
+- `DO_NOT_HONOR`
+- `FRAUDULENT`
+- `PICKUP_CARD`
+- `AUTHENTICATION_FAILURE`
+- `LOST_CARD`
+
+<Note>
+Untuk daftar lengkap alasan penolakan dan apakah mereka dapat diperbaiki oleh pengguna, lihat dokumentasi
+[Transaksi Gagal](/api-reference/transaction-failures).
+</Note>
+
+<Tip>
+Hanya ulangi pada masalah lunak/sementara (misalnya, `insufficient_funds`, `issuer_unavailable`, `processing_error`, waktu habis jaringan). Jika penolakan yang sama terulang, jeda pengulangan lebih lanjut.
+</Tip>
+
+### Pedoman implementasi (tanpa kode)
+
+- Gunakan penjadwal/antrian yang mempertahankan cap waktu yang tepat; hitung percobaan berikutnya pada offset waktu-hari yang tepat (misalnya, `T + 3 days` pada HH:MM yang sama).
+- Pertahankan dan rujuk cap waktu pembayaran terakhir yang berhasil `T` untuk menghitung percobaan berikutnya; jangan mengelompokkan beberapa langganan pada saat yang sama.
+- Selalu evaluasi alasan penolakan terakhir; hentikan pengulangan untuk penolakan keras dalam daftar lewati di atas.
+- Batasi pengulangan bersamaan per pelanggan dan per akun untuk mencegah lonjakan yang tidak disengaja.
+- Komunikasikan secara proaktif: email/SMS pelanggan untuk memperbarui metode pembayaran mereka sebelum percobaan berikutnya yang dijadwalkan.
+- Gunakan metadata hanya untuk observabilitas (misalnya, `retry_attempt`); jangan pernah mencoba untuk "menghindari" sistem penipuan/risiko dengan memutar bidang yang tidak penting.
+
+## Lacak hasil dengan webhook
+
+Implementasikan penanganan webhook untuk melacak perjalanan pelanggan. Lihat [Implementasi Webhook](/developer-resources/integration-guide#implementing-webhooks).
+
+- **subscription.active**: Mandat diotorisasi dan langganan diaktifkan
+- **subscription.failed**: Pembuatan gagal (misalnya, kegagalan mandat)
+- **subscription.on_hold**: Langganan ditangguhkan (misalnya, status tidak dibayar)
+- **payment.succeeded**: Biaya berhasil
+- **payment.failed**: Biaya gagal
+
+<Tip>
+Untuk alur sesuai permintaan, fokus pada `payment.succeeded` dan `payment.failed` untuk merekonsiliasi biaya berbasis penggunaan.
+</Tip>
+
+## Pengujian dan langkah selanjutnya
+
+<Steps>
+<Step title="Buat dalam mode uji">
+Gunakan kunci API uji Anda untuk membuat langganan dengan `payment_link: true`, lalu buka tautan dan selesaikan mandat.
+</Step>
+<Step title="Picu biaya">
+Panggil endpoint biaya dengan `product_price` kecil (misalnya, `100`) dan verifikasi Anda menerima `payment.succeeded`.
+</Step>
+<Step title="Go live">
+Beralih ke kunci API langsung Anda setelah Anda memvalidasi peristiwa dan pembaruan status internal.
+</Step>
+</Steps>
+
+## Pemecahan Masalah
+
+- **422 Permintaan Tidak Valid**: Pastikan `on_demand.mandate_only` disediakan saat pembuatan dan `product_price` disediakan untuk biaya.
+- **Kesalahan mata uang**: Jika Anda mengganti `product_currency`, pastikan itu didukung untuk akun dan pelanggan Anda.
+- **Tidak ada webhook yang diterima**: Verifikasi URL webhook dan konfigurasi rahasia tanda tangan.

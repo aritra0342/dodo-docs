@@ -1,0 +1,211 @@
+---
+title: AutoSend
+description: تعلم كيفية استخدام واجهة برمجة تطبيقات البريد الإلكتروني الخاصة بـ
+  AutoSend لإرسال رسائل بريد إلكتروني تلقائية للمعاملات المالية الخاصة بك في
+  Dodo Payments، والمبالغ المستردة، وأحداث الدفع.
+icon: paper-plane
+---
+
+## المقدمة
+
+تتيح لك تكامل AutoSend وDodo Payments إرسال إشعارات بريد إلكتروني تلقائية في الوقت الفعلي لجميع أحداث الدفع، من المعاملات الناجحة إلى المحاولات الفاشلة وتأكيدات المبالغ المستردة.
+
+أرسل رسائل بريد إلكتروني معاملات لأحداث الدفع باستخدام واجهة برمجة تطبيقات البريد الإلكتروني القوية من AutoSend.
+
+<Info>
+يتطلب هذا التكامل مفتاح واجهة برمجة تطبيقات AutoSend الخاص بك للمصادقة. يمكنك العثور على مفتاح واجهة برمجة التطبيقات الخاص بك في لوحة معلومات AutoSend تحت الإعدادات > مفاتيح واجهة برمجة التطبيقات.
+</Info>
+
+## البدء
+
+اتبع هذه الخطوات لتكامل AutoSend مع Dodo Payments:
+
+<Steps>
+<Step title="فتح قسم Webhook">
+  انتقل إلى قسم Webhooks في لوحة معلومات Dodo Payments الخاصة بك.
+  
+  <Frame>
+    <img src="/images/integrations/autosend.png" alt="إضافة نقطة النهاية وقائمة التكاملات" />
+  </Frame>
+</Step>
+
+<Step title="اختيار تكامل AutoSend">
+  اختر AutoSend من قائمة التكاملات المتاحة.
+</Step>
+
+<Step title="إدخال مفتاح API">
+  قدم مفتاح واجهة برمجة التطبيقات الخاص بـ AutoSend للمصادقة. يمكنك العثور على مفتاح واجهة برمجة التطبيقات الخاص بك في لوحة معلومات AutoSend تحت الإعدادات > مفاتيح واجهة برمجة التطبيقات.
+  
+  <Card title="تعلم كيفية إنشاء وإدارة مفاتيح API" icon="key" href="https://docs.autosend.com/api-keys">
+    قم بزيارة وثائق AutoSend للحصول على تعليمات مفصلة حول إنشاء وإدارة مفاتيح API.
+  </Card>
+</Step>
+
+<Step title="تكوين التحويل">
+  قم بإعداد معالجات تحويل JavaScript لتخصيص محتوى البريد الإلكتروني بناءً على أحداث الدفع.
+</Step>
+
+<Step title="اختبار وإنشاء">
+  اختبر تكوين webhook الخاص بك للتأكد من إرسال الرسائل الإلكترونية بشكل صحيح، ثم قم بإنشاء التكامل.
+</Step>
+
+<Step title="اكتمل التفعيل">
+  🎉 تم تفعيل تكامل AutoSend الخاص بك الآن وسيقوم تلقائيًا بإرسال رسائل البريد الإلكتروني لأحداث الدفع المكونة.
+</Step>
+</Steps>
+
+## أمثلة على الكود
+
+### رسالة تأكيد الدفع
+
+أرسل رسالة تأكيد عند معالجة الدفع بنجاح:
+
+```javascript payment_confirmation.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.url = "https://api.autosend.com/v1/mails/send";
+    webhook.payload = {
+      to: {
+        email: p.customer.email,
+        name: p.customer.name,
+      },
+      from: {
+        email: "payments@mail.yourdomain.com",
+        name: "Your Company",
+      },
+      subject: "Payment Successful - Thank you for your purchase!",
+      templateId: "A-61522f2xxxxxxxxx",
+      dynamicData: {
+        customerName: p.customer.name,
+        amount: p.amount,
+        currency: p.currency,
+        paymentId: p.payment_id,
+        paymentDate: new Date(p.created_at).toLocaleDateString(),
+      },
+      replyTo: {
+        email: "support@yourdomain.com",
+        name: "Support Team",
+      },
+    };
+  }
+  return webhook;
+}
+```
+
+### رسالة ترحيب الاشتراك
+
+أرسل رسالة ترحيب عند إنشاء اشتراك جديد:
+
+```javascript subscription_welcome.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "subscription.created") {
+    const s = webhook.payload.data;
+    webhook.url = "https://api.autosend.com/v1/mails/send";
+    webhook.payload = {
+      to: {
+        email: s.customer.email,
+        name: s.customer.name,
+      },
+      from: {
+        email: "subscriptions@mail.yourdomain.com",
+        name: "Your Company",
+      },
+      subject: "Welcome to your subscription!",
+      templateId: "A-61522f2xxxxxxxxx",
+      dynamicData: {
+        customerName: s.customer.name,
+        planName: s.plan.name,
+        billingInterval: s.billing_interval,
+        nextBillingDate: new Date(s.next_billing_at).toLocaleDateString(),
+        subscriptionId: s.subscription_id,
+      },
+      replyTo: {
+        email: "support@yourdomain.com",
+        name: "Support Team",
+      },
+    };
+  }
+  return webhook;
+}
+```
+
+### إشعار فشل الدفع
+
+أرسل رسالة إشعار عند فشل الدفع:
+
+```javascript payment_failure.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.failed") {
+    const p = webhook.payload.data;
+    webhook.url = "https://api.autosend.com/v1/mails/send";
+    webhook.payload = {
+      to: {
+        email: p.customer.email,
+        name: p.customer.name,
+      },
+      from: {
+        email: "billing@mail.yourdomain.com",
+        name: "Your Company Billing",
+      },
+      subject: "Payment Failed - Action Required",
+      templateId: "A-61522f2xxxxxxxxx",
+      dynamicData: {
+        customerName: p.customer.name,
+        amount: p.amount,
+        currency: p.currency,
+        failureReason: p.failure_reason,
+        paymentId: p.payment_id,
+        retryUrl: `https://yourdomain.com/billing/retry/${p.payment_id}`,
+      },
+      replyTo: {
+        email: "billing@yourdomain.com",
+        name: "Billing Support",
+      },
+    };
+  }
+  return webhook;
+}
+```
+
+## أفضل الممارسات
+
+- **تحقق من نطاق المرسل الخاص بك**: تأكد من أن نطاق البريد الإلكتروني المرسل الخاص بك تم التحقق منه في AutoSend لتحسين إمكانية التسليم وتجنب مشكلات المصادقة. تساعد النطاقات الموثقة في منع رسائل البريد الإلكتروني من الهبوط في مجلدات البريد العشوائي.
+
+- **استخدم بيانات ديناميكية للتخصيص**: استخدم `dynamicData` لتخصيص رسائل البريد الإلكتروني بمعلومات محددة عن العملاء مثل الأسماء، ومبالغ الدفع، وتفاصيل الاشتراك. الرسائل الإلكترونية المخصصة لها معدلات تفاعل أعلى.
+
+- **اكتب عناوين واضحة**: اكتب عناوين وصفية تشير بوضوح إلى غرض البريد الإلكتروني. تجنب كلمات تحفيز البريد العشوائي واحتفظ بالعناوين مختصرة (أقل من 50 حرفًا).
+
+- **اختبر قبل الإنتاج**: اختبر دائمًا رسائل البريد الإلكتروني الخاصة بك قبل إرسالها في الإنتاج. يضمن ذلك أن محتوى البريد الإلكتروني يظهر بشكل صحيح وأن جميع البيانات الديناميكية تم تعيينها بشكل صحيح.
+
+## مرجع API
+
+للحصول على تفاصيل كاملة حول واجهة برمجة تطبيقات AutoSend، بما في ذلك جميع المعلمات المتاحة وأكواد الأخطاء، قم بزيارة [وثائق واجهة برمجة تطبيقات AutoSend](https://docs.autosend.com/api-reference/mails/send).
+
+## استكشاف الأخطاء وإصلاحها
+
+<AccordionGroup>
+<Accordion title="عدم إرسال الرسائل الإلكترونية">
+- تحقق من أن مفتاح API صحيح ونشط
+- تحقق من أن نطاق المرسل تم التحقق منه في AutoSend
+- تأكد من أن عناوين البريد الإلكتروني للمستلمين صحيحة
+- راجع حدود وإجراءات إرسال AutoSend
+- تحقق من أن عنوان URL لنقطة النهاية API صحيح: `https://api.autosend.com/v1/mails/send`
+- تحقق من أن المعلمات المطلوبة موجودة في الحمولة
+</Accordion>
+
+<Accordion title="أخطاء التحويل">
+- تحقق من أن هيكل JSON يتطابق مع تنسيق واجهة برمجة تطبيقات AutoSend
+- تحقق من أن جميع الحقول المطلوبة موجودة (`to`، `from`، `templateId` أو `html`/`text`)
+- تأكد من تنسيق عناوين البريد الإلكتروني بشكل صحيح
+- تحقق من أن `templateId` صالح إذا كنت تستخدم القوالب
+- تحقق من أن مفاتيح `dynamicData` تتطابق مع متغيرات القالب الخاصة بك
+</Accordion>
+
+<Accordion title="مشكلات القالب">
+- تحقق من أن معرف القالب الخاص بك صحيح ونشط في AutoSend
+- تأكد من أن مفاتيح `dynamicData` تتطابق مع المتغيرات المستخدمة في القالب الخاص بك
+- تحقق من أن جميع المتغيرات المطلوبة للقالب متوفرة
+- اختبر القالب الخاص بك بشكل مستقل في لوحة معلومات AutoSend
+</Accordion>
+</AccordionGroup>

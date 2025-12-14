@@ -1,0 +1,302 @@
+---
+title: DataFast
+description: Atributkan pendapatan ke saluran pemasaran dengan analitik
+  DataFast. Lacak sumber lalu lintas mana yang mengarahkan pelanggan yang
+  membayar dan optimalkan pertumbuhan Anda.
+icon: chart-bar
+---
+
+## Pendahuluan
+
+DataFast adalah alat analitik yang mengutamakan pendapatan yang membantu Anda menemukan saluran pemasaran mana yang mengarahkan pelanggan yang membayar. Dengan mengintegrasikan Dodo Payments dengan DataFast, Anda dapat mengatributkan pendapatan ke sumber lalu lintas Anda, mengidentifikasi segmen pelanggan bernilai tinggi, dan membuat keputusan berbasis data untuk mengembangkan bisnis Anda.
+
+<Info>
+Integrasi ini memerlukan Kunci API DataFast Anda, yang dapat Anda peroleh dari [dasbor DataFast Anda](https://datafa.st/).
+</Info>
+
+## Cara Kerjanya
+
+DataFast melacak pengunjung melalui ID pengunjung unik yang disimpan dalam cookie. Untuk mengatributkan pendapatan ke saluran pemasaran, Anda perlu:
+
+1. **Tangkap ID pengunjung DataFast** dari cookie `datafast_visitor_id` saat membuat sesi checkout
+2. **Simpan ID pengunjung** dalam metadata pembayaran Anda
+3. **Kirim data pembayaran ke DataFast** saat pembayaran berhasil menggunakan API Pembayaran mereka
+
+Ini memungkinkan DataFast untuk mencocokkan pembayaran yang berhasil dengan sumber lalu lintas asli, memberikan Anda atribusi pendapatan yang lengkap.
+
+## Memulai
+
+<Steps>
+<Step title="Instal Skrip DataFast">
+  Pertama, instal skrip pelacakan DataFast di situs web Anda. Ini membuat cookie `datafast_visitor_id` yang melacak pengunjung Anda.
+  
+  Kunjungi [dokumentasi DataFast](https://datafa.st/docs) untuk instruksi instalasi yang spesifik untuk platform Anda.
+</Step>
+
+<Step title="Dapatkan Kunci API Anda">
+  Masuk ke [dasbor DataFast Anda](https://datafa.st/) dan navigasikan ke pengaturan situs web Anda untuk mendapatkan kunci API Anda.
+  
+  <Warning>
+  Jaga kunci API Anda tetap aman dan jangan pernah mengeksposnya dalam kode sisi klien.
+  </Warning>
+</Step>
+
+<Step title="Tangkap ID Pengunjung di Checkout">
+  Saat membuat sesi checkout, tangkap ID pengunjung DataFast dari cookie dan tambahkan ke metadata pembayaran Anda.
+</Step>
+
+<Step title="Kirim Data Pembayaran melalui Webhook">
+  Konfigurasikan webhook untuk mengirim data pembayaran ke API Pembayaran DataFast saat pembayaran berhasil.
+</Step>
+
+<Step title="Selesai!">
+  🎉 Data pendapatan sekarang akan muncul di dasbor DataFast Anda dengan atribusi penuh ke saluran pemasaran.
+</Step>
+</Steps>
+
+## Panduan Implementasi
+
+### Langkah 1: Tambahkan ID Pengunjung ke Metadata Checkout
+
+Saat membuat sesi checkout, tangkap ID pengunjung DataFast dari cookie dan sertakan dalam metadata pembayaran Anda.
+
+<CodeGroup>
+
+```typescript Next.js
+import { cookies } from 'next/headers';
+import { dodopayments } from '@/lib/dodopayments';
+
+export async function createCheckout(productId: string) {
+  // Capture DataFast visitor ID from cookie
+  const datafastVisitorId = cookies().get('datafast_visitor_id')?.value;
+
+  const payment = await dodopayments.payments.create({
+    product_id: productId,
+    // ... other payment configuration
+    metadata: {
+      datafast_visitor_id: datafastVisitorId, // Store visitor ID in metadata
+    },
+  });
+
+  return payment;
+}
+```
+
+```javascript Express.js
+const express = require('express');
+const router = express.Router();
+
+router.post('/create-checkout', async (req, res) => {
+  // Capture DataFast visitor ID from cookie
+  const datafastVisitorId = req.cookies?.datafast_visitor_id;
+
+  const payment = await dodopayments.payments.create({
+    product_id: req.body.productId,
+    // ... other payment configuration
+    metadata: {
+      datafast_visitor_id: datafastVisitorId, // Store visitor ID in metadata
+    },
+  });
+
+  res.json({ payment });
+});
+```
+
+```javascript Other Frameworks
+// Capture DataFast visitor ID from cookie
+const datafastVisitorId = getCookie('datafast_visitor_id'); // Use your framework's cookie method
+
+const payment = await dodopayments.payments.create({
+  product_id: productId,
+  // ... other payment configuration
+  metadata: {
+    datafast_visitor_id: datafastVisitorId, // Store visitor ID in metadata
+  },
+});
+```
+
+</CodeGroup>
+
+### Langkah 2: Kirim Data Pembayaran ke DataFast
+
+Konfigurasikan endpoint webhook untuk mengirim data pembayaran ke API Pembayaran DataFast saat pembayaran berhasil.
+
+<Steps>
+<Step title="Buka Bagian Webhook">
+  Di dasbor Dodo Payments Anda, navigasikan ke <b>Webhook → + Tambah Endpoint</b> dan perluas dropdown integrasi.
+  <Frame>
+    <img src="/images/integrations/datafast/add.png" alt="Tambahkan Endpoint dan dropdown integrasi" />
+  </Frame>
+</Step>
+
+<Step title="Pilih DataFast">
+  Pilih kartu integrasi <b>DataFast</b>.
+</Step>
+
+<Step title="Masukkan Kunci API">
+  Berikan Kunci API DataFast Anda di bidang konfigurasi.
+  <Frame>
+    <img src="/images/integrations/datafast/api-key.png" alt="Tambahkan Kunci API" />
+  </Frame>
+</Step>
+
+<Step title="Konfigurasikan Transformasi">
+  Edit kode transformasi untuk memformat data pembayaran untuk API Pembayaran DataFast.
+</Step>
+
+<Step title="Uji & Buat">
+  Uji dengan payload contoh dan klik <b>Buat</b> untuk mengaktifkan integrasi.
+</Step>
+</Steps>
+
+## Contoh Kode Transformasi
+
+### Atribusi Pembayaran Dasar
+
+```javascript basic_payment.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const payment = webhook.payload.data;
+    
+    // Only send to DataFast if visitor ID exists in metadata
+    if (payment.metadata?.datafast_visitor_id) {
+      webhook.url = "https://datafa.st/api/v1/payments";
+      webhook.payload = {
+        amount: payment.total_amount / 100, // Convert from cents to dollars
+        currency: payment.currency,
+        transaction_id: payment.payment_id,
+        datafast_visitor_id: payment.metadata.datafast_visitor_id,
+      };
+    } else {
+      // Skip if no visitor ID (prevents unnecessary API calls)
+      return null;
+    }
+  }
+  return webhook;
+}
+```
+
+### Tangani Mata Uang Tanpa Desimal
+
+Beberapa mata uang (seperti JPY) tidak menggunakan tempat desimal. Sesuaikan perhitungan jumlahnya sesuai kebutuhan:
+
+```javascript zero_decimal.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const payment = webhook.payload.data;
+    
+    if (payment.metadata?.datafast_visitor_id) {
+      // Zero decimal currencies: JPY, KRW, CLP, etc.
+      const zeroDecimalCurrencies = ['JPY', 'KRW', 'CLP', 'VND', 'UGX', 'MGA'];
+      const isZeroDecimal = zeroDecimalCurrencies.includes(payment.currency);
+      
+      webhook.url = "https://datafa.st/api/v1/payments";
+      webhook.payload = {
+        amount: isZeroDecimal 
+          ? payment.total_amount // Use amount as-is for zero decimal currencies
+          : payment.total_amount / 100, // Convert from cents for other currencies
+        currency: payment.currency,
+        transaction_id: payment.payment_id,
+        datafast_visitor_id: payment.metadata.datafast_visitor_id,
+      };
+    } else {
+      return null;
+    }
+  }
+  return webhook;
+}
+```
+
+### Pembayaran Berlangganan
+
+Untuk pembayaran berlangganan yang berulang, Anda dapat melacak setiap pembayaran:
+
+```javascript subscription_payment.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const payment = webhook.payload.data;
+    
+    // Check if this is a subscription payment
+    const isSubscription = payment.subscription_id !== null;
+    
+    if (payment.metadata?.datafast_visitor_id) {
+      webhook.url = "https://datafa.st/api/v1/payments";
+      webhook.payload = {
+        amount: payment.total_amount / 100,
+        currency: payment.currency,
+        transaction_id: payment.payment_id,
+        datafast_visitor_id: payment.metadata.datafast_visitor_id,
+        // Optional: Add subscription context
+        ...(isSubscription && {
+          subscription_id: payment.subscription_id,
+        }),
+      };
+    } else {
+      return null;
+    }
+  }
+  return webhook;
+}
+```
+
+## Praktik Terbaik
+
+<Tip>
+**Tangkap ID pengunjung lebih awal**: Simpan ID pengunjung DataFast sesegera mungkin dalam alur checkout Anda untuk memastikan atribusi yang akurat, bahkan jika pengguna menavigasi pergi dan kembali nanti.
+</Tip>
+
+- **Selalu sertakan ID pengunjung dalam metadata**: Tanpa ID pengunjung, DataFast tidak dapat mengatributkan pendapatan ke saluran pemasaran
+- **Tangani mata uang tanpa desimal**: Beberapa mata uang (JPY, KRW, dll.) tidak menggunakan tempat desimal—sesuaikan perhitungan jumlah Anda sesuai kebutuhan
+- **Uji dengan pembayaran contoh**: Verifikasi bahwa integrasi berfungsi dengan benar sebelum diluncurkan
+- **Pantau dasbor DataFast Anda**: Periksa bahwa pembayaran muncul dengan benar dengan atribusi yang tepat
+- **Gunakan pengulangan webhook**: API Pembayaran DataFast bersifat idempotent, jadi pengulangan aman jika webhook gagal
+
+## Pemecahan Masalah
+
+<AccordionGroup>
+<Accordion title="Pembayaran tidak muncul di DataFast">
+- Verifikasi bahwa kunci API DataFast Anda benar dan aktif
+- Periksa bahwa `datafast_visitor_id` ditangkap dan disimpan dalam metadata pembayaran
+- Pastikan transformasi webhook memformat payload dengan benar
+- Verifikasi bahwa webhook dipicu pada peristiwa `payment.succeeded`
+- Periksa dasbor DataFast untuk pesan kesalahan atau log API
+</Accordion>
+
+<Accordion title="Atribusi pendapatan tidak berfungsi">
+- Konfirmasi bahwa skrip pelacakan DataFast terinstal dan berfungsi di situs web Anda
+- Verifikasi bahwa cookie `datafast_visitor_id` disetel dengan benar
+- Periksa bahwa ID pengunjung cocok antara pembuatan checkout dan penyelesaian pembayaran
+- Pastikan Anda menangkap ID pengunjung sebelum membuat sesi checkout
+- Tinjau [dokumentasi API Pembayaran DataFast](https://datafa.st/docs/payments-api) untuk panduan tambahan
+</Accordion>
+
+<Accordion title="Kesalahan transformasi">
+- Validasi struktur JSON sesuai dengan format API Pembayaran DataFast
+- Periksa bahwa semua bidang yang diperlukan (`amount`, `currency`, `transaction_id`, `datafast_visitor_id`) ada
+- Pastikan jumlah dikonversi dengan benar (bagi 100 untuk sebagian besar mata uang, kecuali mata uang tanpa desimal)
+- Verifikasi URL endpoint API benar: `https://datafa.st/api/v1/payments`
+- Uji transformasi dengan payload webhook contoh
+</Accordion>
+
+<Accordion title="Masalah konversi mata uang">
+- Untuk mata uang tanpa desimal (JPY, KRW, CLP, VND, UGX, MGA), kirim jumlah seperti adanya tanpa membagi 100
+- Untuk semua mata uang lainnya, bagi jumlah dengan 100 untuk mengonversi dari sen ke unit dasar
+- Periksa kembali bahwa kode mata uang sesuai dengan format ISO 4217 (misalnya, "USD", "EUR", "JPY")
+</Accordion>
+</AccordionGroup>
+
+## Sumber Daya Tambahan
+
+<CardGroup cols={2}>
+<Card title="Dokumentasi DataFast" icon="book" href="https://datafa.st/docs/payments-api">
+  Pelajari lebih lanjut tentang API Pembayaran DataFast dan fitur atribusi pendapatan.
+</Card>
+
+<Card title="Dasbor DataFast" icon="chart-bar" href="https://datafa.st/">
+  Akses dasbor DataFast Anda untuk melihat analitik pendapatan dan data atribusi.
+</Card>
+</CardGroup>
+
+<Info>
+Butuh bantuan? Hubungi dukungan Dodo Payments di [support@dodopayments.com](mailto:support@dodopayments.com) untuk bantuan dengan integrasi.
+</Info>

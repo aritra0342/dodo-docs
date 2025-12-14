@@ -1,0 +1,38 @@
+---
+title: Kỹ thuật - Câu hỏi thường gặp
+description: Các giải thích chi tiết và giải pháp cho các câu hỏi kỹ thuật, bao
+  gồm khắc phục sự cố, tích hợp và yêu cầu hệ thống, đảm bảo việc triển khai và
+  hiệu suất liền mạch.
+icon: question
+---
+
+<Accordion title="Q1: Tại sao tôi không nhận được product id trong webhook payment.succeeded cho sản phẩm đăng ký?">
+  A: Sự kiện webhook payment.succeeded cho các sản phẩm đăng ký không bao gồm product_id. Thay vào đó, nó cung cấp `subscription_id` liên quan đến đăng ký, cùng với các chi tiết liên quan khác.
+</Accordion>
+
+<Accordion title="Q2: Làm thế nào để tôi xác minh rằng các webhook tôi nhận được thực sự từ dodo payments và không phải từ bất kỳ tác nhân độc hại nào?">
+  A: Để xác minh rằng các webhook bạn nhận được thực sự từ Dodo Payments và không phải từ các tác nhân độc hại, hãy làm theo các bước sau:
+    1. **Kiểm tra Chữ ký**: Mỗi webhook được gửi bởi Dodo Payments đều bao gồm một chữ ký duy nhất trong tiêu đề **`webhook-signature`**. Chữ ký này được tạo ra bằng cách sử dụng khóa bí mật của webhook của bạn và payload của sự kiện.
+    2. **Lấy Khóa Bí mật**: Đảm bảo bạn có khóa bí mật cho webhook của mình, có thể tìm thấy trong bảng điều khiển Dodo Payments của bạn dưới cài đặt Webhooks.
+    3. **Tính lại Chữ ký**: Sử dụng cùng một thuật toán ký (HMAC-SHA256) như Dodo Payments để tính toán chữ ký trên máy chủ của bạn. Sử dụng payload của webhook và khóa bí mật webhook của bạn.
+    4. **So sánh Chữ ký**: So sánh chữ ký đã tính lại với chữ ký được cung cấp trong tiêu đề **`webhook-signature`**. Nếu chúng khớp, webhook là xác thực; nếu không, nó nên bị từ chối.
+    5. **Sử dụng HTTPS**: Đảm bảo rằng điểm cuối webhook của bạn sử dụng HTTPS để bảo mật giao tiếp và ngăn chặn việc giả mạo trong quá trình truyền dữ liệu.
+  Bằng cách thực hiện các bước này, bạn có thể tự tin xác minh tính xác thực của các webhook được gửi bởi Dodo Payments. 
+</Accordion>
+
+<Accordion title="Q3: Tại sao tôi lại nhận được webhook subscription.renew ngay cả khi thanh toán tháng đầu tiên?">
+  A: Đối với các đăng ký, `subscription.renew` sẽ được kích hoạt bất cứ khi nào số tiền đăng ký bị trừ. Vì vậy, đúng là hành vi này là mong đợi.
+</Accordion>
+
+<Accordion title="Q5: Làm thế nào tôi có thể kiểm tra các webhook cục bộ?">
+  A: Để kiểm tra các webhook cục bộ, bạn có thể làm theo các bước sau:
+  
+1. **Sử dụng Công cụ Tunneling**: Các công cụ như [ngrok](https://ngrok.com/), [LocalTunnel](https://localtunnel.github.io/www/), hoặc [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-apps/) có thể mở rộng máy chủ cục bộ của bạn ra internet. Điều này cung cấp một URL công khai mà Dodo Payments có thể sử dụng để gửi các sự kiện webhook đến môi trường cục bộ của bạn.
+2. **Thiết lập Điểm cuối Webhook**: Tạo một điểm cuối webhook trong ứng dụng cục bộ của bạn để xử lý các sự kiện webhook đến. Đảm bảo nó lắng nghe các yêu cầu HTTP POST.
+3. **Cấu hình Webhook trong Dodo Payments**: Truy cập bảng điều khiển Dodo Payments của bạn, điều hướng đến cài đặt Webhooks, và cập nhật URL webhook thành URL công khai được tạo bởi công cụ tunneling.
+4. **Kích hoạt Sự kiện**: Thực hiện các hành động trong môi trường của bạn để kích hoạt các sự kiện webhook. Ví dụ, bạn có thể mô phỏng các khoản thanh toán hoặc gia hạn đăng ký.
+5. **Kiểm tra Các Yêu cầu Đến**: Sử dụng nhật ký của công cụ tunneling hoặc nhật ký của ứng dụng của bạn để kiểm tra các payload webhook đến. Điều này cho phép bạn xác minh rằng điểm cuối của bạn đang nhận các sự kiện và xử lý chúng đúng cách.
+6. **Xác minh Chữ ký**: Đảm bảo bạn xác thực tiêu đề **`webhook-signature`** để xác nhận rằng các sự kiện webhook là xác thực và được gửi bởi Dodo Payments.
+
+Bằng cách làm theo các bước này, bạn có thể dễ dàng kiểm tra và gỡ lỗi các webhook trong môi trường phát triển cục bộ của mình.
+</Accordion>

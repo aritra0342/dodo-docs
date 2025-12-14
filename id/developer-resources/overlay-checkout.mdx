@@ -1,0 +1,510 @@
+---
+title: Overlay Checkout
+description: Perpustakaan TypeScript modern untuk menyematkan checkout overlay
+  Dodo Payments dan mendengarkan peristiwa checkout secara real-time.
+icon: cart-shopping
+---
+
+## Ikhtisar
+
+SDK Checkout Dodo Payments menyediakan cara yang mulus untuk mengintegrasikan overlay pembayaran kami ke dalam aplikasi web Anda. Dibangun dengan TypeScript dan standar web modern, ini menawarkan solusi yang kuat untuk menangani pembayaran dengan penanganan peristiwa real-time dan tema yang dapat disesuaikan.
+
+<Frame>
+    <img src="/images/cover-images/overlay-checkout.png" alt="Gambar Sampul Overlay Checkout"/>
+</Frame>
+
+## Demo
+
+<Card title="Demo Interaktif" icon="play" href="https://atlas.dodopayments.com/pricing">
+Lihat checkout overlay dalam aksi dengan demo langsung kami.
+</Card>
+
+## Memulai dengan Cepat
+
+Mulai dengan SDK Checkout Dodo Payments hanya dalam beberapa baris kode:
+
+```typescript
+import { DodoPayments } from "dodopayments-checkout";
+
+// Initialize the SDK
+DodoPayments.Initialize({
+  mode: "test", // 'test' or 'live'
+  onEvent: (event) => {
+    console.log("Checkout event:", event);
+  },
+});
+
+// Open checkout
+DodoPayments.Checkout.open({
+  checkoutUrl: "https://checkout.dodopayments.com/session/cks_123"
+});
+```
+
+<Tip>
+Dapatkan URL checkout Anda dari [API buat sesi checkout](/api-reference/checkout-sessions/create).
+</Tip>
+
+## Panduan Integrasi Langkah-demi-Langkah
+
+<Steps>
+<Step title="Instal SDK">
+
+Instal SDK Checkout Dodo Payments menggunakan manajer paket pilihan Anda:
+
+<CodeGroup>
+
+```bash npm
+npm install dodopayments-checkout
+```
+
+```bash yarn
+yarn add dodopayments-checkout
+```
+
+```bash pnpm
+pnpm add dodopayments-checkout
+```
+
+</CodeGroup>
+
+</Step>
+
+<Step title="Inisialisasi SDK">
+
+Inisialisasi SDK di aplikasi Anda, biasanya di komponen utama atau titik masuk aplikasi:
+
+```typescript
+import { DodoPayments } from "dodopayments-checkout";
+
+DodoPayments.Initialize({
+  mode: "test", // Change to 'live' for production
+  onEvent: (event) => {
+    console.log("Checkout event:", event);
+    
+    // Handle different events
+    switch (event.event_type) {
+      case "checkout.opened":
+        // Checkout overlay has been opened
+        break;
+      case "checkout.closed":
+        // Checkout has been closed
+        break;
+      case "checkout.error":
+        // Handle errors
+        console.error("Checkout error:", event.data?.message);
+        break;
+    }
+  },
+});
+```
+
+<Warning>
+Selalu inisialisasi SDK sebelum mencoba membuka checkout. Inisialisasi harus dilakukan sekali saat aplikasi Anda dimuat.
+</Warning>
+
+</Step>
+
+<Step title="Buat Komponen Tombol Checkout">
+
+Buat komponen yang membuka overlay checkout:
+
+```typescript
+// components/CheckoutButton.tsx
+"use client";
+
+import { Button } from "@/components/ui/button";
+import { DodoPayments } from "dodopayments-checkout";
+import { useEffect, useState } from "react";
+
+export function CheckoutButton() {
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    // Initialize the SDK
+    DodoPayments.Initialize({
+      mode: "test",
+      onEvent: (event) => {
+        switch (event.event_type) {
+          case "checkout.opened":
+            setIsLoading(false);
+            break;
+          case "checkout.error":
+            setIsLoading(false);
+            console.error("Checkout error:", event.data?.message);
+            break;
+        }
+      },
+    });
+  }, []);
+
+  const handleCheckout = async () => {
+    try {
+      setIsLoading(true);
+      await DodoPayments.Checkout.open({
+        checkoutUrl: "https://checkout.dodopayments.com/session/cks_123"
+      });
+    } catch (error) {
+      console.error("Failed to open checkout:", error);
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <Button 
+      onClick={handleCheckout}
+      disabled={isLoading}
+    >
+      {isLoading ? "Loading..." : "Checkout Now"}
+    </Button>
+  );
+}
+```
+
+</Step>
+
+<Step title="Tambahkan Checkout ke Halaman Anda">
+
+Gunakan komponen tombol checkout di aplikasi Anda:
+
+```typescript
+// app/page.tsx
+import { CheckoutButton } from "@/components/CheckoutButton";
+
+export default function Home() {
+  return (
+    <main className="flex min-h-screen flex-col items-center justify-center p-24">
+      <h1>Welcome to Our Store</h1>
+      <CheckoutButton />
+    </main>
+  );
+}
+```
+
+</Step>
+
+<Step title="Tangani Halaman Sukses dan Gagal">
+
+Buat halaman untuk menangani pengalihan checkout:
+
+```typescript
+// app/success/page.tsx
+export default function SuccessPage() {
+  return (
+    <div className="flex min-h-screen flex-col items-center justify-center">
+      <h1>Payment Successful!</h1>
+      <p>Thank you for your purchase.</p>
+    </div>
+  );
+}
+
+// app/failure/page.tsx
+export default function FailurePage() {
+  return (
+    <div className="flex min-h-screen flex-col items-center justify-center">
+      <h1>Payment Failed</h1>
+      <p>Please try again or contact support.</p>
+    </div>
+  );
+}
+```
+
+</Step>
+
+<Step title="Uji Integrasi Anda">
+
+1. Mulai server pengembangan Anda:
+
+```bash
+npm run dev
+```
+
+2. Uji alur checkout:
+   - Klik tombol checkout
+   - Verifikasi overlay muncul
+   - Uji alur pembayaran menggunakan kredensial uji
+   - Konfirmasi pengalihan berfungsi dengan benar
+
+<Check>
+Anda harus melihat peristiwa checkout tercatat di konsol browser Anda.
+</Check>
+
+</Step>
+
+<Step title="Go Live">
+
+Saat Anda siap untuk produksi:
+
+1. Ubah mode menjadi `'live'`:
+
+```typescript
+DodoPayments.Initialize({
+  mode: "live",
+  onEvent: (event) => {
+    console.log("Checkout event:", event);
+  }
+});
+```
+
+2. Perbarui URL checkout Anda untuk menggunakan sesi checkout langsung dari backend Anda
+3. Uji alur lengkap di produksi
+4. Pantau peristiwa dan kesalahan
+
+</Step>
+</Steps>
+
+## Referensi API
+
+### Konfigurasi
+
+#### Opsi Inisialisasi
+
+```typescript
+interface InitializeOptions {
+  mode: "test" | "live";
+  onEvent: (event: CheckoutEvent) => void;
+}
+```
+
+| Opsi | Tipe | Diperlukan | Deskripsi |
+|--------|------|----------|-------------|
+| `mode` | `"test" \| "live"` | Ya | Mode lingkungan: `'test'` untuk pengembangan, `'live'` untuk produksi |
+| `onEvent` | `function` | Ya | Fungsi callback untuk menangani peristiwa checkout |
+
+#### Opsi Checkout
+
+```typescript
+interface CheckoutOptions {
+  checkoutUrl: string;
+}
+```
+
+| Opsi | Tipe | Diperlukan | Deskripsi |
+|--------|------|----------|-------------|
+| `checkoutUrl` | `string` | Ya | URL sesi checkout dari [API buat sesi checkout](/api-reference/checkout-sessions/create) |
+
+### Metode
+
+#### Buka Checkout
+
+Membuka overlay checkout dengan URL sesi checkout yang ditentukan.
+
+```typescript
+DodoPayments.Checkout.open({
+  checkoutUrl: "https://checkout.dodopayments.com/session/cks_123"
+});
+```
+
+#### Tutup Checkout
+
+Menutup overlay checkout secara programatis.
+
+```typescript
+DodoPayments.Checkout.close();
+```
+
+#### Periksa Status
+
+Mengembalikan apakah overlay checkout saat ini terbuka.
+
+```typescript
+const isOpen = DodoPayments.Checkout.isOpen();
+// Returns: boolean
+```
+
+### Peristiwa
+
+SDK menyediakan peristiwa real-time yang dapat Anda dengarkan melalui callback `onEvent`:
+
+```typescript
+DodoPayments.Initialize({
+  onEvent: (event: CheckoutEvent) => {
+    switch (event.event_type) {
+      case "checkout.opened":
+        // Checkout overlay has been opened
+        break;
+      case "checkout.payment_page_opened":
+        // Payment page has been displayed
+        break;
+      case "checkout.customer_details_submitted":
+        // Customer and billing details submitted
+        break;
+      case "checkout.closed":
+        // Checkout has been closed
+        break;
+      case "checkout.redirect":
+        // Checkout will perform a redirect
+        break;
+      case "checkout.error":
+        // An error occurred
+        console.error("Error:", event.data?.message);
+        break;
+    }
+  }
+});
+```
+
+| Tipe Peristiwa | Deskripsi |
+|------------|-------------|
+| `checkout.opened` | Overlay checkout telah dibuka |
+| `checkout.payment_page_opened` | Halaman pembayaran telah ditampilkan |
+| `checkout.customer_details_submitted` | Detail pelanggan dan penagihan telah diserahkan |
+| `checkout.closed` | Overlay checkout telah ditutup |
+| `checkout.redirect` | Checkout akan melakukan pengalihan |
+| `checkout.error` | Terjadi kesalahan selama checkout |
+
+## Opsi Implementasi
+
+### Instalasi Manajer Paket
+
+Instal melalui npm, yarn, atau pnpm seperti yang ditunjukkan dalam [Panduan Integrasi Langkah-demi-Langkah](#step-by-step-integration-guide).
+
+### Implementasi CDN
+
+Untuk integrasi cepat tanpa langkah build, Anda dapat menggunakan CDN kami:
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dodo Payments Checkout</title>
+    
+    <!-- Load DodoPayments -->
+    <script src="https://cdn.jsdelivr.net/npm/dodopayments-checkout@latest/dist/index.js"></script>
+    <script>
+        // Initialize the SDK
+        DodoPaymentsCheckout.DodoPayments.Initialize({
+            mode: "test", // Change to 'live' for production
+            onEvent: (event) => {
+                console.log('Checkout event:', event);
+            }
+        });
+    </script>
+</head>
+<body>
+    <button onclick="openCheckout()">Checkout Now</button>
+
+    <script>
+        function openCheckout() {
+            DodoPaymentsCheckout.DodoPayments.Checkout.open({
+                checkoutUrl: "https://checkout.dodopayments.com/session/cks_123"
+            });
+        }
+    </script>
+</body>
+</html>
+```
+
+## Dukungan TypeScript
+
+SDK ditulis dalam TypeScript dan mencakup definisi tipe yang komprehensif. Semua API publik sepenuhnya diketik untuk pengalaman pengembang yang lebih baik dan dukungan IntelliSense.
+
+```typescript
+import { DodoPayments, CheckoutEvent } from "dodopayments-checkout";
+
+DodoPayments.Initialize({
+  mode: "test",
+  onEvent: (event: CheckoutEvent) => {
+    // event is fully typed
+    console.log(event.event_type, event.data);
+  },
+});
+```
+
+## Penanganan Kesalahan
+
+SDK menyediakan informasi kesalahan yang rinci melalui sistem peristiwa. Selalu terapkan penanganan kesalahan yang tepat dalam callback `onEvent`:
+
+```typescript
+DodoPayments.Initialize({
+  onEvent: (event: CheckoutEvent) => {
+    if (event.event_type === "checkout.error") {
+      console.error("Checkout error:", event.data?.message);
+      // Handle error appropriately
+      // You may want to show a user-friendly error message
+      // or retry the checkout process
+    }
+  }
+});
+```
+
+<Warning>
+Selalu tangani peristiwa `checkout.error` untuk memberikan pengalaman pengguna yang baik saat kesalahan terjadi.
+</Warning>
+
+## Praktik Terbaik
+
+1. **Inisialisasi sekali**: Inisialisasi SDK sekali saat aplikasi Anda dimuat, tidak pada setiap upaya checkout
+2. **Penanganan kesalahan**: Selalu terapkan penanganan kesalahan yang tepat dalam callback peristiwa Anda
+3. **Mode uji**: Gunakan `test` mode selama pengembangan dan beralih ke `live` hanya saat siap untuk produksi
+4. **Penanganan peristiwa**: Tangani semua peristiwa yang relevan untuk pengalaman pengguna yang lengkap
+5. **URL yang valid**: Selalu gunakan URL checkout yang valid dari API buat sesi checkout
+6. **TypeScript**: Gunakan TypeScript untuk keamanan tipe yang lebih baik dan pengalaman pengembang
+7. **Status pemuatan**: Tampilkan status pemuatan saat checkout dibuka untuk meningkatkan UX
+
+## Pemecahan Masalah
+
+<AccordionGroup>
+<Accordion title="Checkout tidak terbuka">
+
+**Kemungkinan penyebab:**
+- SDK tidak diinisialisasi sebelum memanggil `open()`
+- URL checkout tidak valid
+- Kesalahan JavaScript di konsol
+- Masalah konektivitas jaringan
+
+**Solusi:**
+- Verifikasi inisialisasi SDK terjadi sebelum membuka checkout
+- Periksa kesalahan di konsol
+- Pastikan URL checkout valid dan dari API buat sesi checkout
+- Verifikasi konektivitas jaringan
+
+</Accordion>
+
+<Accordion title="Peristiwa tidak terjadi">
+
+**Kemungkinan penyebab:**
+- Penangan peristiwa tidak diatur dengan benar
+- Kesalahan JavaScript mencegah propagasi peristiwa
+- SDK tidak diinisialisasi dengan benar
+
+**Solusi:**
+- Konfirmasi penangan peristiwa diatur dengan benar di `Initialize()`
+- Periksa konsol browser untuk kesalahan JavaScript
+- Verifikasi inisialisasi SDK selesai dengan sukses
+- Uji dengan penangan peristiwa sederhana terlebih dahulu
+
+</Accordion>
+
+<Accordion title="Masalah styling">
+
+**Kemungkinan penyebab:**
+- Konflik CSS dengan gaya aplikasi Anda
+- Pengaturan tema tidak diterapkan dengan benar
+- Masalah desain responsif
+
+**Solusi:**
+- Periksa konflik CSS di DevTools browser
+- Verifikasi pengaturan tema benar
+- Uji di berbagai ukuran layar
+- Pastikan tidak ada konflik z-index dengan overlay
+
+</Accordion>
+</AccordionGroup>
+
+## Dukungan Browser
+
+SDK Checkout Dodo Payments mendukung browser berikut:
+
+- Chrome (terbaru)
+- Firefox (terbaru)
+- Safari (terbaru)
+- Edge (terbaru)
+- IE11+
+
+<Note>
+Apple Pay saat ini tidak didukung dalam pengalaman checkout overlay. Kami berencana untuk menambahkan dukungan untuk Apple Pay di rilis mendatang.
+</Note>
+
+Untuk bantuan lebih lanjut, kunjungi [komunitas Discord kami](https://discord.gg/bYqAp4ayYh) atau hubungi tim dukungan pengembang kami.

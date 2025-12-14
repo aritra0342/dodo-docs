@@ -1,0 +1,202 @@
+---
+title: Blueprint do API Gateway
+description: Rastreie chamadas de API e uso em nível de gateway para
+  faturamento. Perfeito para plataformas de API como serviço com rastreamento de
+  solicitações de alto volume.
+icon: cloud
+---
+
+## Casos de Uso
+
+Explore cenários comuns suportados pelo Blueprint do API Gateway:
+
+<CardGroup cols={2}>
+<Card title="API como Serviço" icon="server">
+Rastreie o uso por cliente para plataformas de API e cobre com base no número de chamadas.
+</Card>
+<Card title="Limitação de Taxa" icon="gauge">
+Monitore padrões de uso da API e implemente limitação de taxa baseada em uso.
+</Card>
+<Card title="Monitoramento de Desempenho" icon="chart-line">
+Rastreie tempos de resposta e taxas de erro junto com dados de faturamento.
+</Card>
+<Card title="SaaS Multi-Tenant" icon="users">
+Fature clientes com base em seu consumo de API em diferentes endpoints.
+</Card>
+</CardGroup>
+
+<Info>
+Ideal para rastrear o uso de endpoints de API, limitação de taxa e implementar faturamento de API baseado em uso.
+</Info>
+
+## Início Rápido
+
+Rastreie chamadas de API no nível do gateway com agrupamento automático para cenários de alto volume:
+
+<Steps>
+<Step title="Instale o SDK">
+
+```bash
+npm install @dodopayments/ingestion-blueprints
+```
+
+</Step>
+
+<Step title="Obtenha suas Chaves de API">
+- **Chave da API do Dodo Payments**: Obtenha-a no [Painel do Dodo Payments](https://app.dodopayments.com/developer/api-keys)
+</Step>
+
+<Step title="Crie um Medidor">
+Crie um medidor no seu [Painel do Dodo Payments](https://app.dodopayments.com/):
+- **Nome do Evento**: `api_call` (ou seu nome preferido)
+- **Tipo de Agregação**: `count` para rastrear o número de chamadas
+- Configure propriedades adicionais se rastrear metadados como tempos de resposta, códigos de status, etc.
+</Step>
+
+<Step title="Rastreie Chamadas de API">
+<CodeGroup>
+
+```javascript Single API Call
+import { Ingestion, trackAPICall } from '@dodopayments/ingestion-blueprints';
+
+const ingestion = new Ingestion({
+  apiKey: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'test_mode',
+  eventName: 'api_call'
+});
+
+// Track a single API call
+await trackAPICall(ingestion, {
+  customerId: 'customer_123',
+  metadata: {
+    endpoint: '/api/v1/users',
+    method: 'GET',
+    status_code: 200,
+    response_time_ms: 45
+  }
+});
+```
+
+```javascript High-Volume with Batching
+import { Ingestion, createBatch } from '@dodopayments/ingestion-blueprints';
+
+const ingestion = new Ingestion({
+  apiKey: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'live_mode',
+  eventName: 'api_call'
+});
+
+// Create batch for high-volume tracking
+const batch = createBatch(ingestion, {
+  maxSize: 100,      // Flush after 100 events
+  flushInterval: 5000 // Or flush every 5 seconds
+});
+
+// Add API calls to batch
+batch.add({
+  customerId: 'customer_123',
+  metadata: {
+    endpoint: '/api/v1/products',
+    method: 'GET',
+    status_code: 200
+  }
+});
+
+// Clean up when done
+await batch.cleanup();
+```
+
+```javascript Express.js Middleware
+import express from 'express';
+import { Ingestion, createBatch } from '@dodopayments/ingestion-blueprints';
+
+const app = express();
+
+const ingestion = new Ingestion({
+  apiKey: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'live_mode',
+  eventName: 'api_call'
+});
+
+const batch = createBatch(ingestion, {
+  maxSize: 50,
+  flushInterval: 10000
+});
+
+// Middleware to track all API calls
+app.use((req, res, next) => {
+  const startTime = Date.now();
+  
+  res.on('finish', () => {
+    const responseTime = Date.now() - startTime;
+    
+    batch.add({
+      customerId: req.user?.id || 'anonymous',
+      metadata: {
+        endpoint: req.path,
+        method: req.method,
+        status_code: res.statusCode,
+        response_time_ms: responseTime
+      }
+    });
+  });
+  
+  next();
+});
+
+// Cleanup on shutdown
+process.on('SIGTERM', async () => {
+  await batch.cleanup();
+  process.exit(0);
+});
+```
+
+</CodeGroup>
+</Step>
+</Steps>
+
+## Configuração
+
+### Configuração de Ingestão
+
+<ParamField path="apiKey" type="string" required>
+Sua chave da API do Dodo Payments do painel.
+</ParamField>
+
+<ParamField path="environment" type="string" required>
+Modo de ambiente: `test_mode` ou `live_mode`.
+</ParamField>
+
+<ParamField path="eventName" type="string" required>
+Nome do evento que corresponde à sua configuração de medidor.
+</ParamField>
+
+### Opções de Rastreio de Chamadas de API
+
+<ParamField path="customerId" type="string" required>
+O ID do cliente para atribuição de faturamento.
+</ParamField>
+
+<ParamField path="metadata" type="object">
+Metadados opcionais sobre a chamada de API, como endpoint, método, código de status, tempo de resposta, etc.
+</ParamField>
+
+### Configuração de Lote
+
+<ParamField path="maxSize" type="number">
+Número máximo de eventos antes do auto-flush. Padrão: `100`.
+</ParamField>
+
+<ParamField path="flushInterval" type="number">
+Intervalo de auto-flush em milissegundos. Padrão: `5000` (5 segundos).
+</ParamField>
+
+## Melhores Práticas
+
+<Tip>
+**Use Agrupamento para Alto Volume**: Para aplicações que lidam com mais de 10 solicitações por segundo, use `createBatch()` para reduzir a sobrecarga e melhorar o desempenho.
+</Tip>
+
+<Warning>
+**Sempre Limpe os Lotes**: Chame `batch.cleanup()` ao desligar a aplicação para descarregar eventos pendentes e evitar perda de dados.
+</Warning>

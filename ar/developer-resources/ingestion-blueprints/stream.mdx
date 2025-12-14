@@ -1,0 +1,119 @@
+---
+title: مخطط البث
+description: تتبع استهلاك بيانات البث للفيديو والصوت والبث المباشر وفواتير نقل
+  البيانات في الوقت الحقيقي.
+icon: tower-broadcast
+---
+
+## حالات الاستخدام
+
+استكشف السيناريوهات الشائعة المدعومة من مخطط البث:
+
+<CardGroup cols={2}>
+<Card title="منصات الفيديو" icon="video">
+فواتير العملاء بناءً على استهلاك عرض النطاق الترددي للفيديو وجودة البث.
+</Card>
+<Card title="بث الموسيقى" icon="music">
+تتبع استخدام بث الصوت لكل مستخدم حسب مستويات الاشتراك.
+</Card>
+<Card title="الفعاليات المباشرة" icon="signal-stream">
+مراقبة استهلاك البث المباشر وفرض رسوم على استخدام عرض النطاق الترددي.
+</Card>
+<Card title="البيانات في الوقت الحقيقي" icon="wave-pulse">
+تتبع نقل البيانات في الوقت الحقيقي لتطبيقات إنترنت الأشياء والقياسات.
+</Card>
+</CardGroup>
+
+<Info>
+مثالي لمنصات بث الفيديو/الصوت، خدمات البث المباشر، وتطبيقات البيانات في الوقت الحقيقي.
+</Info>
+
+## البداية السريعة
+
+تتبع بايتات البث المستهلكة من قبل عملائك:
+
+<Steps>
+<Step title="تثبيت SDK">
+
+```bash
+npm install @dodopayments/ingestion-blueprints
+```
+
+</Step>
+
+<Step title="احصل على مفاتيح API الخاصة بك">
+- **مفتاح API لمدفوعات دودي**: احصل عليه من [لوحة معلومات مدفوعات دودي](https://app.dodopayments.com/developer/api-keys)
+</Step>
+
+<Step title="إنشاء عداد">
+قم بإنشاء عداد في [لوحة معلومات مدفوعات دودي](https://app.dodopayments.com/):
+- **اسم الحدث**: `stream_consumption` (أو الاسم المفضل لديك)
+- **نوع التجميع**: `sum` لتتبع إجمالي البايتات المتدفقة
+- **على خاصية**: `bytes` لفوترة بناءً على استخدام عرض النطاق الترددي
+</Step>
+
+<Step title="تتبع استخدام البث">
+<CodeGroup>
+
+```javascript Video Streaming
+import { Ingestion, trackStreamBytes } from '@dodopayments/ingestion-blueprints';
+
+const ingestion = new Ingestion({
+  apiKey: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'test_mode',
+  eventName: 'stream_consumption'
+});
+
+// Track video stream consumption
+await trackStreamBytes(ingestion, {
+  customerId: 'customer_123',
+  bytes: 10485760, // 10MB
+  metadata: {
+    stream_type: 'video',
+  }
+});
+```
+
+</CodeGroup>
+</Step>
+</Steps>
+
+## التكوين
+
+### تكوين الإدخال
+
+<ParamField path="apiKey" type="string" required>
+مفتاح API لمدفوعات دودي من لوحة المعلومات.
+</ParamField>
+
+<ParamField path="environment" type="string" required>
+وضع البيئة: `test_mode` أو `live_mode`.
+</ParamField>
+
+<ParamField path="eventName" type="string" required>
+اسم الحدث الذي يتطابق مع تكوين العداد الخاص بك.
+</ParamField>
+
+### خيارات تتبع بايتات البث
+
+<ParamField path="customerId" type="string" required>
+معرف العميل لفوترة النسبة.
+</ParamField>
+
+<ParamField path="bytes" type="number">
+عدد البايتات المستهلكة في البث. مطلوب لفوترة بناءً على عرض النطاق الترددي.
+</ParamField>
+
+<ParamField path="metadata" type="object">
+بيانات وصفية اختيارية حول البث مثل نوع البث، الجودة، sessionId، إلخ.
+</ParamField>
+
+## أفضل الممارسات
+
+<Tip>
+**تتبع حسب الشريحة**: بالنسبة للبث الطويل، تتبع الاستهلاك في شرائح بدلاً من الانتظار حتى يكتمل البث بالكامل.
+</Tip>
+
+<Warning>
+**عد دقيق للبايتات**: تأكد من أن عد البايتات يشمل جميع التكاليف الإضافية (الرؤوس، تكاليف البروتوكول) إذا كنت تقوم بالفوترة بناءً على إجمالي عرض النطاق الترددي.
+</Warning>

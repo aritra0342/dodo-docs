@@ -1,0 +1,167 @@
+---
+title: SendGrid
+description: إرسال رسائل البريد الإلكتروني المعاملات بناءً على أحداث مدفوعات
+  Dodo باستخدام واجهة برمجة تطبيقات Mail Send الخاصة بـ SendGrid.
+icon: inbox
+---
+
+## المقدمة
+
+قم بإرسال رسائل البريد الإلكتروني المعاملات تلقائيًا لتأكيدات الدفع، وتحديثات الاشتراك، والإشعارات المهمة باستخدام SendGrid. قم بتحفيز رسائل البريد الإلكتروني الشخصية بناءً على أحداث الدفع مع محتوى ديناميكي وقوالب احترافية.
+
+<Info>
+تتطلب هذه التكامل مفتاح API من SendGrid مع أذونات Mail Send.
+</Info>
+
+## البدء
+
+<Steps>
+<Step title="افتح قسم Webhook">
+  في لوحة معلومات مدفوعات Dodo الخاصة بك، انتقل إلى <b>Webhooks → + إضافة نقطة نهاية</b> وقم بتوسيع قائمة التكاملات.
+  <Frame>
+    <img src="/images/integrations/sendgrid.png" alt="إضافة نقطة نهاية وقائمة التكاملات" />
+  </Frame>
+</Step>
+
+<Step title="اختر SendGrid">
+  اختر بطاقة تكامل <b>SendGrid</b>.
+</Step>
+
+<Step title="أدخل مفتاح API">
+  قدم مفتاح API الخاص بك من SendGrid في الإعدادات.
+</Step>
+
+<Step title="تكوين التحويل">
+  قم بتحرير كود التحويل لتنسيق رسائل البريد الإلكتروني لواجهة برمجة تطبيقات Mail Send الخاصة بـ SendGrid.
+</Step>
+
+<Step title="اختبر وأنشئ">
+  اختبر مع حمولات عينة وانقر على <b>إنشاء</b> لتفعيل إرسال البريد الإلكتروني.
+</Step>
+
+<Step title="تم!">
+  🎉 ستقوم أحداث الدفع الآن تلقائيًا بتحفيز رسائل البريد الإلكتروني المعاملات عبر SendGrid.
+</Step>
+</Steps>
+
+## أمثلة على كود التحويل
+
+### رسالة تأكيد الدفع
+
+```javascript payment_confirmation.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.url = "https://api.sendgrid.com/v3/mail/send";
+    webhook.payload = {
+      personalizations: [
+        {
+          to: [{ email: p.customer.email }],
+          dynamic_template_data: {
+            customer_name: p.customer.name,
+            payment_amount: (p.total_amount / 100).toFixed(2),
+            payment_id: p.payment_id,
+            payment_date: new Date(webhook.payload.timestamp).toLocaleDateString(),
+            currency: p.currency || "USD"
+          }
+        }
+      ],
+      from: {
+        email: "payments@yourdomain.com",
+        name: "Your Company"
+      },
+      template_id: "d-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    };
+  }
+  return webhook;
+}
+```
+
+### رسالة ترحيب الاشتراك
+
+```javascript subscription_welcome.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "subscription.active") {
+    const s = webhook.payload.data;
+    webhook.url = "https://api.sendgrid.com/v3/mail/send";
+    webhook.payload = {
+      personalizations: [
+        {
+          to: [{ email: s.customer.email }],
+          dynamic_template_data: {
+            customer_name: s.customer.name,
+            subscription_id: s.subscription_id,
+            product_name: s.product_id,
+            amount: (s.recurring_pre_tax_amount / 100).toFixed(2),
+            frequency: s.payment_frequency_interval,
+            next_billing: new Date(s.next_billing_date).toLocaleDateString()
+          }
+        }
+      ],
+      from: {
+        email: "welcome@yourdomain.com",
+        name: "Your Company"
+      },
+      template_id: "d-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    };
+  }
+  return webhook;
+}
+```
+
+### إشعار فشل الدفع
+
+```javascript payment_failure.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.failed") {
+    const p = webhook.payload.data;
+    webhook.url = "https://api.sendgrid.com/v3/mail/send";
+    webhook.payload = {
+      personalizations: [
+        {
+          to: [{ email: p.customer.email }],
+          dynamic_template_data: {
+            customer_name: p.customer.name,
+            payment_amount: (p.total_amount / 100).toFixed(2),
+            error_message: p.error_message || "Payment processing failed",
+            payment_id: p.payment_id,
+            retry_link: `https://yourdomain.com/retry-payment/${p.payment_id}`
+          }
+        }
+      ],
+      from: {
+        email: "support@yourdomain.com",
+        name: "Your Company Support"
+      },
+      template_id: "d-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    };
+  }
+  return webhook;
+}
+```
+
+## نصائح
+
+- استخدم قوالب SendGrid الديناميكية لمحتوى مخصص
+- قم بتضمين بيانات الدفع ذات الصلة في متغيرات القالب
+- قم بتعيين عناوين من صحيحة وأسماء مرسلين
+- استخدم معرفات القالب لتنسيق البريد الإلكتروني بشكل متسق
+- قم بتضمين روابط إلغاء الاشتراك للامتثال
+
+## استكشاف الأخطاء وإصلاحها
+
+<AccordionGroup>
+<Accordion title="عدم إرسال الرسائل الإلكترونية">
+- تحقق من أن مفتاح API لديه أذونات Mail Send
+- تحقق من أن معرفات القالب صالحة ونشطة
+- تأكد من أن عناوين البريد الإلكتروني للمستلمين صالحة
+- راجع حدود وإجراءات إرسال SendGrid
+</Accordion>
+
+<Accordion title="أخطاء التحويل">
+- تحقق من أن هيكل JSON يتطابق مع تنسيق واجهة برمجة تطبيقات SendGrid
+- تحقق من أن جميع الحقول المطلوبة موجودة
+- تأكد من أن متغيرات بيانات القالب منسقة بشكل صحيح
+- تحقق من أن عناوين البريد الإلكتروني من تم التحقق منها في SendGrid
+</Accordion>
+</AccordionGroup>

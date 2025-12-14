@@ -1,0 +1,709 @@
+---
+title: بناء مولد صور AI مع فواتير قائمة على الاستخدام
+description: تابع معنا بينما نبني PixelGen AI - خدمة توليد الصور باستخدام AI مع
+  فواتير قائمة على الاستخدام
+icon: code
+---
+
+في هذا الدليل، ستقوم ببناء **PixelGen AI** - خدمة نموذجية لتوليد الصور باستخدام AI توضح الفواتير القائمة على الاستخدام. سنقوم بإنشاء كل شيء من الصفر: عداد الفواتير، تكوين المنتج، وكود التطبيق النموذجي الذي يولد الصور ويتتبع الاستخدام في الوقت الفعلي.
+
+<Note>
+يوفر هذا الدليل كود تنفيذ نموذجي لتطبيق قائم على الطرفية. يمكنك تعديل هذا الكود ليتناسب مع إطار العمل الخاص بك (React، Vue، Angular، إلخ) وتخصيص طريقة إدخال المستخدم وفقًا لاحتياجات تطبيقك.
+</Note>
+
+بنهاية هذا الدليل، سيكون لديك خدمة نموذجية تعمل تتضمن:
+- توليد الصور باستخدام واجهة برمجة التطبيقات DALL-E من OpenAI  
+- تتبع كل توليد صورة للفواتير
+- فرض رسوم على العملاء تلقائيًا بناءً على الاستخدام
+- التعامل مع مستويات جودة مختلفة (قياسية مقابل HD)
+
+## ما الذي نبنيه
+
+لنبدأ بفهم خدمة PixelGen AI الخاصة بنا:
+
+- **الخدمة**: توليد الصور باستخدام واجهة برمجة التطبيقات DALL-E من OpenAI
+- **نموذج التسعير**: دفع مقابل كل صورة (0.05 دولار لكل صورة)
+- **الطبقة المجانية**: 10 صور مجانية لكل عميل شهريًا
+- **خيارات الجودة**: صور قياسية وHD (نفس السعر للتبسيط)
+
+<Info>
+قبل أن نبدأ، تأكد من أن لديك:
+- حساب Dodo Payments
+- الوصول إلى واجهة برمجة التطبيقات الخاصة بـ OpenAI
+- معرفة أساسية بـ TypeScript/Node.js
+</Info>
+
+## الخطوة 1: إنشاء عداد الاستخدام الخاص بك
+
+سنبدأ بإنشاء عداد في لوحة معلومات Dodo Payments الخاصة بك سيتتبع كل صورة تولدها خدمتنا. اعتبر هذا بمثابة "عداد" يتتبع الأحداث القابلة للفوترة.
+
+<Frame>
+  <img src="/images/usage-based/UBB-2.png" alt="" />
+</Frame>
+
+<Tip>
+**ما الذي نبنيه**: عداد يسمى "عداد توليد الصور" الذي يحسب كل مرة يقوم فيها شخص ما بتوليد صورة باستخدام خدمتنا.
+</Tip>
+
+<Steps>
+<Step title="فتح قسم العدادات">
+1. قم بتسجيل الدخول إلى لوحة معلومات Dodo Payments الخاصة بك
+2. انقر على **العدادات** في الشريط الجانبي الأيسر
+3. انقر على زر **إنشاء عداد**
+
+يجب أن ترى نموذجًا حيث سنقوم بتكوين تتبع توليد الصور لدينا.
+</Step>
+
+<Step title="املأ معلومات العداد الأساسية">
+الآن سنقوم بإدخال التفاصيل المحددة لخدمة PixelGen AI الخاصة بنا:
+
+**اسم العداد**: انسخ والصق هذا بالضبط → `Image Generation Meter`
+
+**الوصف**: انسخ هذا → `Tracks each AI image generation request made by customers using our DALL-E powered service`
+
+**اسم الحدث**: هذا أمر حاسم - انسخ بالضبط → `image.generated`
+
+<Warning>
+يجب أن يتطابق اسم الحدث `image.generated` بالضبط مع ما سنرسله من كود التطبيق الخاص بنا لاحقًا. أسماء الأحداث حساسة لحالة الأحرف!
+</Warning>
+</Step>
+
+<Step title="تكوين كيفية حساب الصور">
+قم بإعداد التجميع (كيفية حساب العداد لأحداثنا):
+
+**نوع التجميع**: اختر **العدد** من القائمة المنسدلة
+
+**وحدة القياس**: اكتب → `images`
+
+<Info>
+نستخدم "العدد" لأننا نريد فرض رسوم مقابل كل صورة تم توليدها، وليس حسب الحجم أو وقت التوليد. كل صورة ناجحة = وحدة قابلة للفوترة واحدة.
+</Info>
+</Step>
+
+<Step title="إضافة تصفية الجودة">
+
+<Frame>
+  <img src="/images/usage-based/UBB-3.png" alt="" />
+</Frame>
+
+نريد التأكد من أننا نحسب فقط الصور الشرعية (وليس عمليات الاختبار أو الفشل):
+
+1. **تفعيل تصفية الأحداث**: قم بتبديل هذا **تشغيل**
+2. **منطق التصفية**: اختر **أو** (هذا يعني "احسب إذا كان أي من هذه الشروط صحيحة")
+3. **أضف الشرط الأول**:
+   - مفتاح الخاصية: `quality`
+   - المقارن: `equals`  
+   - القيمة: `standard`
+4. **انقر على "إضافة شرط"** للثاني:
+   - مفتاح الخاصية: `quality`
+   - المقارن: `equals`
+   - القيمة: `hd`
+
+<Tip>
+هذا الإعداد يعني أننا سنحسب فقط الأحداث حيث تكون الجودة إما "قياسية" أو "HD" - مما يستبعد أي أحداث اختبار أو طلبات غير صحيحة.
+</Tip>
+</Step>
+
+<Step title="إنشاء العداد الخاص بك">
+1. تحقق من أن جميع إعداداتك تتطابق مع القيم أعلاه
+2. انقر على **إنشاء عداد**
+
+<Check>
+**تم إنشاء العداد!** عداد "توليد الصور" الخاص بك جاهز الآن لبدء حساب توليد الصور. بعد ذلك، سنقوم بربطه بمنتج فواتير.
+</Check>
+</Step>
+</Steps>
+
+## الخطوة 2: إنشاء منتج الفواتير الخاص بك
+
+الآن نحتاج إلى إنشاء منتج يحدد تسعيرنا (0.05 دولار لكل صورة مع 10 صور مجانية). هذا يربط عدادنا بالفواتير الفعلية.
+
+<Tip>
+**ما الذي نبنيه**: منتج يسمى "PixelGen AI - توليد الصور" الذي يفرض 0.05 دولار لكل صورة بعد أول 10 صور مجانية كل شهر.
+</Tip>
+
+<Steps>
+<Step title="انتقل إلى المنتجات">
+1. في لوحة معلومات Dodo Payments الخاصة بك، انقر على **المنتجات** في الشريط الجانبي الأيسر
+2. انقر على **إنشاء منتج**
+3. اختر **قائم على الاستخدام** كنوع المنتج
+
+هذا يخبر Dodo Payments أن الفواتير ستكون قائمة على استخدام العداد، وليس اشتراك ثابت.
+</Step>
+
+<Step title="أدخل تفاصيل المنتج">
+املأ هذه القيم بالضبط لخدمة PixelGen AI الخاصة بنا:
+
+**اسم المنتج**: انسخ هذا → `PixelGen AI - Image Generation`
+
+**الوصف**: انسخ هذا → `AI-powered image generation service with pay-per-use billing`
+
+**صورة المنتج**: قم بتحميل صورة واضحة وذات صلة.
+
+<Info>
+ستظهر هذه على فواتير العملاء، لذا اجعلها واضحة واحترافية.
+</Info>
+</Step>
+
+<Step title="ربط العداد الخاص بك">
+
+<Frame>
+  <img src="/images/usage-based/UBB-5.png" alt="" />
+</Frame>
+
+قبل ربط العداد الخاص بك، تأكد من أنك قد اخترت **الفواتير القائمة على الاستخدام** كنوع السعر لمنتجك.
+
+بالإضافة إلى ذلك، قم بتعيين **السعر الثابت** إلى `0` لضمان فرض رسوم على العملاء فقط بناءً على استخدامهم، دون أي رسوم أساسية.
+
+الآن، اربط العداد الذي أنشأته للتو:
+
+1. قم بالتمرير لأسفل إلى قسم **العداد المرتبط**
+2. انقر على **إضافة عدادات**
+3. من القائمة المنسدلة، اختر **"عداد توليد الصور"** (الذي أنشأته سابقًا)
+4. تأكد من أنه يظهر في تكوين منتجك
+
+<Check>
+تم ربط العداد الخاص بك بنجاح بهذا المنتج.
+</Check>
+</Step>
+
+<Step title="تعيين تسعيرك">
+هنا حيث نحدد نموذج عملنا:
+
+<Frame>
+  <img src="/images/usage-based/UBB-4.png" alt="" />
+</Frame>
+
+**السعر لكل وحدة**: أدخل → `0.05` (هذا هو 0.05 دولار لكل صورة)
+
+**الحد المجاني**: أدخل → `10` (يحصل العملاء على 10 صور مجانية شهريًا)
+
+<Tip>
+**كيف تعمل الفواتير**: إذا قام عميل بتوليد 25 صورة في شهر، فسيتم فرض رسوم عليه مقابل 15 صورة (25 - 10 مجانية) = 15 × 0.05 دولار = 0.75 دولار
+</Tip>
+</Step>
+
+<Step title="احفظ منتجك">
+1. راجع جميع إعداداتك:
+   - الاسم: PixelGen AI - توليد الصور
+   - العداد: عداد توليد الصور  
+   - السعر: 0.05 دولار لكل صورة
+   - الطبقة المجانية: 10 صور
+2. انقر على **حفظ التغييرات**
+
+<Check>
+**تم إنشاء المنتج!** تم تكوين الفواتير الخاصة بك الآن. سيتم فرض رسوم على العملاء تلقائيًا بناءً على استخدامهم لتوليد الصور.
+</Check>
+</Step>
+</Steps>
+
+## الخطوة 3: إجراء عملية شراء تجريبية
+
+قبل أن نبدأ في استيعاب أحداث الاستخدام، نحتاج إلى إجراء عملية شراء تجريبية.
+
+<Steps>
+<Step title="احصل على رابط الدفع الخاص بك">
+1. في لوحة معلومات Dodo Payments الخاصة بك، انتقل إلى **المنتجات**
+2. ابحث عن منتج "PixelGen AI - توليد الصور"
+3. انقر على زر **مشاركة** بجوار منتجك
+4. انسخ رابط الدفع الذي يظهر
+
+سيبدو رابط الدفع كالتالي: `https://test.checkout.dodopayments.com/buy/pdt_IgPWlRsfpbPd5jQKezzW1?quantity=1`
+</Step>
+
+<Step title="أكمل عملية شراء تجريبية">
+1. افتح رابط الدفع في علامة تبويب متصفح جديدة
+2. أدخل تفاصيل الدفع التجريبية وأكمل الشراء.
+
+<Check>
+بعد الدفع الناجح، سيكون لديك معرف عميل سنستخدمه في كود التطبيق الخاص بنا.
+</Check>
+</Step>
+
+<Step title="ابحث عن معرف العميل الخاص بك">
+1. عد إلى لوحة معلومات Dodo Payments الخاصة بك
+2. انتقل إلى **العملاء** في الشريط الجانبي الأيسر
+3. ابحث عن العميل الذي أنشأته للتو (بالبريد الإلكتروني التجريبي)
+4. انسخ معرف العميل - سيبدو كالتالي `cus_abc123def456`
+
+<Note>
+احفظ هذا المعرف للعميل - سنقوم بتشفيره في كود التطبيق النموذجي الخاص بنا لضمان تتبع الأحداث بشكل صحيح.
+</Note>
+</Step>
+</Steps>
+
+## الخطوة 4: بناء التطبيق النموذجي
+
+الآن لدينا إعداد الفواتير مكتمل وعميل تجريبي تم إنشاؤه. دعنا نبني تطبيق PixelGen AI النموذجي الذي يولد الصور ويتتبع الاستخدام تلقائيًا للفواتير.
+
+<Steps>
+<Step title="إعداد مشروعك">
+قم بإنشاء دليل جديد وتهيئة المشروع:
+
+```bash
+mkdir pixelgen-ai
+cd pixelgen-ai
+npm init -y
+```
+
+</Step>
+
+<Step title="تثبيت التبعيات">
+قم بتثبيت الحزم التي نحتاجها:
+
+```bash
+npm install openai dotenv
+npm install -D typescript @types/node ts-node
+```
+
+</Step>
+
+<Step title="إنشاء التطبيق الرئيسي">
+قم بإنشاء ملف يسمى `index.ts` وانسخ كود التطبيق الكامل هذا:
+</Step>
+</Steps>
+
+إليك تطبيق PixelGen AI الكامل مع الفواتير المدمجة:
+
+<CodeGroup>
+
+```typescript index.ts expandable
+import 'dotenv/config';
+import OpenAI from 'openai';
+import * as readline from 'readline';
+import { randomUUID } from 'crypto';
+
+// Initialize OpenAI client
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
+// Dodo Payments configuration
+const DODO_PAYMENTS_CONFIG = {
+  apiKey: process.env.DODO_PAYMENTS_API_KEY,
+  baseUrl: 'https://test.dodopayments.com',
+  customerId: 'cus_FX5FAB43aShGyiHJGIqjB', // Replace with your actual customer ID from Step 3
+};
+
+// DALL-E 3 pricing (as of 2024-2025)
+const PRICING = {
+  'standard': 0.040, // $0.040 per image (1024×1024)
+  'hd': 0.080,       // $0.080 per image (1024×1024, HD quality)
+};
+
+interface ImageGenerationOptions {
+  prompt: string;
+  model?: 'dall-e-3' | 'dall-e-2';
+  quality?: 'standard' | 'hd';
+  size?: '1024x1024' | '1792x1024' | '1024x1792';
+  style?: 'vivid' | 'natural';
+}
+
+interface UsageEvent {
+  event_id: string;
+  customer_id: string;
+  event_name: string;
+  timestamp: string;
+  metadata: {
+    quality: string;
+  };
+}
+
+/**
+ * Send usage event to Dodo Payments for billing tracking
+ */
+async function sendUsageEvent(event: UsageEvent): Promise<void> {
+  try {
+    console.log('Sending usage event to Dodo Payments...');
+    console.log(`URL: ${DODO_PAYMENTS_CONFIG.baseUrl}/events/ingest`);
+    console.log(`API Key present: ${!!DODO_PAYMENTS_CONFIG.apiKey}`);
+    console.log(`API Key length: ${DODO_PAYMENTS_CONFIG.apiKey?.length || 0}`);
+    console.log(`Customer ID: ${DODO_PAYMENTS_CONFIG.customerId}`);
+    
+    const requestBody = {
+      events: [event]
+    };
+    console.log('Request body:', JSON.stringify(requestBody, null, 2));
+    
+    const headers = {
+      'Authorization': `Bearer ${DODO_PAYMENTS_CONFIG.apiKey}`,
+      'Content-Type': 'application/json',
+    }
+    console.log('Headers:', headers);
+    const response = await fetch(`${DODO_PAYMENTS_CONFIG.baseUrl}/events/ingest`, {
+      method: 'POST',
+      headers: headers,
+      body: JSON.stringify(requestBody),
+    });
+
+    console.log(`Response status: ${response.status}`);
+    console.log(`Response headers:`, Object.fromEntries(response.headers.entries()));
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.log(`Error response body: ${errorData}`);
+      throw new Error(`HTTP ${response.status}: ${errorData}`);
+    }
+
+    const result = await response.json();
+    console.log('Usage event sent successfully');
+    console.log(`   • Event ID: ${event.event_id}`);
+    console.log(`   • Customer: ${event.customer_id}`);
+    console.log(`   • Quality: ${event.metadata.quality}`);
+    
+  } catch (error) {
+    console.error('Failed to send usage event:', error);
+    // In production, you might want to queue failed events for retry
+    throw error;
+  }
+}
+
+async function generateImage(options: ImageGenerationOptions) {
+  const startTime = Date.now();
+  const eventId = randomUUID();
+  
+  try {
+    console.log('Generating image...');
+    console.log(`Prompt: "${options.prompt}"`);
+    console.log(`Quality: ${options.quality || 'standard'}`);
+    console.log(`Size: ${options.size || '1024x1024'}`);
+    
+    const response = await openai.images.generate({
+      model: options.model || 'dall-e-3',
+      prompt: options.prompt,
+      n: 1,
+      size: options.size || '1024x1024',
+      quality: options.quality || 'standard',
+      style: options.style || 'vivid',
+    });
+
+    const endTime = Date.now();
+    const duration = (endTime - startTime) / 1000;
+    const cost = PRICING[options.quality || 'standard'];
+    
+    // Create usage event for Dodo Payments
+    const usageEvent: UsageEvent = {
+      event_id: eventId,
+      customer_id: DODO_PAYMENTS_CONFIG.customerId!,
+      event_name: 'image.generated',
+      timestamp: new Date().toISOString(),
+      metadata: {
+        quality: options.quality || 'standard',
+      }
+    };
+
+    // Send usage event to Dodo Payments for billing
+    await sendUsageEvent(usageEvent);
+    
+    console.log('\nImage generated successfully!');
+    console.log(`Generation Stats:`);
+    console.log(`   • Duration: ${duration.toFixed(2)} seconds`);
+    console.log(`   • Quality: ${options.quality || 'standard'}`);
+    console.log(`   • Cost: $${cost.toFixed(3)}`);
+    console.log(`   • Image URL: ${response.data?.[0]?.url}`);
+    
+    if (response.data?.[0]?.revised_prompt) {
+      console.log(`   • Revised prompt: "${response.data[0].revised_prompt}"`);
+    }
+
+    return {
+      imageUrl: response.data?.[0].url,
+      revisedPrompt: response.data?.[0].revised_prompt,
+      cost: cost,
+      duration: duration,
+      eventId: eventId,
+    };
+
+  } catch (error) {
+    console.error('Error generating image:', error);
+    
+    // Send failure event for monitoring (optional)
+    try {
+      const failureEvent: UsageEvent = {
+        event_id: eventId,
+        customer_id: DODO_PAYMENTS_CONFIG.customerId!,
+        event_name: 'image.generation.failed',
+        timestamp: new Date().toISOString(),
+        metadata: {
+          quality: options.quality || 'standard',
+        }
+      };
+      
+      // Note: You might want to create a separate meter for failed attempts
+      // await sendUsageEvent(failureEvent);
+    } catch (eventError) {
+      console.error('Failed to send failure event:', eventError);
+    }
+    
+    throw error;
+  }
+}
+
+async function getUserInput(): Promise<string> {
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout
+  });
+
+  return new Promise((resolve) => {
+    rl.question('Enter your image prompt: ', (answer) => {
+      rl.close();
+      resolve(answer);
+    });
+  });
+}
+
+async function main() {
+  console.log('PixelGen AI - Image Generator with Usage Billing\n');
+  
+  // Validate environment variables
+  const requiredEnvVars = [
+    'OPENAI_API_KEY',
+    'DODO_PAYMENTS_API_KEY'
+  ];
+  
+  for (const envVar of requiredEnvVars) {
+    if (!process.env[envVar]) {
+      console.error(`Error: ${envVar} environment variable is not set.`);
+      console.log('Please set all required environment variables:');
+      console.log('export OPENAI_API_KEY="your-openai-key"');
+      console.log('export DODO_PAYMENTS_API_KEY="your-dodo-api-key"');
+      console.log('Note: Customer ID is hardcoded in the application');
+      process.exit(1);
+    }
+  }
+
+  try {
+    const prompt = await getUserInput();
+    
+    if (!prompt.trim()) {
+      console.log('No prompt provided. Exiting...');
+      return;
+    }
+
+    const result = await generateImage({
+      prompt: prompt.trim(),
+      quality: 'standard', // Change to 'hd' for higher quality (costs more)
+      size: '1024x1024',
+      style: 'vivid'
+    });
+
+    console.log('\nProcess completed successfully!');
+    console.log(`Billing Information:`);
+    console.log(`   • Total cost: $${result.cost.toFixed(3)}`);
+    console.log(`   • Event ID: ${result.eventId}`);
+    console.log(`   • Billing will be processed automatically via Dodo Payments`);
+    
+  } catch (error) {
+    console.error('Application error:', error);
+    process.exit(1);
+  }
+}
+
+// Run the application
+if (require.main === module) {
+  main().catch(console.error);
+}
+```
+
+```bash .env
+# Create .env file with your API keys
+OPENAI_API_KEY=your_openai_api_key_here
+DODO_PAYMENTS_API_KEY=your_DODO_PAYMENTS_payments_api_key_here
+# Note: Customer ID is hardcoded in the application code
+```
+
+```typescript package.json
+{
+  "name": "pixelgen-ai",
+  "version": "1.0.0",
+  "description": "AI Image Generation with Usage-Based Billing",
+  "main": "index.js",
+  "scripts": {
+    "start": "ts-node index.ts",
+    "build": "tsc",
+    "dev": "ts-node --watch index.ts"
+  },
+  "dependencies": {
+    "openai": "^4.0.0",
+    "dotenv": "^16.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0",
+    "ts-node": "^10.0.0"
+  }
+}
+```
+
+</CodeGroup>
+
+## الخطوة 5: اختبار تطبيقك النموذجي
+
+حان الوقت لاختبار خدمة PixelGen AI النموذجية الخاصة بنا ورؤية الفواتير في العمل! دعنا نتأكد من أن كل شيء يعمل من البداية إلى النهاية.
+
+<Tip>
+**ما الذي نختبره**: سنقوم بتوليد بعض الصور، والتحقق من وصول الأحداث إلى Dodo Payments، والتأكد من صحة حسابات الفواتير.
+</Tip>
+
+<Steps>
+<Step title="إعداد بيئتك">
+أولاً، تأكد من أن كل شيء تم تكوينه:
+
+1. أنشئ ملف `.env` في دليل `pixelgen-ai` الخاص بك
+2. أضف مفاتيح API الفعلية الخاصة بك:
+
+```bash
+OPENAI_API_KEY=sk-your-actual-openai-key
+DODO_PAYMENTS_API_KEY=your-actual-dodo-api-key
+# Customer ID is hardcoded in the application
+```
+
+3. قم بتثبيت التبعيات وتشغيل التطبيق:
+
+```bash
+npm install
+npm start
+```
+
+<Warning>
+تأكد من استخدام مفاتيح API الفعلية وتحديث معرف العميل المشفر في الكود بمعرف العميل الفعلي الخاص بك من الخطوة 3!
+</Warning>
+</Step>
+
+<Step title="توليد أول صورة اختبار لك">
+عند بدء التطبيق، سترى:
+
+```
+PixelGen AI - Image Generator with Usage Billing
+
+Enter your image prompt:
+```
+
+جرب هذا الطلب: **"روبوت لطيف يرسم منظرًا طبيعيًا"**
+
+يجب أن ترى مخرجات مثل هذه:
+
+```
+Generating image...
+Prompt: "A cute robot painting a landscape"
+Quality: standard
+Size: 1024x1024
+
+Sending usage event to Dodo Payments...
+Usage event sent successfully
+   • Event ID: 550e8400-e29b-41d4-a716-446655440000
+   • Customer: cus_atXa1lklCRRzMicTqfiw2
+   • Quality: standard
+
+Image generated successfully!
+Generation Stats:
+   • Duration: 8.45 seconds
+   • Quality: standard
+   • Cost: $0.040
+   • Image URL: https://oaidalleapi...
+```
+
+<Check>
+إذا رأيت "تم إرسال حدث الاستخدام بنجاح"، فإن تكامل الفواتير الخاص بك يعمل!
+</Check>
+</Step>
+
+<Step title="توليد المزيد من الصور">
+دعنا نقوم بتوليد 2-3 صور أخرى لاختبار أحداث متعددة. جرب هذه الطلبات:
+
+1. **"غروب الشمس فوق الجبال مع سحب بنفسجية"**
+2. **"آلة قهوة ستيمبانك في مطبخ فيكتوري"**
+3. **"تنين ودود يقرأ كتابًا في مكتبة"**
+
+في كل مرة، راقب رسالة "تم إرسال حدث الاستخدام بنجاح".
+</Step>
+
+<Step title="تحقق من لوحة معلومات Dodo Payments الخاصة بك">
+الآن دعنا نتحقق مما إذا كانت الأحداث تُستقبل:
+
+1. افتح لوحة معلومات Dodo Payments الخاصة بك
+2. انتقل إلى *الفواتير القائمة على الاستخدام* → ***عدادات** → **عداد توليد الصور**
+3. انقر على علامة التبويب **الأحداث**
+4. يجب أن ترى أحداث توليد الصور الخاصة بك مدرجة
+
+**ما يجب البحث عنه**:
+- أسماء الأحداث: `image.generated`
+- معرف العميل: معرف العميل التجريبي الخاص بك
+
+<Check>
+يجب أن ترى حدثًا واحدًا لكل صورة قمت بتوليدها!
+</Check>
+</Step>
+
+<Step title="تحقق من حسابات الفواتير">
+دعنا نتحقق مما إذا كان عد الاستخدام يعمل:
+
+<Frame>
+  <img src="/images/usage-based/UBB-1.png" alt="" />
+</Frame>
+
+1. في عدادك، انتقل إلى علامة التبويب **العملاء**
+2. ابحث عن عميلك التجريبي
+3. تحقق من عمود "الوحدات المستهلكة"
+
+</Step>
+
+<Step title="اختبار حد الفواتير">
+دعنا نتجاوز الطبقة المجانية لرؤية الفواتير في العمل:
+
+1. قم بتوليد 8 صور أخرى (للوصول إلى 12 إجماليًا)
+2. تحقق من لوحة عدادك مرة أخرى
+3. يجب أن ترى الآن:
+   - الوحدات المستهلكة: 12
+   - الوحدات القابلة للفوترة: 2 (12 - 10 مجانية)
+   - مبلغ الفواتير: 0.10 دولار
+
+<Check>
+**نجاح!** تعمل الفواتير القائمة على الاستخدام بشكل مثالي. سيتم فرض رسوم على العملاء تلقائيًا بناءً على استخدامهم الفعلي لتوليد الصور.
+</Check>
+</Step>
+</Steps>
+
+## استكشاف الأخطاء وإصلاحها
+
+المشاكل الشائعة وحلولها:
+
+<AccordionGroup>
+<Accordion title="الأحداث لا تظهر في لوحة المعلومات">
+**الأسباب المحتملة:**
+- اسم الحدث لا يتطابق بالضبط مع تكوين العداد
+- معرف العميل غير موجود في حسابك  
+- مفتاح API غير صالح أو منتهي الصلاحية
+- مشاكل في الاتصال بالشبكة
+
+**الحلول:**
+1. تحقق من أن اسم الحدث يتطابق بالضبط مع تكوين العداد (حساس لحالة الأحرف)
+2. تحقق من أن معرف العميل موجود في Dodo Payments
+3. اختبر مفتاح API مع استدعاء API بسيط
+4. تحقق من الاتصال بالشبكة وإعدادات جدار الحماية
+</Accordion>
+
+</AccordionGroup>
+
+## تهانينا! لقد أنشأت PixelGen AI
+
+لقد أنشأت بنجاح مقتطفًا لتوليد الصور باستخدام AI مع فواتير قائمة على الاستخدام! إليك ما أنجزته:
+
+<CardGroup cols={2}>
+<Card title="عداد الاستخدام" icon="sliders">
+تم إنشاء "عداد توليد الصور" الذي يتتبع كل حدث توليد صورة
+</Card>
+
+<Card title="منتج الفواتير" icon="credit-card">
+تم تكوين التسعير عند 0.05 دولار لكل صورة مع 10 صور مجانية شهريًا
+</Card>
+
+<Card title="تطبيق AI" icon="robot">
+تم بناء تطبيق TypeScript يعمل يولد الصور باستخدام واجهة برمجة التطبيقات DALL-E من OpenAI
+</Card>
+
+<Card title="الفواتير الآلية" icon="bolt">
+تم دمج تتبع الأحداث في الوقت الفعلي الذي يقوم تلقائيًا بفرض رسوم على العملاء
+</Card>
+</CardGroup>

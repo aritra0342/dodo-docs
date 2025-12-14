@@ -1,0 +1,53 @@
+---
+openapi: post /subscriptions/{subscription_id}/update-payment-method
+title: Atualizar Método de Pagamento
+description: Atualize o método de pagamento para uma assinatura existente. Você
+  pode adicionar um novo método de pagamento ou usar um existente dos métodos de
+  pagamento salvos do cliente.
+---
+
+Atualize o método de pagamento para uma assinatura. Este endpoint suporta tanto assinaturas ativas quanto assinaturas em `on_hold` estado.
+
+<Info>
+Para assinaturas em `on_hold` estado, atualizar o método de pagamento cria automaticamente uma cobrança para as pendências restantes, gera uma fatura e reativa a assinatura para o estado `active` após o pagamento bem-sucedido.
+</Info>
+
+### Casos de Uso
+
+- **Assinaturas ativas**: Atualize o método de pagamento quando um cartão expira ou o cliente deseja usar um método de pagamento diferente
+- **Assinaturas em espera**: Reative assinaturas que foram colocadas em espera devido a falhas de pagamento atualizando o método de pagamento
+- **Gerenciamento de métodos de pagamento**: Troque entre métodos de pagamento salvos ou adicione novos
+
+<Info>
+Para listar os métodos de pagamento existentes para um cliente, use a [API List Payment Methods](/api-reference/customers/get-customer-payment-methods). Isso ajuda você a recuperar os IDs dos métodos de pagamento disponíveis ao usar `type: "existing"` para atualizar o método de pagamento de uma assinatura.
+</Info>
+
+### Comportamento para Assinaturas Ativas
+
+Ao atualizar o método de pagamento para uma assinatura ativa:
+
+- O método de pagamento é atualizado imediatamente
+- Nenhuma cobrança é criada
+- A assinatura permanece ativa
+- As renovações futuras usarão o novo método de pagamento
+
+### Comportamento para Assinaturas em Espera
+
+Ao atualizar o método de pagamento para uma assinatura em `on_hold` estado:
+
+1. Uma cobrança é criada automaticamente para as pendências restantes
+2. Uma fatura é gerada para a cobrança
+3. O pagamento é processado usando o novo método de pagamento
+4. Após o pagamento bem-sucedido, a assinatura é reativada para o estado `active`
+5. Você receberá eventos de webhook: `payment.succeeded` seguidos por `subscription.active`
+
+<Warning>
+Se o pagamento falhar após atualizar o método de pagamento para uma assinatura em `on_hold`, a assinatura permanecerá no estado `on_hold`. Monitore os eventos de webhook para acompanhar o status do pagamento.
+</Warning>
+
+### Eventos de Webhook
+
+Ao atualizar um método de pagamento para uma assinatura em `on_hold`, você receberá os seguintes eventos de webhook:
+
+1. **`payment.succeeded`** - A cobrança para as pendências restantes foi bem-sucedida
+2. **`subscription.active`** - A assinatura foi reativada

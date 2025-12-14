@@ -1,0 +1,303 @@
+---
+title: Kredit Pelanggan
+description: Pelajari cara mengelola saldo kredit pelanggan, mengeluarkan kredit
+  layanan, dan menangani penyesuaian penagihan dengan lancar menggunakan Dodo
+  Payments.
+icon: credit-card
+---
+
+<CardGroup cols={1}>
+<Card title="Referensi API - Kredit Pelanggan" icon="code" href="/api-reference/customers/get-customer-wallets">
+  Akses dokumentasi API lengkap untuk mengelola kredit pelanggan dan menguji operasi kredit secara interaktif.
+</Card>
+</CardGroup>
+
+## Apa itu Kredit Pelanggan?
+
+Kredit Pelanggan menyediakan cara yang fleksibel untuk mengelola saldo pelanggan dan meningkatkan hubungan penagihan. Dengan kredit pelanggan, Anda dapat:
+
+- **Memberikan penghargaan kepada pelanggan setia** dengan kredit akun untuk layanan luar biasa atau program loyalitas
+- **Mengeluarkan kredit layanan** untuk mengkompensasi gangguan layanan atau penyesuaian penagihan
+- **Menangani penyesuaian manual** tanpa mengganggu siklus penagihan yang ada
+- **Memberikan pengembalian dana** yang dapat digunakan pelanggan untuk pembelian di masa mendatang
+
+<Info>
+Kredit pelanggan menciptakan saldo positif di akun pelanggan yang secara otomatis diterapkan pada pembayaran langganan di masa mendatang, mengurangi jumlah yang dibebankan ke metode pembayaran mereka.
+</Info>
+
+## Cara Kerja Kredit Pelanggan
+
+Kredit pelanggan beroperasi berdasarkan prinsip sederhana: kredit yang tersedia secara otomatis diterapkan pada pembayaran langganan sebelum membebankan metode pembayaran pelanggan.
+
+### Penerapan Kredit Otomatis
+
+Ketika pembayaran langganan jatuh tempo, Dodo Payments mengikuti urutan pembayaran ini:
+
+<Steps>
+<Step title="Periksa Saldo Kredit">
+Sistem memeriksa apakah pelanggan memiliki kredit yang tersedia di akun mereka.
+</Step>
+
+<Step title="Terapkan Kredit yang Tersedia">
+Jika kredit tersedia, itu secara otomatis diterapkan untuk mengurangi jumlah pembayaran.
+</Step>
+
+<Step title="Hitung Saldo Tersisa">
+Jumlah yang tersisa setelah penerapan kredit dibebankan ke metode pembayaran pelanggan.
+</Step>
+
+<Step title="Proses Pembayaran">
+Pembayaran akhir diproses untuk saldo yang tersisa, jika ada.
+</Step>
+</Steps>
+
+<Info>
+Dodo Payments mendukung dompet kredit terpisah untuk INR dan USD. Kredit yang ditambahkan ke dompet INR hanya dapat digunakan untuk langganan INR, sementara kredit dompet USD hanya berlaku untuk langganan USD. Anda tidak dapat menggunakan kredit dari satu dompet mata uang untuk membayar langganan dalam mata uang lain.
+</Info>
+
+### Skenario Pembayaran
+
+<Tabs>
+<Tab title="Cakupan Kredit Penuh">
+**Skenario**: Pelanggan memiliki kredit 60 USD, biaya langganan 20 USD
+
+**Hasil**: 
+- $20 dipotong dari saldo kredit
+- $0 dibebankan ke metode pembayaran
+- Kredit yang tersisa: $40
+
+<Check>
+Tidak diperlukan biaya metode pembayaran ketika kredit sepenuhnya menutupi biaya langganan.
+</Check>
+</Tab>
+
+<Tab title="Cakupan Kredit Parsial">
+**Skenario**: Pelanggan memiliki kredit 60 USD, biaya langganan 100 USD
+
+**Hasil**:
+- $60 dipotong dari saldo kredit
+- $40 dibebankan ke metode pembayaran
+- Kredit yang tersisa: $0
+
+<Info>
+Kredit selalu diterapkan terlebih dahulu, meminimalkan biaya ke metode pembayaran pelanggan.
+</Info>
+</Tab>
+
+<Tab title="Tidak Ada Kredit Tersedia">
+**Skenario**: Pelanggan memiliki 0 USD kredit, biaya langganan 50 USD
+
+**Hasil**:
+- $0 dipotong dari saldo kredit
+- $50 dibebankan ke metode pembayaran
+- Kredit yang tersisa: $0
+
+</Tab>
+</Tabs>
+
+## Mengelola Kredit Pelanggan
+
+Kelola saldo kredit pelanggan secara efektif melalui dasbor Dodo Payments dengan operasi kredit dan debit yang komprehensif.
+
+### Menambahkan Kredit ke Akun Pelanggan
+
+Tingkatkan saldo akun pelanggan dengan menambahkan kredit untuk berbagai skenario bisnis:
+
+<Steps>
+<Step title="Navigasi ke Detail Pelanggan">
+Buka **Pelanggan** di dasbor Anda dan pilih pelanggan spesifik yang ingin Anda kelola.
+</Step>
+
+<Step title="Akses Buku Besar Kredit">
+Navigasi ke bagian **Buku Besar Kredit** di halaman detail pelanggan.
+
+<Info>
+Buku Besar Kredit menyediakan riwayat transaksi lengkap dan gambaran saldo saat ini untuk pelanggan.
+</Info>
+</Step>
+
+<Step title="Inisiasi Penerapan Kredit">
+Klik **Terapkan Kredit** untuk membuka antarmuka manajemen kredit.
+</Step>
+
+<Step title="Konfigurasi Detail Kredit">
+Atur transaksi kredit dengan informasi berikut:
+
+<ParamField path="Jenis Transaksi" type="string" required>
+Pilih **Kredit** untuk menambahkan dana ke saldo akun pelanggan.
+</ParamField>
+
+<ParamField path="Jumlah" type="number" required>
+Masukkan jumlah kredit yang akan ditambahkan ke akun pelanggan.
+</ParamField>
+
+<ParamField path="Mata Uang" type="string" required>
+Pilih mata uang untuk transaksi kredit:
+- **USD** - Dolar AS
+- **INR** - Rupee India
+</ParamField>
+
+<ParamField path="Alasan" type="string">
+Berikan penjelasan opsional untuk penerapan kredit, seperti "Kompensasi layanan" atau "Penghargaan loyalitas".
+</ParamField>
+</Step>
+
+<Step title="Terapkan Kredit">
+Tinjau detail kredit dan klik **Terapkan** untuk menambahkan kredit ke akun pelanggan.
+
+<Check>
+Kredit segera tersedia untuk digunakan pada pembayaran langganan pelanggan berikutnya.
+</Check>
+</Step>
+</Steps>
+
+### Menghapus Kredit (Operasi Debit)
+
+Hapus dana dari akun pelanggan ketika penyesuaian atau koreksi diperlukan:
+
+<Steps>
+<Step title="Akses Manajemen Kredit">
+Ikuti jalur navigasi yang sama: **Pelanggan** → **Halaman Detail Pelanggan** → **Buku Besar Kredit** → **Terapkan Kredit**.
+</Step>
+
+<Step title="Konfigurasi Transaksi Debit">
+Atur operasi debit:
+
+<ParamField path="Jenis Transaksi" type="string" required>
+Pilih **Debit** untuk menghapus dana dari saldo akun pelanggan.
+</ParamField>
+
+<ParamField path="Jumlah" type="number" required>
+Masukkan jumlah yang akan dipotong dari saldo kredit pelanggan.
+</ParamField>
+
+<ParamField path="Mata Uang" type="string" required>
+Pilih mata uang yang sesuai (USD atau INR).
+</ParamField>
+
+<ParamField path="Alasan" type="string">
+Berikan penjelasan untuk debit, seperti "Koreksi penagihan" atau "Penyesuaian kredit".
+</ParamField>
+
+<Warning>
+Pastikan pelanggan memiliki saldo kredit yang cukup sebelum menerapkan debit. Saldo negatif tidak didukung.
+</Warning>
+</Step>
+
+<Step title="Terapkan Debit">
+Tinjau dan konfirmasi transaksi debit untuk menghapus jumlah yang ditentukan dari akun pelanggan.
+</Step>
+</Steps>
+
+## Memahami Buku Besar Kredit
+
+Buku Besar Kredit menyediakan pelacakan dan transparansi komprehensif untuk semua transaksi kredit pelanggan.
+
+### Saldo Kredit Tersedia
+
+Saldo kredit yang tersedia untuk pelanggan ditampilkan dengan jelas di bagian atas antarmuka Buku Besar Kredit, memberikan visibilitas langsung ke status kredit mereka saat ini.
+
+**Gambaran Umum Saldo Total**  
+Tampilan saldo utama menunjukkan jumlah kredit gabungan di semua mata uang yang didukung, dikonversi ke satu mata uang untuk referensi yang mudah. Tampilan terpadu ini membantu Anda dengan cepat menilai total kredit yang tersedia untuk pelanggan tanpa perlu menghitung di berbagai mata uang.
+
+<Tip>
+Saldo total dihitung secara otomatis menggunakan nilai tukar saat ini untuk memberikan tampilan gabungan yang akurat dari kredit multi-mata uang.
+</Tip>
+
+**Rincian Mata Uang**
+Klik tombol "Lihat Rincian" untuk memperluas tampilan rinci dan melihat saldo individu untuk setiap mata uang:
+
+- **Saldo USD**: Menunjukkan jumlah yang tepat tersedia dalam Dolar AS  
+- **Saldo INR**: Menunjukkan jumlah yang tepat tersedia dalam Rupee India
+- **Mata Uang Tambahan**: Mata uang lain dengan saldo kredit yang tersedia
+
+<Note>
+Tampilan rincian sangat berguna saat mengelola pelanggan yang melakukan pembayaran dalam beberapa mata uang atau ketika Anda perlu memverifikasi alokasi mata uang tertentu.
+</Note>
+
+### Komponen Entri Buku Besar
+
+Setiap transaksi dalam Buku Besar Kredit berisi informasi berikut:
+
+<ResponseField name="ID Entri" type="string">
+Pengidentifikasi unik untuk setiap transaksi kredit, memastikan auditabilitas lengkap.
+</ResponseField>
+
+<ResponseField name="ID Referensi" type="string">
+ID Pembayaran ketika transaksi terkait dengan pembayaran atau peristiwa penagihan tertentu.
+</ResponseField>
+
+<ResponseField name="Jenis Peristiwa" type="string">
+Jenis transaksi yang membuat entri buku besar ini:
+
+- **Pembayaran** - Kredit digunakan untuk pembayaran langganan
+- **PembalikanPembayaran** - Pembalikan pembayaran yang menciptakan kredit
+- **Pengembalian Dana** - Pengembalian dana yang diproses sebagai kredit
+- **PembalikanPengembalian** - Pembalikan pengembalian yang menghapus kredit
+- **Sengketa** - Penyesuaian kredit terkait sengketa
+- **PembalikanSengketa** - Penyesuaian resolusi sengketa
+- **PenyesuaianPedagang** - Kredit/debit manual oleh pedagang
+</ResponseField>
+
+<ResponseField name="Jumlah" type="number">
+Jumlah transaksi, menunjukkan nilai positif untuk kredit dan nilai negatif untuk debit.
+</ResponseField>
+
+<ResponseField name="Sebelum Saldo" type="number">
+Saldo kredit pelanggan sebelum transaksi ini diproses.
+</ResponseField>
+
+<ResponseField name="Setelah Saldo" type="number">
+Saldo kredit pelanggan setelah transaksi ini selesai.
+</ResponseField>
+
+<ResponseField name="Alasan" type="string">
+Penjelasan opsional yang diberikan saat transaksi dibuat.
+</ResponseField>
+
+<ResponseField name="Dibuat Pada" type="timestamp">
+Ketika transaksi diproses, dalam format ISO 8601.
+</ResponseField>
+
+## Skenario Kredit di Dunia Nyata
+
+Memahami aplikasi praktis membantu Anda memanfaatkan kredit pelanggan secara efektif untuk pertumbuhan bisnis dan kepuasan pelanggan.
+
+### Contoh Skenario
+
+<AccordionGroup>
+<Accordion title="Kredit Layanan untuk Waktu Henti">
+**Situasi**: Layanan Anda mengalami pemadaman selama 2 jam yang mempengaruhi pelanggan premium.
+
+**Tindakan**: Terapkan kredit layanan sebesar 25 USD dengan alasan "Kompensasi untuk waktu henti layanan pada [tanggal]"
+
+**Hasil**: Pelanggan menerima kredit yang secara otomatis diterapkan pada langganan USD 50 mereka berikutnya, mengurangi biaya mereka menjadi $25.
+
+**Dampak Bisnis**: Mempertahankan kepuasan pelanggan dan menunjukkan komitmen terhadap kualitas layanan.
+</Accordion>
+
+<Accordion title="Program Penghargaan Loyalitas">
+**Situasi**: Seorang pelanggan telah berlangganan selama 12 bulan berturut-turut.
+
+**Tindakan**: Terapkan kredit loyalitas sebesar $10 dengan alasan "Penghargaan loyalitas tahunan - Terima kasih telah bersama kami!"
+
+**Hasil**: Pelanggan menerima nilai yang tidak terduga, memperkuat retensi dan loyalitas merek.
+
+**Dampak Bisnis**: Apresiasi pelanggan proaktif yang mendorong kelanjutan langganan.
+</Accordion>
+
+</AccordionGroup>
+
+## Batasan Saat Ini
+
+<Warning>
+Fitur berikut direncanakan untuk rilis Fase 2 dan saat ini tidak tersedia:
+</Warning>
+
+### Integrasi Checkout
+Kredit pelanggan saat ini tidak dapat diterapkan selama proses checkout. Pelanggan tidak dapat melihat atau menggunakan saldo kredit yang tersedia saat melakukan pembelian baru melalui halaman pembayaran.
+
+**Peningkatan yang Direncanakan**: Rilis mendatang akan mencakup tampilan saldo kredit dan opsi penerapan dalam alur checkout.
+
+### Produk Pembayaran Sekali
+Kredit saat ini hanya berlaku untuk pembayaran langganan berulang. Mereka tidak dapat digunakan untuk produk pembayaran sekali atau pembelian tunggal.

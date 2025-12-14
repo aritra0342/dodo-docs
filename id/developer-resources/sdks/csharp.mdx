@@ -1,0 +1,401 @@
+---
+title: C#
+description: Integrasikan Dodo Payments ke dalam aplikasi .NET Anda dengan
+  dukungan modern async/await
+icon: c
+tag: BETA
+---
+
+SDK C# menyediakan akses yang nyaman ke Dodo Payments REST API dari aplikasi yang ditulis dalam C#. Ini memiliki API berbasis Task async dengan pengetikan yang kuat dan saat ini dalam versi beta.
+
+<Info>
+SDK C# saat ini dalam versi beta. Kami sedang aktif bekerja pada perbaikan dan menyambut umpan balik Anda.
+</Info>
+
+## Instalasi
+
+Instal SDK menggunakan .NET CLI:
+
+```bash
+dotnet add package DodoPayments.Client
+```
+
+<Info>
+SDK memerlukan .NET 8.0 atau lebih tinggi. Ini bekerja dengan ASP.NET Core, aplikasi Console, dan jenis proyek .NET lainnya.
+</Info>
+
+## Memulai dengan Cepat
+
+Inisialisasi klien dan buat sesi checkout:
+
+```csharp
+using System;
+using DodoPayments.Client;
+using DodoPayments.Client.Models.CheckoutSessions;
+
+// Configured using the DODO_PAYMENTS_API_KEY and DODO_PAYMENTS_BASE_URL environment variables
+DodoPaymentsClient client = new();
+
+CheckoutSessionCreateParams parameters = new()
+{
+    ProductCart =
+    [
+        new()
+        {
+            ProductID = "product_id",
+            Quantity = 1,
+        },
+    ],
+};
+
+var checkoutSessionResponse = await client.CheckoutSessions.Create(parameters);
+
+Console.WriteLine(checkoutSessionResponse.SessionId);
+```
+
+<Warning>
+Selalu simpan kunci API Anda dengan aman menggunakan variabel lingkungan, rahasia pengguna, atau Azure Key Vault. Jangan pernah mengkodekannya secara langsung dalam kode sumber Anda atau mengkomitnya ke kontrol versi.
+</Warning>
+
+## Fitur Utama
+
+<CardGroup cols={2}>
+<Card title="Async/Await" icon="bolt">
+  API berbasis Task async penuh untuk operasi non-blokir
+</Card>
+
+<Card title="Strong Typing" icon="shield-check">
+  Keamanan tipe yang komprehensif dengan tipe referensi nullable
+</Card>
+
+<Card title="Dependency Injection" icon="layer-group">
+  Dukungan kelas satu untuk injeksi ketergantungan .NET
+</Card>
+
+<Card title="Configuration" icon="gear">
+  Konfigurasi sederhana melalui variabel lingkungan atau appsettings.json
+</Card>
+</CardGroup>
+
+## Konfigurasi
+
+### Variabel Lingkungan
+
+Konfigurasi menggunakan variabel lingkungan:
+
+```bash .env
+DODO_PAYMENTS_API_KEY=your_api_key_here
+```
+
+```csharp
+// Automatically reads from environment variables
+DodoPaymentsClient client = new();
+```
+
+### Konfigurasi Manual
+
+Konfigurasi secara manual dengan token bearer:
+
+```csharp
+DodoPaymentsClient client = new() { BearerToken = "My Bearer Token" };
+```
+
+## Operasi Umum
+
+### Buat Sesi Checkout
+
+Hasilkan sesi checkout:
+
+```csharp
+var parameters = new CheckoutSessionCreateParams
+{
+    ProductCart =
+    [
+        new()
+        {
+            ProductID = "prod_123",
+            Quantity = 1
+        }
+    ],
+    ReturnUrl = "https://yourdomain.com/return"
+};
+
+var session = await client.CheckoutSessions.Create(parameters);
+Console.WriteLine($"Checkout URL: {session.Url}");
+```
+
+### Kelola Pelanggan
+
+Buat dan ambil informasi pelanggan:
+
+```csharp
+// Create a customer
+var createParams = new CustomerCreateParams
+{
+    Email = "customer@example.com",
+    Name = "John Doe",
+    Metadata = new Dictionary<string, string>
+    {
+        { "user_id", "12345" }
+    }
+};
+
+var customer = await client.Customers.Create(createParams);
+
+// Retrieve customer
+var retrieved = await client.Customers.Retrieve("cus_123");
+Console.WriteLine($"Customer: {retrieved.Name} ({retrieved.Email})");
+```
+
+### Tangani Langganan
+
+Buat dan kelola langganan berulang:
+
+```csharp
+// Create a subscription
+var subscriptionParams = new SubscriptionCreateParams
+{
+    CustomerID = "cus_123",
+    ProductID = "prod_456",
+    PriceID = "price_789"
+};
+
+var subscription = await client.Subscriptions.Create(subscriptionParams);
+
+// Cancel subscription
+await client.Subscriptions.Cancel(subscription.Id);
+```
+
+## Integrasi ASP.NET Core
+
+### Pendaftaran Layanan
+
+Daftarkan klien di `Program.cs`:
+
+```csharp Program.cs
+using DodoPayments.Client;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// Register DodoPayments client
+builder.Services.AddSingleton<DodoPaymentsClient>(sp =>
+{
+    var configuration = sp.GetRequiredService<IConfiguration>();
+    return new DodoPaymentsClient
+    {
+        BearerToken = configuration["DodoPayments:ApiKey"]
+    };
+});
+
+builder.Services.AddControllers();
+
+var app = builder.Build();
+app.MapControllers();
+app.Run();
+```
+
+### Konfigurasi
+
+Tambahkan konfigurasi di `appsettings.json`:
+
+```json appsettings.json
+{
+  "DodoPayments": {
+    "ApiKey": "your_api_key_here"
+  }
+}
+```
+
+### API Controller
+
+Buat controller menggunakan injeksi ketergantungan:
+
+```csharp
+using Microsoft.AspNetCore.Mvc;
+using DodoPayments.Client;
+using DodoPayments.Client.Models.CheckoutSessions;
+
+[ApiController]
+[Route("api/[controller]")]
+public class PaymentsController : ControllerBase
+{
+    private readonly DodoPaymentsClient _client;
+    private readonly ILogger<PaymentsController> _logger;
+
+    public PaymentsController(DodoPaymentsClient client, ILogger<PaymentsController> logger)
+    {
+        _client = client;
+        _logger = logger;
+    }
+
+    [HttpPost("checkout")]
+    public async Task<IActionResult> CreateCheckout([FromBody] CheckoutRequest request)
+    {
+        try
+        {
+            var parameters = new CheckoutSessionCreateParams
+            {
+                ProductCart = request.Items,
+                ReturnUrl = Url.Action("Return", "Checkout", null, Request.Scheme)
+            };
+
+            var session = await _client.CheckoutSessions.Create(parameters);
+
+            return Ok(new { checkoutUrl = session.Url });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to create checkout");
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+}
+
+public record CheckoutRequest(List<ProductCartItem> Items);
+```
+
+### Pola Layanan Layer
+
+Buat layanan untuk logika bisnis:
+
+```csharp
+public interface IPaymentService
+{
+    Task<CheckoutSessionResponse> CreateCheckoutAsync(List<ProductCartItem> items);
+    Task<PaymentResponse> ProcessPaymentAsync(decimal amount, string currency, string customerId);
+}
+
+public class PaymentService : IPaymentService
+{
+    private readonly DodoPaymentsClient _client;
+    private readonly ILogger<PaymentService> _logger;
+
+    public PaymentService(DodoPaymentsClient client, ILogger<PaymentService> logger)
+    {
+        _client = client;
+        _logger = logger;
+    }
+
+    public async Task<CheckoutSessionResponse> CreateCheckoutAsync(List<ProductCartItem> items)
+    {
+        var parameters = new CheckoutSessionCreateParams
+        {
+            ProductCart = items,
+            ReturnUrl = "https://yourdomain.com/return"
+        };
+
+        return await _client.CheckoutSessions.Create(parameters);
+    }
+
+    public async Task<PaymentResponse> ProcessPaymentAsync(
+        decimal amount,
+        string currency,
+        string customerId)
+    {
+        try
+        {
+            var parameters = new PaymentCreateParams
+            {
+                Amount = (long)(amount * 100), // Convert to cents
+                Currency = currency,
+                CustomerID = customerId
+            };
+
+            return await _client.Payments.Create(parameters);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to process payment");
+            throw;
+        }
+    }
+}
+```
+
+## Rahasia Pengguna (Pengembangan)
+
+Untuk pengembangan, gunakan rahasia pengguna untuk menyimpan kunci API:
+
+```bash
+dotnet user-secrets init
+dotnet user-secrets set "DodoPayments:ApiKey" "your_api_key_here"
+```
+
+## Pengujian
+
+Contoh pengujian unit menggunakan xUnit:
+
+```csharp
+using Xunit;
+using DodoPayments.Client;
+using DodoPayments.Client.Models.CheckoutSessions;
+
+public class PaymentServiceTests
+{
+    private readonly DodoPaymentsClient _client;
+
+    public PaymentServiceTests()
+    {
+        _client = new DodoPaymentsClient
+        {
+            BearerToken = "test_key"
+        };
+    }
+
+    [Fact]
+    public async Task CreateCheckout_ShouldReturnSession()
+    {
+        // Arrange
+        var parameters = new CheckoutSessionCreateParams
+        {
+            ProductCart =
+            [
+                new()
+                {
+                    ProductID = "prod_test",
+                    Quantity = 1
+                }
+            ]
+        };
+
+        // Act
+        var session = await _client.CheckoutSessions.Create(parameters);
+
+        // Assert
+        Assert.NotNull(session);
+        Assert.NotNull(session.SessionId);
+    }
+}
+```
+
+## Sumber Daya
+
+<CardGroup cols={2}>
+<Card title="GitHub Repository" icon="github" href="https://github.com/dodopayments/dodopayments-csharp">
+  Lihat kode sumber dan berkontribusi
+</Card>
+
+<Card title="API Reference" icon="book" href="/api-reference/introduction">
+  Dokumentasi API lengkap
+</Card>
+
+<Card title="Discord Community" icon="discord" href="https://discord.gg/bYqAp4ayYh">
+  Dapatkan bantuan dan terhubung dengan pengembang
+</Card>
+
+<Card title="Report Issues" icon="bug" href="https://github.com/dodopayments/dodopayments-csharp/issues">
+  Laporkan bug atau minta fitur
+</Card>
+</CardGroup>
+
+## Dukungan
+
+Butuh bantuan dengan SDK C#?
+
+- **Discord**: Bergabunglah dengan [server komunitas](https://discord.gg/bYqAp4ayYh) kami untuk dukungan waktu nyata
+- **Email**: Hubungi kami di support@dodopayments.com
+- **GitHub**: Buka masalah di [repository](https://github.com/dodopayments/dodopayments-csharp)
+
+## Kontribusi
+
+Karena SDK ini dalam versi beta, umpan balik dan kontribusi Anda sangat berharga! Periksa [pedoman kontribusi](https://github.com/dodopayments/dodopayments-csharp/blob/main/CONTRIBUTING.md) untuk memulai.

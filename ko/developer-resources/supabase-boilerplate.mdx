@@ -1,0 +1,265 @@
+---
+sidebarTitle: Supabase
+title: Supabase 보일러플레이트
+description: 공식 Next.js + Supabase + Dodo Payments 구독 스타터를 사용하여 빠르게 구독을 배포하세요.
+  인증, 데이터베이스 스키마, 웹훅 핸들러 및 가격 UI가 포함되어 있습니다.
+icon: database
+---
+
+<CardGroup cols={2}>
+<Card title="GitHub 리포지토리" icon="github" href="https://github.com/dodopayments/dodo-supabase-subscription-starter">
+    최소한의 Next.js + Supabase + Dodo Payments 구독 보일러플레이트
+</Card>
+<Card title="라이브 데모" icon="rocket" href="https://dodopayments-supabase-nextjs.vercel.app">
+    배포된 데모 탐색하기
+</Card>
+</CardGroup>
+
+## 개요
+
+Next.js 15, React 19, Supabase, Drizzle ORM 및 Dodo Payments를 사용하는 프로덕션 준비 완료 구독 보일러플레이트입니다. Google OAuth, 구독 체크아웃, 웹훅 처리, 데이터베이스 스키마 및 기본 대시보드가 포함되어 있습니다.
+
+<Info>
+기존 앱에 대한 라우트 핸들러만 필요한 경우 전용 어댑터를 참조하세요: <a href="/developer-resources/nextjs-adaptor">Next.js 어댑터</a> 및 <a href="/developer-resources/express-adaptor">Express 어댑터</a>.
+</Info>
+
+## 필수 조건
+
+- Node.js 18+ (또는 Bun 1.0+)
+- Supabase 프로젝트 (URL, Anon 키, 서비스 역할 키, 데이터베이스 URL)
+- Dodo Payments 계정 (API 키, 웹훅 비밀)
+- Google Cloud OAuth 클라이언트 (클라이언트 ID 및 비밀)
+
+## 빠른 시작
+
+<Steps>
+<Step title="클론 및 설치">
+
+```bash
+git clone https://github.com/dodopayments/dodo-supabase-subscription-starter.git
+cd dodo-supabase-subscription-starter
+# choose one
+bun install
+# or
+npm install
+# or
+pnpm install
+```
+
+</Step>
+
+<Step title="Supabase 프로젝트 생성">
+Supabase 프로젝트를 생성하고 복사하세요:
+- NEXT_PUBLIC_SUPABASE_URL
+- NEXT_PUBLIC_SUPABASE_ANON_KEY
+- SUPABASE_SERVICE_ROLE_KEY
+- DATABASE_URL (연결 문자열)
+</Step>
+
+<Step title="Google OAuth 구성">
+Google Cloud에서 리디렉션 URI를 `https://[your-project-ref].supabase.co/auth/v1/callback`로 설정한 후, Supabase Auth에서 클라이언트 ID 및 비밀을 사용하여 Google 공급자를 활성화하세요.
+</Step>
+
+<Step title="Dodo Payments 구성">
+Dodo 대시보드에서 API 키 및 웹훅 비밀을 생성하세요. 개발 중에는 환경을 `test_mode`로 설정하세요.
+</Step>
+
+<Step title=".env.local 생성">
+
+```env
+# Supabase
+NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role
+
+# Database
+DATABASE_URL=postgresql://postgres:[password]@db.[project-ref].supabase.co:5432/postgres
+
+# Dodo Payments
+DODO_PAYMENTS_API_KEY=your-dodo-api-key
+DODO_WEBHOOK_SECRET=your-webhook-secret
+DODO_PAYMENTS_ENVIRONMENT=test_mode
+```
+
+<Warning>
+비밀을 절대 커밋하지 마세요. 배포 환경에서는 환경 변수를 사용하세요.
+</Warning>
+</Step>
+
+<Step title="데이터베이스 스키마 프로비저닝">
+
+```bash
+bun run db:push
+# or
+npm run db:push
+# or
+pnpm run db:push
+```
+
+<Check>
+생성된 테이블: `users`, `subscriptions`, `payments`.
+</Check>
+</Step>
+
+<Step title="웹훅 함수 배포">
+
+```bash
+# login (one-time)
+bunx supabase login
+# or
+npx supabase login
+
+# deploy the edge function
+bun run deploy:webhook --project-ref [your-project-ref]
+# or
+npm run deploy:webhook -- --project-ref [your-project-ref]
+# or
+pnpm run deploy:webhook --project-ref [your-project-ref]
+```
+
+```bash cURL
+curl -X POST \
+  'https://[your-project-ref].supabase.co/functions/v1/dodo-webhook' \
+  -H 'Content-Type: application/json' \
+  -H 'Dodo-Signature: <signature>' \
+  -d '{"type":"payment.succeeded","data":{}}'
+```
+
+</Step>
+
+<Step title="Dodo Payments에 웹훅 추가">
+엔드포인트 URL을 다음으로 설정하세요:
+
+```text
+https://[your-project-ref].supabase.co/functions/v1/dodo-webhook
+```
+
+결제 및 구독 이벤트를 선택하세요.
+</Step>
+
+<Step title="제품 및 기능 생성">
+Dodo 대시보드 → 제품 → 제품 생성. 선택적으로 메타데이터를 추가하세요:
+
+```json
+{
+  "features": ["Feature 1", "Feature 2", "Feature 3"]
+}
+```
+
+가격 UI는 이 `features` 배열을 읽고 동적으로 렌더링합니다.
+</Step>
+
+<Step title="개발 서버 실행">
+
+```bash
+bun run dev
+# or
+npm run dev
+# or
+pnpm run dev
+```
+
+http://localhost:3000을 엽니다.
+</Step>
+</Steps>
+
+## 포함된 내용
+
+- Supabase를 통한 인증 (Google OAuth 구성됨)
+- Dodo Payments를 통한 구독 체크아웃
+- 웹훅을 위한 Supabase 엣지 함수 (`dodo-webhook`)
+- Drizzle ORM 스키마 및 마이그레이션
+- 인보이스, 구독 상태 및 계획 기능이 포함된 대시보드
+
+<Tip>
+`DODO_PAYMENTS_ENVIRONMENT`를 `test_mode`로 유지하여 엔드 투 엔드 테스트를 완료하세요.
+</Tip>
+
+## 주요 파일 및 경로
+
+<Tabs>
+<Tab title="엣지 함수">
+
+```text
+supabase/functions/dodo-webhook/
+  index.ts            # webhook handler verifying signatures
+  deno.json           # permissions
+```
+
+</Tab>
+<Tab title="Next.js 라우트">
+
+```text
+app/(marketing)/*     # landing + pricing UI
+app/(dashboard)/*     # protected pages
+app/api/*             # server actions & helpers
+```
+
+</Tab>
+<Tab title="데이터베이스 (Drizzle)">
+
+```text
+lib/db/schema.ts      # users, subscriptions, payments
+lib/db/index.ts       # client
+```
+
+</Tab>
+</Tabs>
+
+## 환경 변수
+
+<AccordionGroup>
+<Accordion title="Supabase">
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+DATABASE_URL=
+```
+
+</Accordion>
+<Accordion title="Dodo Payments">
+
+```env
+DODO_PAYMENTS_API_KEY=
+DODO_WEBHOOK_SECRET=
+DODO_PAYMENTS_ENVIRONMENT=test_mode|live_mode
+```
+
+</Accordion>
+<Accordion title="Google OAuth">
+
+```env
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+```
+
+</Accordion>
+</AccordionGroup>
+
+## 검증 및 문제 해결
+
+<AccordionGroup>
+<Accordion title="웹훅 서명 유효하지 않음 (401)">
+- `DODO_WEBHOOK_SECRET`가 Dodo 대시보드의 값과 일치하는지 확인하세요.
+- 최신 `dodo-webhook` 함수를 배포했는지 확인하세요.
+- 함수에서 헤더 이름이 올바른지 확인하세요 (Dodo-Signature)
+</Accordion>
+<Accordion title="데이터베이스 푸시 실패">
+- `DATABASE_URL` 구문 및 Supabase 네트워크 이그레스 확인
+- 프로젝트 생성 후 첫 푸시까지 ~2–3분 기다리세요.
+</Accordion>
+<Accordion title="OAuth 리디렉션 불일치">
+- 리디렉션 URI는 `https://[ref].supabase.co/auth/v1/callback`이어야 합니다.
+- Google Cloud 및 Supabase Auth 공급자에서 동일한지 확인하세요.
+</Accordion>
+</AccordionGroup>
+
+<Check>
+이제 Supabase 및 Dodo Payments로 구성된 작동하는 구독 SaaS가 있습니다.
+</Check>
+
+<Info>
+원본 리포지토리 및 자세한 단계: <a href="https://github.com/dodopayments/dodo-supabase-subscription-starter">dodo-supabase-subscription-starter</a>.
+</Info>

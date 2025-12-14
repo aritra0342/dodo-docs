@@ -1,0 +1,441 @@
+---
+title: Kotlin
+description: دمج مدفوعات دودي في تطبيقاتك المكتوبة بلغة كوتلن باستخدام
+  الكوروتينات الحديثة والأمان من القيم الفارغة
+icon: k
+---
+
+يوفر SDK كوتلن وصولاً مريحًا إلى واجهة برمجة تطبيقات REST الخاصة بمدفوعات دودي من التطبيقات المكتوبة بلغة كوتلن. يتميز بقيم قابلة للتفريغ، وتسلسل، ودوال مؤجلة، وميزات أخرى خاصة بكوتلن للاستخدام المريح.
+
+## التثبيت
+
+### Gradle (Kotlin DSL)
+
+أضف الاعتماد إلى `build.gradle.kts`:
+
+```kotlin build.gradle.kts
+implementation("com.dodopayments.api:dodo-payments-kotlin:1.61.5")
+```
+
+### Maven
+
+أضف الاعتماد إلى `pom.xml`:
+
+```xml pom.xml
+<dependency>
+  <groupId>com.dodopayments.api</groupId>
+  <artifactId>dodo-payments-kotlin</artifactId>
+  <version>1.61.5</version>
+</dependency>
+```
+
+<Tip>
+استخدم دائمًا أحدث إصدار من SDK للوصول إلى أحدث ميزات مدفوعات دودي. تحقق من [Maven Central](https://central.sonatype.com/artifact/com.dodopayments.api/dodo-payments-kotlin) للحصول على أحدث إصدار.
+</Tip>
+
+<Info>
+يتطلب SDK كوتلن 1.6 أو أعلى وهو متوافق مع كل من منصات JVM وAndroid.
+</Info>
+
+## البداية السريعة
+
+قم بتهيئة العميل وإنشاء جلسة دفع:
+
+```kotlin
+import com.dodopayments.api.client.DodoPaymentsClient
+import com.dodopayments.api.client.okhttp.DodoPaymentsOkHttpClient
+import com.dodopayments.api.models.checkoutsessions.CheckoutSessionRequest
+import com.dodopayments.api.models.checkoutsessions.CheckoutSessionResponse
+
+// Configure using environment variables (DODO_PAYMENTS_API_KEY, DODO_PAYMENTS_BASE_URL)
+// Or system properties (dodopayments.apiKey, dodopayments.baseUrl)
+val client: DodoPaymentsClient = DodoPaymentsOkHttpClient.fromEnv()
+
+val params: CheckoutSessionRequest = CheckoutSessionRequest.builder()
+    .addProductCart(CheckoutSessionRequest.ProductCart.builder()
+        .productId("product_id")
+        .quantity(1)
+        .build())
+    .build()
+    
+val checkoutSessionResponse: CheckoutSessionResponse = client.checkoutSessions().create(params)
+println(checkoutSessionResponse.sessionId())
+```
+
+<Warning>
+قم دائمًا بتخزين مفاتيح API الخاصة بك بشكل آمن باستخدام متغيرات البيئة أو التكوين المشفر. لا تقم أبدًا بإدخالها في التحكم في الإصدارات.
+</Warning>
+
+## الميزات الأساسية
+
+<CardGroup cols={2}>
+<Card title="الكوروتينات" icon="bolt">
+  دعم كامل لكوروتينات كوتلن للعمليات غير المتزامنة
+</Card>
+
+<Card title="الأمان من القيم الفارغة" icon="shield-check">
+  استغل أمان كوتلن من القيم الفارغة لمعالجة الأخطاء بشكل قوي
+</Card>
+
+<Card title="دوال التمديد" icon="code">
+  امتدادات كوتلن idiomatic لوظائف محسّنة
+</Card>
+
+<Card title="فئات البيانات" icon="layer-group">
+  فئات بيانات آمنة من النوع مع دعم النسخ والتفكيك
+</Card>
+</CardGroup>
+
+## التهيئة
+
+### من متغيرات البيئة
+
+تهيئة من متغيرات البيئة أو خصائص النظام:
+
+```kotlin
+val client: DodoPaymentsClient = DodoPaymentsOkHttpClient.fromEnv()
+```
+
+### التهيئة اليدوية
+
+تهيئة يدويًا مع جميع الخيارات:
+
+```kotlin
+import java.time.Duration
+
+val client = DodoPaymentsOkHttpClient.builder()
+    .bearerToken("your_api_key_here")
+    .baseUrl("https://live.dodopayments.com")
+    .maxRetries(3)
+    .timeout(Duration.ofSeconds(30))
+    .build()
+```
+
+### وضع الاختبار
+
+تهيئة لبيئة الاختبار/الصندوق الرمل:
+
+```kotlin
+val testClient = DodoPaymentsOkHttpClient.builder()
+    .fromEnv()
+    .testMode()
+    .build()
+```
+
+### مهلات وإعادة المحاولة
+
+تهيئة على مستوى عالمي أو لكل طلب:
+
+```kotlin
+import com.dodopayments.api.core.RequestOptions
+
+// Global configuration
+val client = DodoPaymentsOkHttpClient.builder()
+    .fromEnv()
+    .timeout(Duration.ofSeconds(45))
+    .maxRetries(3)
+    .build()
+
+// Per-request timeout override
+val product = client.products().retrieve(
+    "prod_123",
+    RequestOptions.builder()
+        .timeout(Duration.ofSeconds(10))
+        .build()
+)
+```
+
+## العمليات الشائعة
+
+### إنشاء جلسة دفع
+
+إنشاء جلسة دفع:
+
+```kotlin
+val params = CheckoutSessionRequest.builder()
+    .addProductCart(CheckoutSessionRequest.ProductCart.builder()
+        .productId("prod_123")
+        .quantity(1)
+        .build())
+    .returnUrl("https://yourdomain.com/return")
+    .build()
+
+val session = client.checkoutSessions().create(params)
+println("Checkout URL: ${session.url()}")
+```
+
+### إنشاء منتج
+
+إنشاء منتجات مع تكوين مفصل:
+
+```kotlin
+import com.dodopayments.api.models.products.Product
+import com.dodopayments.api.models.products.ProductCreateParams
+import com.dodopayments.api.models.misc.Currency
+import com.dodopayments.api.models.misc.TaxCategory
+
+val createParams = ProductCreateParams.builder()
+    .name("Premium Subscription")
+    .description("Monthly subscription with all features")
+    .price(
+        ProductCreateParams.RecurringPrice.builder()
+            .currency(Currency.USD)
+            .preTaxAmount(2999) // $29.99 in cents
+            .paymentFrequencyInterval(ProductCreateParams.RecurringPrice.TimeInterval.MONTH)
+            .paymentFrequencyCount(1)
+            .build()
+    )
+    .taxCategory(TaxCategory.DIGITAL_GOODS)
+    .build()
+
+val product: Product = client.products().create(createParams)
+println("Created product ID: ${product.productId()}")
+```
+
+### تفعيل مفتاح الترخيص
+
+تفعيل مفاتيح الترخيص للعملاء:
+
+```kotlin
+import com.dodopayments.api.models.licenses.LicenseActivateParams
+import com.dodopayments.api.models.licenses.LicenseActivateResponse
+
+val activateParams = LicenseActivateParams.builder()
+    .licenseKey("XXXX-XXXX-XXXX-XXXX")
+    .instanceName("user-laptop-01")
+    .build()
+
+try {
+    val activationResult: LicenseActivateResponse = client.licenses()
+        .activate(activateParams)
+
+    println("License activated successfully")
+    println("Instance ID: ${activationResult.instanceId()}")
+    println("Expires at: ${activationResult.expiresAt()}")
+} catch (e: UnprocessableEntityException) {
+    println("License activation failed: ${e.message}")
+}
+```
+
+## الفوترة بناءً على الاستخدام
+
+### تسجيل أحداث الاستخدام
+
+تتبع الاستخدام للعدادات:
+
+```kotlin
+import com.dodopayments.api.models.usageevents.UsageEventCreateParams
+import java.time.OffsetDateTime
+
+val usageParams = UsageEventCreateParams.builder()
+    .meterId("meter_123")
+    .customerId("cust_456")
+    .value(150)
+    .timestamp(OffsetDateTime.now())
+    .build()
+
+client.usageEvents().create(usageParams)
+println("Usage event recorded")
+```
+
+## العمليات غير المتزامنة
+
+### عميل غير متزامن
+
+استخدم العميل غير المتزامن للعمليات المعتمدة على الكوروتينات:
+
+```kotlin
+import com.dodopayments.api.client.DodoPaymentsClientAsync
+import com.dodopayments.api.client.okhttp.DodoPaymentsOkHttpClientAsync
+import kotlinx.coroutines.runBlocking
+
+val asyncClient: DodoPaymentsClientAsync = DodoPaymentsOkHttpClientAsync.fromEnv()
+
+runBlocking {
+    val customer = asyncClient.customers().retrieve("cust_123")
+    println("Customer email: ${customer.email()}")
+}
+```
+
+## معالجة الأخطاء
+
+تعامل مع الأخطاء باستخدام معالجة الاستثناءات في كوتلن:
+
+```kotlin
+import com.dodopayments.api.errors.*
+
+try {
+    val payment = client.payments().create(params)
+    println("Success: ${payment.id()}")
+} catch (e: AuthenticationException) {
+    println("Authentication failed: ${e.message}")
+} catch (e: InvalidRequestException) {
+    println("Invalid request: ${e.message}")
+    e.parameter?.let { println("Parameter: $it") }
+} catch (e: RateLimitException) {
+    println("Rate limit exceeded, retry after: ${e.retryAfter}")
+} catch (e: DodoPaymentsServiceException) {
+    println("API error: ${e.statusCode()} - ${e.message}")
+}
+```
+
+### معالجة الأخطاء الوظيفية
+
+استخدم `Result` لمعالجة الأخطاء الوظيفية:
+
+```kotlin
+fun safeCreatePayment(client: DodoPaymentsClient): Result<Payment> = runCatching {
+    client.payments().create(params)
+}
+
+// Usage
+safe CreatePayment(client)
+    .onSuccess { payment -> println("Created: ${payment.id()}") }
+    .onFailure { error -> println("Error: ${error.message}") }
+```
+
+<Tip>
+استخدم `runCatching` في كوتلن لنهج أكثر وظيفية في معالجة الأخطاء باستخدام أنواع النتيجة.
+</Tip>
+
+## تكامل Android
+
+استخدم مع تطبيقات Android:
+
+```kotlin
+import android.app.Application
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.dodopayments.api.client.DodoPaymentsClient
+import kotlinx.coroutines.launch
+
+class PaymentViewModel(application: Application) : ViewModel() {
+    private val client = DodoPaymentsOkHttpClient.builder()
+        .bearerToken(BuildConfig.DODO_API_KEY)
+        .build()
+    
+    fun createCheckout(productId: String) {
+        viewModelScope.launch {
+            try {
+                val session = client.async().checkoutSessions().create(params)
+                // Open checkout URL in browser or WebView
+                openUrl(session.url())
+            } catch (e: Exception) {
+                handleError(e)
+            }
+        }
+    }
+}
+```
+
+## التحقق من الاستجابة
+
+تمكين التحقق من الاستجابة:
+
+```kotlin
+import com.dodopayments.api.core.RequestOptions
+
+// Per-request validation
+val product = client.products().retrieve(
+    "prod_123",
+    RequestOptions.builder()
+        .responseValidation(true)
+        .build()
+)
+
+// Or validate explicitly
+val validatedProduct = product.validate()
+```
+
+## الميزات المتقدمة
+
+### تكوين الوكيل
+
+تهيئة إعدادات الوكيل:
+
+```kotlin
+import java.net.InetSocketAddress
+import java.net.Proxy
+
+val client = DodoPaymentsOkHttpClient.builder()
+    .fromEnv()
+    .proxy(
+        Proxy(
+            Proxy.Type.HTTP,
+            InetSocketAddress("proxy.example.com", 8080)
+        )
+    )
+    .build()
+```
+
+### التهيئة المؤقتة
+
+تعديل تكوين العميل مؤقتًا:
+
+```kotlin
+val customClient = client.withOptions {
+    it.baseUrl("https://example.com")
+    it.maxRetries(5)
+}
+```
+
+## تكامل Ktor
+
+دمج مع تطبيقات خادم Ktor:
+
+```kotlin
+import io.ktor.server.application.*
+import io.ktor.server.request.*
+import io.ktor.server.response.*
+import io.ktor.server.routing.*
+
+fun Application.configureRouting() {
+    val client = DodoPaymentsOkHttpClient.builder()
+        .bearerToken(environment.config.property("dodo.apiKey").getString())
+        .build()
+    
+    routing {
+        post("/create-checkout") {
+            try {
+                val request = call.receive<CheckoutRequest>()
+                val session = client.checkoutSessions().create(params)
+                call.respond(mapOf("checkout_url" to session.url()))
+            } catch (e: DodoPaymentsServiceException) {
+                call.respond(HttpStatusCode.BadRequest, mapOf("error" to e.message))
+            }
+        }
+    }
+}
+```
+
+## الموارد
+
+<CardGroup cols={2}>
+<Card title="مستودع GitHub" icon="github" href="https://github.com/dodopayments/dodopayments-kotlin">
+  عرض الشيفرة المصدرية والمساهمة
+</Card>
+
+<Card title="مرجع API" icon="book" href="/api-reference/introduction">
+  وثائق API الكاملة
+</Card>
+
+<Card title="مجتمع Discord" icon="discord" href="https://discord.gg/bYqAp4ayYh">
+  احصل على المساعدة وتواصل مع المطورين
+</Card>
+
+<Card title="الإبلاغ عن المشكلات" icon="bug" href="https://github.com/dodopayments/dodopayments-kotlin/issues">
+  الإبلاغ عن الأخطاء أو طلب الميزات
+</Card>
+</CardGroup>
+
+## الدعم
+
+تحتاج إلى مساعدة بشأن SDK كوتلن؟
+
+- **Discord**: انضم إلى [خادم المجتمع](https://discord.gg/bYqAp4ayYh) للحصول على دعم في الوقت الفعلي
+- **البريد الإلكتروني**: اتصل بنا على support@dodopayments.com
+- **GitHub**: افتح مشكلة على [المستودع](https://github.com/dodopayments/dodopayments-kotlin)
+
+## المساهمة
+
+نرحب بالمساهمات! تحقق من [إرشادات المساهمة](https://github.com/dodopayments/dodopayments-kotlin/blob/main/CONTRIBUTING.md) للبدء.

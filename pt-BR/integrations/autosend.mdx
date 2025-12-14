@@ -1,0 +1,211 @@
+---
+title: AutoSend
+description: Aprenda a usar a API de e-mail do AutoSend para enviar e-mails
+  transacionais automatizados para suas transações, reembolsos e eventos de
+  pagamento do Dodo Payments.
+icon: paper-plane
+---
+
+## Introdução
+
+A integração do AutoSend com o Dodo Payments permite que você envie automaticamente notificações por e-mail em tempo real para todos os eventos de pagamento, desde transações bem-sucedidas até tentativas falhadas e confirmações de reembolso.
+
+Envie e-mails transacionais para eventos de pagamento usando a poderosa API de e-mail do AutoSend.
+
+<Info>
+Esta integração requer sua Chave de API do AutoSend para autenticação. Você pode encontrar sua chave de API no painel do AutoSend em Configurações > Chaves de API.
+</Info>
+
+## Começando
+
+Siga estas etapas para integrar o AutoSend com o Dodo Payments:
+
+<Steps>
+<Step title="Abrir Seção de Webhook">
+  Navegue até a seção de Webhooks no seu painel do Dodo Payments.
+  
+  <Frame>
+    <img src="/images/integrations/autosend.png" alt="Adicionar Endpoint e dropdown de integrações" />
+  </Frame>
+</Step>
+
+<Step title="Selecionar Integração do AutoSend">
+  Escolha o AutoSend na lista de integrações disponíveis.
+</Step>
+
+<Step title="Inserir Chave de API">
+  Forneça sua chave de API do AutoSend para autenticação. Você pode encontrar sua chave de API no painel do AutoSend em Configurações > Chaves de API.
+  
+  <Card title="Aprenda como criar e gerenciar chaves de API" icon="key" href="https://docs.autosend.com/api-keys">
+    Visite a documentação do AutoSend para instruções detalhadas sobre como criar e gerenciar chaves de API.
+  </Card>
+</Step>
+
+<Step title="Configurar Transformação">
+  Configure manipuladores de transformação em JavaScript para personalizar o conteúdo do e-mail com base nos eventos de pagamento.
+</Step>
+
+<Step title="Testar & Criar">
+  Teste sua configuração de webhook para garantir que os e-mails sejam enviados corretamente e, em seguida, crie a integração.
+</Step>
+
+<Step title="Ativação Completa">
+  🎉 Sua integração do AutoSend agora está ativa e enviará automaticamente e-mails para os eventos de pagamento configurados.
+</Step>
+</Steps>
+
+## Exemplos de Código
+
+### E-mail de Confirmação de Pagamento
+
+Envie um e-mail de confirmação quando um pagamento for processado com sucesso:
+
+```javascript payment_confirmation.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.url = "https://api.autosend.com/v1/mails/send";
+    webhook.payload = {
+      to: {
+        email: p.customer.email,
+        name: p.customer.name,
+      },
+      from: {
+        email: "payments@mail.yourdomain.com",
+        name: "Your Company",
+      },
+      subject: "Payment Successful - Thank you for your purchase!",
+      templateId: "A-61522f2xxxxxxxxx",
+      dynamicData: {
+        customerName: p.customer.name,
+        amount: p.amount,
+        currency: p.currency,
+        paymentId: p.payment_id,
+        paymentDate: new Date(p.created_at).toLocaleDateString(),
+      },
+      replyTo: {
+        email: "support@yourdomain.com",
+        name: "Support Team",
+      },
+    };
+  }
+  return webhook;
+}
+```
+
+### E-mail de Boas-Vindas de Assinatura
+
+Envie um e-mail de boas-vindas quando uma nova assinatura for criada:
+
+```javascript subscription_welcome.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "subscription.created") {
+    const s = webhook.payload.data;
+    webhook.url = "https://api.autosend.com/v1/mails/send";
+    webhook.payload = {
+      to: {
+        email: s.customer.email,
+        name: s.customer.name,
+      },
+      from: {
+        email: "subscriptions@mail.yourdomain.com",
+        name: "Your Company",
+      },
+      subject: "Welcome to your subscription!",
+      templateId: "A-61522f2xxxxxxxxx",
+      dynamicData: {
+        customerName: s.customer.name,
+        planName: s.plan.name,
+        billingInterval: s.billing_interval,
+        nextBillingDate: new Date(s.next_billing_at).toLocaleDateString(),
+        subscriptionId: s.subscription_id,
+      },
+      replyTo: {
+        email: "support@yourdomain.com",
+        name: "Support Team",
+      },
+    };
+  }
+  return webhook;
+}
+```
+
+### Notificação de Falha de Pagamento
+
+Envie um e-mail de notificação quando um pagamento falhar:
+
+```javascript payment_failure.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.failed") {
+    const p = webhook.payload.data;
+    webhook.url = "https://api.autosend.com/v1/mails/send";
+    webhook.payload = {
+      to: {
+        email: p.customer.email,
+        name: p.customer.name,
+      },
+      from: {
+        email: "billing@mail.yourdomain.com",
+        name: "Your Company Billing",
+      },
+      subject: "Payment Failed - Action Required",
+      templateId: "A-61522f2xxxxxxxxx",
+      dynamicData: {
+        customerName: p.customer.name,
+        amount: p.amount,
+        currency: p.currency,
+        failureReason: p.failure_reason,
+        paymentId: p.payment_id,
+        retryUrl: `https://yourdomain.com/billing/retry/${p.payment_id}`,
+      },
+      replyTo: {
+        email: "billing@yourdomain.com",
+        name: "Billing Support",
+      },
+    };
+  }
+  return webhook;
+}
+```
+
+## Melhores Práticas
+
+- **Verifique seu domínio de remetente**: Certifique-se de que seu domínio de e-mail de remetente esteja verificado no AutoSend para melhorar a entregabilidade e evitar problemas de autenticação. Domínios verificados ajudam a evitar que os e-mails caiam em pastas de spam.
+
+- **Use dados dinâmicos para personalização**: Use o campo `dynamicData` para personalizar e-mails com informações específicas do cliente, como nomes, valores de pagamento e detalhes de assinatura. E-mails personalizados têm taxas de engajamento mais altas.
+
+- **Escreva linhas de assunto claras**: Escreva linhas de assunto descritivas que indiquem claramente o propósito do e-mail. Evite palavras que acionem spam e mantenha os assuntos concisos (menos de 50 caracteres).
+
+- **Teste antes da produção**: Sempre teste seus e-mails antes de enviá-los em produção. Isso garante que o conteúdo do seu e-mail seja renderizado corretamente e que todos os dados dinâmicos estejam mapeados corretamente.
+
+## Referência da API
+
+Para detalhes completos sobre a API do AutoSend, incluindo todos os parâmetros disponíveis e códigos de erro, visite a [Documentação da API do AutoSend](https://docs.autosend.com/api-reference/mails/send).
+
+## Solução de Problemas
+
+<AccordionGroup>
+<Accordion title="E-mails não estão sendo enviados">
+- Verifique se a Chave de API está correta e ativa
+- Verifique se o domínio do remetente está verificado no AutoSend
+- Certifique-se de que os endereços de e-mail do destinatário são válidos
+- Revise os limites e cotas de envio do AutoSend
+- Verifique se a URL do endpoint da API está correta: `https://api.autosend.com/v1/mails/send`
+- Verifique se os parâmetros obrigatórios estão presentes na carga útil
+</Accordion>
+
+<Accordion title="Erros de transformação">
+- Valide se a estrutura JSON corresponde ao formato da API do AutoSend
+- Verifique se todos os campos obrigatórios estão presentes (`to`, `from`, `templateId` ou `html`/`text`)
+- Certifique-se de que os endereços de e-mail estejam formatados corretamente
+- Verifique se `templateId` é válido se estiver usando templates
+- Verifique se as chaves `dynamicData` correspondem às variáveis do seu template
+</Accordion>
+
+<Accordion title="Problemas de template">
+- Verifique se seu ID de template está correto e ativo no AutoSend
+- Certifique-se de que as chaves `dynamicData` correspondem às variáveis usadas no seu template
+- Verifique se todas as variáveis obrigatórias do template estão fornecidas
+- Teste seu template de forma independente no painel do AutoSend
+</Accordion>
+</AccordionGroup>

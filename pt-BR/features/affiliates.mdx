@@ -1,0 +1,242 @@
+---
+title: Afiliados
+description: Lance e gerencie seu programa de afiliados enquanto processa
+  transações através do Dodo Payments.
+icon: users-line
+---
+
+## Introdução
+
+Este guia o orienta sobre como rastrear referências de afiliados, lidar com eventos de comissão e aumentar sua receita com parcerias de afiliados confiáveis via Dodo Payments.
+
+## Principais Recursos
+
+<CardGroup cols={2}>
+  <Card title="Atribuição de Comissão Automatizada" icon="robot">
+    Sem planilhas ou rastreamento manual. As referências são automaticamente atribuídas e registradas quando uma compra é feita.
+  </Card>
+
+  <Card title="Relatórios em Tempo Real" icon="chart-line">
+    Tanto você quanto seus afiliados podem monitorar desempenho e leads a partir de painéis dedicados.
+  </Card>
+
+  <Card title="Opções de Rastreamento Flexíveis" icon="code">
+    Use scripts de rastreamento, campos de metadados e eventos de webhook para capturar dados de referência em inscrições e transações.
+  </Card>
+
+  <Card title="Totalmente Criptografado e Seguro" icon="shield">
+    Todas as credenciais sensíveis e dados de webhook são trocados e armazenados de forma segura usando criptografia de ponta.
+  </Card>
+
+  <Card title="Configuração Rápida" icon="bolt">
+    Lance seu programa de afiliados em minutos—sem alterações de código necessárias além de copiar e colar trechos de script e tokens de API.
+  </Card>
+
+  <Card title="Integração Sem Costura" icon="plug">
+    Conecte o rastreamento de afiliados diretamente aos seus fluxos de checkout usando nossa integração com a Affonso, uma plataforma líder em marketing de afiliados.
+  </Card>
+</CardGroup>
+
+<Frame>
+    <iframe 
+        className="w-full aspect-video rounded-md" 
+        src="https://www.youtube.com/embed/8tw8o9yOjsA"
+        title="Integração de Afiliados | Dodo Payments"
+        frameBorder="0"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        allowFullScreen
+    ></iframe>
+</Frame>
+
+## Etapas de Integração
+
+Fizemos parceria com a Affonso, uma plataforma líder em gerenciamento de afiliados para impulsionar suas vendas. Siga as etapas abaixo para conectar sua conta do Dodo Payments com a Affonso e começar a rastrear vendas impulsionadas por afiliados.
+
+<Steps>
+  <Step title="Conectar com Dodo Payments">
+    Para começar, conecte sua conta do Dodo Payments adicionando sua chave de API.
+
+    ### Como Obter Sua Chave de API do Dodo Payments
+
+    - Faça login no seu **Painel do Dodo Payments**
+    - Vá para a seção **Desenvolvedor** no menu à esquerda
+    - Clique em **Chaves de API**
+    - Selecione **Adicionar Chave de API**
+    - Dê um nome (ex. "Integração Affonso")
+    - Clique em **Criar** e **copie** sua chave de API
+
+    ### Adicione Sua Chave de API à Affonso
+
+    - Abra seu **Painel da Affonso via** [affonso.io](https://affonso.io/)
+    - Vá para **Detalhes do Programa > Conectar**
+    - Clique no cartão de **integração Dodo Payments**
+    - Cole sua chave de API do Dodo Payments
+    - Clique em **Conectar**
+
+    <Callout type="info">
+      Sua chave de API será criptografada de forma segura pela Affonso.
+    </Callout>
+  </Step>
+
+  <Step title="Adicionar Webhook ao Dodo Payments">
+    Uma vez conectado, você receberá uma URL de webhook única da Affonso. Isso permite o rastreamento de pagamentos e a ativação de comissões de afiliados.
+
+    ### Adicionar URL de Webhook no Dodo Payments
+
+    - No seu Painel do Dodo Payments, vá para **Desenvolvedor → Webhooks**
+    - Clique em **Adicionar Webhook**
+    - Cole sua **URL de webhook da Affonso** (das configurações do seu programa)
+    - Salve o webhook
+
+    ### Adicionar Segredo do Webhook na Affonso
+
+    - Após salvar o webhook no Dodo Payments, **copie a chave de assinatura** fornecida
+    - Cole-a de volta na Affonso sob as **configurações de webhook do Dodo Payments**
+
+    <Callout type="info">
+      Isso permite que a Affonso verifique de forma segura os eventos recebidos do Dodo Payments.
+    </Callout>
+  </Step>
+
+  <Step title="Adicionar o Script de Rastreamento">
+    Coloque o pixel da Affonso em seu site para começar a rastrear visitas e conversões de afiliados.
+
+    ```html
+    <!-- Place in <head> tag -->
+    <script async defer
+    src="https://affonso.io/js/pixel.min.js"
+    data-affonso="YOUR_PUBLIC_PROGRAM_ID"
+    data-cookie_duration="YOUR_COOKIE_DURATION">
+    </script>
+    ```
+
+    Este script:
+    - Rastreia visitas de afiliados
+    - Define um cookie com o ID de referência (`affonso_referral`)
+    - Habilita o rastreamento de inscrições e pagamentos
+
+    <Callout type="info">
+      Coloque isso em todos os domínios onde os usuários visitam ou convertem (ex. site de marketing, aplicativo).
+    </Callout>
+  </Step>
+
+  <Step title="Rastrear Inscrições de Usuários">
+    Para obter visibilidade do funil e otimizar o desempenho dos afiliados, rastreie as inscrições de usuários como leads.
+
+    ```js
+    // After successful registration
+    window.Affonso.signup(userEmail);
+    ```
+
+    Isso irá:
+    - Registrar uma nova referência como um **LEAD** se o usuário veio através de um link de afiliado
+    - Exibi-la no seu painel e nas estatísticas do afiliado
+
+    <Callout type="info">
+      Melhor prática: Acione isso após o registro bem-sucedido ou duplo opt-in (DOI).
+    </Callout>
+  </Step>
+
+  <Step title="Passar Dados de Referência para Dodo Payments">
+    Para atribuir comissões corretamente, passe o ID de referência da Affonso para o Dodo Payments durante o checkout.
+
+    ### Integração de Pagamentos
+
+    ```js
+    import DodoPayments from 'dodopayments';
+
+    const referralId = window.affonso_referral;
+
+    const client = new DodoPayments({
+      bearerToken: process.env['DODO_PAYMENTS_API_KEY'],
+    });
+
+    async function main() {
+      const payment = await client.payments.create({
+        payment_link: true,
+        billing: { city: 'city', country: 'AF', state: 'state', street: 'street', zipcode: 0 },
+        customer: { email: 'email@email.com', name: 'name' },
+        product_cart: [{ product_id: 'product_id', quantity: 0 }],
+        metadata: {
+          affonso_referral: referralId,
+        },
+      });
+
+      console.log(payment.payment_id);
+    }
+
+    main();
+    ```
+
+    ### Integração de Assinaturas
+
+    ```js
+    import DodoPayments from 'dodopayments';
+
+    const referralId = window.affonso_referral;
+
+    const client = new DodoPayments({
+      bearerToken: process.env['DODO_PAYMENTS_API_KEY'],
+    });
+
+    async function main() {
+      const subscription = await client.subscriptions.create({
+        billing: { city: 'city', country: 'IN', state: 'state', street: 'street', zipcode: 89789 },
+        customer: { customer_id: 'customer_id' },
+        product_id: 'product_id',
+        payment_link: true,
+        return_url: 'https://example.com/success',
+        quantity: 1,
+        metadata: {
+          affonso_referral: referralId,
+        },
+      });
+
+      console.log(subscription.subscription_id);
+    }
+
+    main();
+    ```
+
+    ### Links de Pagamento
+
+    ```js
+    // Original Dodo Payments Link
+    const originalLink = 'https://checkout.dodopayments.com/buy/<YOUR_PRODUCT_ID>';
+
+    // Append referral ID as reference_id
+    const linkWithReferral = `${originalLink}?metadata_affonso_referral=${window.affonso_referral}`;
+    ```
+
+    <Callout type="info">
+      Para mais detalhes, consulte a [documentação da API do Dodo Payments](https://docs.dodopayments.com/api-reference/introduction)
+    </Callout>
+  </Step>
+
+  <Step title="Testando Sua Integração">
+    Antes de lançar publicamente, teste sua configuração com links de afiliados ao vivo e transações de teste.
+
+    **Lista de Verificação de Testes:**
+    - ✅ Crie um afiliado e gere um link de rastreamento
+    - ✅ Visite seu site através do link de afiliado
+    - ✅ Certifique-se de que o script da Affonso carrega e o cookie `affonso_referral` está definido
+    - ✅ Complete uma inscrição (opcional)
+    - ✅ Complete um pagamento via Dodo Payments
+    - ✅ Confirme o rastreamento e a atribuição no seu painel da Affonso
+  </Step>
+</Steps>
+
+## Precisa de Ajuda?
+
+Se você enfrentar algum problema ou precisar de suporte durante a integração:
+
+<CardGroup cols={2}>
+  <Card title="Suporte da Affonso" icon="headset">
+    - Converse conosco via **chat ao vivo** em [affonso.io](https://affonso.io/)
+    - Envie um e-mail para **support@affonso.io**
+  </Card>
+
+  <Card title="Suporte do Dodo Payments" icon="headset">
+    Para consultas específicas da API do Dodo Payments, consulte docs.dodopayments.com ou entre em contato com nossa equipe de suporte.
+  </Card>
+</CardGroup>

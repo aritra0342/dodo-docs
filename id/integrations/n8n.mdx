@@ -1,0 +1,212 @@
+---
+title: N8N
+description: Integrasikan Dodo Payments dengan N8N untuk mengotomatiskan alur
+  kerja dan terhubung dengan lebih dari 5.000 aplikasi menggunakan
+  webhook—memberdayakan otomatisasi yang kuat dan dapat disesuaikan di
+  lingkungan N8N yang di-host sendiri atau cloud.
+icon: diagram-project
+---
+
+## Pendahuluan
+
+Sambungkan Dodo Payments ke ribuan aplikasi dan layanan melalui N8N. Otomatiskan alur kerja dengan memicu alur kerja N8N saat peristiwa pembayaran terjadi, mulai dari mengirim email hingga memperbarui spreadsheet, membuat tugas, operasi basis data, dan banyak lagi.
+
+<Info>
+Integrasi ini memerlukan URL webhook N8N dari konfigurasi alur kerja Anda.
+</Info>
+
+## Memulai
+
+<Steps>
+<Step title="Buka Bagian Webhook">
+  Di dasbor Dodo Payments Anda, navigasikan ke <b>Webhooks → + Tambah Endpoint</b> dan perluas dropdown integrasi.
+  <Frame>
+    <img src="/images/integrations/n8n.png" alt="Tambah Endpoint dan dropdown integrasi" />
+  </Frame>
+</Step>
+
+<Step title="Pilih N8N">
+  Pilih kartu integrasi <b>N8N</b>.
+</Step>
+
+<Step title="Buat Webhook di N8N">
+  Di N8N, buat alur kerja baru dan tambahkan node <b>Webhook</b> sebagai pemicu. Konfigurasikan sebagai webhook POST dan salin URL webhook.
+</Step>
+
+<Step title="Tempel URL Webhook">
+  Tempel URL webhook N8N ke dalam konfigurasi endpoint.
+</Step>
+
+<Step title="Konfigurasi Transformasi">
+  Edit kode transformasi untuk memformat data untuk alur kerja N8N Anda.
+</Step>
+
+<Step title="Uji & Buat">
+  Uji dengan payload contoh dan klik <b>Buat</b> untuk mengaktifkan integrasi.
+</Step>
+
+<Step title="Aktifkan Alur Kerja">
+  Di N8N, aktifkan alur kerja Anda untuk mulai menerima peristiwa webhook.
+</Step>
+
+<Step title="Selesai!">
+  🎉 Peristiwa pembayaran sekarang akan memicu alur kerja N8N Anda secara otomatis.
+</Step>
+</Steps>
+
+## Contoh Kode Transformasi
+
+### Payload Webhook Dasar
+
+```javascript basic_webhook.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.payload = {
+      event_type: webhook.eventType,
+      payment_id: p.payment_id,
+      amount: (p.total_amount / 100).toFixed(2),
+      currency: p.currency || "USD",
+      customer_email: p.customer.email,
+      customer_name: p.customer.name,
+      payment_method: p.payment_method || "unknown",
+      timestamp: webhook.payload.timestamp
+    };
+  }
+  return webhook;
+}
+```
+
+### Penangan Acara Langganan
+
+```javascript subscription_webhook.js icon="js" expandable
+function handler(webhook) {
+  const s = webhook.payload.data;
+  switch (webhook.eventType) {
+    case "subscription.active":
+      webhook.payload = {
+        event_type: "subscription_started",
+        subscription_id: s.subscription_id,
+        customer_email: s.customer.email,
+        customer_name: s.customer.name,
+        product_id: s.product_id,
+        amount: (s.recurring_pre_tax_amount / 100).toFixed(2),
+        frequency: s.payment_frequency_interval,
+        next_billing: s.next_billing_date,
+        timestamp: webhook.payload.timestamp
+      };
+      break;
+    case "subscription.cancelled":
+      webhook.payload = {
+        event_type: "subscription_cancelled",
+        subscription_id: s.subscription_id,
+        customer_email: s.customer.email,
+        cancelled_at: s.cancelled_at,
+        cancel_at_next_billing: s.cancel_at_next_billing_date,
+        timestamp: webhook.payload.timestamp
+      };
+      break;
+  }
+  return webhook;
+}
+```
+
+### Penangan Pemberitahuan Sengketa
+
+```javascript dispute_webhook.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType.startsWith("dispute.")) {
+    const d = webhook.payload.data;
+    webhook.payload = {
+      event_type: webhook.eventType,
+      dispute_id: d.dispute_id,
+      payment_id: d.payment_id,
+      amount: (d.amount / 100).toFixed(2),
+      status: d.dispute_status,
+      stage: d.dispute_stage,
+      remarks: d.remarks || "",
+      urgent: webhook.eventType === "dispute.opened",
+      timestamp: webhook.payload.timestamp
+    };
+  }
+  return webhook;
+}
+```
+
+## Kasus Penggunaan N8N yang Populer
+
+<AccordionGroup>
+<Accordion title="Notifikasi Email">
+- Kirim email Gmail/Outlook untuk konfirmasi pembayaran
+- Buat urutan email di Mailchimp/ConvertKit
+- Kirim notifikasi Slack/Discord melalui webhook
+- Buat catatan Google Sheets secara otomatis
+- Kirim pesan Telegram/WhatsApp
+</Accordion>
+
+<Accordion title="Pembaruan CRM">
+- Tambahkan kontak ke HubSpot/Salesforce
+- Buat kesepakatan di Pipedrive/Close
+- Perbarui catatan pelanggan di Airtable
+- Catat aktivitas di Monday.com
+- Sinkronkan data ke basis data PostgreSQL/MySQL
+</Accordion>
+
+<Accordion title="Manajemen Tugas">
+- Buat tugas di Asana/Trello
+- Tambahkan item to-do di Notion
+- Buat acara kalender di Google Calendar
+- Kirim notifikasi SMS melalui Twilio
+- Buat masalah GitHub untuk sengketa
+</Accordion>
+
+<Accordion title="Pemrosesan Data">
+- Transformasi dan perkaya data pembayaran
+- Simpan peristiwa di basis data (PostgreSQL, MongoDB)
+- Agregasi metrik dan analitik
+- Hasilkan laporan dan ekspor
+- Picu alur kerja multi-langkah yang kompleks
+</Accordion>
+</AccordionGroup>
+
+## Tips
+
+- Jaga struktur payload tetap sederhana untuk memudahkan parsing node N8N
+- Gunakan nama field yang konsisten di semua peristiwa
+- Sertakan timestamp untuk penjadwalan dan waktu alur kerja
+- Uji alur kerja Anda dengan data contoh sebelum mengaktifkan
+- Gunakan node IF N8N untuk logika dan routing bersyarat
+- Manfaatkan node Kode N8N untuk transformasi data kustom
+- Gunakan node Switch untuk merutekan jenis peristiwa yang berbeda ke jalur yang berbeda
+- Siapkan alur kerja kesalahan untuk menangani pengiriman webhook yang gagal
+
+## Pemecahan Masalah
+
+<AccordionGroup>
+<Accordion title="Alur kerja tidak terpicu">
+- Verifikasi URL webhook benar dan dapat diakses
+- Periksa bahwa alur kerja diaktifkan di N8N
+- Pastikan node webhook dikonfigurasi sebagai metode POST
+- Uji pengiriman webhook di riwayat eksekusi N8N
+- Verifikasi pengaturan firewall/jaringan memungkinkan webhook masuk
+- Periksa pengaturan otentikasi webhook N8N jika dikonfigurasi
+</Accordion>
+
+<Accordion title="Data tidak dipetakan dengan benar">
+- Periksa nama field di konfigurasi node N8N
+- Verifikasi tipe data sesuai dengan format yang diharapkan di node
+- Gunakan fitur uji N8N untuk memeriksa data yang masuk
+- Pastikan kode transformasi mengembalikan JSON yang valid
+- Periksa pengaturan format respons node webhook
+- Gunakan node Set untuk mengganti nama atau merestrukturisasi field
+</Accordion>
+
+<Accordion title="Kesalahan eksekusi alur kerja">
+- Tinjau log eksekusi di N8N untuk pesan kesalahan yang lebih rinci
+- Periksa pengaturan koneksi node dan kredensial
+- Verifikasi semua field yang diperlukan ada dalam payload
+- Uji node individu dengan data contoh
+- Aktifkan alur kerja kesalahan untuk menangkap dan menangani kegagalan
+- Periksa batas laju dan kuota API untuk layanan yang terhubung
+</Accordion>
+</AccordionGroup>

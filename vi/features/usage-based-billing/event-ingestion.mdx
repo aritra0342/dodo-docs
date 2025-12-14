@@ -1,0 +1,207 @@
+---
+sidebarTitle: Tiếp Nhận Sự Kiện
+title: Tiếp Nhận Sự Kiện
+description: Gửi các sự kiện sử dụng từ ứng dụng của bạn để theo dõi mức tiêu
+  thụ của khách hàng và hỗ trợ lập hóa đơn.
+icon: bolt
+---
+
+Các sự kiện là nền tảng của lập hóa đơn dựa trên mức sử dụng. Gửi sự kiện khi các hành động có thể tính phí xảy ra, và các công tơ sẽ tổng hợp chúng thành các khoản phí.
+
+<Card title="Tài liệu API - Tiếp Nhận Sự Kiện" icon="code" href="/api-reference/usage-events/ingest-events">
+Tài liệu API đầy đủ với ví dụ và mã phản hồi.
+</Card>
+
+## Cấu Trúc Sự Kiện
+
+<Accordion title="Các Trường Bắt Buộc">
+<ParamField body="event_id" type="string" required>
+Định danh duy nhất. Sử dụng UUID hoặc kết hợp ID khách hàng + dấu thời gian + hành động.
+</ParamField>
+
+<ParamField body="customer_id" type="string" required>
+ID khách hàng Dodo Payments. Phải là một khách hàng hợp lệ đã tồn tại.
+</ParamField>
+
+<ParamField body="event_name" type="string" required>
+Loại sự kiện phải khớp với tên sự kiện của công tơ của bạn (phân biệt chữ hoa chữ thường). Ví dụ: `api.call`, `image.generated`
+</ParamField>
+</Accordion>
+
+<Accordion title="Các Trường Tùy Chọn">
+
+<ParamField body="timestamp" type="string">
+Dấu thời gian ISO 8601. Mặc định là thời gian máy chủ nếu không có. Bao gồm để lập hóa đơn chính xác với các sự kiện bị trì hoãn/được nhóm lại.
+</ParamField>
+
+<ParamField body="metadata" type="object">
+Các thuộc tính bổ sung cho việc tổng hợp và lọc:
+- Giá trị số: `bytes`, `tokens`, `duration_ms`
+- Bộ lọc: `endpoint`, `method`, `quality`
+
+```javascript
+metadata: {
+  endpoint: "/v1/orders",
+  method: "POST",
+  tokens: 1024
+}
+```
+
+</ParamField>
+</Accordion>
+
+## Gửi Sự Kiện
+
+<CodeGroup>
+
+```javascript Single Event
+await fetch('https://test.dodopayments.com/events/ingest', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${process.env.DODO_API_KEY}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    events: [{
+      event_id: "api_call_1234",
+      customer_id: "cus_abc123",
+      event_name: "api.call",
+      metadata: { endpoint: "/v1/orders" }
+    }]
+  })
+});
+```
+
+```javascript Batch Events
+await fetch('https://test.dodopayments.com/events/ingest', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${process.env.DODO_API_KEY}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    events: [
+      { event_id: "call_1", customer_id: "cus_abc", event_name: "api.call" },
+      { event_id: "call_2", customer_id: "cus_abc", event_name: "api.call" },
+      { event_id: "call_3", customer_id: "cus_abc", event_name: "api.call" }
+    ]
+  })
+});
+```
+
+```python Python
+import requests
+
+requests.post(
+    'https://test.dodopayments.com/events/ingest',
+    headers={'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'},
+    json={'events': [{'event_id': 'call_1', 'customer_id': 'cus_abc', 'event_name': 'api.call'}]}
+)
+```
+
+```curl cURL
+curl -X POST 'https://test.dodopayments.com/events/ingest' \
+  -H 'Authorization: Bearer YOUR_API_KEY' \
+  -H 'Content-Type: application/json' \
+  -d '{"events": [{"event_id": "call_1", "customer_id": "cus_abc", "event_name": "api.call"}]}'
+```
+
+</CodeGroup>
+
+<Tip>
+Nhóm tối đa 100 sự kiện mỗi yêu cầu để có hiệu suất tốt hơn.
+</Tip>
+
+## Mẫu Tiếp Nhận
+
+Các mẫu sự kiện đã được chuẩn bị sẵn cho các trường hợp sử dụng phổ biến. Bắt đầu với một mẫu đã được chứng minh thay vì xây dựng từ đầu.
+
+<CardGroup cols={2}>
+<Card title="Mẫu LLM" icon="brain-circuit" href="/developer-resources/ingestion-blueprints/llm">
+Theo dõi mức sử dụng token AI qua OpenAI, Anthropic, Groq, Gemini, và nhiều hơn nữa.
+</Card>
+
+<Card title="Mẫu API Gateway" icon="cloud" href="/developer-resources/ingestion-blueprints/api-gateway">
+Đo lường các yêu cầu API với hỗ trợ lọc điểm cuối và giới hạn tỷ lệ.
+</Card>
+
+<Card title="Mẫu Lưu Trữ Đối Tượng" icon="box-archive" href="/developer-resources/ingestion-blueprints/object-storage">
+Theo dõi việc tải lên tệp và mức tiêu thụ lưu trữ cho các dịch vụ lưu trữ đám mây.
+</Card>
+
+<Card title="Mẫu Luồng" icon="tower-broadcast" href="/developer-resources/ingestion-blueprints/stream">
+Đo lường băng thông phát trực tuyến cho video, âm thanh và dữ liệu thời gian thực.
+</Card>
+
+<Card title="Mẫu Khoảng Thời Gian" icon="clock" href="/developer-resources/ingestion-blueprints/time-range">
+Lập hóa đơn theo thời gian đã trôi qua cho các chức năng không máy chủ và các phiên bản tính toán.
+</Card>
+
+<Card title="Xem Tất Cả Các Mẫu" icon="copy" href="/features/usage-based-billing/ingestion-blueprints">
+Xem tất cả các mẫu có sẵn với hướng dẫn triển khai chi tiết.
+</Card>
+</CardGroup>
+
+## Thực Hành Tốt Nhất
+
+<AccordionGroup>
+<Accordion title="Sử Dụng ID Sự Kiện Độc Nhất">
+Sử dụng ID xác định để ngăn chặn các bản sao: `${customerId}_${action}_${timestamp}`
+</Accordion>
+
+<Accordion title="Triển Khai Lại">
+Thử lại khi gặp lỗi 5xx với thời gian chờ tăng dần. Không thử lại các lỗi 4xx.
+</Accordion>
+
+<Accordion title="Bao Gồm Dấu Thời Gian">
+Bỏ qua cho các sự kiện thời gian thực. Bao gồm cho các sự kiện bị trì hoãn/được nhóm lại để đảm bảo độ chính xác.
+</Accordion>
+
+<Accordion title="Theo Dõi Giao Hàng">
+Theo dõi tỷ lệ thành công và xếp hàng các sự kiện thất bại để thử lại.
+</Accordion>
+</AccordionGroup>
+
+## Khắc Phục Sự Cố
+
+<AccordionGroup>
+<Accordion title="Sự kiện không xuất hiện">
+- Tên sự kiện phải khớp chính xác với công tơ (phân biệt chữ hoa chữ thường)
+- ID khách hàng phải tồn tại
+- Kiểm tra xem bộ lọc công tơ có đang loại trừ sự kiện không
+- Xác minh rằng các dấu thời gian là gần đây
+</Accordion>
+
+<Accordion title="Lỗi xác thực (401)">
+Xác minh rằng khóa API là chính xác và sử dụng định dạng: `Bearer YOUR_API_KEY`
+</Accordion>
+
+<Accordion title="Lỗi xác thực (400)">
+Đảm bảo tất cả các trường bắt buộc đều có mặt: `event_id`, `customer_id`, `event_name`
+</Accordion>
+
+<Accordion title="Metadata không được tổng hợp">
+- Các khóa metadata phải khớp chính xác với "Over Property" của công tơ
+- Sử dụng số, không phải chuỗi: `tokens: 150` không `tokens: "150"`
+</Accordion>
+</AccordionGroup>
+
+## Các Bước Tiếp Theo
+
+<CardGroup cols={2}>
+<Card title="Tạo Công Tơ" icon="sliders" href="/features/usage-based-billing/meters">
+Định nghĩa cách các sự kiện của bạn được tổng hợp thành các số lượng có thể tính phí với các bộ lọc và hàm tổng hợp.
+</Card>
+
+<Card title="Mẫu Tiếp Nhận" icon="copy" href="/features/usage-based-billing/ingestion-blueprints">
+Sử dụng các mẫu đã được chuẩn bị sẵn cho các trường hợp sử dụng phổ biến như theo dõi LLM, cổng API và lưu trữ.
+</Card>
+
+<Card title="Hướng Dẫn Hoàn Chỉnh" icon="code" href="/developer-resources/usage-based-billing-build-ai-image-generator">
+Xây dựng một trình tạo hình ảnh AI hoàn chỉnh với lập hóa đơn dựa trên mức sử dụng từ đầu.
+</Card>
+
+<Card title="Tài liệu API" icon="terminal" href="/api-reference/usage-events/ingest-events">
+Tài liệu API đầy đủ với tất cả các tham số, mã phản hồi và kiểm tra tương tác.
+</Card>
+</CardGroup>

@@ -1,0 +1,207 @@
+---
+sidebarTitle: Penerimaan Acara
+title: Penerimaan Acara
+description: Kirim acara penggunaan dari aplikasi Anda untuk melacak konsumsi
+  pelanggan dan mendukung penagihan.
+icon: bolt
+---
+
+Acara adalah dasar dari penagihan berbasis penggunaan. Kirim acara saat tindakan yang dapat ditagih terjadi, dan meter mengagregasi mereka menjadi biaya.
+
+<Card title="Referensi API - Penerimaan Acara" icon="code" href="/api-reference/usage-events/ingest-events">
+Dokumentasi API lengkap dengan contoh dan kode respons.
+</Card>
+
+## Struktur Acara
+
+<Accordion title="Bidang yang Diperlukan">
+<ParamField body="event_id" type="string" required>
+Pengidentifikasi unik. Gunakan UUID atau gabungkan ID pelanggan + timestamp + tindakan.
+</ParamField>
+
+<ParamField body="customer_id" type="string" required>
+ID pelanggan Dodo Payments. Harus merupakan pelanggan yang valid dan ada.
+</ParamField>
+
+<ParamField body="event_name" type="string" required>
+Tipe acara yang sesuai dengan nama acara meter Anda (case-sensitive). Contoh: `api.call`, `image.generated`
+</ParamField>
+</Accordion>
+
+<Accordion title="Bidang Opsional">
+
+<ParamField body="timestamp" type="string">
+Timestamp ISO 8601. Secara default menggunakan waktu server jika diabaikan. Sertakan untuk penagihan yang akurat dengan acara yang tertunda/batch.
+</ParamField>
+
+<ParamField body="metadata" type="object">
+Properti tambahan untuk agregasi dan penyaringan:
+- Nilai numerik: `bytes`, `tokens`, `duration_ms`
+- Penyaring: `endpoint`, `method`, `quality`
+
+```javascript
+metadata: {
+  endpoint: "/v1/orders",
+  method: "POST",
+  tokens: 1024
+}
+```
+
+</ParamField>
+</Accordion>
+
+## Mengirim Acara
+
+<CodeGroup>
+
+```javascript Single Event
+await fetch('https://test.dodopayments.com/events/ingest', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${process.env.DODO_API_KEY}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    events: [{
+      event_id: "api_call_1234",
+      customer_id: "cus_abc123",
+      event_name: "api.call",
+      metadata: { endpoint: "/v1/orders" }
+    }]
+  })
+});
+```
+
+```javascript Batch Events
+await fetch('https://test.dodopayments.com/events/ingest', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${process.env.DODO_API_KEY}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    events: [
+      { event_id: "call_1", customer_id: "cus_abc", event_name: "api.call" },
+      { event_id: "call_2", customer_id: "cus_abc", event_name: "api.call" },
+      { event_id: "call_3", customer_id: "cus_abc", event_name: "api.call" }
+    ]
+  })
+});
+```
+
+```python Python
+import requests
+
+requests.post(
+    'https://test.dodopayments.com/events/ingest',
+    headers={'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'},
+    json={'events': [{'event_id': 'call_1', 'customer_id': 'cus_abc', 'event_name': 'api.call'}]}
+)
+```
+
+```curl cURL
+curl -X POST 'https://test.dodopayments.com/events/ingest' \
+  -H 'Authorization: Bearer YOUR_API_KEY' \
+  -H 'Content-Type: application/json' \
+  -d '{"events": [{"event_id": "call_1", "customer_id": "cus_abc", "event_name": "api.call"}]}'
+```
+
+</CodeGroup>
+
+<Tip>
+Batch hingga 100 acara per permintaan untuk kinerja yang lebih baik.
+</Tip>
+
+## Cetak Biru Penerimaan
+
+Pola acara siap pakai untuk kasus penggunaan umum. Mulailah dengan cetak biru yang terbukti daripada membangun dari awal.
+
+<CardGroup cols={2}>
+<Card title="Cetak Biru LLM" icon="brain-circuit" href="/developer-resources/ingestion-blueprints/llm">
+Lacak penggunaan token AI di OpenAI, Anthropic, Groq, Gemini, dan lainnya.
+</Card>
+
+<Card title="Cetak Biru API Gateway" icon="cloud" href="/developer-resources/ingestion-blueprints/api-gateway">
+Meter permintaan API dengan penyaringan endpoint dan dukungan pembatasan laju.
+</Card>
+
+<Card title="Cetak Biru Penyimpanan Objek" icon="box-archive" href="/developer-resources/ingestion-blueprints/object-storage">
+Lacak unggahan file dan konsumsi penyimpanan untuk layanan penyimpanan cloud.
+</Card>
+
+<Card title="Cetak Biru Streaming" icon="tower-broadcast" href="/developer-resources/ingestion-blueprints/stream">
+Ukur bandwidth streaming untuk video, audio, dan data waktu nyata.
+</Card>
+
+<Card title="Cetak Biru Rentang Waktu" icon="clock" href="/developer-resources/ingestion-blueprints/time-range">
+Tagih berdasarkan waktu yang berlalu untuk fungsi serverless dan instance komputasi.
+</Card>
+
+<Card title="Lihat Semua Cetak Biru" icon="copy" href="/features/usage-based-billing/ingestion-blueprints">
+Lihat semua cetak biru yang tersedia dengan panduan implementasi terperinci.
+</Card>
+</CardGroup>
+
+## Praktik Terbaik
+
+<AccordionGroup>
+<Accordion title="Gunakan ID Acara yang Unik">
+Gunakan ID deterministik untuk mencegah duplikasi: `${customerId}_${action}_${timestamp}`
+</Accordion>
+
+<Accordion title="Terapkan Pengulangan">
+Coba ulang pada kesalahan 5xx dengan backoff eksponensial. Jangan coba ulang kesalahan 4xx.
+</Accordion>
+
+<Accordion title="Sertakan Timestamp">
+Hapus untuk acara waktu nyata. Sertakan untuk acara tertunda/batch untuk akurasi.
+</Accordion>
+
+<Accordion title="Pantau Pengiriman">
+Lacak tingkat keberhasilan dan antre acara yang gagal untuk dicoba ulang.
+</Accordion>
+</AccordionGroup>
+
+## Pemecahan Masalah
+
+<AccordionGroup>
+<Accordion title="Acara tidak muncul">
+- Nama acara harus cocok persis dengan meter (case-sensitive)
+- ID pelanggan harus ada
+- Periksa apakah filter meter tidak mengecualikan acara
+- Verifikasi timestamp terbaru
+</Accordion>
+
+<Accordion title="Kesalahan otentikasi (401)">
+Verifikasi kunci API benar dan gunakan format: `Bearer YOUR_API_KEY`
+</Accordion>
+
+<Accordion title="Kesalahan validasi (400)">
+Pastikan semua bidang yang diperlukan ada: `event_id`, `customer_id`, `event_name`
+</Accordion>
+
+<Accordion title="Metadata tidak teragregasi">
+- Kunci metadata harus cocok persis dengan "Over Property" meter
+- Gunakan angka, bukan string: `tokens: 150` bukan `tokens: "150"`
+</Accordion>
+</AccordionGroup>
+
+## Langkah Selanjutnya
+
+<CardGroup cols={2}>
+<Card title="Buat Meter" icon="sliders" href="/features/usage-based-billing/meters">
+Tentukan bagaimana acara Anda digabungkan menjadi kuantitas yang dapat ditagih dengan filter dan fungsi agregasi.
+</Card>
+
+<Card title="Cetak Biru Penerimaan" icon="copy" href="/features/usage-based-billing/ingestion-blueprints">
+Gunakan cetak biru siap pakai untuk kasus penggunaan umum seperti pelacakan LLM, gateway API, dan penyimpanan.
+</Card>
+
+<Card title="Tutorial Lengkap" icon="code" href="/developer-resources/usage-based-billing-build-ai-image-generator">
+Bangun generator gambar AI lengkap dengan penagihan berbasis penggunaan dari awal.
+</Card>
+
+<Card title="Referensi API" icon="terminal" href="/api-reference/usage-events/ingest-events">
+Dokumentasi API lengkap dengan semua parameter, kode respons, dan pengujian interaktif.
+</Card>
+</CardGroup>

@@ -1,0 +1,164 @@
+---
+title: Kirim Ulang
+description: Kirim email transaksional melalui Kirim Ulang berdasarkan peristiwa
+  Pembayaran Dodo dengan tingkat pengiriman yang tinggi.
+icon: envelope
+---
+
+## Pendahuluan
+
+Kirim email transaksional profesional secara otomatis ketika peristiwa pembayaran terjadi. Kirim konfirmasi pembayaran, pembaruan langganan, dan pemberitahuan penting dengan infrastruktur email Kirim Ulang yang andal dan tingkat pengiriman yang sangat baik.
+
+<Info>
+Integrasi ini memerlukan Kunci API Kirim Ulang Anda untuk otentikasi.
+</Info>
+
+## Memulai
+
+<Steps>
+<Step title="Buka Bagian Webhook">
+  Di dasbor Pembayaran Dodo Anda, navigasikan ke <b>Webhook → + Tambah Endpoint</b> dan perluas dropdown integrasi.
+  <Frame>
+    <img src="/images/integrations/resend.png" alt="Tambah Endpoint dan dropdown integrasi" />
+  </Frame>
+</Step>
+
+<Step title="Pilih Kirim Ulang">
+  Pilih kartu integrasi <b>Kirim Ulang</b>.
+</Step>
+
+<Step title="Masukkan Kunci API">
+  Berikan Kunci API Kirim Ulang Anda dalam konfigurasi.
+</Step>
+
+<Step title="Konfigurasi Transformasi">
+  Edit kode transformasi untuk memformat email untuk API Kirim Ulang.
+</Step>
+
+<Step title="Uji & Buat">
+  Uji dengan payload contoh dan klik <b>Buat</b> untuk mengaktifkan pengiriman email.
+</Step>
+
+<Step title="Selesai!">
+  🎉 Peristiwa pembayaran sekarang akan secara otomatis memicu email transaksional melalui Kirim Ulang.
+</Step>
+</Steps>
+
+## Contoh Kode Transformasi
+
+### Email Konfirmasi Pembayaran
+
+```javascript payment_confirmation.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.url = "https://api.resend.com/emails";
+    webhook.payload = {
+      from: "payments@yourdomain.com",
+      to: [p.customer.email],
+      subject: "Payment Confirmation - $" + (p.total_amount / 100).toFixed(2),
+      html: `
+        <h2>Payment Successful!</h2>
+        <p>Hi ${p.customer.name},</p>
+        <p>Your payment of $${(p.total_amount / 100).toFixed(2)} has been processed successfully.</p>
+        <ul>
+          <li><strong>Payment ID:</strong> ${p.payment_id}</li>
+          <li><strong>Amount:</strong> $${(p.total_amount / 100).toFixed(2)}</li>
+          <li><strong>Date:</strong> ${new Date(webhook.payload.timestamp).toLocaleDateString()}</li>
+          <li><strong>Method:</strong> ${p.payment_method || "Unknown"}</li>
+        </ul>
+        <p>Thank you for your business!</p>
+      `,
+      text: `Payment Successful! Your payment of $${(p.total_amount / 100).toFixed(2)} has been processed. Payment ID: ${p.payment_id}`
+    };
+  }
+  return webhook;
+}
+```
+
+### Email Selamat Datang Langganan
+
+```javascript subscription_welcome.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "subscription.active") {
+    const s = webhook.payload.data;
+    webhook.url = "https://api.resend.com/emails";
+    webhook.payload = {
+      from: "welcome@yourdomain.com",
+      to: [s.customer.email],
+      subject: "Welcome to Your Subscription!",
+      html: `
+        <h2>Welcome to Your Subscription!</h2>
+        <p>Hi ${s.customer.name},</p>
+        <p>Your subscription has been activated successfully.</p>
+        <ul>
+          <li><strong>Subscription ID:</strong> ${s.subscription_id}</li>
+          <li><strong>Product:</strong> ${s.product_id}</li>
+          <li><strong>Amount:</strong> $${(s.recurring_pre_tax_amount / 100).toFixed(2)}/${s.payment_frequency_interval}</li>
+          <li><strong>Next Billing:</strong> ${new Date(s.next_billing_date).toLocaleDateString()}</li>
+        </ul>
+        <p>You can manage your subscription anytime from your account dashboard.</p>
+      `,
+      text: `Welcome! Your subscription is now active. Amount: $${(s.recurring_pre_tax_amount / 100).toFixed(2)}/${s.payment_frequency_interval}`
+    };
+  }
+  return webhook;
+}
+```
+
+### Pemberitahuan Kegagalan Pembayaran
+
+```javascript payment_failure.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.failed") {
+    const p = webhook.payload.data;
+    webhook.url = "https://api.resend.com/emails";
+    webhook.payload = {
+      from: "support@yourdomain.com",
+      to: [p.customer.email],
+      subject: "Payment Failed - Action Required",
+      html: `
+        <h2>Payment Failed</h2>
+        <p>Hi ${p.customer.name},</p>
+        <p>We were unable to process your payment of $${(p.total_amount / 100).toFixed(2)}.</p>
+        <ul>
+          <li><strong>Payment ID:</strong> ${p.payment_id}</li>
+          <li><strong>Amount:</strong> $${(p.total_amount / 100).toFixed(2)}</li>
+          <li><strong>Error:</strong> ${p.error_message || "Payment processing failed"}</li>
+        </ul>
+        <p>Please update your payment method or contact support for assistance.</p>
+        <a href="https://yourdomain.com/update-payment">Update Payment Method</a>
+      `,
+      text: `Payment Failed: We couldn't process your $${(p.total_amount / 100).toFixed(2)} payment. Please update your payment method.`
+    };
+  }
+  return webhook;
+}
+```
+
+## Tips
+
+- Gunakan domain pengirim yang terverifikasi untuk pengiriman yang lebih baik
+- Sertakan versi HTML dan teks dari email
+- Personalisasi konten dengan data pelanggan
+- Gunakan subjek yang jelas dan berorientasi tindakan
+- Sertakan tautan berhenti berlangganan untuk kepatuhan
+- Uji template email sebelum diluncurkan
+
+## Pemecahan Masalah
+
+<AccordionGroup>
+<Accordion title="Email tidak terkirim">
+- Verifikasi Kunci API benar dan aktif
+- Periksa bahwa domain pengirim terverifikasi di Kirim Ulang
+- Pastikan alamat email penerima valid
+- Tinjau batas dan kuota pengiriman Kirim Ulang
+</Accordion>
+
+<Accordion title="Kesalahan transformasi">
+- Validasi struktur JSON sesuai dengan format API Kirim Ulang
+- Periksa bahwa semua field yang diperlukan ada
+- Pastikan konten HTML diformat dengan benar
+- Verifikasi alamat email pengirim terverifikasi
+</Accordion>
+</AccordionGroup>

@@ -1,0 +1,54 @@
+---
+openapi-schema: SubscriptionResponse
+title: Langganan
+description: Payload yang dikirim ke endpoint webhook Anda ketika langganan
+  dibuat, diperbarui, atau berubah status.
+icon: repeat
+---
+
+## Peristiwa Webhook Langganan
+
+Peristiwa webhook berikut tersedia untuk melacak perubahan siklus hidup langganan:
+
+| Peristiwa | Deskripsi |
+|-------|-------------|
+| `subscription.active` | Langganan berhasil diaktifkan |
+| `subscription.updated` | Objek langganan diperbarui (perubahan pada bidang mana pun memicu peristiwa ini) |
+| `subscription.on_hold` | Langganan ditangguhkan karena pembaruan gagal |
+| `subscription.renewed` | Langganan diperpanjang untuk periode penagihan berikutnya |
+| `subscription.plan_changed` | Rencana langganan ditingkatkan, diturunkan, atau dimodifikasi |
+| `subscription.cancelled` | Langganan dibatalkan |
+| `subscription.failed` | Pembuatan langganan gagal selama pembuatan mandat |
+| `subscription.expired` | Langganan mencapai akhir masa berlakunya |
+
+### Menggunakan `subscription.updated` untuk Sinkronisasi Waktu Nyata
+
+Webhook `subscription.updated` akan aktif setiap kali ada perubahan pada bidang langganan, memungkinkan Anda untuk menjaga status aplikasi Anda tetap sinkron tanpa polling:
+
+```javascript
+app.post('/webhooks/dodo', async (req, res) => {
+  const event = req.body;
+  
+  if (event.type === 'subscription.updated') {
+    const subscription = event.data;
+    
+    // Sync subscription changes to your database
+    await syncSubscription(subscription.subscription_id, {
+      status: subscription.status,
+      next_billing_date: subscription.next_billing_date,
+      metadata: subscription.metadata,
+      // ... other fields you want to track
+    });
+    
+    console.log(`Subscription ${subscription.subscription_id} updated`);
+  }
+  
+  res.json({ received: true });
+});
+```
+
+<Tip>
+Berlangganan ke `subscription.updated` untuk mendapatkan notifikasi waktu nyata tentang setiap perubahan langganan, menghilangkan kebutuhan untuk melakukan polling API untuk pembaruan.
+</Tip>
+
+## Skema Payload Webhook

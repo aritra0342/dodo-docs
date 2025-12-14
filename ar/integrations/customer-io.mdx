@@ -1,0 +1,174 @@
+---
+title: Customer.io
+description: إرسال أحداث مدفوعات Dodo إلى Customer.io لتفعيل أتمتة البريد
+  الإلكتروني ورحلات العملاء.
+icon: chart-area
+---
+
+## المقدمة
+
+قم بتفعيل حملات البريد الإلكتروني المخصصة ورحلات العملاء بناءً على أحداث الدفع. أرسل رسائل ترحيب للعملاء الجدد، وتحديثات الاشتراك، وإشعارات فشل الدفع تلقائيًا من خلال Customer.io.
+
+<Info>
+تتطلب هذه التكامل معرف موقع Customer.io ومفتاح API الخاص بك.
+</Info>
+
+## البدء
+
+<Steps>
+<Step title="فتح قسم Webhook">
+  في لوحة معلومات مدفوعات Dodo الخاصة بك، انتقل إلى <b>Webhooks → + إضافة نقطة نهاية</b> وقم بتوسيع قائمة التكاملات.
+  <Frame>
+    <img src="/images/integrations/customer-io.png" alt="إضافة نقطة نهاية وقائمة التكاملات" />
+  </Frame>
+</Step>
+
+<Step title="اختيار Customer.io">
+  اختر بطاقة تكامل <b>Customer.io</b>.
+</Step>
+
+<Step title="إدخال بيانات الاعتماد">
+  قدم معرف موقع Customer.io ومفتاح API الخاص بك في الإعدادات.
+</Step>
+
+<Step title="تكوين التحويل">
+  قم بتحرير كود التحويل لتنسيق الأحداث لواجهة برمجة التطبيقات Track الخاصة بـ Customer.io.
+</Step>
+
+<Step title="اختبار وإنشاء">
+  اختبر باستخدام حمولات عينة وانقر على <b>إنشاء</b> لتفعيل المزامنة.
+</Step>
+
+<Step title="تم!">
+  🎉 ستقوم أحداث الدفع الآن بتفعيل أتمتة البريد الإلكتروني في Customer.io.
+</Step>
+</Steps>
+
+## أمثلة على كود التحويل
+
+### تتبع أحداث الدفع
+
+```javascript track_payments.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.url = "https://track.customer.io/api/v2/entity";
+    webhook.payload = {
+      type: "person",
+      identifiers: {
+        id: p.customer.customer_id
+      },
+      action: "payment_completed",
+      name: "Payment Completed",
+      attributes: {
+        email: p.customer.email,
+        name: p.customer.name,
+        payment_amount: (p.total_amount / 100).toFixed(2),
+        payment_method: p.payment_method || "unknown",
+        payment_id: p.payment_id,
+        currency: p.currency || "USD"
+      }
+    };
+  }
+  return webhook;
+}
+```
+
+### تتبع دورة حياة الاشتراك
+
+```javascript track_subscriptions.js icon="js" expandable
+function handler(webhook) {
+  const s = webhook.payload.data;
+  switch (webhook.eventType) {
+    case "subscription.active":
+      webhook.url = "https://track.customer.io/api/v2/entity";
+      webhook.payload = {
+        type: "person",
+        identifiers: {
+          id: s.customer.customer_id
+        },
+        action: "subscription_started",
+        name: "Subscription Started",
+        attributes: {
+          email: s.customer.email,
+          subscription_id: s.subscription_id,
+          product_id: s.product_id,
+          amount: (s.recurring_pre_tax_amount / 100).toFixed(2),
+          frequency: s.payment_frequency_interval,
+          next_billing: s.next_billing_date
+        }
+      };
+      break;
+    case "subscription.cancelled":
+      webhook.url = "https://track.customer.io/api/v2/entity";
+      webhook.payload = {
+        type: "person",
+        identifiers: {
+          id: s.customer.customer_id
+        },
+        action: "subscription_cancelled",
+        name: "Subscription Cancelled",
+        attributes: {
+          email: s.customer.email,
+          subscription_id: s.subscription_id,
+          cancelled_at: s.cancelled_at,
+          cancel_at_next_billing: s.cancel_at_next_billing_date
+        }
+      };
+      break;
+  }
+  return webhook;
+}
+```
+
+### تتبع سمات العملاء
+
+```javascript track_attributes.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.url = "https://track.customer.io/api/v2/entity";
+    webhook.payload = {
+      type: "person",
+      identifiers: {
+        id: p.customer.customer_id
+      },
+      action: "identify",
+      name: "Customer Identified",
+      attributes: {
+        email: p.customer.email,
+        name: p.customer.name,
+        total_spent: (p.total_amount / 100).toFixed(2),
+        payment_method: p.payment_method || "unknown",
+        last_payment_date: webhook.payload.timestamp,
+        customer_since: webhook.payload.timestamp
+      }
+    };
+  }
+  return webhook;
+}
+```
+
+## نصائح
+
+- استخدم أسماء أحداث متسقة تتطابق مع حملات Customer.io الخاصة بك
+- قم بتضمين سمات ذات صلة للتخصيص
+- قم بتعيين معرفات العملاء بشكل صحيح للتتبع الدقيق
+- استخدم أسماء أحداث ذات معنى لتفعيل الحملات
+
+## استكشاف الأخطاء وإصلاحها
+
+<AccordionGroup>
+<Accordion title="الأحداث لا تقوم بتفعيل الحملات">
+- تحقق من صحة معرف الموقع ومفتاح API
+- تحقق من أن أسماء الأحداث تتطابق مع حملات Customer.io الخاصة بك
+- تأكد من تعيين معرفات العملاء بشكل صحيح
+- راجع حدود معدل API لـ Customer.io
+</Accordion>
+
+<Accordion title="أخطاء التحويل">
+- تحقق من أن هيكل JSON يتطابق مع تنسيق API الخاص بـ Customer.io
+- تحقق من وجود جميع الحقول المطلوبة
+- تأكد من أن أسماء الأحداث والسمات تم تنسيقها بشكل صحيح
+</Accordion>
+</AccordionGroup>

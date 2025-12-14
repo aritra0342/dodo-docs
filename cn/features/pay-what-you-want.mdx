@@ -1,0 +1,145 @@
+---
+sidebarTitle: 随意支付
+title: 随意支付定价
+description: 让客户选择超过最低限度的价格。可选地显示建议价格。优化为一次性购买。
+icon: dollar-sign
+---
+
+**随意支付 (PWYW)** 让客户决定他们支付的金额——在商家定义的最低限度之上。它增加了参与度，鼓励社区支持，并为数字产品提供灵活的定价。
+
+<Frame>
+    <iframe 
+        className="w-full aspect-video rounded-md" 
+        src="https://www.youtube.com/embed/Lh0Q01b33NY"
+        title="随意支付定价 | Dodo Payments"
+        frameBorder="0"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        allowFullScreen
+    ></iframe>
+</Frame>
+
+## 什么是随意支付？
+
+PWYW 是一种定价模型，客户在您定义的保护范围内设定自己的价格。它非常适合：
+
+- **数字产品和媒体**：模板、电子书、课程、插件
+- **实验性发布**：提前访问、测试版发布、限时促销
+- **捆绑和附加**：添加 PWYW 级别以提高参与度
+
+## 主要好处
+
+- **客户驱动的定价**：买家选择他们支付的金额
+- **收入底线**：强制执行最低限度以保护利润
+- **锚定期望**：可选的建议价格以指导选择
+- **无缝结账**：托管结账和收据由您处理
+- **开发者优先**：清晰的 API 用于创建、退款和 Webhook
+
+<Warning>
+PWYW 仅适用于 **单次支付**（一次性）产品。
+</Warning>
+
+## 创建随意支付
+
+创建一个一次性产品并在您的 Dodo Payments 仪表板中启用 PWYW。以下部分直接映射到创建表单。
+
+### 产品创建
+
+#### 产品详情
+
+- **产品名称**（必填）：在结账和发票中显示的名称
+- **产品描述**（必填）：客户在支付前看到的清晰价值声明
+- **产品图片**（必填）：PNG/JPG/WebP，最大 3 MB
+- **品牌**：将产品与特定品牌关联以进行主题和电子邮件
+- **税务类别**（必填）：选择正确的类别以确定税务规则
+
+<Tip>
+选择最准确的税务类别以确保每个地区的税务收集正确。
+</Tip>
+
+#### 定价
+
+- **定价类型**：选择 <b>单次支付</b>
+- **随意支付**（切换）：启用以让买家选择金额
+- **最低价格**（必填）：客户可以支付的最低金额
+- **建议价格**（可选）：在产品页面上显示的推荐金额
+
+<Tip>
+使用元数据存储您系统中的标识符（例如，orderId），以便您可以稍后对事件和收据进行对账。
+</Tip>
+
+## API 管理
+
+<AccordionGroup>
+<Accordion title="创建结账会话 (PWYW)">
+使用 `POST /checkout-sessions/create` 从产品创建一次性结账会话。结账将提示买家输入满足您 PWYW 最低限度的金额。
+
+<Card title="API 参考" icon="code" href="/api-reference/checkout-sessions/create">
+查看创建结账会话 API。
+</Card>
+</Accordion>
+
+<Accordion title="退款支付">
+使用 `POST /refunds` 创建全额或部分退款。客户将获得他们支付的确切金额的退款。
+
+<Card title="API 参考" icon="code" href="/api-reference/refunds/post-refunds">
+了解如何退款。
+</Card>
+</Accordion>
+
+<Accordion title="列出和检索">
+使用 `GET /payments` 列出支付，使用 `GET /payments/{payment_id}` 检索一笔支付。使用 `GET /payments/{payment_id}/line-items` 检索行项目。
+
+<Card title="列出支付" icon="code" href="/api-reference/payments/get-payments">
+浏览列出 API。
+</Card>
+
+<Card title="获取支付详情" icon="code" href="/api-reference/payments/get-payments-1">
+查看检索 API。
+</Card>
+
+<Card title="检索行项目" icon="code" href="/api-reference/payments/retrieve-line-items">
+检查支付的购买项目。
+</Card>
+</Accordion>
+
+<Accordion title="支付 Webhook">
+在您的后端响应 payment.succeeded 或 payment.failed 等事件。
+
+<Card title="Webhook 指南" icon="code" href="/developer-resources/webhooks/intents/payment">
+处理支付生命周期事件。
+</Card>
+</Accordion>
+</AccordionGroup>
+
+## 常见用例
+
+- **数字资产**：主题、模板、图标集、媒体或插件
+- **内容和教育**：电子书、课程、以支持者定价的研讨会
+- **社区与捐赠**：筹款、开源赞助、创作者支持
+- **发布实验**：测试访问和限时活动以评估需求
+
+## 集成示例
+
+### 结账会话（单次支付，PWYW）
+将 PWYW 产品添加到购物车。结账收集买家的金额（遵循您的最低限度）——不需要额外字段。
+
+```typescript
+const session = await client.checkoutSessions.create({
+  product_cart: [
+    { product_id: 'prod_pwyw_demo', quantity: 1 }
+  ],
+  return_url: 'https://yoursite.com/checkout/success'
+});
+```
+
+## 最佳实践
+
+- **选择合理的最低限度**：覆盖成本，同时保持参与的便利性
+- **使用建议价格**：锚定期望以提高平均订单价值
+- **清晰解释价值**：告诉买家他们的贡献解锁了什么
+- **A/B 测试活动**：限时提供并尝试不同的消息
+- **监控分配**：跟踪支付金额以优化最低限度和建议价格
+
+<Info>
+PWYW 是一种灵活的方式，可以在保持收入底线的同时吸引更多客户。简单开始，彻底测试，并根据转化率、贡献分配和退款率进行迭代。
+</Info>

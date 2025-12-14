@@ -1,0 +1,472 @@
+---
+title: Slack
+description: 将 Dodo Payments 与 Slack 集成，以实时接收有关您付款的通知。
+icon: slack
+---
+
+## 介绍
+
+Dodo Payments Slack 集成允许您直接在 Slack 工作区中接收有关您付款的实时通知。此集成使您能够随时了解付款状态，跟踪交易，并更有效地管理您的付款。
+
+<Info>
+此集成使用我们的 webhook 管理门户自动将 Dodo Payments webhook 事件转换为 Slack 兼容的消息。无需额外编码 - 只需配置连接器并开始接收通知。
+</Info>
+
+## 开始使用
+
+<Steps>
+<Step title="打开 Webhook 部分">
+  转到 Dodo Payments 仪表板中的 <b>Webhook</b> 部分。单击 <b>+ 添加端点</b> 按钮，然后打开 webhook 下拉菜单以显示其他集成。
+  <Frame>
+    <img src="/images/integrations/slack/1.png" alt="Dodo Payments 仪表板显示添加端点按钮和集成下拉菜单" />
+  </Frame>
+</Step>
+
+<Step title="选择 Slack 集成">
+  选择 <b>Slack</b> 集成并单击 <b>连接您的 Slack 工作区</b>。
+  <Frame>
+    <img src="/images/integrations/slack/2.png" alt="Slack 集成卡片和连接按钮" />
+  </Frame>
+</Step>
+
+<Step title="授予 Slack 权限">
+  授予 Incoming Webhooks Slack 应用所需的权限，以便它可以在您选择的频道中发布消息。
+  <Frame>
+    <img src="/images/integrations/slack/3.png" alt="Incoming Webhooks 应用的 Slack OAuth 权限屏幕" />
+  </Frame>
+</Step>
+
+<Step title="自定义转换代码">
+  添加或编辑转换代码，以根据您的用例自定义 Slack 通知。您可以使用预制模板或编写自己的逻辑。
+  <Frame>
+    <img src="/images/integrations/slack/4.png" alt="Slack 集成的转换代码编辑器" />
+  </Frame>
+</Step>
+
+<Step title="测试并创建">
+  使用自定义或预制事件有效负载测试您的转换代码。一旦您满意，单击 <b>创建</b> 以激活集成。
+  <Frame>
+    <img src="/images/integrations/slack/5.png" alt="测试转换和创建按钮" />
+  </Frame>
+</Step>
+
+<Step title="集成完成！">
+  🎉 您已成功创建 Slack 集成！您的 Dodo Payments 事件现在将实时发送到您选择的 Slack 频道。
+</Step>
+</Steps>
+
+## 转换代码示例
+
+### 基本付款通知
+
+此转换发送简单文本消息以处理付款事件：
+
+```javascript payment_notifs.js icon="js" expandable
+function handler(webhook) {
+  switch (webhook.eventType) {
+    case "payment.succeeded":
+      webhook.payload = {
+        text: `✅ Payment Successful\nAmount: $${(webhook.payload.data.total_amount / 100).toFixed(2)}\nCustomer: ${webhook.payload.data.customer.email}\nPayment ID: ${webhook.payload.data.payment_id}`
+      };
+      break;
+      
+    case "payment.failed":
+      webhook.payload = {
+        text: `❌ Payment Failed\nAmount: $${(webhook.payload.data.total_amount / 100).toFixed(2)}\nCustomer: ${webhook.payload.data.customer.email}\nReason: ${webhook.payload.data.error_message || 'Unknown'}`
+      };
+      break;
+      
+    case "payment.processing":
+      webhook.payload = {
+        text: `⏳ Payment Processing\nAmount: $${(webhook.payload.data.total_amount / 100).toFixed(2)}\nCustomer: ${webhook.payload.data.customer.email}`
+      };
+      break;
+  }
+
+  return webhook;
+}
+```
+
+### 丰富的订阅通知
+
+此转换为订阅事件创建丰富的 Slack 消息和附件：
+
+```javascript subscription_notifs.js icon="js" expandable
+function handler(webhook) {
+  switch (webhook.eventType) {
+    case "subscription.active":
+      webhook.payload = {
+        attachments: [{
+          color: "good",
+          title: "🎉 Subscription Activated",
+          fields: [
+            {
+              title: "Customer",
+              value: webhook.payload.data.customer.email,
+              short: true
+            },
+            {
+              title: "Product ID",
+              value: webhook.payload.data.product_id,
+              short: true
+            },
+            {
+              title: "Amount",
+              value: `$${(webhook.payload.data.recurring_pre_tax_amount / 100).toFixed(2)}/${webhook.payload.data.payment_frequency_interval}`,
+              short: true
+            },
+            {
+              title: "Next Billing",
+              value: new Date(webhook.payload.data.next_billing_date).toLocaleDateString(),
+              short: true
+            }
+          ],
+          footer: "Dodo Payments",
+          ts: Math.floor(new Date(webhook.payload.timestamp).getTime() / 1000)
+        }]
+      };
+      break;
+      
+    case "subscription.cancelled":
+      webhook.payload = {
+        attachments: [{
+          color: "warning",
+          title: "⚠️ Subscription Cancelled",
+          fields: [
+            {
+              title: "Customer",
+              value: webhook.payload.data.customer.email,
+              short: true
+            },
+            {
+              title: "Product ID",
+              value: webhook.payload.data.product_id,
+              short: true
+            },
+            {
+              title: "Cancellation Date",
+              value: new Date(webhook.payload.data.cancelled_at).toLocaleDateString(),
+              short: true
+            },
+            {
+              title: "Cancel at Next Billing",
+              value: webhook.payload.data.cancel_at_next_billing_date ? "Yes" : "No",
+              short: true
+            }
+          ],
+          footer: "Dodo Payments",
+          ts: Math.floor(new Date(webhook.payload.timestamp).getTime() / 1000)
+        }]
+      };
+      break;
+      
+    case "subscription.renewed":
+      webhook.payload = {
+        attachments: [{
+          color: "good",
+          title: "🔄 Subscription Renewed",
+          fields: [
+            {
+              title: "Customer",
+              value: webhook.payload.data.customer.email,
+              short: true
+            },
+            {
+              title: "Product ID",
+              value: webhook.payload.data.product_id,
+              short: true
+            },
+            {
+              title: "Amount",
+              value: `$${(webhook.payload.data.recurring_pre_tax_amount / 100).toFixed(2)}`,
+              short: true
+            },
+            {
+              title: "Next Billing",
+              value: new Date(webhook.payload.data.next_billing_date).toLocaleDateString(),
+              short: true
+            }
+          ],
+          footer: "Dodo Payments",
+          ts: Math.floor(new Date(webhook.payload.timestamp).getTime() / 1000)
+        }]
+      };
+      break;
+  }
+
+  return webhook;
+}
+```
+
+### 争议管理通知
+
+此转换以适当的颜色和紧急程度处理争议事件：
+
+```javascript dispute_notifs.js icon="js" expandable
+function handler(webhook) {
+  switch (webhook.eventType) {
+    case "dispute.opened":
+      webhook.payload = {
+        attachments: [{
+          color: "danger",
+          title: "🚨 New Dispute Opened",
+          fields: [
+            {
+              title: "Payment ID",
+              value: webhook.payload.data.payment_id,
+              short: true
+            },
+            {
+              title: "Amount",
+              value: `$${(webhook.payload.data.amount / 100).toFixed(2)}`,
+              short: true
+            },
+            {
+              title: "Status",
+              value: webhook.payload.data.dispute_status,
+              short: true
+            },
+            {
+              title: "Stage",
+              value: webhook.payload.data.dispute_stage,
+              short: true
+            },
+            {
+              title: "Remarks",
+              value: webhook.payload.data.remarks || "No remarks",
+              short: false
+            }
+          ],
+          footer: "Dodo Payments - Action Required",
+          ts: Math.floor(new Date(webhook.payload.timestamp).getTime() / 1000)
+        }]
+      };
+      break;
+      
+    case "dispute.won":
+      webhook.payload = {
+        attachments: [{
+          color: "good",
+          title: "✅ Dispute Won",
+          fields: [
+            {
+              title: "Payment ID",
+              value: webhook.payload.data.payment_id,
+              short: true
+            },
+            {
+              title: "Amount",
+              value: `$${(webhook.payload.data.amount / 100).toFixed(2)}`,
+              short: true
+            },
+            {
+              title: "Status",
+              value: webhook.payload.data.dispute_status,
+              short: true
+            },
+            {
+              title: "Resolution",
+              value: "Dispute resolved in your favor",
+              short: false
+            }
+          ],
+          footer: "Dodo Payments",
+          ts: Math.floor(new Date(webhook.payload.timestamp).getTime() / 1000)
+        }]
+      };
+      break;
+      
+    case "dispute.lost":
+      webhook.payload = {
+        attachments: [{
+          color: "danger",
+          title: "❌ Dispute Lost",
+          fields: [
+            {
+              title: "Payment ID",
+              value: webhook.payload.data.payment_id,
+              short: true
+            },
+            {
+              title: "Amount",
+              value: `$${(webhook.payload.data.amount / 100).toFixed(2)}`,
+              short: true
+            },
+            {
+              title: "Status",
+              value: webhook.payload.data.dispute_status,
+              short: true
+            },
+            {
+              title: "Impact",
+              value: "Funds will be debited from your account",
+              short: false
+            }
+          ],
+          footer: "Dodo Payments - Review Required",
+          ts: Math.floor(new Date(webhook.payload.timestamp).getTime() / 1000)
+        }]
+      };
+      break;
+  }
+
+  return webhook;
+}
+```
+
+### 综合所有事件处理程序
+
+此转换以一致的格式处理所有事件类型：
+
+```javascript all_events_notifs.js icon="js" expandable 
+function handler(webhook) {
+  const event = webhook.payload.data;
+  const timestamp = new Date(webhook.payload.timestamp).toLocaleString();
+  
+  let color, emoji, title, fields = [];
+  
+  switch (webhook.eventType) {
+    case "payment.succeeded":
+      color = "good";
+      emoji = "✅";
+      title = "Payment Successful";
+      fields = [
+        { title: "Amount", value: `$${(event.total_amount / 100).toFixed(2)}`, short: true },
+        { title: "Customer", value: event.customer.email, short: true },
+        { title: "Payment ID", value: event.payment_id, short: true },
+        { title: "Method", value: event.payment_method || "Unknown", short: true }
+      ];
+      break;
+      
+    case "payment.failed":
+      color = "danger";
+      emoji = "❌";
+      title = "Payment Failed";
+      fields = [
+        { title: "Amount", value: `$${(event.total_amount / 100).toFixed(2)}`, short: true },
+        { title: "Customer", value: event.customer.email, short: true },
+        { title: "Reason", value: event.error_message || "Unknown", short: false }
+      ];
+      break;
+      
+    case "subscription.active":
+      color = "good";
+      emoji = "🎉";
+      title = "Subscription Activated";
+      fields = [
+        { title: "Customer", value: event.customer.email, short: true },
+        { title: "Product ID", value: event.product_id, short: true },
+        { title: "Amount", value: `$${(event.recurring_pre_tax_amount / 100).toFixed(2)}/${event.payment_frequency_interval}`, short: true },
+        { title: "Next Billing", value: new Date(event.next_billing_date).toLocaleDateString(), short: true }
+      ];
+      break;
+      
+    case "subscription.cancelled":
+      color = "warning";
+      emoji = "⚠️";
+      title = "Subscription Cancelled";
+      fields = [
+        { title: "Customer", value: event.customer.email, short: true },
+        { title: "Product ID", value: event.product_id, short: true },
+        { title: "Cancellation Date", value: new Date(event.cancelled_at).toLocaleDateString(), short: true },
+        { title: "Cancel at Next Billing", value: event.cancel_at_next_billing_date ? "Yes" : "No", short: true }
+      ];
+      break;
+      
+    case "refund.succeeded":
+      color = "good";
+      emoji = "💰";
+      title = "Refund Processed";
+      fields = [
+        { title: "Amount", value: `$${(event.amount / 100).toFixed(2)}`, short: true },
+        { title: "Refund ID", value: event.refund_id, short: true },
+        { title: "Payment ID", value: event.payment_id, short: true },
+        { title: "Reason", value: event.reason || "Not specified", short: true }
+      ];
+      break;
+      
+    case "dispute.opened":
+      color = "danger";
+      emoji = "🚨";
+      title = "New Dispute Opened";
+      fields = [
+        { title: "Payment ID", value: event.payment_id, short: true },
+        { title: "Amount", value: `$${(event.amount / 100).toFixed(2)}`, short: true },
+        { title: "Status", value: event.dispute_status, short: true },
+        { title: "Stage", value: event.dispute_stage, short: true },
+        { title: "Remarks", value: event.remarks || "No remarks", short: false }
+      ];
+      break;
+      
+    case "license_key.created":
+      color = "good";
+      emoji = "🔑";
+      title = "License Key Created";
+      fields = [
+        { title: "License ID", value: event.id, short: true },
+        { title: "Product ID", value: event.product_id, short: true },
+        { title: "License Key", value: event.key.substring(0, 8) + "...", short: true },
+        { title: "Expires", value: event.expires_at ? new Date(event.expires_at).toLocaleDateString() : "Never", short: true }
+      ];
+      break;
+      
+    default:
+      // Handle any other events with a generic format
+      color = "warning";
+      emoji = "ℹ️";
+      title = webhook.eventType.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+      fields = [
+        { title: "Event Type", value: webhook.eventType, short: true },
+        { title: "Timestamp", value: timestamp, short: true }
+      ];
+  }
+  
+  webhook.payload = {
+    attachments: [{
+      color: color,
+      title: `${emoji} ${title}`,
+      fields: fields,
+      footer: "Dodo Payments",
+      ts: Math.floor(new Date(webhook.payload.timestamp).getTime() / 1000)
+    }]
+  };
+
+  return webhook;
+}
+```
+
+## 最佳实践
+
+为了使您的 Slack 通知有效：
+- 使用带有颜色、字段和格式的丰富消息附件，以提高清晰度和可操作性。
+- 始终包括关键数据，例如金额、客户电子邮件和 ID，以便快速识别。
+- 选择与事件类型匹配的颜色：绿色 (`good`) 表示成功，红色 (`danger`) 表示争议或失败，黄色 (`warning`) 表示取消，蓝色 (`#36a64f`) 表示信息事件。
+- 添加时间戳以帮助跟踪每个事件发生的时间。
+
+<Warning>
+**处理敏感数据**：请小心不要在 Slack 消息中包含敏感信息，例如完整的许可证密钥或个人数据。考虑截断或掩盖敏感值。
+</Warning>
+
+## 故障排除
+
+<AccordionGroup>
+<Accordion title="通知未出现在 Slack 中">
+    - 验证 Slack webhook URL 是否正确且有效
+    - 检查转换代码是否有效的 JavaScript
+    - 确保所选事件类型被触发
+    - 验证您的 Slack 应用是否具有必要的权限
+</Accordion>
+
+<Accordion title="转换错误">
+    - 检查 webhook 管理门户中的转换错误日志
+    - 验证 webhook 有效负载结构是否与您的转换代码匹配
+    - 使用示例数据测试您的转换代码
+    - 确保 webhook 有效负载中包含所有必需字段
+</Accordion>
+
+<Accordion title="缺少事件类型">
+    - 确认您希望接收的事件在 Dodo Payments webhook 配置中已启用
+    - 检查在 Slack 连接器配置中是否选择了事件类型
+    - 验证您的端点是否正确配置以接收事件
+</Accordion>
+</AccordionGroup>

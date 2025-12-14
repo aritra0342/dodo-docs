@@ -1,0 +1,142 @@
+---
+title: Discord
+description: 将实时 Dodo Payments 通知发送到您的 Discord 频道。
+icon: discord
+---
+
+## 介绍
+
+让您的团队在他们已经协作的地方保持信息通畅。Discord 集成将支付、订阅、争议和其他重要事件直接发送到您选择的任何频道—无需轮询或仪表板。
+
+<Info>
+本指南假设您可以访问 Dodo Payments 仪表板的集成部分。
+</Info>
+
+## 开始使用
+
+<Steps>
+<Step title="打开 Webhook 部分">
+  在您的 Dodo Payments 仪表板中，打开 <b>Webhooks → + 添加端点</b>，展开下拉菜单以显示集成。
+  <Frame>
+    <img src="/images/integrations/discord.png" alt="添加端点和集成下拉菜单" />
+  </Frame>
+</Step>
+
+<Step title="选择 Discord">
+  选择 <b>Discord</b> 卡片，然后点击 <b>连接您的 Discord 工作区</b>。
+</Step>
+
+<Step title="授权机器人">
+  授予请求的权限，以便机器人可以在您选择的频道中发布消息。
+</Step>
+
+<Step title="编辑转换代码">
+  根据您的需求定制有效负载 → 嵌入映射，或从下面的模板开始。
+</Step>
+
+<Step title="测试并创建">
+  使用示例有效负载预览嵌入，然后点击 <b>创建</b>。
+</Step>
+
+<Step title="完成！">
+  🎉 您的 Discord 频道现在将接收实时 Dodo Payments 更新。
+</Step>
+</Steps>
+
+## 转换代码示例
+
+### 最小支付嵌入
+
+```javascript payment_embed.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.payload = {
+      embeds: [{
+        title: "✅ Payment Successful",
+        description: `**Amount:** $${(p.total_amount / 100).toFixed(2)}\n**Customer:** ${p.customer.email}`,
+        color: 0x2ecc71 // green
+      }]
+    };
+  }
+  return webhook;
+}
+```
+
+### 订阅事件
+
+```javascript subscription_embed.js icon="js" expandable
+function handler(webhook) {
+  const s = webhook.payload.data;
+  switch (webhook.eventType) {
+    case "subscription.active":
+      webhook.payload = {
+        embeds: [{
+          title: "📄 Subscription Activated",
+          fields: [
+            { name: "Customer", value: s.customer.email, inline: true },
+            { name: "Product", value: s.product_id, inline: true },
+            { name: "Next Billing", value: new Date(s.next_billing_date).toLocaleDateString(), inline: true }
+          ],
+          color: 0x2ecc71
+        }]
+      };
+      break;
+    case "subscription.cancelled":
+      webhook.payload = {
+        embeds: [{
+          title: "⚠️ Subscription Cancelled",
+          fields: [
+            { name: "Customer", value: s.customer.email, inline: true },
+            { name: "Product", value: s.product_id, inline: true }
+          ],
+          color: 0xf1c40f
+        }]
+      };
+      break;
+  }
+  return webhook;
+}
+```
+
+### 争议警报
+
+```javascript dispute_embed.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType.startsWith("dispute.")) {
+    const d = webhook.payload.data;
+    webhook.payload = {
+      embeds: [{
+        title: d.dispute_status === "won" ? "🏆 Dispute Won" : d.dispute_status === "lost" ? "❌ Dispute Lost" : "🚨 Dispute Update",
+        fields: [
+          { name: "Payment ID", value: d.payment_id, inline: true },
+          { name: "Amount", value: `$${(d.amount / 100).toFixed(2)}`, inline: true },
+          { name: "Status", value: d.dispute_status, inline: true }
+        ],
+        color: d.dispute_status === "won" ? 0x2ecc71 : d.dispute_status === "lost" ? 0xe74c3c : 0xe67e22
+      }]
+    };
+  }
+  return webhook;
+}
+```
+
+## 提示
+
+- 优先使用嵌入以获得丰富的格式和颜色。
+- 保持标题简短；将详细信息放在字段中。
+- 使用直观的颜色：绿色（成功），红色（失败），橙色（警告）。
+
+## 故障排除
+
+<AccordionGroup>
+<Accordion title="Discord 中没有消息">
+- 确认机器人可以访问该频道。
+- 检查转换是否返回带有 `embeds` 的 JSON 对象。
+</Accordion>
+
+<Accordion title="转换错误">
+- 在编辑器中验证您的代码—语法错误将阻止交付。
+- 确保字段名称与 webhook 有效负载结构匹配。
+</Accordion>
+</AccordionGroup>

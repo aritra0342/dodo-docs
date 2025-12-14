@@ -1,0 +1,248 @@
+---
+title: CLI
+description: 从终端与 Dodo Payments API 交互的命令行界面
+icon: terminal
+---
+
+## 安装
+
+### Go 安装
+
+```bash
+go install github.com/dodopayments/dodopayments-cli/cmd/dodopayments@latest
+```
+
+### 从源代码安装
+
+```bash
+git clone https://github.com/dodopayments/dodopayments-cli.git
+cd dodopayments-cli
+go install ./cmd/dodopayments
+```
+
+## 快速开始
+
+设置您的 API 密钥：
+
+```bash
+export DODO_PAYMENTS_API_KEY=your_api_key_here
+```
+
+基本命令结构：
+
+```bash
+dodopayments [resource] [command] [flags]
+```
+
+创建结账会话：
+
+```bash
+dodopayments checkout-sessions create \
+  --product-cart.product_id prod_123 \
+  --product-cart.quantity 1 \
+  --return-url https://yourdomain.com/return
+```
+
+## 全局标志
+
+| 标志 | 描述 |
+|------|-------------|
+| `--format` | 输出格式：`auto`, `json`, `yaml`, `pretty`, `explore` |
+| `--transform` | 使用 gjson 语法过滤响应 |
+| `--debug` | 启用详细日志记录 |
+| `--version`, `-v` | 显示 CLI 版本 |
+
+## 常用命令
+
+### 支付
+
+```bash
+# List payments
+dodopayments payments list --limit 20 --format json
+
+# Retrieve payment
+dodopayments payments retrieve pay_123
+
+# Get line items
+dodopayments payments line-items pay_123
+```
+
+### 客户
+
+```bash
+# Create customer
+dodopayments customers create \
+  --email customer@example.com \
+  --name "John Doe"
+
+# List customers
+dodopayments customers list
+
+# Update customer
+dodopayments customers update cus_123 --name "Jane Doe"
+```
+
+### 订阅
+
+```bash
+# Create subscription
+dodopayments subscriptions create \
+  --customer-id cus_123 \
+  --product-id prod_456
+
+# List subscriptions
+dodopayments subscriptions list
+
+# Get usage history
+dodopayments subscriptions usage-history sub_123
+```
+
+### 产品
+
+```bash
+# Create product
+dodopayments products create \
+  --name "Premium Plan" \
+  --price.amount 2999 \
+  --price.currency USD
+
+# List products
+dodopayments products list
+```
+
+## 基于使用的计费
+
+### 导入事件
+
+```bash
+dodopayments usage-events ingest \
+  --events.event_id api_call_12345 \
+  --events.customer_id cus_abc123 \
+  --events.event_name api_request \
+  --events.timestamp 2024-01-15T10:30:00Z \
+  --events.metadata.endpoint /api/v1/users
+```
+
+### 管理计量器
+
+```bash
+# Create meter
+dodopayments meters create \
+  --name "API Requests" \
+  --event-name api_request \
+  --aggregation count
+
+# List meters
+dodopayments meters list
+```
+
+## 输出格式
+
+### JSON（用于脚本）
+
+```bash
+dodopayments payments list --format json | jq '.data[] | {id, amount}'
+```
+
+### 美观（用于阅读）
+
+```bash
+dodopayments payments retrieve pay_123 --format pretty
+```
+
+### 交互式探索
+
+```bash
+dodopayments payments list --format explore
+```
+
+### 使用 gjson 转换
+
+```bash
+# Extract all payment IDs
+dodopayments payments list --transform "data.#.id"
+
+# Filter and extract
+dodopayments payments list --transform "data.#(amount>5000)#.id"
+```
+
+<Tip>
+在 shell 脚本中使用 `--format json` 和 `jq` 进行强大的数据处理。
+</Tip>
+
+## 脚本示例
+
+```bash
+#!/bin/bash
+
+# Export all payments to CSV
+dodopayments payments list --format json | \
+  jq -r '.data[] | [.id, .amount, .currency, .status] | @csv' > payments.csv
+
+# Create customers from file
+while IFS=',' read -r email name; do
+  dodopayments customers create \
+    --email "$email" \
+    --name "$name" \
+    --format json
+done < customers.csv
+```
+
+## Shell 完成
+
+启用自动补全：
+
+```bash
+# Bash
+eval "$(dodopayments completion bash)"
+
+# Zsh
+eval "$(dodopayments completion zsh)"
+
+# Fish
+dodopayments completion fish | source
+```
+
+## 可用资源
+
+CLI 提供 24 个资源类别的命令：
+
+- `checkout-sessions` - 结账会话管理
+- `payments` - 支付操作
+- `subscriptions` - 定期计费
+- `customers` - 客户账户
+- `products` - 产品目录
+- `licenses` - 软件许可
+- `refunds` - 支付退款
+- `disputes` - 支付争议
+- `webhooks` - 事件 Webhook
+- `meters` - 使用计量器
+- `usage-events` - 使用跟踪
+- `discounts` - 折扣代码
+- `payouts` - 卖家付款
+- `brands` - 多品牌管理
+- 以及 10 个其他资源
+
+<Info>
+使用 `dodopayments --help` 查看所有可用资源，使用 `dodopayments [resource] --help` 获取特定资源的命令。
+</Info>
+
+## 资源
+
+<CardGroup cols={2}>
+<Card title="GitHub 仓库" icon="github" href="https://github.com/dodopayments/dodopayments-cli">
+  查看源代码和发布版本
+</Card>
+
+<Card title="API 参考" icon="book" href="/api-reference/introduction">
+  完整的 API 文档
+</Card>
+</CardGroup>
+
+## 支持
+
+需要 CLI 的帮助吗？
+
+- **Discord**：加入我们的 [社区服务器](https://discord.gg/bYqAp4ayYh)
+- **电子邮件**：通过 support@dodopayments.com 联系我们
+- **GitHub**：在 [仓库](https://github.com/dodopayments/dodopayments-cli) 上提交问题

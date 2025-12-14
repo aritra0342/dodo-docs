@@ -1,0 +1,331 @@
+---
+sidebarTitle: 데이터베이스 동기화
+title: 데이터베이스와 동기화
+icon: database
+description: 분석, 보고 및 통합을 위해 Dodo Payments 데이터를 자동으로 자신의 데이터베이스에 동기화합니다.
+---
+
+Dodo Payments는 결제 데이터를 자동으로 자신의 데이터베이스와 동기화하는 내장 데이터베이스 동기화 기능을 제공합니다. **결제**, **고객**, **구독**, 및 **라이센스**를 동기화하여 분석, 보고 또는 다른 시스템과의 통합을 위한 데이터의 로컬 복사본을 유지할 수 있습니다.
+
+<Info>
+**구현**: [npm 패키지](https://www.npmjs.com/package/dodo-sync)에서 사용 가능 | **소스 코드**: [GitHub](https://github.com/dodopayments/dodo-sync)
+</Info>
+
+## 무엇을 동기화할 수 있나요?
+
+우리의 데이터베이스 동기화 기능은 다음 Dodo Payments 엔티티를 데이터베이스에 동기화하는 것을 지원합니다:
+
+<CardGroup cols={2}>
+  <Card title="결제" icon="credit-card">
+    일회성 결제, 환불 및 결제 상태 업데이트를 포함한 모든 결제 거래를 동기화합니다.
+  </Card>
+  <Card title="고객" icon="users">
+    고객 프로필, 연락처 정보 및 메타데이터를 포함하여 고객 데이터를 동기화합니다.
+  </Card>
+  <Card title="구독" icon="repeat">
+    활성 구독, 청구 주기 및 구독 상태 변경을 포함한 구독 데이터를 동기화합니다.
+  </Card>
+  <Card title="라이센스" icon="key">
+    라이센스 키, 활성화 및 라이센스 상태 업데이트를 포함한 라이센스 정보를 동기화합니다.
+  </Card>
+</CardGroup>
+
+이러한 엔티티의 조합을 `scopes` 매개변수에 지정하여 동기화할 수 있습니다. 모든 동기화 작업은 점진적이며 최적의 성능을 위해 새로운 또는 업데이트된 레코드만 전송합니다.
+
+## 데이터베이스 지원
+
+현재 **MongoDB**, **PostgreSQL**, **MySQL**, 및 **ClickHouse**를 지원합니다.
+
+우리는 다음에 대한 지원을 확장하기 위해 적극적으로 작업하고 있습니다:
+- **데이터베이스**: Snowflake 및 기타.
+- **파이프라인**: ETL 파이프라인, 실시간 동기화.
+
+<Tip>
+우리는 데이터베이스 지원을 지속적으로 확장하고 있습니다. 새로운 데이터베이스 통합에 기여하고 싶다면, [GitHub 리포지토리](https://github.com/dodopayments/dodo-sync)에 Pull Request를 제출해 주세요.
+</Tip>
+
+## 시작하기
+
+**CLI**를 통해 또는 **코드**에서 프로그래밍 방식으로 데이터베이스 동기화 기능을 사용할 수 있습니다. 두 방법 모두 동일한 기능을 제공하므로, 작업 흐름에 가장 적합한 방법을 선택하세요.
+
+### CLI 사용하기
+
+CLI 도구는 데이터베이스 동기화를 설정하고 실행하는 빠른 방법을 제공합니다. 어디서나 사용할 수 있도록 전역적으로 설치하세요:
+
+<CodeGroup>
+
+```bash npm
+npm install -g dodo-sync
+```
+
+```bash bun
+bun add -g dodo-sync
+```
+
+</CodeGroup>
+
+#### CLI 실행하기
+
+CLI는 두 가지 모드를 지원합니다: **대화형 모드**는 안내 설정을 위한 것이고, **수동 모드**는 직접 구성을 위한 것입니다.
+
+**대화형 모드**: 인수 없이 명령을 실행하여 대화형 설정 마법사를 시작하세요.
+
+```bash
+dodo-sync
+```
+
+**수동 모드**: 마법사를 건너뛰기 위해 인수를 직접 전달하세요.
+
+```bash
+dodo-sync -i [interval] -d [database] -u [database_uri] --scopes [scopes] --api-key [api_key] --env [environment]
+```
+
+**예시:**
+
+```bash
+# MongoDB
+dodo-sync -i 600 -d mongodb -u mongodb://mymongodb.url --scopes "licences,payments,customers,subscriptions" --api-key YOUR_API_KEY --env test_mode
+
+# PostgreSQL
+dodo-sync -i 600 -d postgres -u postgresql://user:password@localhost:5432/mydb --scopes "licences,payments,customers,subscriptions" --api-key YOUR_API_KEY --env test_mode
+
+# MySQL
+dodo-sync -i 600 -d mysql -u mysql://user:password@localhost:3306/mydb --scopes "licences,payments,customers,subscriptions" --api-key YOUR_API_KEY --env test_mode
+
+# ClickHouse
+dodo-sync -i 600 -d clickhouse -u http://localhost:8123 --scopes "licences,payments,customers,subscriptions" --api-key YOUR_API_KEY --env test_mode
+```
+
+#### CLI 인수
+
+<ParamField path="--interval" type="number" alias="-i">
+초 단위의 동기화 간격. 동기화 작업이 얼마나 자주 실행되는지를 결정합니다. 제공되지 않으면 동기화는 한 번 실행되고 종료됩니다.
+</ParamField>
+
+<ParamField path="--database" type="string" alias="-d" required>
+사용할 데이터베이스 유형. 지원되는 값: `"mongodb"`, `"postgres"`, `"mysql"`, 또는 `"clickhouse"`.
+</ParamField>
+
+<ParamField path="--database-uri" type="string" alias="-u" required>
+데이터베이스에 대한 연결 URI:
+- **MongoDB**: `mongodb://localhost:27017` 또는 `mongodb+srv://user:pass@cluster.mongodb.net/`
+- **PostgreSQL**: `postgresql://user:password@localhost:5432/mydb`
+- **MySQL**: `mysql://user:password@localhost:3306/mydb`
+- **ClickHouse**: `http://localhost:8123`
+</ParamField>
+
+<ParamField path="--scopes" type="string" required>
+동기화할 데이터 엔티티의 쉼표로 구분된 목록. 사용 가능한 범위: `licences`, `payments`, `customers`, `subscriptions`. 예시: `"payments,customers"`.
+</ParamField>
+
+<ParamField path="--api-key" type="string" required>
+당신의 Dodo Payments API 키. 라이브 모드의 경우 `dp_live_`로 시작해야 하며, 테스트 모드의 경우 `dp_test_`로 시작해야 합니다.
+</ParamField>
+
+<ParamField path="--env" type="string" required>
+대상 환경. `"live_mode"` 또는 `"test_mode"`이어야 합니다. 이는 동기화할 Dodo Payments 환경을 결정합니다.
+</ParamField>
+
+<ParamField path="--rate-limit" type="number" alias="--rl">
+초당 요청 수의 비율 제한. Dodo Payments API를 과부하하지 않도록 동기화 엔진이 API 요청을 얼마나 빠르게 수행하는지를 제어합니다.
+</ParamField>
+
+### 코드에서 사용하기
+
+프로그래밍 방식으로 제어하려면, 동기화 기능을 애플리케이션에 직접 통합하세요. 프로젝트에 종속성으로 설치하세요:
+
+<CodeGroup>
+
+```bash npm
+npm install dodo-sync
+```
+
+```bash bun
+bun add dodo-sync
+```
+
+</CodeGroup>
+
+#### 자동 동기화 (간격 기반)
+
+정기적으로 동기화가 지속적으로 실행되도록 하려면 자동 동기화를 사용하세요:
+
+```typescript
+import { DodoSync } from 'dodo-sync';
+
+const syncDodoPayments = new DodoSync({
+  interval: 60, // Sync every 60 seconds
+  database: 'mongodb',
+  databaseURI: process.env.MONGODB_URI, // e.g., 'mongodb://localhost:27017'
+  scopes: ['licences', 'payments', 'customers', 'subscriptions'],
+  dodoPaymentsOptions: {
+    bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+    environment: 'test_mode' // or 'live_mode'
+  }
+});
+
+// Initialize connection
+await syncDodoPayments.init();
+
+// Start the sync loop
+syncDodoPayments.start();
+```
+
+<Tip>
+`interval` 옵션은 자동 동기화를 위해 `.start()`를 사용할 때 필수입니다. 동기화는 프로세스가 중지될 때까지 지정된 간격으로 지속적으로 실행됩니다.
+</Tip>
+
+#### 수동 동기화
+
+수동 동기화는 필요할 때 동기화 작업을 트리거하려는 경우에 사용하세요 (예: 크론 작업 또는 API 엔드포인트에서):
+
+```typescript
+import { DodoSync } from 'dodo-sync';
+
+const syncDodoPayments = new DodoSync({
+  database: 'mongodb',
+  databaseURI: process.env.MONGODB_URI,
+  scopes: ['licences', 'payments', 'customers', 'subscriptions'],
+  dodoPaymentsOptions: {
+    bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+    environment: 'test_mode'
+  }
+});
+
+// Initialize connection
+await syncDodoPayments.init();
+
+// Trigger a single sync operation
+await syncDodoPayments.run();
+```
+
+<Tip>
+수동 동기화를 사용할 때는 `interval` 옵션이 필요하지 않습니다. 동기화 작업을 수행해야 할 때마다 `.run()`를 호출할 수 있습니다.
+</Tip>
+
+#### PostgreSQL 예시
+
+PostgreSQL에서 `dodo-sync`를 사용하는 방법은 다음과 같습니다:
+
+```typescript
+import { DodoSync } from 'dodo-sync';
+
+const syncDodoPayments = new DodoSync({
+  interval: 60,
+  database: 'postgres',
+  databaseURI: process.env.POSTGRES_URI, // e.g., 'postgresql://user:password@localhost:5432/mydb'
+  scopes: ['licences', 'payments', 'customers', 'subscriptions'],
+  dodoPaymentsOptions: {
+    bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+    environment: 'test_mode'
+  }
+});
+
+await syncDodoPayments.init();
+syncDodoPayments.start();
+```
+
+#### MySQL 예시
+
+MySQL에서 `dodo-sync`를 사용하는 방법은 다음과 같습니다:
+
+```typescript
+import { DodoSync } from 'dodo-sync';
+
+const syncDodoPayments = new DodoSync({
+  interval: 60,
+  database: 'mysql',
+  databaseURI: process.env.MYSQL_URI, // e.g., 'mysql://user:password@localhost:3306/mydb'
+  scopes: ['licences', 'payments', 'customers', 'subscriptions'],
+  dodoPaymentsOptions: {
+    bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+    environment: 'test_mode'
+  }
+});
+
+await syncDodoPayments.init();
+syncDodoPayments.start();
+```
+
+#### ClickHouse 예시
+
+ClickHouse에서 `dodo-sync`를 사용하는 방법은 다음과 같습니다:
+
+```typescript
+import { DodoSync } from 'dodo-sync';
+
+const syncDodoPayments = new DodoSync({
+  interval: 60,
+  database: 'clickhouse',
+  databaseURI: process.env.CLICKHOUSE_URI, // e.g., 'http://localhost:8123'
+  scopes: ['licences', 'payments', 'customers', 'subscriptions'],
+  dodoPaymentsOptions: {
+    bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+    environment: 'test_mode'
+  }
+});
+
+await syncDodoPayments.init();
+syncDodoPayments.start();
+```
+
+#### 생성자 옵션
+
+<ParamField body="database" type="string" required>
+사용할 데이터베이스의 이름. 지원되는 값: `"mongodb"`, `"postgres"`, `"mysql"`, 또는 `"clickhouse"`.
+</ParamField>
+
+<ParamField body="databaseURI" type="string" required>
+데이터베이스에 대한 연결 문자열:
+- **MongoDB**: `mongodb://localhost:27017` 또는 `mongodb+srv://...`
+- **PostgreSQL**: `postgresql://user:password@localhost:5432/mydb`
+- **MySQL**: `mysql://user:password@localhost:3306/mydb`
+- **ClickHouse**: `http://localhost:8123`
+</ParamField>
+
+<ParamField body="scopes" type="string[]" required>
+동기화할 엔티티의 배열. 사용 가능한 옵션: `"licences"`, `"payments"`, `"customers"`, `"subscriptions"`. 이들 중 어떤 조합도 포함할 수 있습니다.
+</ParamField>
+
+<ParamField body="dodoPaymentsOptions" type="object" required>
+인증 및 환경 선택을 위한 Dodo Payments API 구성. 전체 옵션은 [TypeScript SDK 유형](https://github.com/dodopayments/dodopayments-typescript/blob/main/src/client.ts)에서 확인하세요.
+
+**필수 속성:**
+- `bearerToken`: 당신의 Dodo Payments API 키
+- `environment`: `"test_mode"` 또는 `"live_mode"`
+</ParamField>
+
+<ParamField body="interval" type="number">
+자동 동기화 간의 시간(초). 자동 동기화를 위해 `.start()`를 사용할 때 필수입니다. 수동 동기화를 위해 `.run()`를 사용할 때는 선택 사항입니다.
+</ParamField>
+
+<ParamField body="rateLimit" type="number">
+초당 요청 수. Dodo Payments API를 과부하하지 않도록 동기화 엔진이 API 요청을 얼마나 빠르게 수행하는지를 제어합니다.
+</ParamField>
+
+## 중요 정보
+
+<Warning>
+**MongoDB**: `dodopayments_sync`라는 이름의 데이터베이스가 데이터베이스 서버에 자동으로 생성됩니다. 모든 동기화 데이터는 그곳에 저장됩니다. 이 데이터베이스 이름은 현재 고정되어 있으며 변경할 수 없습니다.
+
+**PostgreSQL**: 데이터베이스 연결 URI에 지정된 데이터베이스에 테이블 (`Subscriptions`, `Payments`, `Licenses`, `Customers`)이 생성됩니다. 데이터는 JSONB 형식으로 저장됩니다.
+
+**MySQL**: 데이터베이스 연결 URI에 지정된 데이터베이스에 테이블 (`Subscriptions`, `Payments`, `Licenses`, `Customers`)이 생성됩니다. 데이터는 JSON 형식으로 저장됩니다.
+
+**ClickHouse**: ReplacingMergeTree 엔진을 사용하여 테이블 (`Subscriptions`, `Payments`, `Licenses`, `Customers`)이 생성됩니다. 쿼리할 때는 중복되지 않은 결과를 보장하기 위해 `FINAL` 키워드를 사용하세요.
+</Warning>
+
+<Info>
+동기화 엔진은 변경 사항을 추적하고 새로운 또는 업데이트된 레코드만 동기화하여, 대량의 데이터 세트에서도 후속 동기화를 효율적으로 수행합니다.
+</Info>
+
+## 추가 리소스
+
+<CardGroup cols={2}>
+  <Card title="GitHub 리포지토리" icon="github" href="https://github.com/dodopayments/dodo-sync">
+    소스 코드를 보고, 문제를 보고하거나 개선 사항에 기여하세요
+  </Card>
+  <Card title="npm 패키지" icon="box-open" href="https://www.npmjs.com/package/dodo-sync">
+    패키지 세부정보 및 설치 지침 보기
+  </Card>
+</CardGroup>

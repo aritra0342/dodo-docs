@@ -1,0 +1,211 @@
+---
+title: N8N
+description: Tích hợp Dodo Payments với N8N để tự động hóa quy trình làm việc và
+  kết nối với hơn 5,000 ứng dụng bằng cách sử dụng webhooks—cung cấp tự động hóa
+  mạnh mẽ, tùy chỉnh trong môi trường N8N tự lưu trữ hoặc đám mây.
+icon: diagram-project
+---
+
+## Giới thiệu
+
+Kết nối Dodo Payments với hàng ngàn ứng dụng và dịch vụ thông qua N8N. Tự động hóa quy trình làm việc bằng cách kích hoạt các quy trình N8N khi xảy ra sự kiện thanh toán, từ việc gửi email đến cập nhật bảng tính, tạo nhiệm vụ, thực hiện các thao tác cơ sở dữ liệu và nhiều hơn nữa.
+
+<Info>
+Tích hợp này yêu cầu một URL webhook N8N từ cấu hình quy trình làm việc của bạn.
+</Info>
+
+## Bắt đầu
+
+<Steps>
+<Step title="Mở phần Webhook">
+  Trong bảng điều khiển Dodo Payments của bạn, điều hướng đến <b>Webhooks → + Thêm Điểm Kết Nối</b> và mở rộng menu thả xuống tích hợp.
+  <Frame>
+    <img src="/images/integrations/n8n.png" alt="Thêm Điểm Kết Nối và menu thả xuống tích hợp" />
+  </Frame>
+</Step>
+
+<Step title="Chọn N8N">
+  Chọn thẻ tích hợp <b>N8N</b>.
+</Step>
+
+<Step title="Tạo Webhook trong N8N">
+  Trong N8N, tạo một quy trình làm việc mới và thêm một nút <b>Webhook</b> làm kích hoạt. Cấu hình nó như một webhook POST và sao chép URL webhook.
+</Step>
+
+<Step title="Dán URL Webhook">
+  Dán URL webhook N8N vào cấu hình điểm kết nối.
+</Step>
+
+<Step title="Cấu hình Biến Đổi">
+  Chỉnh sửa mã biến đổi để định dạng dữ liệu cho quy trình làm việc N8N của bạn.
+</Step>
+
+<Step title="Kiểm Tra & Tạo">
+  Kiểm tra với các payload mẫu và nhấp vào <b>Tạo</b> để kích hoạt tích hợp.
+</Step>
+
+<Step title="Kích Hoạt Quy Trình Làm Việc">
+  Trong N8N, kích hoạt quy trình làm việc của bạn để bắt đầu nhận các sự kiện webhook.
+</Step>
+
+<Step title="Xong!">
+  🎉 Các sự kiện thanh toán sẽ tự động kích hoạt các quy trình N8N của bạn.
+</Step>
+</Steps>
+
+## Ví Dụ Mã Biến Đổi
+
+### Payload Webhook Cơ Bản
+
+```javascript basic_webhook.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.payload = {
+      event_type: webhook.eventType,
+      payment_id: p.payment_id,
+      amount: (p.total_amount / 100).toFixed(2),
+      currency: p.currency || "USD",
+      customer_email: p.customer.email,
+      customer_name: p.customer.name,
+      payment_method: p.payment_method || "unknown",
+      timestamp: webhook.payload.timestamp
+    };
+  }
+  return webhook;
+}
+```
+
+### Bộ Xử Lý Sự Kiện Đăng Ký
+
+```javascript subscription_webhook.js icon="js" expandable
+function handler(webhook) {
+  const s = webhook.payload.data;
+  switch (webhook.eventType) {
+    case "subscription.active":
+      webhook.payload = {
+        event_type: "subscription_started",
+        subscription_id: s.subscription_id,
+        customer_email: s.customer.email,
+        customer_name: s.customer.name,
+        product_id: s.product_id,
+        amount: (s.recurring_pre_tax_amount / 100).toFixed(2),
+        frequency: s.payment_frequency_interval,
+        next_billing: s.next_billing_date,
+        timestamp: webhook.payload.timestamp
+      };
+      break;
+    case "subscription.cancelled":
+      webhook.payload = {
+        event_type: "subscription_cancelled",
+        subscription_id: s.subscription_id,
+        customer_email: s.customer.email,
+        cancelled_at: s.cancelled_at,
+        cancel_at_next_billing: s.cancel_at_next_billing_date,
+        timestamp: webhook.payload.timestamp
+      };
+      break;
+  }
+  return webhook;
+}
+```
+
+### Bộ Xử Lý Cảnh Báo Tranh Chấp
+
+```javascript dispute_webhook.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType.startsWith("dispute.")) {
+    const d = webhook.payload.data;
+    webhook.payload = {
+      event_type: webhook.eventType,
+      dispute_id: d.dispute_id,
+      payment_id: d.payment_id,
+      amount: (d.amount / 100).toFixed(2),
+      status: d.dispute_status,
+      stage: d.dispute_stage,
+      remarks: d.remarks || "",
+      urgent: webhook.eventType === "dispute.opened",
+      timestamp: webhook.payload.timestamp
+    };
+  }
+  return webhook;
+}
+```
+
+## Các Trường Hợp Sử Dụng N8N Phổ Biến
+
+<AccordionGroup>
+<Accordion title="Thông Báo Email">
+- Gửi email Gmail/Outlook cho xác nhận thanh toán
+- Tạo chuỗi email trong Mailchimp/ConvertKit
+- Gửi thông báo Slack/Discord qua webhooks
+- Tạo bản ghi Google Sheets tự động
+- Gửi tin nhắn Telegram/WhatsApp
+</Accordion>
+
+<Accordion title="Cập Nhật CRM">
+- Thêm liên hệ vào HubSpot/Salesforce
+- Tạo giao dịch trong Pipedrive/Close
+- Cập nhật hồ sơ khách hàng trong Airtable
+- Ghi lại hoạt động trong Monday.com
+- Đồng bộ dữ liệu đến cơ sở dữ liệu PostgreSQL/MySQL
+</Accordion>
+
+<Accordion title="Quản Lý Nhiệm Vụ">
+- Tạo nhiệm vụ trong Asana/Trello
+- Thêm mục việc cần làm trong Notion
+- Tạo sự kiện lịch trong Google Calendar
+- Gửi thông báo SMS qua Twilio
+- Tạo vấn đề GitHub cho các tranh chấp
+</Accordion>
+
+<Accordion title="Xử Lý Dữ Liệu">
+- Biến đổi và làm phong phú dữ liệu thanh toán
+- Lưu trữ sự kiện trong cơ sở dữ liệu (PostgreSQL, MongoDB)
+- Tập hợp các chỉ số và phân tích
+- Tạo báo cáo và xuất khẩu
+- Kích hoạt các quy trình làm việc phức tạp nhiều bước
+</Accordion>
+</AccordionGroup>
+
+## Mẹo
+
+- Giữ cấu trúc payload đơn giản để dễ dàng phân tích nút N8N
+- Sử dụng tên trường nhất quán trên tất cả các sự kiện
+- Bao gồm dấu thời gian cho thời gian và lập lịch quy trình làm việc
+- Kiểm tra quy trình làm việc của bạn với dữ liệu mẫu trước khi kích hoạt
+- Sử dụng nút IF của N8N cho logic điều kiện và định tuyến
+- Tận dụng nút Code của N8N cho các biến đổi dữ liệu tùy chỉnh
+- Sử dụng nút Switch để định tuyến các loại sự kiện khác nhau đến các đường dẫn khác nhau
+- Thiết lập quy trình làm việc lỗi để xử lý các lần giao hàng webhook không thành công
+
+## Khắc Phục Sự Cố
+
+<AccordionGroup>
+<Accordion title="Quy trình không kích hoạt">
+- Xác minh URL webhook là chính xác và có thể truy cập
+- Kiểm tra xem quy trình làm việc đã được kích hoạt trong N8N
+- Đảm bảo nút webhook được cấu hình là phương thức POST
+- Kiểm tra giao hàng webhook trong lịch sử thực thi của N8N
+- Xác minh cài đặt tường lửa/mạng cho phép webhook đến
+- Kiểm tra cài đặt xác thực webhook N8N nếu đã cấu hình
+</Accordion>
+
+<Accordion title="Dữ liệu không ánh xạ chính xác">
+- Kiểm tra tên trường trong cấu hình nút N8N
+- Xác minh kiểu dữ liệu khớp với định dạng mong đợi trong các nút
+- Sử dụng tính năng kiểm tra của N8N để kiểm tra dữ liệu đến
+- Đảm bảo mã biến đổi trả về JSON hợp lệ
+- Kiểm tra cài đặt định dạng phản hồi của nút webhook
+- Sử dụng nút Set để đổi tên hoặc cấu trúc lại các trường
+</Accordion>
+
+<Accordion title="Lỗi thực thi quy trình làm việc">
+- Xem xét nhật ký thực thi trong N8N để biết thông điệp lỗi chi tiết
+- Kiểm tra cài đặt kết nối nút và thông tin xác thực
+- Xác minh tất cả các trường cần thiết có mặt trong payload
+- Kiểm tra từng nút với dữ liệu mẫu
+- Kích hoạt quy trình làm việc lỗi để bắt và xử lý các lỗi
+- Kiểm tra giới hạn tỷ lệ và hạn ngạch API cho các dịch vụ kết nối
+</Accordion>
+</AccordionGroup>

@@ -1,0 +1,142 @@
+---
+title: Discord
+description: 실시간 Dodo Payments 알림을 Discord 채널로 전송합니다.
+icon: discord
+---
+
+## 소개
+
+팀이 이미 협업하는 곳에서 정보를 유지하세요. Discord 통합은 결제, 구독, 분쟁 및 기타 중요한 이벤트를 선택한 채널로 직접 전달합니다—폴링이나 대시보드가 필요 없습니다.
+
+<Info>
+이 가이드는 Dodo Payments 대시보드의 통합 섹션에 접근할 수 있다고 가정합니다.
+</Info>
+
+## 시작하기
+
+<Steps>
+<Step title="웹훅 섹션 열기">
+  Dodo Payments 대시보드에서 <b>Webhooks → + Add Endpoint</b>를 열고 드롭다운을 확장하여 통합을 표시합니다.
+  <Frame>
+    <img src="/images/integrations/discord.png" alt="Add Endpoint and integrations dropdown" />
+  </Frame>
+</Step>
+
+<Step title="Discord 선택하기">
+  <b>Discord</b> 카드를 선택한 다음 <b>Connect your Discord workspace</b>를 클릭합니다.
+</Step>
+
+<Step title="봇 권한 부여하기">
+  봇이 선택한 채널에 메시지를 게시할 수 있도록 요청된 권한을 부여합니다.
+</Step>
+
+<Step title="변환 코드 편집하기">
+  필요에 맞게 페이로드 → 임베드 매핑을 조정하거나 아래의 템플릿으로 시작합니다.
+</Step>
+
+<Step title="테스트 및 생성하기">
+  샘플 페이로드를 사용하여 임베드를 미리 보고 <b>Create</b>를 클릭합니다.
+</Step>
+
+<Step title="완료!">
+  🎉 이제 Discord 채널에서 실시간 Dodo Payments 업데이트를 받을 수 있습니다.
+</Step>
+</Steps>
+
+## 변환 코드 예제
+
+### 최소 결제 임베드
+
+```javascript payment_embed.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.payload = {
+      embeds: [{
+        title: "✅ Payment Successful",
+        description: `**Amount:** $${(p.total_amount / 100).toFixed(2)}\n**Customer:** ${p.customer.email}`,
+        color: 0x2ecc71 // green
+      }]
+    };
+  }
+  return webhook;
+}
+```
+
+### 구독 이벤트
+
+```javascript subscription_embed.js icon="js" expandable
+function handler(webhook) {
+  const s = webhook.payload.data;
+  switch (webhook.eventType) {
+    case "subscription.active":
+      webhook.payload = {
+        embeds: [{
+          title: "📄 Subscription Activated",
+          fields: [
+            { name: "Customer", value: s.customer.email, inline: true },
+            { name: "Product", value: s.product_id, inline: true },
+            { name: "Next Billing", value: new Date(s.next_billing_date).toLocaleDateString(), inline: true }
+          ],
+          color: 0x2ecc71
+        }]
+      };
+      break;
+    case "subscription.cancelled":
+      webhook.payload = {
+        embeds: [{
+          title: "⚠️ Subscription Cancelled",
+          fields: [
+            { name: "Customer", value: s.customer.email, inline: true },
+            { name: "Product", value: s.product_id, inline: true }
+          ],
+          color: 0xf1c40f
+        }]
+      };
+      break;
+  }
+  return webhook;
+}
+```
+
+### 분쟁 알림
+
+```javascript dispute_embed.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType.startsWith("dispute.")) {
+    const d = webhook.payload.data;
+    webhook.payload = {
+      embeds: [{
+        title: d.dispute_status === "won" ? "🏆 Dispute Won" : d.dispute_status === "lost" ? "❌ Dispute Lost" : "🚨 Dispute Update",
+        fields: [
+          { name: "Payment ID", value: d.payment_id, inline: true },
+          { name: "Amount", value: `$${(d.amount / 100).toFixed(2)}`, inline: true },
+          { name: "Status", value: d.dispute_status, inline: true }
+        ],
+        color: d.dispute_status === "won" ? 0x2ecc71 : d.dispute_status === "lost" ? 0xe74c3c : 0xe67e22
+      }]
+    };
+  }
+  return webhook;
+}
+```
+
+## 팁
+
+- 풍부한 형식과 색상을 위해 임베드를 선호하세요.
+- 제목은 짧게 유지하고 세부정보는 필드에 넣으세요.
+- 직관적인 색상 사용: 초록(성공), 빨강(실패), 주황(경고).
+
+## 문제 해결
+
+<AccordionGroup>
+<Accordion title="Discord에 메시지가 없음">
+- 봇이 채널에 접근할 수 있는지 확인하세요.
+- 변환이 `embeds`를 포함하는 JSON 객체를 반환하는지 확인하세요.
+</Accordion>
+
+<Accordion title="변환 오류">
+- 편집기에서 코드를 검증하세요 – 구문 오류는 전송을 차단합니다.
+- 필드 이름이 웹훅 페이로드 구조와 일치하는지 확인하세요.
+</Accordion>
+</AccordionGroup>

@@ -1,0 +1,202 @@
+---
+title: API Gateway Blueprint
+description: Theo dõi các cuộc gọi API và mức sử dụng ở cấp cổng cho việc thanh
+  toán. Hoàn hảo cho các nền tảng API-as-a-service với việc theo dõi yêu cầu có
+  khối lượng lớn.
+icon: cloud
+---
+
+## Trường Hợp Sử Dụng
+
+Khám phá các kịch bản phổ biến được hỗ trợ bởi API Gateway Blueprint:
+
+<CardGroup cols={2}>
+<Card title="API-as-a-Service" icon="server">
+Theo dõi mức sử dụng theo khách hàng cho các nền tảng API và tính phí dựa trên số lượng cuộc gọi.
+</Card>
+<Card title="Giới Hạn Tốc Độ" icon="gauge">
+Giám sát các mẫu sử dụng API và thực hiện giới hạn tốc độ dựa trên mức sử dụng.
+</Card>
+<Card title="Giám Sát Hiệu Suất" icon="chart-line">
+Theo dõi thời gian phản hồi và tỷ lệ lỗi cùng với dữ liệu thanh toán.
+</Card>
+<Card title="SaaS Đa Thuê" icon="users">
+Tính phí khách hàng dựa trên mức tiêu thụ API của họ qua các điểm cuối khác nhau.
+</Card>
+</CardGroup>
+
+<Info>
+Lý tưởng cho việc theo dõi mức sử dụng điểm cuối API, giới hạn tốc độ và thực hiện thanh toán API dựa trên mức sử dụng.
+</Info>
+
+## Bắt Đầu Nhanh
+
+Theo dõi các cuộc gọi API ở cấp cổng với việc tự động nhóm cho các kịch bản có khối lượng lớn:
+
+<Steps>
+<Step title="Cài Đặt SDK">
+
+```bash
+npm install @dodopayments/ingestion-blueprints
+```
+
+</Step>
+
+<Step title="Lấy API Keys Của Bạn">
+- **Dodo Payments API Key**: Lấy từ [Bảng Điều Khiển Dodo Payments](https://app.dodopayments.com/developer/api-keys)
+</Step>
+
+<Step title="Tạo Một Đồng Hồ">
+Tạo một đồng hồ trong [Bảng Điều Khiển Dodo Payments](https://app.dodopayments.com/):
+- **Tên Sự Kiện**: `api_call` (hoặc tên bạn chọn)
+- **Loại Tập Hợp**: `count` để theo dõi số lượng cuộc gọi
+- Cấu hình các thuộc tính bổ sung nếu theo dõi siêu dữ liệu như thời gian phản hồi, mã trạng thái, v.v.
+</Step>
+
+<Step title="Theo Dõi Các Cuộc Gọi API">
+<CodeGroup>
+
+```javascript Single API Call
+import { Ingestion, trackAPICall } from '@dodopayments/ingestion-blueprints';
+
+const ingestion = new Ingestion({
+  apiKey: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'test_mode',
+  eventName: 'api_call'
+});
+
+// Track a single API call
+await trackAPICall(ingestion, {
+  customerId: 'customer_123',
+  metadata: {
+    endpoint: '/api/v1/users',
+    method: 'GET',
+    status_code: 200,
+    response_time_ms: 45
+  }
+});
+```
+
+```javascript High-Volume with Batching
+import { Ingestion, createBatch } from '@dodopayments/ingestion-blueprints';
+
+const ingestion = new Ingestion({
+  apiKey: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'live_mode',
+  eventName: 'api_call'
+});
+
+// Create batch for high-volume tracking
+const batch = createBatch(ingestion, {
+  maxSize: 100,      // Flush after 100 events
+  flushInterval: 5000 // Or flush every 5 seconds
+});
+
+// Add API calls to batch
+batch.add({
+  customerId: 'customer_123',
+  metadata: {
+    endpoint: '/api/v1/products',
+    method: 'GET',
+    status_code: 200
+  }
+});
+
+// Clean up when done
+await batch.cleanup();
+```
+
+```javascript Express.js Middleware
+import express from 'express';
+import { Ingestion, createBatch } from '@dodopayments/ingestion-blueprints';
+
+const app = express();
+
+const ingestion = new Ingestion({
+  apiKey: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'live_mode',
+  eventName: 'api_call'
+});
+
+const batch = createBatch(ingestion, {
+  maxSize: 50,
+  flushInterval: 10000
+});
+
+// Middleware to track all API calls
+app.use((req, res, next) => {
+  const startTime = Date.now();
+  
+  res.on('finish', () => {
+    const responseTime = Date.now() - startTime;
+    
+    batch.add({
+      customerId: req.user?.id || 'anonymous',
+      metadata: {
+        endpoint: req.path,
+        method: req.method,
+        status_code: res.statusCode,
+        response_time_ms: responseTime
+      }
+    });
+  });
+  
+  next();
+});
+
+// Cleanup on shutdown
+process.on('SIGTERM', async () => {
+  await batch.cleanup();
+  process.exit(0);
+});
+```
+
+</CodeGroup>
+</Step>
+</Steps>
+
+## Cấu Hình
+
+### Cấu Hình Nhập Dữ Liệu
+
+<ParamField path="apiKey" type="string" required>
+API key Dodo Payments của bạn từ bảng điều khiển.
+</ParamField>
+
+<ParamField path="environment" type="string" required>
+Chế độ môi trường: `test_mode` hoặc `live_mode`.
+</ParamField>
+
+<ParamField path="eventName" type="string" required>
+Tên sự kiện phù hợp với cấu hình đồng hồ của bạn.
+</ParamField>
+
+### Tùy Chọn Theo Dõi Cuộc Gọi API
+
+<ParamField path="customerId" type="string" required>
+ID khách hàng để phân bổ thanh toán.
+</ParamField>
+
+<ParamField path="metadata" type="object">
+Siêu dữ liệu tùy chọn về cuộc gọi API như điểm cuối, phương thức, mã trạng thái, thời gian phản hồi, v.v.
+</ParamField>
+
+### Cấu Hình Nhóm
+
+<ParamField path="maxSize" type="number">
+Số lượng sự kiện tối đa trước khi tự động xả. Mặc định: `100`.
+</ParamField>
+
+<ParamField path="flushInterval" type="number">
+Thời gian tự động xả trong mili giây. Mặc định: `5000` (5 giây).
+</ParamField>
+
+## Thực Hành Tốt Nhất
+
+<Tip>
+**Sử Dụng Nhóm Cho Khối Lượng Lớn**: Đối với các ứng dụng xử lý hơn 10 yêu cầu mỗi giây, hãy sử dụng `createBatch()` để giảm tải và cải thiện hiệu suất.
+</Tip>
+
+<Warning>
+**Luôn Dọn Dẹp Các Nhóm**: Gọi `batch.cleanup()` khi ứng dụng tắt để xả các sự kiện đang chờ và ngăn ngừa mất dữ liệu.
+</Warning>

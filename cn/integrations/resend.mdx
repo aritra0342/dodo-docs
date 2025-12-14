@@ -1,0 +1,163 @@
+---
+title: Resend
+description: 通过 Resend 发送基于 Dodo Payments 事件的事务性电子邮件，确保高送达率。
+icon: envelope
+---
+
+## 介绍
+
+在支付事件发生时自动发送专业的事务性电子邮件。通过 Resend 可靠的电子邮件基础设施和优秀的送达率，发送支付确认、订阅更新和重要通知。
+
+<Info>
+此集成需要您的 Resend API 密钥进行身份验证。
+</Info>
+
+## 开始使用
+
+<Steps>
+<Step title="打开 Webhook 部分">
+  在您的 Dodo Payments 仪表板中，导航到 <b>Webhooks → + 添加端点</b> 并展开集成下拉菜单。
+  <Frame>
+    <img src="/images/integrations/resend.png" alt="添加端点和集成下拉菜单" />
+  </Frame>
+</Step>
+
+<Step title="选择 Resend">
+  选择 <b>Resend</b> 集成卡片。
+</Step>
+
+<Step title="输入 API 密钥">
+  在配置中提供您的 Resend API 密钥。
+</Step>
+
+<Step title="配置转换">
+  编辑转换代码以格式化 Resend 的 API 电子邮件。
+</Step>
+
+<Step title="测试并创建">
+  使用示例有效负载进行测试，然后单击 <b>创建</b> 以激活电子邮件发送。
+</Step>
+
+<Step title="完成！">
+  🎉 现在，支付事件将自动通过 Resend 触发事务性电子邮件。
+</Step>
+</Steps>
+
+## 转换代码示例
+
+### 支付确认电子邮件
+
+```javascript payment_confirmation.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.url = "https://api.resend.com/emails";
+    webhook.payload = {
+      from: "payments@yourdomain.com",
+      to: [p.customer.email],
+      subject: "Payment Confirmation - $" + (p.total_amount / 100).toFixed(2),
+      html: `
+        <h2>Payment Successful!</h2>
+        <p>Hi ${p.customer.name},</p>
+        <p>Your payment of $${(p.total_amount / 100).toFixed(2)} has been processed successfully.</p>
+        <ul>
+          <li><strong>Payment ID:</strong> ${p.payment_id}</li>
+          <li><strong>Amount:</strong> $${(p.total_amount / 100).toFixed(2)}</li>
+          <li><strong>Date:</strong> ${new Date(webhook.payload.timestamp).toLocaleDateString()}</li>
+          <li><strong>Method:</strong> ${p.payment_method || "Unknown"}</li>
+        </ul>
+        <p>Thank you for your business!</p>
+      `,
+      text: `Payment Successful! Your payment of $${(p.total_amount / 100).toFixed(2)} has been processed. Payment ID: ${p.payment_id}`
+    };
+  }
+  return webhook;
+}
+```
+
+### 订阅欢迎电子邮件
+
+```javascript subscription_welcome.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "subscription.active") {
+    const s = webhook.payload.data;
+    webhook.url = "https://api.resend.com/emails";
+    webhook.payload = {
+      from: "welcome@yourdomain.com",
+      to: [s.customer.email],
+      subject: "Welcome to Your Subscription!",
+      html: `
+        <h2>Welcome to Your Subscription!</h2>
+        <p>Hi ${s.customer.name},</p>
+        <p>Your subscription has been activated successfully.</p>
+        <ul>
+          <li><strong>Subscription ID:</strong> ${s.subscription_id}</li>
+          <li><strong>Product:</strong> ${s.product_id}</li>
+          <li><strong>Amount:</strong> $${(s.recurring_pre_tax_amount / 100).toFixed(2)}/${s.payment_frequency_interval}</li>
+          <li><strong>Next Billing:</strong> ${new Date(s.next_billing_date).toLocaleDateString()}</li>
+        </ul>
+        <p>You can manage your subscription anytime from your account dashboard.</p>
+      `,
+      text: `Welcome! Your subscription is now active. Amount: $${(s.recurring_pre_tax_amount / 100).toFixed(2)}/${s.payment_frequency_interval}`
+    };
+  }
+  return webhook;
+}
+```
+
+### 支付失败通知
+
+```javascript payment_failure.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.failed") {
+    const p = webhook.payload.data;
+    webhook.url = "https://api.resend.com/emails";
+    webhook.payload = {
+      from: "support@yourdomain.com",
+      to: [p.customer.email],
+      subject: "Payment Failed - Action Required",
+      html: `
+        <h2>Payment Failed</h2>
+        <p>Hi ${p.customer.name},</p>
+        <p>We were unable to process your payment of $${(p.total_amount / 100).toFixed(2)}.</p>
+        <ul>
+          <li><strong>Payment ID:</strong> ${p.payment_id}</li>
+          <li><strong>Amount:</strong> $${(p.total_amount / 100).toFixed(2)}</li>
+          <li><strong>Error:</strong> ${p.error_message || "Payment processing failed"}</li>
+        </ul>
+        <p>Please update your payment method or contact support for assistance.</p>
+        <a href="https://yourdomain.com/update-payment">Update Payment Method</a>
+      `,
+      text: `Payment Failed: We couldn't process your $${(p.total_amount / 100).toFixed(2)} payment. Please update your payment method.`
+    };
+  }
+  return webhook;
+}
+```
+
+## 提示
+
+- 使用经过验证的发件人域以提高送达率
+- 包含电子邮件的 HTML 和文本版本
+- 使用客户数据个性化内容
+- 使用清晰、以行动为导向的主题行
+- 包含退订链接以确保合规
+- 在上线前测试电子邮件模板
+
+## 故障排除
+
+<AccordionGroup>
+<Accordion title="电子邮件未发送">
+- 验证 API 密钥是否正确且有效
+- 检查发件人域是否在 Resend 中经过验证
+- 确保收件人电子邮件地址有效
+- 查看 Resend 的发送限制和配额
+</Accordion>
+
+<Accordion title="转换错误">
+- 验证 JSON 结构是否符合 Resend API 格式
+- 检查所有必填字段是否存在
+- 确保 HTML 内容格式正确
+- 验证发件人电子邮件地址是否经过验证
+</Accordion>
+</AccordionGroup>

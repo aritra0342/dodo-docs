@@ -1,0 +1,333 @@
+---
+title: TypeScript
+description: 将 Dodo Payments 集成到您的 TypeScript 和 Node.js 应用程序中，支持类型安全和现代的 async/await。
+icon: js
+---
+
+TypeScript SDK 提供了方便的服务器端访问 Dodo Payments REST API，适用于 TypeScript 和 JavaScript 应用程序。它具有全面的类型定义、错误处理、重试、超时和自动分页功能，以实现无缝的支付处理。
+
+## 安装
+
+使用您选择的包管理器安装 SDK：
+<CodeGroup>
+
+```bash npm
+npm install dodopayments
+```
+
+```bash yarn
+yarn add dodopayments
+```
+
+```bash pnpm
+pnpm add dodopayments
+```
+
+</CodeGroup>
+
+## 快速开始
+
+使用您的 API 密钥初始化客户端并开始处理支付：
+
+```javascript
+import DodoPayments from 'dodopayments';
+
+const client = new DodoPayments({
+  bearerToken: process.env['DODO_PAYMENTS_API_KEY'], // This is the default and can be omitted
+  environment: 'test_mode', // defaults to 'live_mode'
+});
+
+const checkoutSessionResponse = await client.checkoutSessions.create({
+  product_cart: [{ product_id: 'product_id', quantity: 1 }],
+});
+
+console.log(checkoutSessionResponse.session_id);
+```
+
+<Warning>
+始终使用环境变量安全存储您的 API 密钥。切勿将其提交到版本控制或在客户端代码中暴露。
+</Warning>
+
+## 核心功能
+
+<CardGroup cols={2}>
+<Card title="TypeScript 优先" icon="shield-check">
+  完全支持 TypeScript，所有 API 端点都有全面的类型定义
+</Card>
+
+<Card title="自动分页" icon="arrows-rotate">
+  列表响应的自动分页使处理大型数据集变得轻而易举
+</Card>
+
+<Card title="错误处理" icon="triangle-exclamation">
+  内置错误类型，针对不同的失败场景提供详细消息
+</Card>
+
+<Card title="智能重试" icon="repeat">
+  可配置的自动重试，具有指数退避机制，适用于瞬态错误
+</Card>
+</CardGroup>
+
+## 配置
+
+### 环境变量
+
+设置环境变量以进行安全配置：
+
+```bash .env
+DODO_PAYMENTS_API_KEY=your_api_key_here
+```
+
+### 超时配置
+
+全局或按请求配置请求超时：
+
+```typescript
+// Configure default timeout for all requests (default is 1 minute)
+const client = new DodoPayments({
+  timeout: 20 * 1000, // 20 seconds
+});
+
+// Override per-request
+await client.checkoutSessions.create(
+  { product_cart: [{ product_id: 'product_id', quantity: 0 }] },
+  { timeout: 5 * 1000 }
+);
+```
+
+### 重试配置
+
+配置自动重试行为：
+
+```javascript
+// Configure default for all requests (default is 2 retries)
+const client = new DodoPayments({
+  maxRetries: 0, // disable retries
+});
+
+// Override per-request
+await client.checkoutSessions.create(
+  { product_cart: [{ product_id: 'product_id', quantity: 0 }] },
+  { maxRetries: 5 }
+);
+```
+
+<Tip>
+SDK 会自动重试因网络错误或服务器问题（5xx 响应）而失败的请求，并采用指数退避策略。
+</Tip>
+
+## 常见操作
+
+### 创建结账会话
+
+生成结账会话以收集支付信息：
+
+```typescript
+const session = await client.checkoutSessions.create({
+  product_cart: [
+    {
+      product_id: 'prod_123',
+      quantity: 1
+    }
+  ],
+  return_url: 'https://yourdomain.com/return'
+});
+
+console.log('Redirect to:', session.url);
+```
+
+### 管理客户
+
+创建和检索客户信息：
+
+```typescript
+// Create a customer
+const customer = await client.customers.create({
+  email: 'customer@example.com',
+  name: 'John Doe',
+  metadata: {
+    user_id: '12345'
+  }
+});
+
+// Retrieve customer
+const retrieved = await client.customers.retrieve('cus_123');
+console.log(`Customer: ${retrieved.name} (${retrieved.email})`);
+```
+
+### 处理订阅
+
+创建和管理定期订阅：
+
+```typescript
+// Create a subscription
+const subscription = await client.subscriptions.create({
+  customer_id: 'cus_123',
+  product_id: 'prod_456',
+  price_id: 'price_789'
+});
+
+// Retrieve subscription usage history
+const usageHistory = await client.subscriptions.retrieveUsageHistory('sub_123', {
+  start_date: '2024-01-01T00:00:00Z',
+  end_date: '2024-03-31T23:59:59Z'
+});
+```
+
+## 基于使用的计费
+
+### 记录使用事件
+
+跟踪用于基于使用的计费的自定义事件：
+
+```typescript
+await client.usageEvents.ingest({
+  events: [
+    {
+      event_id: 'api_call_12345',
+      customer_id: 'cus_abc123',
+      event_name: 'api_request',
+      timestamp: '2024-01-15T10:30:00Z',
+      metadata: {
+        endpoint: '/api/v1/users',
+        method: 'GET',
+        tokens_used: '150'
+      }
+    }
+  ]
+});
+```
+
+<Info>
+事件必须具有唯一的 `event_id` 值以确保幂等性。同一请求中的重复 ID 会被拒绝，后续请求中存在的 ID 会被忽略。
+</Info>
+
+### 检索使用事件
+
+获取有关使用事件的详细信息：
+
+```typescript
+// Get a specific event
+const event = await client.usageEvents.retrieve('api_call_12345');
+
+// List events with filtering
+const events = await client.usageEvents.list({
+  customer_id: 'cus_abc123',
+  event_name: 'api_request',
+  start: '2024-01-14T10:30:00Z',
+  end: '2024-01-15T10:30:00Z'
+});
+```
+
+## 代理配置
+
+为不同的运行时配置代理设置：
+
+### Node.js（使用 undici）
+
+```typescript
+import DodoPayments from 'dodopayments';
+import * as undici from 'undici';
+
+const proxyAgent = new undici.ProxyAgent('http://localhost:8888');
+const client = new DodoPayments({
+  fetchOptions: {
+    dispatcher: proxyAgent,
+  },
+});
+```
+
+### Bun
+
+```typescript
+import DodoPayments from 'dodopayments';
+
+const client = new DodoPayments({
+  fetchOptions: {
+    proxy: 'http://localhost:8888',
+  },
+});
+```
+
+### Deno
+
+```typescript
+import DodoPayments from 'npm:dodopayments';
+
+const httpClient = Deno.createHttpClient({ proxy: { url: 'http://localhost:8888' } });
+const client = new DodoPayments({
+  fetchOptions: {
+    client: httpClient,
+  },
+});
+```
+
+## 日志记录
+
+使用环境变量或客户端选项控制日志详细程度：
+
+```typescript
+// Via client option
+const client = new DodoPayments({
+  logLevel: 'debug', // Show all log messages
+});
+```
+
+```bash
+# Via environment variable
+export DODO_PAYMENTS_LOG=debug
+```
+
+**可用的日志级别：**
+- `'debug'` - 显示调试消息、信息、警告和错误
+- `'info'` - 显示信息消息、警告和错误  
+- `'warn'` - 仅显示警告和错误（默认）
+- `'error'` - 仅显示错误
+- `'off'` - 禁用所有日志记录
+
+<Warning>
+在调试级别，所有 HTTP 请求和响应都会被记录，包括头部和主体。一些身份验证头部会被隐藏，但主体中的敏感数据可能仍然可见。
+</Warning>
+
+## 从 Node.js SDK 迁移
+
+如果您正在从旧版 Node.js SDK 升级，TypeScript SDK 提供了更好的类型安全和功能：
+
+<Card
+  title="查看迁移指南"
+  icon="arrow-right"
+  href="https://github.com/dodopayments/dodopayments-typescript/blob/main/MIGRATION.md">
+  了解如何从 Node.js SDK 迁移到 TypeScript SDK
+</Card>
+
+## 资源
+
+<CardGroup cols={2}>
+<Card title="GitHub 仓库" icon="github" href="https://github.com/dodopayments/dodopayments-typescript">
+  查看源代码并贡献
+</Card>
+
+<Card title="API 参考" icon="book" href="/api-reference/introduction">
+  完整的 API 文档
+</Card>
+
+<Card title="Discord 社区" icon="discord" href="https://discord.gg/bYqAp4ayYh">
+  获取帮助并与开发者联系
+</Card>
+
+<Card title="报告问题" icon="bug" href="https://github.com/dodopayments/dodopayments-typescript/issues">
+  报告错误或请求功能
+</Card>
+</CardGroup>
+
+## 支持
+
+需要有关 TypeScript SDK 的帮助吗？
+
+- **Discord**：加入我们的 [社区服务器](https://discord.gg/bYqAp4ayYh) 以获得实时支持
+- **电子邮件**：通过 support@dodopayments.com 联系我们  
+- **GitHub**：在 [仓库](https://github.com/dodopayments/dodopayments-typescript) 上打开一个问题
+
+## 贡献
+
+我们欢迎贡献！查看 [贡献指南](https://github.com/dodopayments/dodopayments-typescript/blob/main/CONTRIBUTING.md) 开始。

@@ -1,0 +1,215 @@
+---
+title: Microsoft Teams
+description: Microsoft Teams 채널에 풍부한 Adaptive Cards로 Dodo Payments 알림을 전송합니다.
+icon: microsoft
+---
+
+## 소개
+
+실시간 결제 알림으로 비즈니스 팀을 Microsoft Teams와 연결하세요. 이 통합은 결제 이벤트를 풍부한 Adaptive Cards로 전달합니다. 이는 Teams가 주요 협업 도구인 기업 환경에 적합합니다.
+
+<Info>
+이 가이드는 Microsoft Teams 작업 공간에서 웹후크를 생성할 수 있는 관리자 액세스 권한이 있다고 가정합니다.
+</Info>
+
+## 시작하기
+
+<Steps>
+<Step title="웹후크 섹션 열기">
+  Dodo Payments 대시보드에서 <b>Webhooks → + Add Endpoint</b>로 이동하고 통합 드롭다운을 확장합니다.
+  <Frame>
+    <img src="/images/integrations/teams.png" alt="Add Endpoint and integrations dropdown" />
+  </Frame>
+</Step>
+
+<Step title="Microsoft Teams 선택">
+  <b>Microsoft Teams</b> 통합 카드를 선택합니다.
+</Step>
+
+<Step title="Teams 웹후크 생성">
+  Teams에서 채널 → ⋯ → 커넥터 → 수신 웹후크 → 구성으로 이동합니다. 웹후크 URL을 복사합니다.
+</Step>
+
+<Step title="웹후크 URL 붙여넣기">
+  Teams 웹후크 URL을 엔드포인트 구성에 붙여넣습니다.
+</Step>
+
+<Step title="변환 사용자 정의">
+  메시지를 Teams용 Adaptive Cards로 포맷하기 위해 변환 코드를 편집합니다.
+</Step>
+
+<Step title="테스트 및 생성">
+  샘플 페이로드로 테스트하고 <b>Create</b>를 클릭하여 활성화합니다.
+</Step>
+
+<Step title="완료!">
+  🎉 이제 귀하의 Teams 채널은 Dodo Payments 업데이트를 Adaptive Cards로 수신합니다.
+</Step>
+</Steps>
+
+## 변환 코드 예제
+
+### 기본 결제 카드
+
+```javascript payment_card.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.payload = {
+      type: "message",
+      attachments: [{
+        contentType: "application/vnd.microsoft.card.adaptive",
+        content: {
+          type: "AdaptiveCard",
+          body: [
+            {
+              type: "TextBlock",
+              text: "✅ Payment Successful",
+              weight: "Bolder",
+              size: "Medium"
+            },
+            {
+              type: "FactSet",
+              facts: [
+                { title: "Amount", value: `$${(p.total_amount / 100).toFixed(2)}` },
+                { title: "Customer", value: p.customer.email },
+                { title: "Payment ID", value: p.payment_id }
+              ]
+            }
+          ]
+        }
+      }]
+    };
+  }
+  return webhook;
+}
+```
+
+### 구독 관리
+
+```javascript subscription_card.js icon="js" expandable
+function handler(webhook) {
+  const s = webhook.payload.data;
+  switch (webhook.eventType) {
+    case "subscription.active":
+      webhook.payload = {
+        type: "message",
+        attachments: [{
+          contentType: "application/vnd.microsoft.card.adaptive",
+          content: {
+            type: "AdaptiveCard",
+            body: [
+              {
+                type: "TextBlock",
+                text: "📄 Subscription Activated",
+                weight: "Bolder",
+                color: "Good"
+              },
+              {
+                type: "FactSet",
+                facts: [
+                  { title: "Customer", value: s.customer.email },
+                  { title: "Product", value: s.product_id },
+                  { title: "Amount", value: `$${(s.recurring_pre_tax_amount / 100).toFixed(2)}/${s.payment_frequency_interval}` },
+                  { title: "Next Billing", value: new Date(s.next_billing_date).toLocaleDateString() }
+                ]
+              }
+            ]
+          }
+        }]
+      };
+      break;
+    case "subscription.cancelled":
+      webhook.payload = {
+        type: "message",
+        attachments: [{
+          contentType: "application/vnd.microsoft.card.adaptive",
+          content: {
+            type: "AdaptiveCard",
+            body: [
+              {
+                type: "TextBlock",
+                text: "⚠️ Subscription Cancelled",
+                weight: "Bolder",
+                color: "Warning"
+              },
+              {
+                type: "FactSet",
+                facts: [
+                  { title: "Customer", value: s.customer.email },
+                  { title: "Product", value: s.product_id },
+                  { title: "Cancelled At", value: new Date(s.cancelled_at).toLocaleDateString() }
+                ]
+              }
+            ]
+          }
+        }]
+      };
+      break;
+  }
+  return webhook;
+}
+```
+
+### 분쟁 알림
+
+```javascript dispute_card.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType.startsWith("dispute.")) {
+    const d = webhook.payload.data;
+    const color = d.dispute_status === "won" ? "Good" : d.dispute_status === "lost" ? "Attention" : "Warning";
+    const title = d.dispute_status === "won" ? "🏆 Dispute Won" : d.dispute_status === "lost" ? "❌ Dispute Lost" : "🚨 Dispute Update";
+    
+    webhook.payload = {
+      type: "message",
+      attachments: [{
+        contentType: "application/vnd.microsoft.card.adaptive",
+        content: {
+          type: "AdaptiveCard",
+          body: [
+            {
+              type: "TextBlock",
+              text: title,
+              weight: "Bolder",
+              color: color
+            },
+            {
+              type: "FactSet",
+              facts: [
+                { title: "Payment ID", value: d.payment_id },
+                { title: "Amount", value: `$${(d.amount / 100).toFixed(2)}` },
+                { title: "Status", value: d.dispute_status },
+                { title: "Stage", value: d.dispute_stage }
+              ]
+            }
+          ]
+        }
+      }]
+    };
+  }
+  return webhook;
+}
+```
+
+## 팁
+
+- 풍부하고 상호작용적인 포맷을 위해 Adaptive Cards 사용
+- 적절한 색상 선택: 좋음 (초록), 경고 (노랑), 주의 (빨강)
+- 사실 세트를 간결하고 읽기 쉽게 유지
+- 배포 전에 Teams 웹후크 테스터로 테스트
+
+## 문제 해결
+
+<AccordionGroup>
+<Accordion title="Teams에 메시지가 없음">
+- 웹후크 URL이 올바르고 활성 상태인지 확인
+- 변환이 유효한 Adaptive Card JSON을 반환하는지 확인
+- 웹후크가 채널에 게시할 수 있는 권한이 있는지 확인
+</Accordion>
+
+<Accordion title="카드 포맷 문제">
+- Teams 웹후크 테스터에서 Adaptive Card 스키마를 검증
+- 모든 필수 필드가 있는지 확인
+- 색상 값이 유효한지 확인 (좋음, 경고, 주의, 기본)
+</Accordion>
+</AccordionGroup>

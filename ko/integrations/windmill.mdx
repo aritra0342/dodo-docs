@@ -1,0 +1,188 @@
+---
+title: 풍차
+description: Dodo Payments 이벤트를 기반으로 풍차 워크플로우 및 스크립트를 트리거하여 맞춤형 자동화를 수행합니다.
+icon: wind
+---
+
+## 소개
+
+결제 이벤트가 발생할 때 풍차에서 사용자 정의 워크플로우 및 스크립트를 실행합니다. 데이터베이스 작업을 수행하고, 알림을 전송하며, 데이터를 처리하고, 풍차의 강력한 워크플로우 엔진을 사용하여 복잡한 비즈니스 로직을 자동화합니다.
+
+<Info>
+이 통합은 워크플로우 구성에서 귀하의 풍차 웹훅 URL이 필요합니다.
+</Info>
+
+## 시작하기
+
+<Steps>
+<Step title="웹훅 섹션 열기">
+  Dodo Payments 대시보드에서 <b>웹훅 → + 엔드포인트 추가</b>로 이동하고 통합 드롭다운을 확장합니다.
+  <Frame>
+    <img src="/images/integrations/windmill.png" alt="엔드포인트 추가 및 통합 드롭다운" />
+  </Frame>
+</Step>
+
+<Step title="풍차 선택">
+  <b>풍차</b> 통합 카드를 선택합니다.
+</Step>
+
+<Step title="풍차 워크플로우 생성">
+  풍차에서 새 워크플로우를 생성하고 트리거 구성에서 웹훅 URL을 복사합니다.
+</Step>
+
+<Step title="웹훅 URL 붙여넣기">
+  엔드포인트 구성에 풍차 웹훅 URL을 붙여넣습니다.
+</Step>
+
+<Step title="변환 구성">
+  이벤트를 풍차 워크플로우에 맞게 형식화하기 위해 변환 코드를 편집합니다.
+</Step>
+
+<Step title="테스트 및 생성">
+  샘플 페이로드로 테스트하고 <b>생성</b>를 클릭하여 통합을 활성화합니다.
+</Step>
+
+<Step title="완료!">
+  🎉 이제 결제 이벤트가 자동으로 귀하의 풍차 워크플로우를 트리거합니다.
+</Step>
+</Steps>
+
+## 변환 코드 예제
+
+### 기본 워크플로우 페이로드
+
+```javascript basic_workflow.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.payload = {
+      event_type: webhook.eventType,
+      payment_id: p.payment_id,
+      amount: (p.total_amount / 100).toFixed(2),
+      currency: p.currency || "USD",
+      customer_email: p.customer.email,
+      customer_name: p.customer.name,
+      payment_method: p.payment_method || "unknown",
+      timestamp: webhook.payload.timestamp,
+      metadata: {
+        business_id: p.business_id,
+        product_id: p.product_id
+      }
+    };
+  }
+  return webhook;
+}
+```
+
+### 구독 워크플로우 핸들러
+
+```javascript subscription_workflow.js icon="js" expandable
+function handler(webhook) {
+  const s = webhook.payload.data;
+  switch (webhook.eventType) {
+    case "subscription.active":
+      webhook.payload = {
+        event_type: "subscription_started",
+        subscription_id: s.subscription_id,
+        customer_email: s.customer.email,
+        customer_name: s.customer.name,
+        product_id: s.product_id,
+        amount: (s.recurring_pre_tax_amount / 100).toFixed(2),
+        frequency: s.payment_frequency_interval,
+        next_billing: s.next_billing_date,
+        customer_id: s.customer.customer_id,
+        timestamp: webhook.payload.timestamp
+      };
+      break;
+    case "subscription.cancelled":
+      webhook.payload = {
+        event_type: "subscription_cancelled",
+        subscription_id: s.subscription_id,
+        customer_email: s.customer.email,
+        cancelled_at: s.cancelled_at,
+        cancel_at_next_billing: s.cancel_at_next_billing_date,
+        customer_id: s.customer.customer_id,
+        timestamp: webhook.payload.timestamp
+      };
+      break;
+  }
+  return webhook;
+}
+```
+
+### 분쟁 워크플로우 핸들러
+
+```javascript dispute_workflow.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType.startsWith("dispute.")) {
+    const d = webhook.payload.data;
+    webhook.payload = {
+      event_type: webhook.eventType,
+      dispute_id: d.dispute_id,
+      payment_id: d.payment_id,
+      amount: (d.amount / 100).toFixed(2),
+      status: d.dispute_status,
+      stage: d.dispute_stage,
+      remarks: d.remarks || "",
+      urgent: webhook.eventType === "dispute.opened",
+      business_id: d.business_id,
+      timestamp: webhook.payload.timestamp
+    };
+  }
+  return webhook;
+}
+```
+
+## 일반적인 풍차 사용 사례
+
+<AccordionGroup>
+<Accordion title="데이터베이스 작업">
+- PostgreSQL/MySQL에서 고객 기록 업데이트
+- 데이터 웨어하우스에 결제 이벤트 기록
+- 외부 시스템에 데이터 동기화
+- 재고 수준 업데이트
+- 분석 메트릭 추적
+</Accordion>
+
+<Accordion title="비즈니스 로직">
+- 수익 메트릭 계산
+- 환불 및 조정 처리
+- 구독 생애 주기 관리
+- 보고서 및 내보내기 생성
+- 결제 데이터 검증
+</Accordion>
+
+<Accordion title="외부 통합">
+- 분석 플랫폼에 데이터 전송
+- CRM 시스템 업데이트
+- 이메일 캠페인 트리거
+- 캘린더 이벤트 생성
+- SMS 알림 전송
+</Accordion>
+</AccordionGroup>
+
+## 팁
+
+- 워크플로우 처리를 쉽게 하기 위해 페이로드 데이터를 구조화합니다.
+- 비즈니스 로직을 위해 모든 관련 메타데이터를 포함합니다.
+- 이벤트 전반에 걸쳐 일관된 필드 이름을 사용합니다.
+- 워크플로우 타이밍을 위해 타임스탬프를 포함합니다.
+- 풍차의 내장 오류 처리를 활용합니다.
+
+## 문제 해결
+
+<AccordionGroup>
+<Accordion title="워크플로우가 트리거되지 않음">
+- 웹훅 URL이 올바르고 활성화되어 있는지 확인합니다.
+- 풍차 워크플로우가 게시되고 활성화되어 있는지 확인합니다.
+- 페이로드 구조가 워크플로우 기대에 맞는지 확인합니다.
+- 오류에 대한 풍차 실행 로그를 검토합니다.
+</Accordion>
+
+<Accordion title="데이터 처리 문제">
+- 워크플로우 입력 매개변수 매핑을 확인합니다.
+- 데이터 유형이 예상 형식과 일치하는지 확인합니다.
+- 샘플 데이터로 워크플로우를 테스트합니다.
+- 풍차 스크립트 실행 로그를 검토합니다.
+</Accordion>
+</AccordionGroup>

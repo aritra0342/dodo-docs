@@ -1,0 +1,1005 @@
+---
+title: Phiên Giao Dịch Thanh Toán
+description: Tạo trải nghiệm thanh toán an toàn, được lưu trữ, xử lý toàn bộ quy
+  trình thanh toán cho cả mua hàng một lần và đăng ký với quyền kiểm soát tùy
+  chỉnh hoàn toàn.
+icon: cart-shopping
+---
+
+<CardGroup cols={2}>
+<Card title="Hướng Dẫn Bắt Đầu Nhanh" icon="rocket" href="#creating-your-first-checkout-session">
+  Khởi động phiên giao dịch thanh toán đầu tiên của bạn trong chưa đầy 5 phút
+</Card>
+
+<Card title="Tài Liệu API & Kiểm Tra Trực Tiếp" icon="code" href="/api-reference/checkout-sessions/create">
+  Khám phá tài liệu API đầy đủ và kiểm tra tương tác các yêu cầu và phản hồi của Phiên Giao Dịch Thanh Toán.
+</Card>
+</CardGroup>
+
+<Info>
+**Thời Hạn Phiên Giao Dịch**: Các phiên giao dịch thanh toán có hiệu lực trong 24 giờ theo mặc định. Nếu bạn truyền `confirm=true` trong yêu cầu của bạn, phiên sẽ chỉ có hiệu lực trong 15 phút.
+</Info>
+
+## Điều Kiện Tiên Quyết
+
+<Steps>
+<Step title="Tài Khoản Dodo Payments">
+  Bạn sẽ cần một tài khoản thương nhân Dodo Payments hoạt động với quyền truy cập API.
+</Step>
+
+<Step title="Thông Tin Xác Thực API">
+  Tạo thông tin xác thực API của bạn từ bảng điều khiển Dodo Payments:
+</Step>
+
+<Step title="Cài Đặt Sản Phẩm">
+  Tạo sản phẩm của bạn trong bảng điều khiển Dodo Payments trước khi triển khai các phiên giao dịch thanh toán.
+</Step>
+</Steps>
+
+## Tạo Phiên Giao Dịch Thanh Toán Đầu Tiên Của Bạn
+
+<Tabs>
+<Tab title="Node.js SDK">
+
+```javascript expandable
+import DodoPayments from 'dodopayments';
+
+// Initialize the Dodo Payments client
+const client = new DodoPayments({
+  bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'test_mode', // defaults to 'live_mode'
+});
+
+async function createCheckoutSession() {
+  try {
+    const session = await client.checkoutSessions.create({
+      // Products to sell - use IDs from your Dodo Payments dashboard
+      product_cart: [
+        {
+          product_id: 'prod_123', // Replace with your actual product ID
+          quantity: 1
+        }
+      ],
+      
+      // Pre-fill customer information to reduce friction
+      customer: {
+        email: 'customer@example.com',
+        name: 'John Doe',
+        phone_number: '+1234567890'
+      },
+      
+      // Billing address for tax calculation and compliance
+      billing_address: {
+        street: '123 Main St',
+        city: 'San Francisco',
+        state: 'CA',
+        country: 'US', // Required: ISO 3166-1 alpha-2 country code
+        zipcode: '94102'
+      },
+      
+      // Where to redirect after successful payment
+      return_url: 'https://yoursite.com/checkout/success',
+      
+      // Custom data for your internal tracking
+      metadata: {
+        order_id: 'order_123',
+        source: 'web_app'
+      }
+    });
+
+    // Redirect your customer to this URL to complete payment
+    console.log('Checkout URL:', session.checkout_url);
+    console.log('Session ID:', session.session_id);
+    
+    return session;
+    
+  } catch (error) {
+    console.error('Failed to create checkout session:', error);
+    throw error;
+  }
+}
+
+// Example usage in an Express.js route
+app.post('/create-checkout', async (req, res) => {
+  try {
+    const session = await createCheckoutSession();
+    res.json({ checkout_url: session.checkout_url });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to create checkout session' });
+  }
+});
+```
+
+</Tab>
+
+<Tab title="Python SDK">
+
+```python expandable
+import os
+from dodopayments import DodoPayments
+
+# Initialize the Dodo Payments client
+client = DodoPayments(
+    bearer_token=os.environ.get("DODO_PAYMENTS_API_KEY"),  # This is the default and can be omitted
+    environment="test_mode",  # defaults to "live_mode"
+)
+
+def create_checkout_session():
+    """
+    Create a checkout session for a single product with customer data pre-filled.
+    Returns the session object containing checkout_url for customer redirection.
+    """
+    try:
+        session = client.checkout_sessions.create(
+            # Products to sell - use IDs from your Dodo Payments dashboard
+            product_cart=[
+                {
+                    "product_id": "prod_123",  # Replace with your actual product ID
+                    "quantity": 1
+                }
+            ],
+            
+            # Pre-fill customer information to reduce checkout friction
+            customer={
+                "email": "customer@example.com",
+                "name": "John Doe",
+                "phone_number": "+1234567890"
+            },
+            
+            # Billing address for tax calculation and compliance
+            billing_address={
+                "street": "123 Main St",
+                "city": "San Francisco", 
+                "state": "CA",
+                "country": "US",  # Required: ISO 3166-1 alpha-2 country code
+                "zipcode": "94102"
+            },
+            
+            # Where to redirect after successful payment
+            return_url="https://yoursite.com/checkout/success",
+            
+            # Custom data for your internal tracking
+            metadata={
+                "order_id": "order_123",
+                "source": "web_app"
+            }
+        )
+        
+        # Redirect your customer to this URL to complete payment
+        print(f"Checkout URL: {session.checkout_url}")
+        print(f"Session ID: {session.session_id}")
+        
+        return session
+        
+    except Exception as error:
+        print(f"Failed to create checkout session: {error}")
+        raise error
+
+# Example usage in a Flask route
+from flask import Flask, jsonify, request
+
+app = Flask(__name__)
+
+@app.route('/create-checkout', methods=['POST'])
+def create_checkout():
+    try:
+        session = create_checkout_session()
+        return jsonify({"checkout_url": session.checkout_url})
+    except Exception as error:
+        return jsonify({"error": "Failed to create checkout session"}), 500
+```
+
+</Tab>
+
+<Tab title="REST API">
+
+```javascript expandable
+// Direct API call using fetch - useful for any JavaScript environment
+async function createCheckoutSession() {
+  try {
+    const response = await fetch('https://test.dodopayments.com/checkouts', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.DODO_PAYMENTS_API_KEY}`
+      },
+      body: JSON.stringify({
+        // Products to sell - use IDs from your Dodo Payments dashboard
+        product_cart: [
+          {
+            product_id: 'prod_123', // Replace with your actual product ID
+            quantity: 1
+          }
+        ],
+        
+        // Pre-fill customer information to reduce checkout friction
+        customer: {
+          email: 'customer@example.com',
+          name: 'John Doe',
+          phone_number: '+1234567890'
+        },
+        
+        // Billing address for tax calculation and compliance
+        billing_address: {
+          street: '123 Main St',
+          city: 'San Francisco',
+          state: 'CA', 
+          country: 'US', // Required: ISO 3166-1 alpha-2 country code
+          zipcode: '94102'
+        },
+        
+        // Where to redirect after successful payment
+        return_url: 'https://yoursite.com/checkout/success',
+        
+        // Custom data for your internal tracking
+        metadata: {
+          order_id: 'order_123',
+          source: 'web_app'
+        }
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const session = await response.json();
+    
+    // Redirect your customer to this URL to complete payment
+    console.log('Checkout URL:', session.checkout_url);
+    console.log('Session ID:', session.session_id);
+    
+    return session;
+    
+  } catch (error) {
+    console.error('Failed to create checkout session:', error);
+    throw error;
+  }
+}
+
+// Example: Redirect user to checkout
+createCheckoutSession().then(session => {
+  window.location.href = session.checkout_url;
+});
+```
+
+</Tab>
+</Tabs>
+
+### Phản Hồi API
+
+Tất cả các phương thức trên đều trả về cùng một cấu trúc phản hồi:
+
+```json
+{
+  "session_id": "cks_Gi6KGJ2zFJo9rq9Ukifwa",
+  "checkout_url": "https://test.checkout.dodopayments.com/session/cks_Gi6KGJ2zFJo9rq9Ukifwa"
+}
+```
+
+<Steps>
+<Step title="Lấy URL thanh toán">
+Trích xuất `checkout_url` từ phản hồi API.
+</Step>
+
+<Step title="Chuyển hướng khách hàng của bạn">
+Chuyển hướng khách hàng của bạn đến URL thanh toán để hoàn tất giao dịch mua hàng.
+
+```javascript
+// Redirect immediately
+window.location.href = session.checkout_url;
+
+// Or open in new window
+window.open(session.checkout_url, '_blank');
+```
+
+</Step>
+
+<Step title="Xử lý việc trở lại">
+Sau khi thanh toán, khách hàng sẽ được chuyển hướng đến `return_url` của bạn với các tham số truy vấn bổ sung cho trạng thái thanh toán.
+</Step>
+</Steps>
+
+## Thân Yêu Yêu Cầu
+
+<CardGroup cols={2}>
+<Card title="Trường Bắt Buộc" icon="asterisk">
+  Các trường thiết yếu cần thiết cho mỗi phiên giao dịch thanh toán
+</Card>
+
+<Card title="Trường Tùy Chọn" icon="gear">
+  Cấu hình bổ sung để tùy chỉnh trải nghiệm thanh toán của bạn
+</Card>
+</CardGroup>
+
+### Trường Bắt Buộc
+
+<ParamField body="product_cart" type="array" required>
+Mảng các sản phẩm để bao gồm trong phiên giao dịch thanh toán. Mỗi sản phẩm phải có một `product_id` hợp lệ từ bảng điều khiển Dodo Payments của bạn.
+
+<Warning>
+**Quan Trọng**: Nhiều giỏ sản phẩm chỉ có thể chứa các sản phẩm thanh toán một lần. Bạn không thể trộn lẫn các sản phẩm đăng ký với các sản phẩm một lần trong cùng một phiên giao dịch thanh toán.
+</Warning>
+
+<Expandable title="Thuộc Tính Mục Giỏ Sản Phẩm">
+<ParamField body="product_id" type="string" required>
+Định danh duy nhất của sản phẩm từ bảng điều khiển Dodo Payments của bạn.
+
+**Ví dụ:** `"prod_123abc456def"`
+</ParamField>
+
+<ParamField body="quantity" type="integer" required>
+Số lượng sản phẩm.
+
+**Ví dụ:** `1` cho một mục đơn, `3` cho nhiều số lượng
+</ParamField>
+
+<ParamField body="addons" type="array">
+Mảng các addon để đính kèm vào sản phẩm. Chỉ hợp lệ nếu sản phẩm là một đăng ký.
+
+<Expandable title="Thuộc Tính Mục Addon">
+<ParamField body="addon_id" type="string" required />
+
+<ParamField body="quantity" type="integer" required />
+</Expandable>
+</ParamField>
+
+<ParamField body="amount" type="integer">
+Số tiền mà khách hàng phải trả nếu pay_what_you_want được kích hoạt. Nếu không, trường này sẽ bị bỏ qua.
+
+**Định dạng**: Được biểu diễn bằng đơn vị thấp nhất của tiền tệ (ví dụ: xu cho USD). Ví dụ, để tính phí $1.00, truyền `100`.
+</ParamField>
+</Expandable>
+</ParamField>
+
+<Tip>
+**Tìm ID Sản Phẩm Của Bạn**: Bạn có thể tìm thấy ID sản phẩm trong bảng điều khiển Dodo Payments của bạn dưới Sản Phẩm → Xem Chi Tiết, hoặc bằng cách sử dụng [API Danh Sách Sản Phẩm](/api-reference/products/get-products).
+</Tip>
+
+### Trường Tùy Chọn
+
+Cấu hình các trường này để tùy chỉnh trải nghiệm thanh toán và thêm logic kinh doanh vào quy trình thanh toán của bạn.
+
+<AccordionGroup>
+<Accordion title="Thông Tin Khách Hàng">
+
+<ParamField body="customer" type="object">
+Thông tin khách hàng. Bạn có thể đính kèm một khách hàng hiện có bằng cách sử dụng ID của họ hoặc tạo một bản ghi khách hàng mới trong quá trình thanh toán.
+
+<Tabs>
+<Tab title="Đính Kèm Khách Hàng Hiện Có">
+Đính kèm một khách hàng hiện có vào phiên giao dịch thanh toán bằng cách sử dụng ID của họ.
+
+<Expandable title="Thuộc Tính Khách Hàng Hiện Có">
+<ParamField body="customer_id" type="string" required>
+Định danh duy nhất của một khách hàng hiện có. Sử dụng điều này để đính kèm phiên giao dịch thanh toán vào một khách hàng hiện có thay vì tạo một cái mới.
+</ParamField>
+</Expandable>
+</Tab>
+
+<Tab title="Khách Hàng Mới">
+Tạo một bản ghi khách hàng mới trong quá trình thanh toán.
+
+<Expandable title="Thuộc Tính Khách Hàng Mới">
+<ParamField body="email" type="string" required>
+Địa chỉ email của khách hàng. Bắt buộc khi tạo một khách hàng mới.
+</ParamField>
+
+<ParamField body="name" type="string">
+Họ và tên của khách hàng như nó sẽ xuất hiện trên biên lai và hóa đơn.
+
+**Ví dụ**: `"John Doe"` hoặc `"Jane Smith"`
+</ParamField>
+
+<ParamField body="phone_number" type="string">
+Số điện thoại của khách hàng theo định dạng quốc tế. Bắt buộc cho một số phương thức thanh toán và phòng ngừa gian lận.
+
+**Định dạng**: Bao gồm mã quốc gia, ví dụ: `"+1234567890"` cho số điện thoại của Mỹ
+</ParamField>
+</Expandable>
+</Tab>
+</Tabs>
+</ParamField>
+
+<ParamField body="billing_address" type="object">
+Thông tin địa chỉ thanh toán để tính thuế chính xác, phòng ngừa gian lận và tuân thủ quy định.
+
+<Info>
+Khi `confirm` được đặt thành `true`, tất cả các trường địa chỉ thanh toán trở thành bắt buộc để tạo phiên thành công.
+</Info>
+
+<Expandable title="Thuộc Tính Đối Tượng Địa Chỉ Thanh Toán">
+<ParamField body="street" type="string">
+Địa chỉ đường đầy đủ bao gồm số nhà, tên đường và số căn hộ/đơn vị nếu có.
+
+**Ví dụ**: `"123 Main St, Apt 4B"` hoặc `"456 Oak Avenue"`
+</ParamField>
+
+<ParamField body="city" type="string">
+Tên thành phố hoặc thị xã.
+
+**Ví dụ**: `"San Francisco"`, `"New York"`, `"London"`
+</ParamField>
+
+<ParamField body="state" type="string">
+Tên tiểu bang, tỉnh hoặc khu vực. Sử dụng tên đầy đủ hoặc viết tắt tiêu chuẩn.
+
+**Ví dụ**: `"California"` hoặc `"CA"`, `"Ontario"` hoặc `"ON"`
+</ParamField>
+
+<ParamField body="country" type="string" required>
+Mã quốc gia ISO hai chữ cái (ISO 3166-1 alpha-2). Trường này luôn bắt buộc khi địa chỉ thanh toán được cung cấp.
+
+**Ví dụ**: `"US"` (Hoa Kỳ), `"CA"` (Canada), `"GB"` (Vương Quốc Anh), `"DE"` (Đức)
+
+<Card title="Tham Khảo Mã Quốc Gia" icon="globe" href="/api-reference/misc/supported-countries">
+  Xem danh sách đầy đủ các quốc gia được hỗ trợ và mã ISO của chúng
+</Card>
+</ParamField>
+
+<ParamField body="zipcode" type="string">
+Mã bưu chính, mã ZIP, hoặc tương đương dựa trên yêu cầu của quốc gia.
+
+**Ví dụ**: `"94102"` (Mỹ), `"M5V 3A8"` (Canada), `"SW1A 1AA"` (Vương Quốc Anh)
+</ParamField>
+</Expandable>
+</ParamField>
+
+</Accordion>
+
+<Accordion title="Cấu Hình Thanh Toán">
+
+<ParamField body="allowed_payment_method_types" type="array">
+Kiểm soát các phương thức thanh toán nào có sẵn cho khách hàng trong quá trình thanh toán. Điều này giúp tối ưu hóa cho các thị trường hoặc yêu cầu kinh doanh cụ thể.
+
+**Các Tùy Chọn Có Sẵn**: `credit`, `debit`, `upi_collect`, `upi_intent`, `apple_pay`, `google_pay`, `amazon_pay`, `klarna`, `affirm`, `afterpay_clearpay`, `sepa`, `ach`, `cashapp`, `multibanco`, `bancontact_card`, `eps`, `ideal`, `przelewy24`, `paypal`
+
+<Warning>
+**Quan Trọng**: Luôn bao gồm `credit` và `debit` như các tùy chọn dự phòng để ngăn chặn việc thanh toán thất bại khi các phương thức thanh toán ưu tiên không khả dụng.
+</Warning>
+
+**Ví dụ**: 
+
+```json expandable
+["apple_pay", "google_pay", "credit", "debit"]
+```
+
+</ParamField>
+
+<ParamField body="billing_currency" type="string">
+Ghi đè lựa chọn tiền tệ mặc định bằng một loại tiền tệ thanh toán cố định. Sử dụng mã tiền tệ ISO 4217.
+
+**Các Tiền Tệ Hỗ Trợ**: `USD`, `EUR`, `GBP`, `CAD`, `AUD`, `INR`, và nhiều hơn nữa
+
+**Ví dụ**: `"USD"` cho Đô la Mỹ, `"EUR"` cho Euro
+
+<Note>
+Trường này chỉ có hiệu lực khi giá cả thích ứng được kích hoạt. Nếu giá cả thích ứng bị vô hiệu hóa, loại tiền tệ mặc định của sản phẩm sẽ được sử dụng.
+</Note>
+</ParamField>
+
+<ParamField body="show_saved_payment_methods" type="boolean" default="false">
+Hiển thị các phương thức thanh toán đã lưu trước đó cho khách hàng quay lại, cải thiện tốc độ thanh toán và trải nghiệm người dùng.
+</ParamField>
+
+</Accordion>
+
+<Accordion title="Quản Lý Phiên Giao Dịch">
+
+<ParamField body="return_url" type="string">
+URL để chuyển hướng khách hàng sau khi thanh toán thành công hoặc hủy bỏ.
+</ParamField>
+
+<ParamField body="confirm" type="boolean" default="false">
+Nếu đúng, hoàn tất tất cả các chi tiết phiên ngay lập tức. API sẽ ném ra lỗi nếu dữ liệu cần thiết bị thiếu.
+</ParamField>
+
+<ParamField body="discount_code" type="string">
+Áp dụng mã giảm giá cho phiên giao dịch thanh toán.
+</ParamField>
+
+<ParamField body="metadata" type="object">
+Các cặp khóa-giá trị tùy chỉnh để lưu trữ thông tin bổ sung về phiên giao dịch.
+</ParamField>
+
+<ParamField body="force_3ds" type="boolean">
+Ghi đè hành vi 3DS mặc định của thương nhân cho phiên này.
+</ParamField>
+
+<ParamField body="minimal_address" type="boolean" default="false">
+Kích hoạt chế độ thu thập địa chỉ tối thiểu. Khi được kích hoạt, quá trình thanh toán chỉ thu thập:
+- **Quốc gia**: Luôn cần thiết để xác định thuế
+- **Mã ZIP/Postal**: Chỉ ở những khu vực mà nó cần thiết cho việc tính thuế bán hàng, VAT hoặc GST
+
+Điều này giảm đáng kể ma sát trong quá trình thanh toán bằng cách loại bỏ các trường biểu mẫu không cần thiết.
+
+<Tip>
+Kích hoạt địa chỉ tối thiểu để hoàn tất thanh toán nhanh hơn. Việc thu thập địa chỉ đầy đủ vẫn có sẵn cho các doanh nghiệp cần thông tin thanh toán đầy đủ.
+</Tip>
+</ParamField>
+
+</Accordion>
+
+<Accordion title="Tùy Chỉnh Giao Diện & Tính Năng">
+
+<ParamField body="customization" type="object">
+Tùy chỉnh giao diện và hành vi của giao diện thanh toán.
+
+<Expandable title="Thuộc Tính Đối Tượng Tùy Chỉnh">
+<ParamField body="theme" type="string" default="system">
+Chủ đề cho giao diện thanh toán. Các tùy chọn: `light`, `dark`, hoặc `system`.
+</ParamField>
+
+<ParamField body="show_order_details" type="boolean" default="true">
+Hiển thị phần chi tiết đơn hàng trong giao diện thanh toán.
+</ParamField>
+
+<ParamField body="show_on_demand_tag" type="boolean" default="true">
+Hiển thị thẻ "theo yêu cầu" cho các sản phẩm áp dụng.
+</ParamField>
+
+<ParamField body="force_language" type="string">
+Buộc giao diện thanh toán hiển thị bằng một ngôn ngữ cụ thể.
+
+**Ví dụ**: `"en"` cho tiếng Anh, `"es"` cho tiếng Tây Ban Nha
+</ParamField>
+</Expandable>
+</ParamField>
+
+<ParamField body="feature_flags" type="object">
+Cấu hình các tính năng và hành vi cụ thể cho phiên giao dịch thanh toán.
+
+<Expandable title="Thuộc Tính Đối Tượng Cờ Tính Năng">
+<ParamField body="allow_currency_selection" type="boolean" default="true">
+Cho phép khách hàng chọn loại tiền tệ ưa thích của họ trong quá trình thanh toán.
+</ParamField>
+
+<ParamField body="allow_discount_code" type="boolean" default="true">
+Hiển thị trường nhập mã giảm giá trong giao diện thanh toán.
+</ParamField>
+
+<ParamField body="allow_phone_number_collection" type="boolean" default="true">
+Thu thập số điện thoại của khách hàng trong quá trình thanh toán.
+</ParamField>
+
+<ParamField body="allow_tax_id" type="boolean" default="true">
+Cho phép khách hàng nhập số nhận dạng thuế.
+</ParamField>
+
+<ParamField body="always_create_new_customer" type="boolean" default="false">
+Buộc tạo một bản ghi khách hàng mới thay vì cập nhật các bản ghi hiện có.
+</ParamField>
+
+<ParamField body="allow_customer_editing_email" type="boolean">
+Cho phép khách hàng chỉnh sửa địa chỉ email của họ trong quá trình thanh toán.
+</ParamField>
+
+<ParamField body="allow_customer_editing_name" type="boolean">
+Cho phép khách hàng chỉnh sửa tên của họ trong quá trình thanh toán.
+</ParamField>
+
+<ParamField body="allow_customer_editing_street" type="boolean">
+Cho phép khách hàng chỉnh sửa địa chỉ đường trong quá trình thanh toán.
+</ParamField>
+
+<ParamField body="allow_customer_editing_city" type="boolean">
+Cho phép khách hàng chỉnh sửa thành phố trong quá trình thanh toán.
+</ParamField>
+
+<ParamField body="allow_customer_editing_state" type="boolean">
+Cho phép khách hàng chỉnh sửa tiểu bang trong quá trình thanh toán.
+</ParamField>
+
+<ParamField body="allow_customer_editing_country" type="boolean">
+Cho phép khách hàng chỉnh sửa quốc gia trong quá trình thanh toán.
+</ParamField>
+
+<ParamField body="allow_customer_editing_zipcode" type="boolean">
+Cho phép khách hàng chỉnh sửa mã bưu chính trong quá trình thanh toán.
+</ParamField>
+
+<ParamField body="minimal_address" type="boolean" default="false">
+Kích hoạt chế độ thu thập địa chỉ tối thiểu. Khi được kích hoạt, quá trình thanh toán chỉ thu thập:
+- **Quốc gia**: Luôn cần thiết để xác định thuế
+- **Mã ZIP/Postal**: Chỉ ở những khu vực mà nó cần thiết cho việc tính thuế bán hàng, VAT hoặc GST
+
+Điều này giảm đáng kể ma sát trong quá trình thanh toán bằng cách loại bỏ các trường biểu mẫu không cần thiết.
+
+<Tip>
+Kích hoạt địa chỉ tối thiểu để hoàn tất thanh toán nhanh hơn. Việc thu thập địa chỉ đầy đủ vẫn có sẵn cho các doanh nghiệp cần thông tin thanh toán đầy đủ.
+</Tip>
+</ParamField>
+</Expandable>
+</ParamField>
+
+</Accordion>
+
+<Accordion title="Cấu Hình Đăng Ký">
+
+<ParamField body="subscription_data" type="object">
+Cấu hình bổ sung cho các phiên giao dịch thanh toán chứa sản phẩm đăng ký.
+
+<Expandable title="Thuộc Tính Đối Tượng Dữ Liệu Đăng Ký">
+<ParamField body="trial_period_days" type="integer">
+Số ngày cho thời gian dùng thử trước khi tính phí đầu tiên. Phải nằm trong khoảng từ 0 đến 10000 ngày.
+</ParamField>
+
+<ParamField body="on_demand" type="object">
+Cấu hình đăng ký theo yêu cầu cho việc thanh toán dựa trên mức sử dụng hoặc tính phí theo chỉ số.
+
+<Expandable title="Thuộc Tính Đối Tượng Theo Yêu Cầu">
+<ParamField body="mandate_only" type="boolean" required>
+Nếu được đặt thành true, không thực hiện bất kỳ khoản phí nào và chỉ ủy quyền thông tin phương thức thanh toán cho việc sử dụng trong tương lai.
+</ParamField>
+
+<ParamField body="product_price" type="integer">
+Giá sản phẩm cho khoản phí ban đầu đến khách hàng. Nếu không được chỉ định, giá đã lưu của sản phẩm sẽ được sử dụng.
+
+**Định dạng**: Được biểu diễn bằng đơn vị thấp nhất của tiền tệ (ví dụ: xu cho USD). Ví dụ, để tính phí $1.00, truyền `100`.
+</ParamField>
+
+<ParamField body="product_currency" type="string">
+Tiền tệ tùy chọn của giá sản phẩm. Nếu không được chỉ định, mặc định là loại tiền tệ của sản phẩm.
+</ParamField>
+
+<ParamField body="product_description" type="string">
+Mô tả sản phẩm tùy chọn để thay thế cho việc lập hóa đơn và các mục. Nếu không được chỉ định, mô tả đã lưu của sản phẩm sẽ được sử dụng.
+</ParamField>
+
+<ParamField body="adaptive_currency_fees_inclusive" type="boolean">
+Liệu phí tiền tệ thích ứng có nên được bao gồm trong giá sản phẩm (true) hay thêm vào (false). Bị bỏ qua nếu giá cả thích ứng không được kích hoạt.
+</ParamField>
+</Expandable>
+</ParamField>
+</Expandable>
+</ParamField>
+
+</Accordion>
+</AccordionGroup>
+
+## Ví Dụ Sử Dụng
+
+Dưới đây là 10 ví dụ toàn diện trình bày các cấu hình phiên giao dịch thanh toán khác nhau cho các kịch bản kinh doanh khác nhau:
+
+### 1. Thanh Toán Sản Phẩm Đơn Giản
+
+```javascript expandable
+const session = await client.checkoutSessions.create({
+  product_cart: [
+    {
+      product_id: 'prod_ebook_guide',
+      quantity: 1
+    }
+  ],
+  customer: {
+    email: 'customer@example.com',
+    name: 'John Doe'
+  },
+  return_url: 'https://yoursite.com/success'
+});
+```
+
+### 2. Giỏ Nhiều Sản Phẩm
+
+```javascript expandable
+const session = await client.checkoutSessions.create({
+  product_cart: [
+    {
+      product_id: 'prod_laptop',
+      quantity: 1
+    },
+    {
+      product_id: 'prod_mouse',
+      quantity: 2
+    },
+    {
+      product_id: 'prod_warranty',
+      quantity: 1
+    }
+  ],
+  customer: {
+    email: 'customer@example.com',
+    name: 'John Doe',
+    phone_number: '+1234567890'
+  },
+  billing_address: {
+    street: '123 Tech Street',
+    city: 'San Francisco',
+    state: 'CA',
+    country: 'US',
+    zipcode: '94102'
+  },
+  return_url: 'https://electronics-store.com/order-confirmation'
+});
+```
+
+### 3. Đăng Ký Với Thời Gian Dùng Thử
+
+```javascript expandable
+const session = await client.checkoutSessions.create({
+  product_cart: [
+    {
+      product_id: 'prod_monthly_plan',
+      quantity: 1
+    }
+  ],
+  subscription_data: {
+    trial_period_days: 14
+  },
+  customer: {
+    email: 'user@startup.com',
+    name: 'Jane Smith'
+  },
+  return_url: 'https://saas-app.com/onboarding',
+  metadata: {
+    plan_type: 'professional',
+    referral_source: 'google_ads'
+  }
+});
+```
+
+### 4. Thanh Toán Đã Xác Nhận Trước
+
+<Note>
+Khi `confirm` được đặt thành `true`, khách hàng sẽ được đưa trực tiếp đến trang thanh toán, bỏ qua bất kỳ bước xác nhận nào.
+</Note>
+
+```javascript expandable
+const session = await client.checkoutSessions.create({
+  product_cart: [
+    {
+      product_id: 'prod_premium_course',
+      quantity: 1
+    }
+  ],
+  customer: {
+    email: 'student@university.edu',
+    name: 'Alex Johnson',
+    phone_number: '+1555123456'
+  },
+  billing_address: {
+    street: '456 University Ave',
+    city: 'Boston',
+    state: 'MA',
+    country: 'US',
+    zipcode: '02134'
+  },
+  confirm: true,
+  return_url: 'https://learning-platform.com/course-access',
+  metadata: {
+    course_category: 'programming',
+    enrollment_date: '2024-01-15'
+  }
+});
+```
+
+### 5. Thanh Toán Với Ghi Đè Tiền Tệ
+
+<Note>
+Ghi đè `billing_currency` chỉ có hiệu lực khi tiền tệ thích ứng được kích hoạt trong cài đặt tài khoản của bạn. Nếu tiền tệ thích ứng bị vô hiệu hóa, tham số này sẽ không có tác dụng.
+</Note>
+
+```javascript expandable
+const session = await client.checkoutSessions.create({
+  product_cart: [
+    {
+      product_id: 'prod_consulting_service',
+      quantity: 1
+    }
+  ],
+  customer: {
+    email: 'client@company.co.uk',
+    name: 'Oliver Williams'
+  },
+  billing_address: {
+    street: '789 Business Park',
+    city: 'London',
+    state: 'England',
+    country: 'GB',
+    zipcode: 'SW1A 1AA'
+  },
+  billing_currency: 'GBP',
+  feature_flags: {
+    allow_currency_selection: true,
+    allow_tax_id: true
+  },
+  return_url: 'https://consulting-firm.com/service-confirmation'
+});
+```
+
+### 6. Các Phương Thức Thanh Toán Đã Lưu Cho Khách Hàng Quay Lại
+
+```javascript expandable
+const session = await client.checkoutSessions.create({
+  product_cart: [
+    {
+      product_id: 'prod_monthly_subscription',
+      quantity: 1
+    }
+  ],
+  customer: {
+    email: 'returning.customer@example.com',
+    name: 'Robert Johnson',
+    phone_number: '+1555987654'
+  },
+  show_saved_payment_methods: true,
+  feature_flags: {
+    allow_phone_number_collection: true,
+    always_create_new_customer: false
+  },
+  return_url: 'https://subscription-service.com/welcome-back',
+  metadata: {
+    customer_tier: 'premium',
+    account_age: 'returning'
+  }
+});
+```
+
+### 7. Thanh Toán B2B Với Việc Thu Thập ID Thuế
+
+```javascript expandable
+const session = await client.checkoutSessions.create({
+  product_cart: [
+    {
+      product_id: 'prod_enterprise_license',
+      quantity: 5
+    }
+  ],
+  customer: {
+    email: 'procurement@enterprise.com',
+    name: 'Sarah Davis',
+    phone_number: '+1800555000'
+  },
+  billing_address: {
+    street: '1000 Corporate Blvd',
+    city: 'New York',
+    state: 'NY',
+    country: 'US',
+    zipcode: '10001'
+  },
+  feature_flags: {
+    allow_tax_id: true,
+    allow_phone_number_collection: true,
+    always_create_new_customer: false
+  },
+  return_url: 'https://enterprise-software.com/license-delivery',
+  metadata: {
+    customer_type: 'enterprise',
+    contract_id: 'ENT-2024-001',
+    sales_rep: 'john.sales@company.com'
+  }
+});
+```
+
+### 8. Thanh Toán Chủ Đề Tối Với Mã Giảm Giá
+
+```javascript expandable
+const session = await client.checkoutSessions.create({
+  product_cart: [
+    {
+      product_id: 'prod_gaming_chair',
+      quantity: 1
+    }
+  ],
+  discount_code: 'BLACKFRIDAY2024',
+  customization: {
+    theme: 'dark',
+    show_order_details: true,
+    show_on_demand_tag: false
+  },
+  feature_flags: {
+    allow_discount_code: true
+  },
+  customer: {
+    email: 'gamer@example.com',
+    name: 'Mike Chen'
+  },
+  return_url: 'https://gaming-store.com/order-complete'
+});
+```
+
+### 9. Các Phương Thức Thanh Toán Khu Vực (UPI cho Ấn Độ)
+
+```javascript expandable
+const session = await client.checkoutSessions.create({
+  product_cart: [
+    {
+      product_id: 'prod_online_course_hindi',
+      quantity: 1
+    }
+  ],
+  allowed_payment_method_types: [
+    'upi_collect',
+    'upi_intent',
+    'credit',
+    'debit'
+  ],
+  customer: {
+    email: 'student@example.in',
+    name: 'Priya Sharma',
+    phone_number: '+919876543210'
+  },
+  billing_address: {
+    street: 'MG Road',
+    city: 'Bangalore',
+    state: 'Karnataka',
+    country: 'IN',
+    zipcode: '560001'
+  },
+  billing_currency: 'INR',
+  return_url: 'https://education-platform.in/course-access',
+  metadata: {
+    region: 'south_india',
+    language: 'hindi'
+  }
+});
+```
+
+### 10. Thanh Toán BNPL (Mua Ngay Trả Sau)
+
+```javascript expandable
+const session = await client.checkoutSessions.create({
+  product_cart: [
+    {
+      product_id: 'prod_luxury_watch',
+      quantity: 1
+    }
+  ],
+  allowed_payment_method_types: [
+    'klarna',
+    'affirm',
+    'afterpay_clearpay',
+    'credit',
+    'debit'
+  ],
+  customer: {
+    email: 'fashion.lover@example.com',
+    name: 'Emma Thompson',
+    phone_number: '+1234567890'
+  },
+  billing_address: {
+    street: '555 Fashion Ave',
+    city: 'Los Angeles',
+    state: 'CA',
+    country: 'US',
+    zipcode: '90210'
+  },
+  feature_flags: {
+    allow_phone_number_collection: true
+  },
+  return_url: 'https://luxury-store.com/purchase-confirmation',
+  metadata: {
+    product_category: 'luxury',
+    price_range: 'high_value'
+  }
+});
+```
+
+## Chuyển Từ Liên Kết Động Sang Các Phiên Giao Dịch Thanh Toán
+
+### Sự Khác Biệt Chính
+Trước đây, khi tạo một liên kết thanh toán với Liên Kết Động, bạn phải cung cấp địa chỉ thanh toán đầy đủ của khách hàng.
+
+Với Các Phiên Giao Dịch Thanh Toán, điều này không còn cần thiết. Bạn chỉ cần truyền bất kỳ thông tin nào bạn có, và chúng tôi sẽ xử lý phần còn lại. Ví dụ:
+
+- Nếu bạn chỉ biết quốc gia thanh toán của khách hàng, chỉ cần cung cấp điều đó.
+- Quy trình thanh toán sẽ tự động thu thập các chi tiết còn thiếu trước khi chuyển khách hàng đến trang thanh toán.
+- Mặt khác, nếu bạn đã có tất cả thông tin cần thiết và muốn bỏ qua trực tiếp đến trang thanh toán, bạn có thể truyền toàn bộ tập dữ liệu và bao gồm `confirm=true` trong thân yêu cầu của bạn.
+
+### Quy Trình Di Chuyển
+
+Di chuyển từ Liên Kết Động sang Các Phiên Giao Dịch Thanh Toán là đơn giản:
+
+<Steps>
+<Step title="Cập Nhật tích hợp của bạn">
+Cập nhật tích hợp của bạn để sử dụng phương thức API hoặc SDK mới.
+</Step>
+
+<Step title="Điều Chỉnh tải trọng yêu cầu">
+Điều chỉnh tải trọng yêu cầu theo định dạng Các Phiên Giao Dịch Thanh Toán.
+</Step>
+
+<Step title="Chỉ vậy thôi!">
+Đúng vậy. Không cần xử lý thêm hoặc các bước di chuyển đặc biệt nào cần thiết từ phía bạn.
+</Step>
+</Steps>

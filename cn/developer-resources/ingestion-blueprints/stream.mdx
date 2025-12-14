@@ -1,0 +1,118 @@
+---
+title: 流媒体蓝图
+description: 跟踪视频、音频、直播和实时数据传输计费的流媒体数据消耗。
+icon: tower-broadcast
+---
+
+## 用例
+
+探索流媒体蓝图支持的常见场景：
+
+<CardGroup cols={2}>
+<Card title="视频平台" icon="video">
+根据视频带宽消耗和流媒体质量向客户收费。
+</Card>
+<Card title="音乐流媒体" icon="music">
+跟踪每个用户的音频流媒体使用情况以进行订阅分级。
+</Card>
+<Card title="直播活动" icon="signal-stream">
+监控直播流的消耗并根据带宽使用情况收费。
+</Card>
+<Card title="实时数据" icon="wave-pulse">
+跟踪物联网和遥测应用的实时数据传输。
+</Card>
+</CardGroup>
+
+<Info>
+非常适合视频/音频流媒体平台、直播服务和实时数据应用。
+</Info>
+
+## 快速开始
+
+跟踪客户消耗的流媒体字节：
+
+<Steps>
+<Step title="安装SDK">
+
+```bash
+npm install @dodopayments/ingestion-blueprints
+```
+
+</Step>
+
+<Step title="获取您的API密钥">
+- **Dodo Payments API密钥**：从[Dodo Payments Dashboard](https://app.dodopayments.com/developer/api-keys)获取
+</Step>
+
+<Step title="创建计量器">
+在您的[Dodo Payments Dashboard](https://app.dodopayments.com/)中创建计量器：
+- **事件名称**：`stream_consumption`（或您首选的名称）
+- **聚合类型**：`sum`以跟踪总流媒体字节
+- **超属性**：`bytes`以根据带宽使用情况计费
+</Step>
+
+<Step title="跟踪流媒体使用情况">
+<CodeGroup>
+
+```javascript Video Streaming
+import { Ingestion, trackStreamBytes } from '@dodopayments/ingestion-blueprints';
+
+const ingestion = new Ingestion({
+  apiKey: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'test_mode',
+  eventName: 'stream_consumption'
+});
+
+// Track video stream consumption
+await trackStreamBytes(ingestion, {
+  customerId: 'customer_123',
+  bytes: 10485760, // 10MB
+  metadata: {
+    stream_type: 'video',
+  }
+});
+```
+
+</CodeGroup>
+</Step>
+</Steps>
+
+## 配置
+
+### 数据摄取配置
+
+<ParamField path="apiKey" type="string" required>
+您从仪表板获取的Dodo Payments API密钥。
+</ParamField>
+
+<ParamField path="environment" type="string" required>
+环境模式：`test_mode`或`live_mode`。
+</ParamField>
+
+<ParamField path="eventName" type="string" required>
+与您的计量器配置匹配的事件名称。
+</ParamField>
+
+### 跟踪流媒体字节选项
+
+<ParamField path="customerId" type="string" required>
+用于计费归属的客户ID。
+</ParamField>
+
+<ParamField path="bytes" type="number">
+流中消耗的字节数。基于带宽计费时必需。
+</ParamField>
+
+<ParamField path="metadata" type="object">
+有关流的可选元数据，如流类型、质量、sessionId等。
+</ParamField>
+
+## 最佳实践
+
+<Tip>
+**按块跟踪**：对于长流，按块跟踪消耗，而不是等待整个流完成。
+</Tip>
+
+<Warning>
+**准确的字节计数**：确保字节计数包括所有开销（头部、协议开销），如果按总带宽计费。
+</Warning>

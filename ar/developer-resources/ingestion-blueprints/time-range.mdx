@@ -1,0 +1,163 @@
+---
+title: نموذج نطاق الوقت
+description: تتبع استهلاك الموارد بناءً على الوقت المنقضي للحوسبة، الوظائف بدون
+  خادم، الحاويات، وفواتير وقت التشغيل.
+icon: clock
+---
+
+## حالات الاستخدام
+
+استكشف السيناريوهات الشائعة المدعومة من نموذج نطاق الوقت:
+
+<CardGroup cols={2}>
+<Card title="الوظائف بدون خادم" icon="function">
+الفوترة بناءً على وقت تنفيذ الوظيفة واستخدام الذاكرة.
+</Card>
+<Card title="وقت تشغيل الحاوية" icon="container-storage">
+تتبع وقت تشغيل الحاوية لفوترة قائمة على الاستخدام.
+</Card>
+<Card title="حالات الحوسبة" icon="server">
+مراقبة وقت تشغيل VM والفوترة بالدقيقة أو الساعة.
+</Card>
+<Card title="وظائف الخلفية" icon="briefcase">
+تتبع وقت المعالجة لتصدير البيانات، والتقارير، والوظائف الدفعة.
+</Card>
+</CardGroup>
+
+<Info>
+مثالي للفوترة بناءً على وقت الحوسبة، مدة تنفيذ الوظيفة، وقت تشغيل الحاوية، أو أي استخدام يعتمد على الوقت.
+</Info>
+
+## البدء السريع
+
+تتبع استخدام الموارد حسب مدة الوقت:
+
+<Steps>
+<Step title="تثبيت SDK">
+
+```bash
+npm install @dodopayments/ingestion-blueprints
+```
+
+</Step>
+
+<Step title="احصل على مفاتيح API الخاصة بك">
+- **مفتاح API لمدفوعات دودي**: احصل عليه من [لوحة معلومات مدفوعات دودي](https://app.dodopayments.com/developer/api-keys)
+</Step>
+
+<Step title="إنشاء عداد">
+أنشئ عدادًا في [لوحة معلومات مدفوعات دودي](https://app.dodopayments.com/):
+- **اسم الحدث**: `time_range_usage` (أو الاسم المفضل لديك)
+- **نوع التجميع**: `sum` لتتبع المدة الإجمالية
+- **على خاصية**: `durationSeconds`، `durationMinutes`، أو `durationMs`
+</Step>
+
+<Step title="تتبع استخدام الوقت">
+<CodeGroup>
+
+```javascript Serverless Functions
+import { Ingestion, trackTimeRange } from '@dodopayments/ingestion-blueprints';
+
+const ingestion = new Ingestion({
+  apiKey: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'test_mode',
+  eventName: 'function_execution'
+});
+
+// Track function execution time
+const startTime = Date.now();
+
+// Execute your function (example: image processing)
+const result = await yourImageProcessingLogic();
+
+const durationMs = Date.now() - startTime;
+
+await trackTimeRange(ingestion, {
+  customerId: 'customer_123',
+  durationMs: durationMs
+});
+```
+
+```javascript Container Runtime
+import { Ingestion, trackTimeRange } from '@dodopayments/ingestion-blueprints';
+
+const ingestion = new Ingestion({
+  apiKey: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'test_mode',
+  eventName: 'container_runtime'
+});
+
+// Track container runtime in seconds
+await trackTimeRange(ingestion, {
+  customerId: 'customer_456',
+  durationSeconds: 120
+});
+```
+
+```javascript VM Instance Runtime
+import { Ingestion, trackTimeRange } from '@dodopayments/ingestion-blueprints';
+
+const ingestion = new Ingestion({
+  apiKey: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'test_mode',
+  eventName: 'vm_runtime'
+});
+
+// Track VM runtime in minutes
+await trackTimeRange(ingestion, {
+  customerId: 'customer_789',
+  durationMinutes: 60
+});
+```
+
+</CodeGroup>
+</Step>
+</Steps>
+
+## التكوين
+
+### تكوين الإدخال
+
+<ParamField path="apiKey" type="string" required>
+مفتاح API الخاص بك من لوحة معلومات مدفوعات دودي.
+</ParamField>
+
+<ParamField path="environment" type="string" required>
+وضع البيئة: `test_mode` أو `live_mode`.
+</ParamField>
+
+<ParamField path="eventName" type="string" required>
+اسم الحدث الذي يتطابق مع تكوين العداد الخاص بك.
+</ParamField>
+
+### خيارات تتبع نطاق الوقت
+
+<ParamField path="customerId" type="string" required>
+معرف العميل لفوترة النسبة.
+</ParamField>
+
+<ParamField path="durationMs" type="number">
+المدة بالميلي ثانية. استخدمها للدقة تحت الثانية.
+</ParamField>
+
+<ParamField path="durationSeconds" type="number">
+المدة بالثواني. الأكثر شيوعًا لتنفيذ الوظائف والمهام القصيرة.
+</ParamField>
+
+<ParamField path="durationMinutes" type="number">
+المدة بالدقائق. مفيد للموارد التي تعمل لفترة أطول مثل VMs.
+</ParamField>
+
+<ParamField path="metadata" type="object">
+بيانات وصفية اختيارية حول المورد مثل وحدة المعالجة المركزية، الذاكرة، المنطقة، إلخ.
+</ParamField>
+
+## أفضل الممارسات
+
+<Tip>
+**اختر الوحدة الصحيحة**: استخدم الميلي ثانية للعمليات القصيرة، والثواني للوظائف، والدقائق للموارد التي تعمل لفترة أطول.
+</Tip>
+
+<Warning>
+**توقيت دقيق**: استخدم `Date.now()` أو `performance.now()` لتتبع الوقت بدقة، خاصة للوظائف بدون خادم.
+</Warning>

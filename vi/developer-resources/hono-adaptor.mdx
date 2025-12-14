@@ -1,0 +1,610 @@
+---
+title: Hono Adaptor
+description: Tìm hiểu cách tích hợp Dodo Payments với dự án Hono App Router của
+  bạn bằng cách sử dụng Adaptor NextJS của chúng tôi. Bao gồm thanh toán, cổng
+  thông tin khách hàng, webhook và thiết lập môi trường an toàn.
+icon: code-merge
+---
+
+<CardGroup cols={2}>
+<Card title="Xử lý Thanh Toán" icon="cart-shopping" href="#checkout-route-handler">
+    Tích hợp thanh toán Dodo vào ứng dụng Hono của bạn.
+</Card>
+<Card title="Cổng Thông Tin Khách Hàng" icon="user" href="#customer-portal-route-handler">
+    Cho phép khách hàng quản lý đăng ký và thông tin.
+</Card>
+<Card title="Webhook" icon="bell" href="#webhook-route-handler">
+    Nhận và xử lý các sự kiện webhook của Dodo Payments.
+</Card>
+</CardGroup>
+
+## Cài Đặt
+
+<Steps>
+<Step title="Cài đặt gói">
+Chạy lệnh sau trong thư mục gốc của dự án bạn:
+
+```bash
+npm install @dodopayments/hono
+```
+
+</Step>
+<Step title="Thiết lập biến môi trường">
+Tạo một tệp <code>.env</code> trong thư mục gốc của dự án bạn:
+
+```env expandable
+DODO_PAYMENTS_API_KEY=your-api-key
+DODO_PAYMENTS_RETURN_URL=https://yourapp.com/success
+DODO_PAYMENTS_WEBHOOK_KEY=your-webhook-secret
+DODO_PAYMENTS_ENVIRONMENT="test_mode" or "live_mode""
+```
+
+<Warning>
+Không bao giờ cam kết tệp <code>.env</code> hoặc bí mật của bạn vào hệ thống kiểm soát phiên bản.
+</Warning>
+</Step>
+</Steps>
+
+## Ví Dụ Xử Lý Đường Dẫn
+
+<Info>
+Tất cả các ví dụ đều giả định rằng bạn đang sử dụng Hono App Router.
+</Info>
+
+<Tabs>
+<Tab title="Xử lý Thanh Toán">
+  <Info>
+  Sử dụng trình xử lý này để tích hợp thanh toán Dodo vào ứng dụng Hono của bạn. Hỗ trợ các luồng tĩnh (GET), động (POST) và phiên (POST).
+  </Info>
+  <CodeGroup>
+
+  ```typescript Hono Route Handler expandable
+    // route.ts
+    import { Checkout } from '@dodopayments/hono';
+    import Hono from 'hono'
+
+    const app = new Hono()
+
+    app.get(
+    "/api/checkout",
+    Checkout({
+        bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+        environment: process.env.DODO_PAYMENTS_ENVIRONMENT,
+        returnUrl: process.env.DODO_PAYMENTS_RETURN_URL,
+        type: 'static'
+    })
+    );
+
+    app.post(
+    "/api/checkout",
+    Checkout({
+        bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+        environment: process.env.DODO_PAYMENTS_ENVIRONMENT,
+        returnUrl: process.env.DODO_PAYMENTS_RETURN_URL,
+        type: 'dynamic'
+    })
+    );
+    
+    app.post(
+    "/api/checkout",
+    Checkout({
+        bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+        environment: process.env.DODO_PAYMENTS_ENVIRONMENT,
+        returnUrl: process.env.DODO_PAYMENTS_RETURN_URL,
+        type: 'session'
+    })
+    );
+    ```
+
+  </CodeGroup>
+  <CodeGroup>
+
+  ```curl Static Checkout Curl example expandable
+  curl --request GET \
+  --url 'https://example.com/api/checkout?productId=pdt_fqJhl7pxKWiLhwQR042rh' \
+  --header 'User-Agent: insomnia/11.2.0' \
+  --cookie mode=test
+  ```
+
+  </CodeGroup>
+  <CodeGroup>
+
+  ```curl Dynamic Checkout Curl example expandable
+  curl --request POST \
+  --url https://example.com/api/checkout \
+  --header 'Content-Type: application/json' \
+  --header 'User-Agent: insomnia/11.2.0' \
+  --cookie mode=test \
+  --data '{
+  "billing": {
+    "city": "Texas",
+    "country": "US",
+    "state": "Texas",
+    "street": "56, hhh",
+    "zipcode": "560000"
+  },
+  "customer": {
+    "email": "test@example.com",
+		"name": "test"
+  },
+  "metadata": {},
+  "payment_link": true,
+	"product_id": "pdt_QMDuvLkbVzCRWRQjLNcs",
+	"quantity": 1,
+	"billing_currency": "USD",
+	"discount_code": "IKHZ23M9GQ",
+    "return_url": "https://example.com",
+	"trial_period_days": 10
+}'
+  ```
+
+  </CodeGroup>
+  <CodeGroup>
+
+  ```curl Checkout Session Curl example expandable
+  curl --request POST \
+  --url https://example.com/api/checkout \
+  --header 'Content-Type: application/json' \
+  --header 'User-Agent: insomnia/11.2.0' \
+  --cookie mode=test \
+  --data '{
+  "product_cart": [
+    {
+      "product_id": "pdt_QMDuvLkbVzCRWRQjLNcs",
+      "quantity": 1
+    }
+  ],
+  "customer": {
+    "email": "test@example.com",
+    "name": "test"
+  },
+  "return_url": "https://example.com/success"
+}'
+  ```
+
+  </CodeGroup>
+
+</Tab>
+<Tab title="Xử lý Cổng Thông Tin Khách Hàng">
+  <Info>
+  Sử dụng trình xử lý này để cho phép khách hàng quản lý đăng ký và thông tin của họ thông qua cổng thông tin khách hàng Dodo Payments.
+  </Info>
+  <CodeGroup>
+
+    ```typescript Hono Route Handler expandable
+    // route.ts
+    import { Checkout } from '@dodopayments/hono';
+    import Hono from 'hono'
+
+    const app = new Hono()
+    app.get(
+        "/api/customer-portal",
+        CustomerPortal({
+            bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+            environment: process.env.DODO_PAYMENTS_ENVIRONMENT
+        })
+    );
+    ```
+
+  </CodeGroup>
+  <CodeGroup>
+
+  ```curl Customer Portal Curl example expandable
+  curl --request GET \
+  --url 'https://example.com/api/customer-portal?customer_id=cus_9VuW4K7O3GHwasENg31m&send_email=true' \
+  --header 'User-Agent: insomnia/11.2.0' \
+  --cookie mode=test
+  ```
+
+  </CodeGroup>
+</Tab>
+<Tab title="Xử lý Webhook">
+  <Info>
+  Sử dụng trình xử lý này để nhận và xử lý các sự kiện webhook của Dodo Payments một cách an toàn trong ứng dụng Hono của bạn.
+  </Info>
+  <CodeGroup>
+
+    ```typescript Hono Route Handler expandable
+    // route.ts
+    import Hono from 'hono'
+    import { Webhooks } from '@dodopayments/hono'
+
+    const app = new Hono()
+    app.post(
+    "/api/webhooks",
+        Webhooks({
+            webhookKey: process.env.DODO_PAYMENTS_WEBHOOK_KEY,
+            onPayload: async (payload) => {
+            // Handle Payload Here
+            console.log(payload)
+            }
+        })
+    );
+
+    ```
+
+  </CodeGroup>
+</Tab>
+</Tabs>
+
+## Xử Lý Đường Dẫn Thanh Toán
+
+<Info>
+Dodo Payments hỗ trợ ba loại luồng thanh toán để tích hợp thanh toán vào trang web của bạn, adaptor này hỗ trợ tất cả các loại luồng thanh toán.
+</Info>
+
+- **Liên Kết Thanh Toán Tĩnh:** URL có thể chia sẻ ngay lập tức để thu thập thanh toán nhanh chóng, không cần mã.
+- **Liên Kết Thanh Toán Động:** Tạo liên kết thanh toán theo chương trình với các chi tiết tùy chỉnh bằng cách sử dụng API hoặc SDK.
+- **Phiên Thanh Toán:** Tạo trải nghiệm thanh toán an toàn, tùy chỉnh với giỏ hàng sản phẩm đã được cấu hình trước và thông tin khách hàng.
+
+<AccordionGroup>
+<Accordion title="Thanh Toán Tĩnh (GET)">
+
+### Các Tham Số Truy Vấn Hỗ Trợ
+<ParamField query="productId" type="string" required>
+Mã định danh sản phẩm (ví dụ: <code>?productId=pdt_nZuwz45WAs64n3l07zpQR</code>).
+</ParamField>
+<ParamField query="quantity" type="integer">
+Số lượng sản phẩm.
+</ParamField>
+<ParamField query="fullName" type="string">
+Họ và tên của khách hàng.
+</ParamField>
+<ParamField query="firstName" type="string">
+Tên của khách hàng.
+</ParamField>
+<ParamField query="lastName" type="string">
+Họ của khách hàng.
+</ParamField>
+<ParamField query="email" type="string">
+Địa chỉ email của khách hàng.
+</ParamField>
+<ParamField query="country" type="string">
+Quốc gia của khách hàng.
+</ParamField>
+<ParamField query="addressLine" type="string">
+Địa chỉ của khách hàng.
+</ParamField>
+<ParamField query="city" type="string">
+Thành phố của khách hàng.
+</ParamField>
+<ParamField query="state" type="string">
+Tiểu bang/tỉnh của khách hàng.
+</ParamField>
+<ParamField query="zipCode" type="string">
+Mã bưu điện của khách hàng.
+</ParamField>
+<ParamField query="disableFullName" type="boolean">
+Vô hiệu hóa trường họ và tên.
+</ParamField>
+<ParamField query="disableFirstName" type="boolean">
+Vô hiệu hóa trường tên.
+</ParamField>
+<ParamField query="disableLastName" type="boolean">
+Vô hiệu hóa trường họ.
+</ParamField>
+<ParamField query="disableEmail" type="boolean">
+Vô hiệu hóa trường email.
+</ParamField>
+<ParamField query="disableCountry" type="boolean">
+Vô hiệu hóa trường quốc gia.
+</ParamField>
+<ParamField query="disableAddressLine" type="boolean">
+Vô hiệu hóa trường địa chỉ.
+</ParamField>
+<ParamField query="disableCity" type="boolean">
+Vô hiệu hóa trường thành phố.
+</ParamField>
+<ParamField query="disableState" type="boolean">
+Vô hiệu hóa trường tiểu bang.
+</ParamField>
+<ParamField query="disableZipCode" type="boolean">
+Vô hiệu hóa trường mã bưu điện.
+</ParamField>
+<ParamField query="paymentCurrency" type="string">
+Chỉ định loại tiền tệ thanh toán (ví dụ: <code>USD</code>).
+</ParamField>
+<ParamField query="showCurrencySelector" type="boolean">
+Hiển thị trình chọn tiền tệ.
+</ParamField>
+<ParamField query="paymentAmount" type="integer">
+Chỉ định số tiền thanh toán (ví dụ: <code>1000</code> cho $10.00).
+</ParamField>
+<ParamField query="showDiscounts" type="boolean">
+Hiển thị các trường giảm giá.
+</ParamField>
+<ParamField query="metadata_*" type="string">
+Bất kỳ tham số truy vấn nào bắt đầu bằng <code>metadata_</code> sẽ được truyền dưới dạng metadata.
+</ParamField>
+
+<Warning>
+Nếu <code>productId</code> bị thiếu, trình xử lý sẽ trả về phản hồi 400. Các tham số truy vấn không hợp lệ cũng dẫn đến phản hồi 400.
+</Warning>
+
+### Định Dạng Phản Hồi
+Thanh toán tĩnh trả về phản hồi JSON với URL thanh toán:
+
+```json
+{
+  "checkout_url": "https://checkout.dodopayments.com/..."
+}
+```
+
+</Accordion>
+<Accordion title="Thanh Toán Động (POST)">
+- Gửi các tham số dưới dạng thân JSON trong yêu cầu POST.
+- Hỗ trợ cả thanh toán một lần và định kỳ.
+- Để có danh sách đầy đủ các trường thân POST được hỗ trợ, hãy tham khảo:
+  - [Thân yêu cầu cho sản phẩm thanh toán một lần](https://docs.dodopayments.com/api-reference/payments/post-payments)
+  - [Thân yêu cầu cho sản phẩm đăng ký](https://docs.dodopayments.com/api-reference/subscriptions/post-subscriptions)
+
+### Định Dạng Phản Hồi
+Thanh toán động trả về phản hồi JSON với URL thanh toán:
+
+```json
+{
+  "checkout_url": "https://checkout.dodopayments.com/..."
+}
+```
+
+</Accordion>
+<Accordion title="Phiên Thanh Toán (POST)">
+Các phiên thanh toán cung cấp trải nghiệm thanh toán an toàn hơn, được lưu trữ, xử lý toàn bộ luồng thanh toán cho cả mua hàng một lần và đăng ký với quyền kiểm soát tùy chỉnh đầy đủ.
+
+Tham khảo [Hướng Dẫn Tích Hợp Phiên Thanh Toán](https://docs.dodopayments.com/developer-resources/checkout-session) để biết thêm chi tiết và danh sách đầy đủ các trường được hỗ trợ.
+
+### Định Dạng Phản Hồi
+Các phiên thanh toán trả về phản hồi JSON với URL thanh toán:
+
+```json
+{
+  "checkout_url": "https://checkout.dodopayments.com/session/..."
+}
+```
+
+</Accordion>
+</AccordionGroup>
+
+## Xử Lý Đường Dẫn Cổng Thông Tin Khách Hàng
+
+Xử lý đường dẫn cổng thông tin khách hàng cho phép bạn tích hợp liền mạch cổng thông tin khách hàng Dodo Payments vào ứng dụng Hono của bạn.
+
+### Các Tham Số Truy Vấn
+<ParamField query="customer_id" type="string" required>
+Mã khách hàng cho phiên cổng (ví dụ: <code>?customer_id=cus_123</code>).
+</ParamField>
+<ParamField query="send_email" type="boolean">
+Nếu được đặt thành <code>true</code>, sẽ gửi email cho khách hàng với liên kết cổng.
+</ParamField>
+
+<Warning>
+Trả về 400 nếu <code>customer_id</code> bị thiếu.
+</Warning>
+
+## Xử Lý Đường Dẫn Webhook
+
+- **Phương Thức:** Chỉ hỗ trợ yêu cầu POST. Các phương thức khác trả về 405.
+- **Xác Minh Chữ Ký:** Xác minh chữ ký webhook bằng cách sử dụng <code>webhookKey</code>. Trả về 401 nếu xác minh thất bại.
+- **Xác Thực Tải:** Được xác thực bằng Zod. Trả về 400 cho các tải không hợp lệ.
+- **Xử Lý Lỗi:**
+  - 401: Chữ ký không hợp lệ
+  - 400: Tải không hợp lệ
+  - 500: Lỗi nội bộ trong quá trình xác minh
+- **Định Tuyến Sự Kiện:** Gọi trình xử lý sự kiện thích hợp dựa trên loại tải.
+
+### Các Trình Xử Lý Sự Kiện Webhook Hỗ Trợ
+<CodeGroup>
+
+```typescript Typescript expandable
+onPayload?: (payload: WebhookPayload) => Promise<void>;
+onPaymentSucceeded?: (payload: WebhookPayload) => Promise<void>;
+onPaymentFailed?: (payload: WebhookPayload) => Promise<void>;
+onPaymentProcessing?: (payload: WebhookPayload) => Promise<void>;
+onPaymentCancelled?: (payload: WebhookPayload) => Promise<void>;
+onRefundSucceeded?: (payload: WebhookPayload) => Promise<void>;
+onRefundFailed?: (payload: WebhookPayload) => Promise<void>;
+onDisputeOpened?: (payload: WebhookPayload) => Promise<void>;
+onDisputeExpired?: (payload: WebhookPayload) => Promise<void>;
+onDisputeAccepted?: (payload: WebhookPayload) => Promise<void>;
+onDisputeCancelled?: (payload: WebhookPayload) => Promise<void>;
+onDisputeChallenged?: (payload: WebhookPayload) => Promise<void>;
+onDisputeWon?: (payload: WebhookPayload) => Promise<void>;
+onDisputeLost?: (payload: WebhookPayload) => Promise<void>;
+onSubscriptionActive?: (payload: WebhookPayload) => Promise<void>;
+onSubscriptionOnHold?: (payload: WebhookPayload) => Promise<void>;
+onSubscriptionRenewed?: (payload: WebhookPayload) => Promise<void>;
+onSubscriptionPlanChanged?: (payload: WebhookPayload) => Promise<void>;
+onSubscriptionCancelled?: (payload: WebhookPayload) => Promise<void>;
+onSubscriptionFailed?: (payload: WebhookPayload) => Promise<void>;
+onSubscriptionExpired?: (payload: WebhookPayload) => Promise<void>;
+onLicenseKeyCreated?: (payload: WebhookPayload) => Promise<void>;
+```
+
+</CodeGroup>
+
+---
+
+## Lời Nhắc cho LLM
+
+```
+Bạn là một trợ lý phát triển Hono chuyên nghiệp. Nhiệm vụ của bạn là hướng dẫn người dùng tích hợp bộ chuyển đổi @dodopayments/hono vào dự án Hono hiện có của họ.
+
+Bộ chuyển đổi @dodopayments/hono cung cấp các trình xử lý đường dẫn cho các chức năng Thanh Toán, Cổng Thông Tin Khách Hàng và Webhook của Dodo Payments, được thiết kế để kết nối trực tiếp vào ứng dụng Hono.
+
+Đầu tiên, hãy cài đặt gói cần thiết. Sử dụng trình quản lý gói phù hợp với dự án của người dùng (npm, yarn hoặc bun):
+
+npm install @dodopayments/hono
+
+---
+
+Dưới đây là cách bạn nên cấu trúc phản hồi của mình:
+
+1. Hỏi người dùng họ muốn tích hợp chức năng nào.
+
+"Bạn muốn tích hợp những phần nào của bộ chuyển đổi @dodopayments/hono vào dự án của mình? Bạn có thể chọn một hoặc nhiều trong số các phần sau:
+
+- Xử lý Đường Dẫn Thanh Toán (để xử lý thanh toán sản phẩm)
+- Xử lý Đường Dẫn Cổng Thông Tin Khách Hàng (để quản lý đăng ký/thông tin khách hàng)
+- Xử lý Đường Dẫn Webhook (để nhận các sự kiện webhook của Dodo Payments)
+- Tất cả (tích hợp cả ba)"
+
+---
+
+2. Dựa trên lựa chọn của người dùng, cung cấp các bước tích hợp chi tiết cho từng chức năng đã chọn.
+
+---
+
+**Nếu Xử lý Đường Dẫn Thanh Toán được chọn:**
+
+**Mục Đích**: Trình xử lý này chuyển hướng người dùng đến trang thanh toán của Dodo Payments.
+
+**Tích Hợp**:
+Tạo hai đường dẫn trong ứng dụng Hono của bạn — một cho thanh toán tĩnh (GET) và một cho thanh toán động (POST).
+
+import { Checkout } from '@dodopayments/hono';
+import Hono from 'hono'
+
+const app = new Hono()
+
+app.get(
+  "/api/checkout",
+  Checkout({
+    bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+    environment: process.env.DODO_PAYMENTS_ENVIRONMENT,
+    returnUrl: process.env.DODO_PAYMENTS_RETURN_URL,
+    type: 'static'
+  })
+);
+
+app.post(
+  "/api/checkout",
+  Checkout({
+    bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+    environment: process.env.DODO_PAYMENTS_ENVIRONMENT,
+    returnUrl: process.env.DODO_PAYMENTS_RETURN_URL,
+    type: 'session' // hoặc 'dynamic' cho liên kết động
+  })
+);
+
+Tùy Chọn Cấu Hình:
+
+    bearerToken: Khóa API Dodo Payments của bạn (khuyến nghị lưu trữ trong biến môi trường DODO_PAYMENTS_API_KEY).
+
+    returnUrl (tùy chọn): URL để chuyển hướng người dùng sau khi thanh toán thành công.
+
+    environment: "test_mode" hoặc "live_mode"
+
+    type: "static" (GET) hoặc "dynamic" (POST) hoặc "session" (POST)
+
+GET (thanh toán tĩnh) yêu cầu các tham số truy vấn:
+
+    productId (bắt buộc)
+
+    quantity, các trường khách hàng (fullName, email, v.v.), và metadata (metadata_*) là tùy chọn.
+
+POST (thanh toán động) yêu cầu một thân JSON với chi tiết thanh toán (một lần hoặc đăng ký). Tham khảo tài liệu để biết sơ đồ POST đầy đủ:
+
+    Thanh toán một lần: https://docs.dodopayments.com/api-reference/payments/post-payments
+
+    Đăng ký: https://docs.dodopayments.com/api-reference/subscriptions/post-subscriptions
+
+POST (phiên thanh toán) - (Khuyến nghị) Một trải nghiệm thanh toán tùy chỉnh hơn. Trả về JSON với checkout_url: Các tham số được gửi dưới dạng thân JSON. Hỗ trợ cả thanh toán một lần và định kỳ. Trả về: {"checkout_url": "https://checkout.dodopayments.com/session/..."}. Để có danh sách đầy đủ các trường được hỗ trợ, hãy tham khảo:
+
+  Hướng Dẫn Tích Hợp Phiên Thanh Toán: https://docs.dodopayments.com/developer-resources/checkout-session
+
+Nếu Xử lý Đường Dẫn Cổng Thông Tin Khách Hàng được chọn:
+
+Mục Đích: Đường dẫn này cho phép khách hàng quản lý đăng ký của họ thông qua cổng thông tin Dodo Payments.
+
+Tích Hợp:
+
+import { Checkout } from '@dodopayments/hono';
+import Hono from 'hono'
+
+const app = new Hono()
+app.get(
+  "/api/customer-portal",
+  CustomerPortal({
+    bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+    environment: process.env.DODO_PAYMENTS_ENVIRONMENT
+  })
+);
+
+Các Tham Số Truy Vấn:
+
+    customer_id (bắt buộc): ví dụ, ?customer_id=cus_123
+
+    send_email (tùy chọn): nếu đúng, khách hàng sẽ nhận được email với liên kết cổng
+
+Trả về 400 nếu customer_id bị thiếu.
+
+Nếu Xử lý Đường Dẫn Webhook được chọn:
+
+Mục Đích: Xử lý các sự kiện webhook đến từ Dodo Payments để kích hoạt các sự kiện trong ứng dụng của bạn.
+
+Tích Hợp:
+
+import Hono from 'hono'
+import { Webhooks } from '@dodopayments/hono'
+
+const app = new Hono()
+app.post(
+  "/api/webhooks",
+  Webhooks({
+    webhookKey: process.env.DODO_PAYMENTS_WEBHOOK_KEY,
+    onPayload: async (payload) => {
+      // Xử lý Tải Tại Đây
+      console.log(payload)
+    }
+  })
+);
+
+Các Tính Năng:
+
+    Chỉ cho phép phương thức POST — các phương thức khác trả về 405
+
+    Xác minh chữ ký được thực hiện bằng cách sử dụng webhookKey. Trả về 401 nếu không hợp lệ.
+
+    Xác thực tải dựa trên Zod. Trả về 400 nếu sơ đồ không hợp lệ.
+
+    Tất cả các trình xử lý đều là các hàm bất đồng bộ.
+
+Các Trình Xử Lý Sự Kiện Webhook Hỗ Trợ:
+
+Bạn có thể truyền vào bất kỳ trình xử lý nào sau đây:
+
+    onPayload
+
+    onPaymentSucceeded
+
+    onPaymentFailed
+
+    onPaymentProcessing
+
+    onPaymentCancelled
+
+    onRefundSucceeded
+
+    onRefundFailed
+
+    onDisputeOpened, onDisputeExpired, onDisputeAccepted, onDisputeCancelled, onDisputeChallenged, onDisputeWon, onDisputeLost
+
+    onSubscriptionActive, onSubscriptionOnHold, onSubscriptionRenewed, onSubscriptionPaused, onSubscriptionPlanChanged, onSubscriptionCancelled, onSubscriptionFailed, onSubscriptionExpired
+
+    onLicenseKeyCreated
+
+Thiết Lập Biến Môi Trường:
+
+Hãy chắc chắn định nghĩa các biến môi trường này trong dự án của bạn:
+
+DODO_PAYMENTS_API_KEY=your-api-key
+DODO_PAYMENTS_RETURN_URL=https://yourapp.com/success
+DODO_PAYMENTS_WEBHOOK_KEY=your-webhook-secret
+DODO_PAYMENTS_ENVIRONMENT="test_mode" hoặc "live_mode""
+
+Sử dụng chúng trong mã của bạn như:
+
+process.env.DODO_PAYMENTS_API_KEY
+process.env.DODO_PAYMENTS_WEBHOOK_KEY
+
+Lưu Ý An Ninh: Không cam kết bí mật vào hệ thống kiểm soát phiên bản. Sử dụng tệp .env cục bộ và các trình quản lý bí mật trong môi trường triển khai (ví dụ: AWS, Vercel, Heroku, v.v.).

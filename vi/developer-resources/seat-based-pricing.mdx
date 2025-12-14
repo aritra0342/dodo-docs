@@ -1,0 +1,479 @@
+---
+title: Giá dựa trên số ghế với các tiện ích bổ sung và liên kết thanh toán
+description: Tìm hiểu cách tạo các tiện ích bổ sung cho giá dựa trên số ghế và
+  tạo liên kết thanh toán với số lượng tiện ích bổ sung tùy chỉnh bằng Dodo
+  Payments
+icon: users
+---
+
+Trong hướng dẫn này, bạn sẽ học cách triển khai giá dựa trên số ghế bằng cách sử dụng các tiện ích bổ sung của Dodo Payments. Chúng tôi sẽ tạo một sản phẩm đăng ký với các tiện ích bổ sung cho các ghế bổ sung và chỉ cho bạn cách tạo liên kết thanh toán với số lượng tiện ích bổ sung tùy chỉnh.
+
+<Note>
+Hướng dẫn này cung cấp mã triển khai mẫu cho một ứng dụng Node.js/Express. Bạn có thể sửa đổi mã này cho framework cụ thể của bạn (Next.js, React, Vue, v.v.) và tùy chỉnh giao diện người dùng theo nhu cầu của ứng dụng của bạn.
+</Note>
+
+Cuối cùng của hướng dẫn này, bạn sẽ biết cách:
+- Tạo các sản phẩm đăng ký với giá dựa trên số ghế
+- Thiết lập các tiện ích bổ sung cho các ghế bổ sung
+- Tạo liên kết thanh toán với số lượng tiện ích bổ sung tùy chỉnh
+- Xử lý các phiên thanh toán với số lượng ghế động
+
+## Những gì chúng ta đang xây dựng
+
+Hãy tạo một mô hình giá dựa trên số ghế:
+
+- **Gói cơ bản**: 49 đô la/tháng cho tối đa 5 thành viên trong nhóm
+- **Tiện ích bổ sung ghế**: 2 đô la/tháng cho mỗi ghế bổ sung
+- **Liên kết thanh toán**: Thanh toán động với số lượng ghế tùy chỉnh
+
+<Info>
+Trước khi bắt đầu, hãy đảm bảo bạn có:
+- Một tài khoản Dodo Payments
+- Kiến thức cơ bản về TypeScript/Node.js
+</Info>
+
+## Bước 1: Tạo Tiện Ích Bổ Sung Ghế Của Bạn
+
+Bây giờ chúng ta cần tạo một tiện ích bổ sung đại diện cho các ghế bổ sung. Tiện ích bổ sung này sẽ được gắn vào đăng ký cơ bản của chúng tôi và cho phép khách hàng mua thêm ghế.
+
+<Frame>
+  <img src="/images/cookbooks/seat-based/seat-based-addons-creation.png" alt="Tạo sản phẩm đăng ký cơ bản" />
+</Frame>
+
+<Tip>
+**Những gì chúng ta đang xây dựng**: Một tiện ích bổ sung có giá 2 đô la/tháng cho mỗi ghế và có thể được thêm vào bất kỳ đăng ký cơ bản nào.
+</Tip>
+
+<Steps>
+<Step title="Đi đến Tiện Ích Bổ Sung">
+1. Trong bảng điều khiển Dodo Payments của bạn, ở lại trong phần **Sản phẩm**
+2. Nhấp vào tab **Tiện ích bổ sung**
+3. Nhấp **Tạo Tiện Ích Bổ Sung**
+
+Điều này sẽ mở ra biểu mẫu tạo tiện ích bổ sung.
+</Step>
+
+<Step title="Nhập chi tiết tiện ích bổ sung">
+Điền vào các giá trị sau cho tiện ích bổ sung ghế của chúng tôi:
+
+**Tên Tiện Ích Bổ Sung**: `Additional Team Seat`
+
+**Mô tả**: `Add extra team members to your workspace with full access to all features`
+
+**Giá**: Nhập → `2.00`
+
+**Tiền tệ**: Phải khớp với tiền tệ của đăng ký cơ bản của bạn
+
+**Danh mục thuế**: Chọn danh mục phù hợp cho sản phẩm của bạn.
+
+</Step>
+
+<Step title="Lưu tiện ích bổ sung của bạn">
+1. Xem lại tất cả các cài đặt của bạn:
+   - Tên: Ghế thêm cho đội
+   - Giá: 2,00 đô la/tháng
+2. Nhấp **Tạo Tiện Ích Bổ Sung**
+
+<Check>
+**Tiện ích bổ sung đã được tạo!** Tiện ích bổ sung ghế của bạn hiện có sẵn để gắn vào các đăng ký.
+</Check>
+</Step>
+</Steps>
+
+## Bước 2: Tạo Sản Phẩm Đăng Ký Cơ Bản Của Bạn
+
+Chúng ta sẽ bắt đầu bằng cách tạo một sản phẩm đăng ký cơ bản bao gồm 5 thành viên trong nhóm. Đây sẽ là nền tảng cho mô hình giá dựa trên số ghế của chúng ta.
+
+<Frame>
+  <img src="/images/cookbooks/seat-based/seat-based-subscription.png" alt="Tạo sản phẩm đăng ký cơ bản" />
+</Frame>
+
+<Steps>
+<Step title="Đi đến Sản Phẩm">
+1. Đăng nhập vào bảng điều khiển Dodo Payments của bạn
+2. Nhấp vào **Sản phẩm** trong thanh bên trái
+3. Nhấp vào nút **Tạo Sản Phẩm**
+4. Chọn **Đăng ký** làm loại sản phẩm
+
+Bạn sẽ thấy một biểu mẫu nơi chúng ta sẽ cấu hình đăng ký cơ bản của mình.
+</Step>
+
+<Step title="Điền vào chi tiết đăng ký">
+Bây giờ chúng ta sẽ nhập các chi tiết cụ thể cho gói cơ bản của mình:
+
+**Tên Sản Phẩm**: `Motion`
+
+**Mô tả**: `Where your team's documentation lives.`
+
+**Giá định kỳ**: Nhập → `49.00`
+
+**Chu kỳ thanh toán**: Chọn → `Monthly`
+
+**Tiền tệ**: Chọn tiền tệ ưa thích của bạn (ví dụ: `USD`)
+
+</Step>
+
+</Steps>
+
+## Bước 3: Kết Nối Tiện Ích Bổ Sung Với Đăng Ký
+
+Bây giờ chúng ta cần liên kết tiện ích bổ sung ghế của mình với đăng ký cơ bản để khách hàng có thể mua thêm ghế trong quá trình thanh toán.
+
+<Steps>
+
+<Step title="Gắn tiện ích bổ sung ghế">
+
+<Frame>
+  <img src="/images/cookbooks/seat-based/seat-based-addons.png" alt="Gắn tiện ích bổ sung vào đăng ký" />
+</Frame>
+
+1. Cuộn xuống phần **Tiện Ích Bổ Sung**
+2. Nhấp **Thêm Tiện Ích Bổ Sung**
+3. Từ menu thả xuống, chọn tiện ích bổ sung ghế của bạn
+4. Xác nhận rằng nó xuất hiện trong cấu hình đăng ký của bạn
+
+</Step>
+
+<Step title="Lưu thay đổi đăng ký">
+1. Xem lại toàn bộ thiết lập đăng ký của bạn:
+   - Gói cơ bản: 49 đô la/tháng cho 5 ghế
+   - Tiện ích bổ sung: 2 đô la/tháng cho mỗi ghế bổ sung
+   - Thời gian dùng thử miễn phí: 14 ngày
+2. Nhấp **Lưu Thay Đổi**
+
+<Check>
+**Giá dựa trên số ghế đã được cấu hình!** Khách hàng hiện có thể mua gói cơ bản của bạn và thêm ghế bổ sung khi cần thiết.
+</Check>
+</Step>
+</Steps>
+
+## Bước 4: Tạo Liên Kết Thanh Toán Với Số Lượng Tiện Ích Bổ Sung Tùy Chỉnh
+
+Bây giờ hãy tạo một ứng dụng Express.js để tạo liên kết thanh toán với số lượng tiện ích bổ sung tùy chỉnh. Đây là nơi sức mạnh thực sự của giá dựa trên số ghế xuất hiện - bạn có thể tạo các phiên thanh toán động với bất kỳ số lượng ghế bổ sung nào.
+
+<Steps>
+<Step title="Thiết lập dự án của bạn">
+Tạo một dự án Node.js mới và cài đặt các phụ thuộc cần thiết:
+
+```bash
+mkdir seat-based-pricing
+cd seat-based-pricing
+npm init -y
+npm install dodopayments express dotenv
+npm install -D @types/node @types/express typescript ts-node
+```
+
+Tạo một tệp `tsconfig.json`:
+
+```json
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "commonjs",
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true
+  }
+}
+```
+
+</Step>
+
+<Step title="Tạo tệp môi trường của bạn">
+Tạo một tệp `.env` với khóa API Dodo Payments của bạn:
+
+```bash
+DODO_PAYMENTS_API_KEY=your_actual_dodo_api_key_here
+```
+
+<Warning>
+Không bao giờ cam kết khóa API của bạn vào kiểm soát phiên bản. Thêm `.env` vào tệp `.gitignore` của bạn.
+</Warning>
+</Step>
+
+<Step title="Triển khai việc tạo phiên thanh toán">
+Tạo một tệp `src/server.ts` với mã sau:
+
+<CodeGroup>
+
+```typescript server.ts expandable
+// Add this new endpoint for dynamic seat quantities
+import 'dotenv/config';
+import DodoPayments from 'dodopayments';
+import express, { Request, Response } from 'express';
+
+const app = express();
+
+// Initialize the Dodo Payments client
+const client = new DodoPayments({
+  bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'test_mode'
+});
+
+async function createCheckoutSession(seatCount: number) {
+  try {
+    const session = await client.checkoutSessions.create({
+      // Products to sell - use IDs from your Dodo Payments dashboard
+      product_cart: [
+        {
+          product_id: 'pdt_7Rl9OWT2Mz4wwUTKz74iZ', // Replace with your actual product ID
+          quantity: 1,
+          addons: [
+            {
+              addon_id: 'adn_eKQbNakKrivDpaxmI8wKI', // Replace with your actual addon ID
+              quantity: seatCount
+            }
+          ]
+        }
+      ],
+      
+      // Pre-fill customer information to reduce friction
+      customer: {
+        email: 'steve@example.com',
+        name: 'Steve Irwin',
+      },
+      // Where to redirect after successful payment
+      return_url: 'https://example.com/checkout/success',
+    });
+
+    // Redirect your customer to this URL to complete payment
+    console.log('Checkout URL:', session.checkout_url);
+    console.log('Session ID:', session.session_id);
+    
+    return session;
+    
+  } catch (error) {
+    console.error('Failed to create checkout session:', error);
+    throw error;
+  }
+}
+
+// Example usage in an Express.js route
+app.post('/create-checkout/:seatCount', async (req: Request, res: Response) => {
+  try {
+    const seatCount = parseInt(req.params.seatCount);
+    const session = await createCheckoutSession(seatCount);
+    res.json({ checkout_url: session.checkout_url });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to create checkout session' });
+  }
+});
+
+// Add this line after your other middleware
+app.use(express.static('public'));
+
+// Add this route to serve the demo page
+app.get('/', (req, res) => {
+  res.sendFile(__dirname + '/../public/index.html');
+});
+
+app.listen(3000, () => {
+  console.log('Server is running on port 3000');
+});
+```
+
+</CodeGroup>
+
+</Step>
+
+<Step title="Thêm giao diện web đơn giản">
+Tạo một tệp `public/index.html` để dễ dàng thử nghiệm:
+
+<CodeGroup>
+
+```html index.html expandable
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Seat-Based Pricing Demo</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; }
+        .form-group { margin: 20px 0; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; }
+        button { background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        .result { margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <h1>Seat-Based Pricing Demo</h1>
+    <p>Generate checkout links with custom seat quantities:</p>
+    
+    <div class="form-group">
+        <label for="seatCount">Number of Additional Seats:</label>
+        <input type="number" id="seatCount" value="3" min="0" max="50">
+    </div>
+    
+    <button onclick="createCheckout()">Generate Checkout Link</button>
+    
+    <div id="result" class="result" style="display: none;">
+        <h3>Checkout Link Generated!</h3>
+        <p><strong>Seat Count:</strong> <span id="seatCountDisplay"></span></p>
+        <p><strong>Total Cost:</strong> $<span id="totalCost"></span>/month</p>
+        <p><strong>Checkout URL:</strong></p>
+        <a id="checkoutUrl" href="#" target="_blank">Click here to checkout</a>
+    </div>
+
+    <script>
+        async function createCheckout() {
+            const seatCount = document.getElementById('seatCount').value;
+            
+            try {
+                const response = await fetch(`/create-checkout/${seatCount}`, {
+                    method: 'POST'
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    document.getElementById('seatCountDisplay').textContent = seatCount;
+                    document.getElementById('totalCost').textContent = data.total_cost;
+                    document.getElementById('checkoutUrl').href = data.checkout_url;
+                    document.getElementById('result').style.display = 'block';
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            } catch (error) {
+                alert('Error creating checkout session');
+            }
+        }
+    </script>
+</body>
+</html>
+```
+
+</CodeGroup>
+
+<Check>
+**Giao diện web đã được tạo!** Bạn hiện có một giao diện đơn giản để thử nghiệm với các số lượng ghế khác nhau.
+</Check>
+</Step>
+
+<Step title="Phục vụ các tệp tĩnh">
+Thêm điều này vào `src/server.ts` của bạn để phục vụ tệp HTML:
+
+```typescript
+// Add this line after your other middleware
+app.use(express.static('public'));
+
+// Add this route to serve the demo page
+app.get('/', (req, res) => {
+  res.sendFile(__dirname + '/../public/index.html');
+});
+```
+
+<Check>
+**Các tệp tĩnh đã được cấu hình!** Truy cập `http://localhost:3000` để xem giao diện demo của bạn.
+</Check>
+</Step>
+</Steps>
+
+## Bước 5: Kiểm Tra Triển Khai Của Bạn
+
+Hãy kiểm tra triển khai giá dựa trên số ghế của chúng ta để đảm bảo mọi thứ hoạt động chính xác.
+
+<Steps>
+<Step title="Khởi động máy chủ của bạn">
+1. Đảm bảo bạn có tệp `.env` với khóa API chính xác
+2. Cập nhật ID sản phẩm và tiện ích bổ sung trong mã của bạn với các giá trị thực tế từ bảng điều khiển Dodo Payments của bạn
+3. Khởi động máy chủ của bạn:
+
+```bash
+npm run dev
+```
+
+<Check>
+Máy chủ của bạn nên khởi động thành công và hiển thị "Máy chủ đang chạy trên http://localhost:3000"
+</Check>
+</Step>
+
+<Step title="Kiểm tra giao diện web">
+
+<Frame>
+  <img src="/images/cookbooks/seat-based/seat-based-billing-ui.png" alt="Tạo sản phẩm đăng ký cơ bản" />
+</Frame>
+
+1. Mở trình duyệt của bạn và truy cập `http://localhost:3000`
+2. Bạn sẽ thấy giao diện demo giá dựa trên số ghế
+3. Thử các số lượng ghế khác nhau (0, 3, 10, v.v.)
+4. Nhấp "Tạo Liên Kết Thanh Toán" cho mỗi số lượng
+5. Xác minh rằng các URL thanh toán được tạo chính xác
+
+</Step>
+
+<Step title="Kiểm tra một phiên thanh toán">
+1. Tạo một liên kết thanh toán với 3 ghế bổ sung
+2. Nhấp vào URL thanh toán để mở thanh toán Dodo Payments
+3. Xác minh rằng thanh toán hiển thị:
+   - Gói cơ bản: 49 đô la/tháng
+   - Ghế bổ sung: 3 × 2 đô la = 6 đô la/tháng
+4. Hoàn tất việc mua thử nghiệm
+
+<Check>
+Thanh toán nên hiển thị đúng phân tích giá và cho phép bạn hoàn tất việc mua hàng.
+</Check>
+</Step>
+
+<Step title="Lắng nghe webhook và cập nhật DB">
+Để giữ cho cơ sở dữ liệu của bạn đồng bộ với các thay đổi về đăng ký và ghế, bạn cần lắng nghe các sự kiện webhook từ Dodo Payments. Webhook thông báo cho backend của bạn khi một khách hàng hoàn tất thanh toán, cập nhật đăng ký của họ hoặc thay đổi số lượng ghế.
+
+Theo hướng dẫn webhook chính thức của Dodo Payments để có hướng dẫn từng bước về cách thiết lập các điểm cuối webhook và xử lý các sự kiện:
+
+<Card title="Tài liệu Webhooks Dodo Payments" icon="bell" href="/developer-resources/webhooks">
+Tìm hiểu cách nhận và xử lý an toàn các sự kiện webhook cho quản lý đăng ký và ghế.
+</Card>
+
+</Step>
+
+</Steps>
+
+## Khắc Phục Sự Cố
+
+Các vấn đề phổ biến và giải pháp của chúng:
+
+<AccordionGroup>
+<Accordion title="Tạo thanh toán không thành công">
+**Nguyên nhân có thể:**
+- ID sản phẩm hoặc ID tiện ích bổ sung không hợp lệ
+- Khóa API không có đủ quyền
+- Tiện ích bổ sung không được liên kết đúng cách với đăng ký
+- Vấn đề kết nối mạng
+
+**Giải pháp:**
+1. Xác minh rằng ID sản phẩm và ID tiện ích bổ sung tồn tại trong bảng điều khiển Dodo Payments của bạn
+2. Kiểm tra rằng tiện ích bổ sung được gắn đúng cách vào đăng ký
+3. Đảm bảo khóa API có quyền tạo phiên thanh toán
+4. Kiểm tra kết nối API với một yêu cầu GET đơn giản
+</Accordion>
+
+</AccordionGroup>
+
+## Chúc mừng! Bạn đã Triển Khai Giá Dựa Trên Số Ghế
+
+Bạn đã thành công trong việc tạo một hệ thống giá dựa trên số ghế với Dodo Payments! Đây là những gì bạn đã hoàn thành:
+
+<CardGroup cols={2}>
+<Card title="Đăng Ký Cơ Bản">
+Tạo một sản phẩm đăng ký với 5 ghế bao gồm với giá 49 đô la/tháng
+</Card>
+
+<Card title="Tiện Ích Bổ Sung Ghế">
+Cấu hình các tiện ích bổ sung cho các ghế bổ sung với giá 2 đô la/tháng cho mỗi ghế
+</Card>
+
+<Card title="Thanh Toán">
+Xây dựng một API tạo các phiên thanh toán với số lượng ghế tùy chỉnh
+</Card>
+
+<Card title="Giao Diện Web">
+Tạo một giao diện web đơn giản để thử nghiệm với các số lượng ghế khác nhau
+</Card>
+</CardGroup>
+
+<Info>
+Ví dụ này chỉ minh họa một triển khai tối thiểu của giá dựa trên số ghế. Để sử dụng trong sản xuất, bạn nên thêm xử lý lỗi mạnh mẽ, xác thực, xác thực dữ liệu, các biện pháp bảo mật và điều chỉnh logic để phù hợp với yêu cầu của ứng dụng của bạn.
+</Info>

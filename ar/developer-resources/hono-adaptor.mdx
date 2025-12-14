@@ -1,0 +1,610 @@
+---
+title: محول هونو
+description: تعلم كيفية دمج مدفوعات دودي مع مشروع موجه تطبيق هونو الخاص بك
+  باستخدام محول NextJS الخاص بنا. يغطي الدفع، بوابة العملاء، الويب هوكس، وإعداد
+  البيئة الآمنة.
+icon: code-merge
+---
+
+<CardGroup cols={2}>
+<Card title="معالج الدفع" icon="cart-shopping" href="#checkout-route-handler">
+    دمج دفع دودي في تطبيق هونو الخاص بك.
+</Card>
+<Card title="بوابة العملاء" icon="user" href="#customer-portal-route-handler">
+    السماح للعملاء بإدارة الاشتراكات والتفاصيل.
+</Card>
+<Card title="الويب هوكس" icon="bell" href="#webhook-route-handler">
+    استلام ومعالجة أحداث الويب هوكس لمدفوعات دودي.
+</Card>
+</CardGroup>
+
+## التثبيت
+
+<Steps>
+<Step title="تثبيت الحزمة">
+قم بتشغيل الأمر التالي في جذر مشروعك:
+
+```bash
+npm install @dodopayments/hono
+```
+
+</Step>
+<Step title="إعداد متغيرات البيئة">
+قم بإنشاء ملف <code>.env</code> في جذر مشروعك:
+
+```env expandable
+DODO_PAYMENTS_API_KEY=your-api-key
+DODO_PAYMENTS_RETURN_URL=https://yourapp.com/success
+DODO_PAYMENTS_WEBHOOK_KEY=your-webhook-secret
+DODO_PAYMENTS_ENVIRONMENT="test_mode" or "live_mode""
+```
+
+<Warning>
+لا تقم بالتزام ملف <code>.env</code> أو الأسرار في نظام التحكم في الإصدارات.
+</Warning>
+</Step>
+</Steps>
+
+## أمثلة معالج المسار
+
+<Info>
+تفترض جميع الأمثلة أنك تستخدم موجه تطبيق هونو.
+</Info>
+
+<Tabs>
+<Tab title="معالج الدفع">
+  <Info>
+  استخدم هذا المعالج لدمج دفع دودي في تطبيق هونو الخاص بك. يدعم التدفقات الثابتة (GET)، الديناميكية (POST)، والجلسات (POST).
+  </Info>
+  <CodeGroup>
+
+  ```typescript Hono Route Handler expandable
+    // route.ts
+    import { Checkout } from '@dodopayments/hono';
+    import Hono from 'hono'
+
+    const app = new Hono()
+
+    app.get(
+    "/api/checkout",
+    Checkout({
+        bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+        environment: process.env.DODO_PAYMENTS_ENVIRONMENT,
+        returnUrl: process.env.DODO_PAYMENTS_RETURN_URL,
+        type: 'static'
+    })
+    );
+
+    app.post(
+    "/api/checkout",
+    Checkout({
+        bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+        environment: process.env.DODO_PAYMENTS_ENVIRONMENT,
+        returnUrl: process.env.DODO_PAYMENTS_RETURN_URL,
+        type: 'dynamic'
+    })
+    );
+    
+    app.post(
+    "/api/checkout",
+    Checkout({
+        bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+        environment: process.env.DODO_PAYMENTS_ENVIRONMENT,
+        returnUrl: process.env.DODO_PAYMENTS_RETURN_URL,
+        type: 'session'
+    })
+    );
+    ```
+
+  </CodeGroup>
+  <CodeGroup>
+
+  ```curl Static Checkout Curl example expandable
+  curl --request GET \
+  --url 'https://example.com/api/checkout?productId=pdt_fqJhl7pxKWiLhwQR042rh' \
+  --header 'User-Agent: insomnia/11.2.0' \
+  --cookie mode=test
+  ```
+
+  </CodeGroup>
+  <CodeGroup>
+
+  ```curl Dynamic Checkout Curl example expandable
+  curl --request POST \
+  --url https://example.com/api/checkout \
+  --header 'Content-Type: application/json' \
+  --header 'User-Agent: insomnia/11.2.0' \
+  --cookie mode=test \
+  --data '{
+  "billing": {
+    "city": "Texas",
+    "country": "US",
+    "state": "Texas",
+    "street": "56, hhh",
+    "zipcode": "560000"
+  },
+  "customer": {
+    "email": "test@example.com",
+		"name": "test"
+  },
+  "metadata": {},
+  "payment_link": true,
+	"product_id": "pdt_QMDuvLkbVzCRWRQjLNcs",
+	"quantity": 1,
+	"billing_currency": "USD",
+	"discount_code": "IKHZ23M9GQ",
+    "return_url": "https://example.com",
+	"trial_period_days": 10
+}'
+  ```
+
+  </CodeGroup>
+  <CodeGroup>
+
+  ```curl Checkout Session Curl example expandable
+  curl --request POST \
+  --url https://example.com/api/checkout \
+  --header 'Content-Type: application/json' \
+  --header 'User-Agent: insomnia/11.2.0' \
+  --cookie mode=test \
+  --data '{
+  "product_cart": [
+    {
+      "product_id": "pdt_QMDuvLkbVzCRWRQjLNcs",
+      "quantity": 1
+    }
+  ],
+  "customer": {
+    "email": "test@example.com",
+    "name": "test"
+  },
+  "return_url": "https://example.com/success"
+}'
+  ```
+
+  </CodeGroup>
+
+</Tab>
+<Tab title="معالج بوابة العملاء">
+  <Info>
+  استخدم هذا المعالج للسماح للعملاء بإدارة اشتراكاتهم وتفاصيلهم عبر بوابة عملاء مدفوعات دودي.
+  </Info>
+  <CodeGroup>
+
+    ```typescript Hono Route Handler expandable
+    // route.ts
+    import { Checkout } from '@dodopayments/hono';
+    import Hono from 'hono'
+
+    const app = new Hono()
+    app.get(
+        "/api/customer-portal",
+        CustomerPortal({
+            bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+            environment: process.env.DODO_PAYMENTS_ENVIRONMENT
+        })
+    );
+    ```
+
+  </CodeGroup>
+  <CodeGroup>
+
+  ```curl Customer Portal Curl example expandable
+  curl --request GET \
+  --url 'https://example.com/api/customer-portal?customer_id=cus_9VuW4K7O3GHwasENg31m&send_email=true' \
+  --header 'User-Agent: insomnia/11.2.0' \
+  --cookie mode=test
+  ```
+
+  </CodeGroup>
+</Tab>
+<Tab title="معالج الويب هوك">
+  <Info>
+  استخدم هذا المعالج لاستلام ومعالجة أحداث الويب هوكس لمدفوعات دودي بشكل آمن في تطبيق هونو الخاص بك.
+  </Info>
+  <CodeGroup>
+
+    ```typescript Hono Route Handler expandable
+    // route.ts
+    import Hono from 'hono'
+    import { Webhooks } from '@dodopayments/hono'
+
+    const app = new Hono()
+    app.post(
+    "/api/webhooks",
+        Webhooks({
+            webhookKey: process.env.DODO_PAYMENTS_WEBHOOK_KEY,
+            onPayload: async (payload) => {
+            // Handle Payload Here
+            console.log(payload)
+            }
+        })
+    );
+
+    ```
+
+  </CodeGroup>
+</Tab>
+</Tabs>
+
+## معالج مسار الدفع
+
+<Info>
+تدعم مدفوعات دودي ثلاثة أنواع من تدفقات الدفع لدمج المدفوعات في موقعك، يدعم هذا المحول جميع أنواع تدفقات الدفع.
+</Info>
+
+- **روابط الدفع الثابتة:** روابط قابلة للمشاركة على الفور لجمع المدفوعات بسرعة وبدون كود.
+- **روابط الدفع الديناميكية:** توليد روابط دفع برمجياً مع تفاصيل مخصصة باستخدام API أو SDKs.
+- **جلسات الدفع:** إنشاء تجارب دفع آمنة وقابلة للتخصيص مع عربات منتجات مُعدة مسبقاً وتفاصيل العملاء.
+
+<AccordionGroup>
+<Accordion title="الدفع الثابت (GET)">
+
+### معلمات الاستعلام المدعومة
+<ParamField query="productId" type="string" required>
+معرف المنتج (على سبيل المثال، <code>?productId=pdt_nZuwz45WAs64n3l07zpQR</code>).
+</ParamField>
+<ParamField query="quantity" type="integer">
+كمية المنتج.
+</ParamField>
+<ParamField query="fullName" type="string">
+الاسم الكامل للعميل.
+</ParamField>
+<ParamField query="firstName" type="string">
+الاسم الأول للعميل.
+</ParamField>
+<ParamField query="lastName" type="string">
+اسم العائلة للعميل.
+</ParamField>
+<ParamField query="email" type="string">
+البريد الإلكتروني للعميل.
+</ParamField>
+<ParamField query="country" type="string">
+بلد العميل.
+</ParamField>
+<ParamField query="addressLine" type="string">
+عنوان العميل.
+</ParamField>
+<ParamField query="city" type="string">
+مدينة العميل.
+</ParamField>
+<ParamField query="state" type="string">
+ولاية/مقاطعة العميل.
+</ParamField>
+<ParamField query="zipCode" type="string">
+الرمز البريدي للعميل.
+</ParamField>
+<ParamField query="disableFullName" type="boolean">
+تعطيل حقل الاسم الكامل.
+</ParamField>
+<ParamField query="disableFirstName" type="boolean">
+تعطيل حقل الاسم الأول.
+</ParamField>
+<ParamField query="disableLastName" type="boolean">
+تعطيل حقل اسم العائلة.
+</ParamField>
+<ParamField query="disableEmail" type="boolean">
+تعطيل حقل البريد الإلكتروني.
+</ParamField>
+<ParamField query="disableCountry" type="boolean">
+تعطيل حقل البلد.
+</ParamField>
+<ParamField query="disableAddressLine" type="boolean">
+تعطيل حقل عنوان الشارع.
+</ParamField>
+<ParamField query="disableCity" type="boolean">
+تعطيل حقل المدينة.
+</ParamField>
+<ParamField query="disableState" type="boolean">
+تعطيل حقل الولاية.
+</ParamField>
+<ParamField query="disableZipCode" type="boolean">
+تعطيل حقل الرمز البريدي.
+</ParamField>
+<ParamField query="paymentCurrency" type="string">
+حدد عملة الدفع (على سبيل المثال، <code>USD</code>).
+</ParamField>
+<ParamField query="showCurrencySelector" type="boolean">
+عرض محدد العملة.
+</ParamField>
+<ParamField query="paymentAmount" type="integer">
+حدد مبلغ الدفع (على سبيل المثال، <code>1000</code> مقابل 10.00 دولار أمريكي).
+</ParamField>
+<ParamField query="showDiscounts" type="boolean">
+عرض حقول الخصم.
+</ParamField>
+<ParamField query="metadata_*" type="string">
+أي معلمة استعلام تبدأ بـ <code>metadata_</code> سيتم تمريرها كبيانات وصفية.
+</ParamField>
+
+<Warning>
+إذا كانت <code>productId</code> مفقودة، فإن المعالج يرجع استجابة 400. كما أن المعلمات غير الصحيحة تؤدي أيضاً إلى استجابة 400.
+</Warning>
+
+### تنسيق الاستجابة
+يرجع الدفع الثابت استجابة JSON مع عنوان URL للدفع:
+
+```json
+{
+  "checkout_url": "https://checkout.dodopayments.com/..."
+}
+```
+
+</Accordion>
+<Accordion title="الدفع الديناميكي (POST)">
+- أرسل المعلمات كجسم JSON في طلب POST.
+- يدعم كل من المدفوعات لمرة واحدة والمدفوعات المتكررة.
+- للحصول على قائمة كاملة من حقول جسم POST المدعومة، راجع:
+  - [جسم الطلب لمنتج الدفع لمرة واحدة](https://docs.dodopayments.com/api-reference/payments/post-payments)
+  - [جسم الطلب لمنتج الاشتراك](https://docs.dodopayments.com/api-reference/subscriptions/post-subscriptions)
+
+### تنسيق الاستجابة
+يرجع الدفع الديناميكي استجابة JSON مع عنوان URL للدفع:
+
+```json
+{
+  "checkout_url": "https://checkout.dodopayments.com/..."
+}
+```
+
+</Accordion>
+<Accordion title="جلسات الدفع (POST)">
+توفر جلسات الدفع تجربة دفع أكثر أمانًا، مستضافة، تتعامل مع تدفق الدفع الكامل لكل من المشتريات لمرة واحدة والاشتراكات مع التحكم الكامل في التخصيص.
+
+راجع [دليل تكامل جلسات الدفع](https://docs.dodopayments.com/developer-resources/checkout-session) لمزيد من التفاصيل وقائمة كاملة من الحقول المدعومة.
+
+### تنسيق الاستجابة
+ترجع جلسات الدفع استجابة JSON مع عنوان URL للدفع:
+
+```json
+{
+  "checkout_url": "https://checkout.dodopayments.com/session/..."
+}
+```
+
+</Accordion>
+</AccordionGroup>
+
+## معالج مسار بوابة العملاء
+
+يمكنك من خلال معالج مسار بوابة العملاء دمج بوابة عملاء مدفوعات دودي بسلاسة في تطبيق هونو الخاص بك.
+
+### معلمات الاستعلام
+<ParamField query="customer_id" type="string" required>
+معرف العميل لجلسة البوابة (على سبيل المثال، <code>?customer_id=cus_123</code>).
+</ParamField>
+<ParamField query="send_email" type="boolean">
+إذا تم تعيينه على <code>true</code>، يتم إرسال بريد إلكتروني للعميل مع رابط البوابة.
+</ParamField>
+
+<Warning>
+يرجع 400 إذا كانت <code>customer_id</code> مفقودة.
+</Warning>
+
+## معالج مسار الويب هوك
+
+- **الطريقة:** يتم دعم طلبات POST فقط. ترجع الطرق الأخرى 405.
+- **التحقق من التوقيع:** يتحقق من توقيع الويب هوك باستخدام <code>webhookKey</code>. يرجع 401 إذا فشل التحقق.
+- **التحقق من الحمولة:** يتم التحقق منها باستخدام Zod. ترجع 400 للحمولات غير الصحيحة.
+- **معالجة الأخطاء:**
+  - 401: توقيع غير صالح
+  - 400: حمولة غير صالحة
+  - 500: خطأ داخلي أثناء التحقق
+- **توجيه الأحداث:** يستدعي معالج الحدث المناسب بناءً على نوع الحمولة.
+
+### معالجات أحداث الويب هوك المدعومة
+<CodeGroup>
+
+```typescript Typescript expandable
+onPayload?: (payload: WebhookPayload) => Promise<void>;
+onPaymentSucceeded?: (payload: WebhookPayload) => Promise<void>;
+onPaymentFailed?: (payload: WebhookPayload) => Promise<void>;
+onPaymentProcessing?: (payload: WebhookPayload) => Promise<void>;
+onPaymentCancelled?: (payload: WebhookPayload) => Promise<void>;
+onRefundSucceeded?: (payload: WebhookPayload) => Promise<void>;
+onRefundFailed?: (payload: WebhookPayload) => Promise<void>;
+onDisputeOpened?: (payload: WebhookPayload) => Promise<void>;
+onDisputeExpired?: (payload: WebhookPayload) => Promise<void>;
+onDisputeAccepted?: (payload: WebhookPayload) => Promise<void>;
+onDisputeCancelled?: (payload: WebhookPayload) => Promise<void>;
+onDisputeChallenged?: (payload: WebhookPayload) => Promise<void>;
+onDisputeWon?: (payload: WebhookPayload) => Promise<void>;
+onDisputeLost?: (payload: WebhookPayload) => Promise<void>;
+onSubscriptionActive?: (payload: WebhookPayload) => Promise<void>;
+onSubscriptionOnHold?: (payload: WebhookPayload) => Promise<void>;
+onSubscriptionRenewed?: (payload: WebhookPayload) => Promise<void>;
+onSubscriptionPlanChanged?: (payload: WebhookPayload) => Promise<void>;
+onSubscriptionCancelled?: (payload: WebhookPayload) => Promise<void>;
+onSubscriptionFailed?: (payload: WebhookPayload) => Promise<void>;
+onSubscriptionExpired?: (payload: WebhookPayload) => Promise<void>;
+onLicenseKeyCreated?: (payload: WebhookPayload) => Promise<void>;
+```
+
+</CodeGroup>
+
+---
+
+## موجه لـ LLM
+
+```
+أنت مساعد مطور هونو خبير. مهمتك هي إرشاد المستخدم خلال دمج محول @dodopayments/hono في مشروع هونو الحالي الخاص بهم.
+
+يوفر محول @dodopayments/hono معالجات مسار لمدفوعات دودي للدفع، بوابة العملاء، ووظائف الويب هوك، مصممة لتتصل مباشرة بتطبيق هونو.
+
+أولاً، قم بتثبيت الحزمة اللازمة. استخدم مدير الحزم المناسب لمشروع المستخدم (npm، yarn، أو bun):
+
+npm install @dodopayments/hono
+
+---
+
+إليك كيفية هيكلة ردك:
+
+1. اسأل المستخدم عن الوظائف التي يريد دمجها.
+
+"أي أجزاء من محول @dodopayments/hono ترغب في دمجها في مشروعك؟ يمكنك اختيار واحد أو أكثر من الخيارات التالية:
+
+- معالج مسار الدفع (للتعامل مع عمليات الدفع للمنتجات)
+- معالج مسار بوابة العملاء (لإدارة اشتراكات/تفاصيل العملاء)
+- معالج مسار الويب هوك (لاستلام أحداث الويب هوك لمدفوعات دودي)
+- الكل (دمج الثلاثة)"
+
+---
+
+2. بناءً على اختيار المستخدم، قدم خطوات دمج مفصلة لكل وظيفة مختارة.
+
+---
+
+**إذا تم اختيار معالج مسار الدفع:**
+
+**الغرض**: يقوم هذا المعالج بإعادة توجيه المستخدمين إلى صفحة الدفع لمدفوعات دودي.
+
+**الدمج**:
+قم بإنشاء مسارين في تطبيق هونو الخاص بك — واحد للدفع الثابت (GET) وآخر للدفع الديناميكي (POST).
+
+import { Checkout } from '@dodopayments/hono';
+import Hono from 'hono'
+
+const app = new Hono()
+
+app.get(
+  "/api/checkout",
+  Checkout({
+    bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+    environment: process.env.DODO_PAYMENTS_ENVIRONMENT,
+    returnUrl: process.env.DODO_PAYMENTS_RETURN_URL,
+    type: 'static'
+  })
+);
+
+app.post(
+  "/api/checkout",
+  Checkout({
+    bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+    environment: process.env.DODO_PAYMENTS_ENVIRONMENT,
+    returnUrl: process.env.DODO_PAYMENTS_RETURN_URL,
+    type: 'session' // أو 'dynamic' للرابط الديناميكي
+  })
+);
+
+خيارات التكوين:
+
+    bearerToken: مفتاح API لمدفوعات دودي (يوصى بتخزينه في متغير البيئة DODO_PAYMENTS_API_KEY).
+
+    returnUrl (اختياري): عنوان URL لإعادة توجيه المستخدم بعد الدفع الناجح.
+
+    environment: "test_mode" أو "live_mode"
+
+    type: "static" (GET) أو "dynamic" (POST) أو "session" (POST)
+
+يتوقع GET (الدفع الثابت) معلمات الاستعلام:
+
+    productId (مطلوب)
+
+    quantity، حقول العميل (fullName، email، إلخ)، والبيانات الوصفية (metadata_*) اختيارية.
+
+يتوقع POST (الدفع الديناميكي) جسماً JSON مع تفاصيل الدفع (لمرة واحدة أو اشتراك). راجع الوثائق للحصول على مخطط POST الكامل:
+
+    المدفوعات لمرة واحدة: https://docs.dodopayments.com/api-reference/payments/post-payments
+
+    الاشتراكات: https://docs.dodopayments.com/api-reference/subscriptions/post-subscriptions
+
+POST (جلسات الدفع) - (موصى به) تجربة دفع أكثر تخصيصًا. ترجع JSON مع checkout_url: يتم إرسال المعلمات كجسم JSON. يدعم كل من المدفوعات لمرة واحدة والمدفوعات المتكررة. ترجع: {"checkout_url": "https://checkout.dodopayments.com/session/..."}. للحصول على قائمة كاملة من الحقول المدعومة، راجع:
+
+  دليل تكامل جلسات الدفع: https://docs.dodopayments.com/developer-resources/checkout-session
+
+إذا تم اختيار معالج مسار بوابة العملاء:
+
+الغرض: يتيح هذا المسار للعملاء إدارة اشتراكاتهم عبر بوابة مدفوعات دودي.
+
+الدمج:
+
+import { Checkout } from '@dodopayments/hono';
+import Hono from 'hono'
+
+const app = new Hono()
+app.get(
+  "/api/customer-portal",
+  CustomerPortal({
+    bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+    environment: process.env.DODO_PAYMENTS_ENVIRONMENT
+  })
+);
+
+معلمات الاستعلام:
+
+    customer_id (مطلوب): على سبيل المثال، ?customer_id=cus_123
+
+    send_email (اختياري): إذا كانت true، يتم إرسال بريد إلكتروني للعميل برابط البوابة
+
+يرجع 400 إذا كانت customer_id مفقودة.
+
+إذا تم اختيار معالج مسار الويب هوك:
+
+الغرض: يعالج أحداث الويب هوك الواردة من مدفوعات دودي لتحفيز الأحداث في تطبيقك.
+
+الدمج:
+
+import Hono from 'hono'
+import { Webhooks } from '@dodopayments/hono'
+
+const app = new Hono()
+app.post(
+  "/api/webhooks",
+  Webhooks({
+    webhookKey: process.env.DODO_PAYMENTS_WEBHOOK_KEY,
+    onPayload: async (payload) => {
+      // معالجة الحمولة هنا
+      console.log(payload)
+    }
+  })
+);
+
+الميزات:
+
+    يُسمح فقط بطريقة POST — ترجع الطرق الأخرى 405
+
+    يتم إجراء التحقق من التوقيع باستخدام webhookKey. يرجع 401 إذا كان غير صالح.
+
+    تحقق من الحمولة يعتمد على Zod. يرجع 400 إذا كان المخطط غير صالح.
+
+    جميع المعالجات هي وظائف غير متزامنة.
+
+معالجات أحداث الويب هوك المدعومة:
+
+يمكنك تمرير أي من المعالجات التالية:
+
+    onPayload
+
+    onPaymentSucceeded
+
+    onPaymentFailed
+
+    onPaymentProcessing
+
+    onPaymentCancelled
+
+    onRefundSucceeded
+
+    onRefundFailed
+
+    onDisputeOpened، onDisputeExpired، onDisputeAccepted، onDisputeCancelled، onDisputeChallenged، onDisputeWon، onDisputeLost
+
+    onSubscriptionActive، onSubscriptionOnHold، onSubscriptionRenewed، onSubscriptionPaused، onSubscriptionPlanChanged، onSubscriptionCancelled، onSubscriptionFailed، onSubscriptionExpired
+
+    onLicenseKeyCreated
+
+إعداد متغيرات البيئة:
+
+تأكد من تعريف هذه المتغيرات البيئية في مشروعك:
+
+DODO_PAYMENTS_API_KEY=your-api-key
+DODO_PAYMENTS_RETURN_URL=https://yourapp.com/success
+DODO_PAYMENTS_WEBHOOK_KEY=your-webhook-secret
+DODO_PAYMENTS_ENVIRONMENT="test_mode" أو "live_mode""
+
+استخدم هذه داخل كودك كالتالي:
+
+process.env.DODO_PAYMENTS_API_KEY
+process.env.DODO_PAYMENTS_WEBHOOK_KEY
+
+ملاحظة أمان: لا تقم بالتزام الأسرار في نظام التحكم في الإصدارات. استخدم ملفات .env محليًا ومديري الأسرار في بيئات النشر (مثل AWS، Vercel، Heroku، إلخ).

@@ -1,0 +1,36 @@
+---
+title: 기술 - 자주 묻는 질문
+description: 문제 해결, 통합 및 시스템 요구 사항을 포함한 기술 문의에 대한 자세한 설명과 솔루션을 제공하여 원활한 구현 및 성능을 보장합니다.
+icon: question
+---
+
+<Accordion title="Q1: 구독 제품에 대한 payment.succeeded 웹훅에서 제품 ID를 받지 못한 이유는 무엇인가요?">
+  A: 구독 제품에 대한 payment.succeeded 웹훅 이벤트는 product_id를 포함하지 않습니다. 대신, 구독과 관련된 `subscription_id` 및 기타 관련 세부정보를 제공합니다.
+</Accordion>
+
+<Accordion title="Q2: 내가 받은 웹훅이 실제로 Dodo Payments에서 온 것인지 악의적인 행위자에서 온 것인지 어떻게 확인하나요?">
+  A: 수신한 웹훅이 Dodo Payments에서 진짜인지 악의적인 행위자에서 온 것인지 확인하려면 다음 단계를 따르세요:
+    1. **서명 확인**: Dodo Payments에서 전송하는 각 웹훅에는 **`webhook-signature`** 헤더에 고유한 서명이 포함되어 있습니다. 이 서명은 웹훅의 비밀 키와 이벤트의 페이로드를 사용하여 생성됩니다.
+    2. **비밀 키 가져오기**: 웹훅의 비밀 키를 확보하세요. 이는 Dodo Payments 대시보드의 웹훅 설정에서 찾을 수 있습니다.
+    3. **서명 재계산**: Dodo Payments와 동일한 서명 알고리즘(HMAC-SHA256)을 사용하여 서버에서 서명을 계산하세요. 웹훅의 페이로드와 웹훅 비밀 키를 사용합니다.
+    4. **서명 비교**: 재계산된 서명을 **`webhook-signature`** 헤더에 제공된 서명과 비교하세요. 일치하면 웹훅이 진짜이고, 그렇지 않으면 거부해야 합니다.
+    5. **HTTPS 사용**: 웹훅 엔드포인트가 HTTPS를 사용하여 통신을 안전하게 하고 데이터 전송 중 변조를 방지하도록 하세요.
+  이러한 단계를 구현하면 Dodo Payments에서 전송된 웹훅의 진위를 자신 있게 확인할 수 있습니다.
+</Accordion>
+
+<Accordion title="Q3: 첫 달 결제에도 불구하고 subscription.renew 웹훅을 받는 이유는 무엇인가요?">
+  A: 구독의 경우, `subscription.renew`가 구독 금액이 차감될 때마다 트리거됩니다. 따라서 이는 예상되는 동작입니다.
+</Accordion>
+
+<Accordion title="Q5: 로컬에서 웹훅을 테스트하려면 어떻게 해야 하나요?">
+  A: 로컬에서 웹훅을 테스트하려면 다음 단계를 따르세요:
+  
+1. **터널링 도구 사용**: [ngrok](https://ngrok.com/), [LocalTunnel](https://localtunnel.github.io/www/) 또는 [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-apps/)과 같은 도구를 사용하여 로컬 서버를 인터넷에 노출할 수 있습니다. 이를 통해 Dodo Payments가 로컬 환경에 웹훅 이벤트를 전송할 수 있는 공개 URL을 제공합니다.
+2. **웹훅 엔드포인트 설정**: 로컬 애플리케이션에서 수신 웹훅 이벤트를 처리할 웹훅 엔드포인트를 생성하세요. HTTP POST 요청을 수신하도록 설정합니다.
+3. **Dodo Payments에서 웹훅 구성**: Dodo Payments 대시보드로 이동하여 웹훅 설정에서 터널링 도구로 생성된 공개 URL로 웹훅 URL을 업데이트하세요.
+4. **이벤트 트리거**: 환경에서 작업을 수행하여 웹훅 이벤트를 트리거하세요. 예를 들어, 결제 또는 구독 갱신을 시뮬레이션할 수 있습니다.
+5. **수신 요청 검사**: 터널링 도구의 로그 또는 애플리케이션의 로깅을 사용하여 수신 웹훅 페이로드를 검사하세요. 이를 통해 엔드포인트가 이벤트를 수신하고 올바르게 처리하고 있는지 확인할 수 있습니다.
+6. **서명 확인**: 웹훅 이벤트가 진짜이고 Dodo Payments에서 전송된 것임을 확인하기 위해 **`webhook-signature`** 헤더를 검증하세요.
+
+이러한 단계를 따르면 로컬 개발 환경에서 웹훅을 쉽게 테스트하고 디버깅할 수 있습니다.
+</Accordion>

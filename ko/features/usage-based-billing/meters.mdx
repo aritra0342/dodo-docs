@@ -1,0 +1,145 @@
+---
+sidebarTitle: 미터
+title: 미터
+description: 원시 사용 이벤트를 집계 및 필터링을 통해 청구 가능한 수량으로 변환합니다.
+icon: sliders
+---
+<Info>
+미터는 원시 이벤트를 청구 가능한 수량으로 변환합니다. 이벤트를 필터링하고 집계 함수(Count, Sum, Max, Last)를 적용하여 고객별 사용량을 계산합니다.
+</Info>
+
+<Frame>
+<img src="/images/usage-based/UBB-2.png" alt="이벤트 이름, 집계 유형 및 필터링 옵션을 보여주는 미터 생성 인터페이스" />
+</Frame>
+
+## API 리소스
+
+<AccordionGroup>
+<Accordion title="미터 API 참조 보기">
+<CardGroup cols={2}>
+<Card title="미터 생성" icon="plus" href="/api-reference/meters/create-meter">
+API를 통해 프로그래밍 방식으로 미터를 생성합니다.
+</Card>
+
+<Card title="미터 목록" icon="list" href="/api-reference/meters/get-meters">
+계정의 모든 미터를 검색합니다.
+</Card>
+
+<Card title="미터 가져오기" icon="eye" href="/api-reference/meters/retrieve-meter">
+ID로 특정 미터의 세부 정보를 가져옵니다.
+</Card>
+
+<Card title="미터 아카이브" icon="arrow-rotate-right" href="/api-reference/meters/archive-meter">
+사용량 추적을 중지하기 위해 미터를 아카이브합니다.
+</Card>
+
+<Card title="미터 복원" icon="arrow-rotate-left" href="/api-reference/meters/unarchive-meter">
+아카이브된 미터를 복원하여 추적을 재개합니다.
+</Card>
+</CardGroup>
+</Accordion>
+</AccordionGroup>
+
+## 미터 생성
+
+<Steps>
+<Step title="기본 정보">
+<ParamField path="미터 이름" type="string" required>
+설명적인 이름 (예: "API 요청", "토큰 사용")
+</ParamField>
+
+<ParamField path="이벤트 이름" type="string" required>
+정확한 이벤트 이름을 일치시킵니다(대소문자 구분). 예: `api.call`, `image.generated`
+</ParamField>
+</Step>
+
+<Step title="집계">
+<ParamField path="집계 유형" type="string" required>
+이벤트가 집계되는 방식을 선택합니다:
+
+- **Count**: 이벤트의 총 수 (API 호출, 업로드)
+- **Sum**: 숫자 값 추가 (토큰, 바이트)
+- **Max**: 기간 내 최고 값 (최대 사용자 수)
+- **Last**: 가장 최근 값
+</ParamField>
+
+<ParamField path="속성 기준" type="string">
+집계할 메타데이터 키 (Count를 제외한 모든 유형에 필요). 예: `tokens`, `bytes`, `duration_ms`
+</ParamField>
+
+<ParamField path="측정 단위" type="string" required>
+청구서에 대한 단위 레이블. 예: `calls`, `tokens`, `GB`, `hours`
+</ParamField>
+</Step>
+
+<Step title="필터링 (선택 사항)">
+<Frame>
+<img src="/images/usage-based/UBB-3.png" alt="이벤트 필터링" />
+</Frame>
+
+어떤 이벤트가 계산될지를 필터링하기 위한 조건을 추가합니다:
+- **AND 논리**: 모든 조건이 일치해야 함
+- **OR 논리**: 어떤 조건이든 일치할 수 있음
+
+**비교자**: 같음, 같지 않음, 초과, 미만, 포함
+
+필터링을 활성화하고, 논리를 선택하고, 속성 키, 비교자 및 값을 사용하여 조건을 추가합니다.
+</Step>
+
+<Step title="생성">
+구성을 검토하고 **미터 생성**을 클릭합니다.
+</Step>
+</Steps>
+
+## 분석 보기
+
+<Frame>
+<img src="/images/usage-based/UBB-1.png" alt="미터 분석" />
+</Frame>
+
+미터 대시보드는 다음을 보여줍니다:
+- **개요**: 총 사용량 및 사용량 차트
+- **이벤트**: 수신된 개별 이벤트
+- **고객**: 고객별 사용량 및 요금
+
+## 문제 해결
+
+<AccordionGroup>
+<Accordion title="이벤트가 나타나지 않음">
+- 이벤트 이름이 정확히 일치해야 함(대소문자 구분)
+- 미터 필터가 이벤트를 제외하고 있지 않은지 확인
+- 고객 ID가 존재하는지 확인
+- 테스트를 위해 필터를 일시적으로 비활성화
+</Accordion>
+
+<Accordion title="집계가 작동하지 않음">
+- 속성 기준이 메타데이터 키와 정확히 일치하는지 확인
+- 문자열이 아닌 숫자를 사용: `tokens: 150`가 아닌 `"150"`
+- 모든 이벤트에 필수 속성을 포함
+</Accordion>
+
+<Accordion title="필터가 작동하지 않음">
+- 대소문자를 정확히 일치시킴
+- 데이터 유형에 맞는 올바른 연산자 사용
+- 이벤트에 필터링된 속성이 포함되어 있는지 확인
+</Accordion>
+
+<Accordion title="잘못된 사용량 총계">
+- 실제 수신된 이벤트 수를 세기 위해 이벤트 탭을 확인
+- 집계 유형(Count vs Sum)을 확인
+- Sum/Max에 대해 값이 숫자인지 확인
+</Accordion>
+</AccordionGroup>
+
+## 다음 단계
+
+<CardGroup cols={2}>
+
+<Card title="이벤트 전송" icon="bolt" href="/features/usage-based-billing/event-ingestion">
+애플리케이션에서 미터로 사용 이벤트를 전송하기 시작합니다.
+</Card>
+
+<Card title="청사진 보기" icon="copy" href="/features/usage-based-billing/ingestion-blueprints">
+일반적인 사용 사례를 위한 미터 구성 템플릿을 사용합니다.
+</Card>
+</CardGroup>

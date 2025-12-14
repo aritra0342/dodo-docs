@@ -1,0 +1,301 @@
+---
+title: DataFast
+description: نسب الإيرادات إلى قنوات التسويق باستخدام تحليلات DataFast. تتبع
+  مصادر الحركة التي تقود العملاء الدافعين وقم بتحسين نموك.
+icon: chart-bar
+---
+
+## المقدمة
+
+DataFast هي أداة تحليلات تركز على الإيرادات تساعدك في اكتشاف قنوات التسويق التي تقود العملاء الدافعين. من خلال دمج Dodo Payments مع DataFast، يمكنك نسب الإيرادات إلى مصادر الحركة الخاصة بك، وتحديد شرائح العملاء ذات القيمة العالية، واتخاذ قرارات مستندة إلى البيانات لتنمية عملك.
+
+<Info>
+تتطلب هذه التكامل مفتاح API الخاص بـ DataFast، والذي يمكنك الحصول عليه من [لوحة معلومات DataFast](https://datafa.st/).
+</Info>
+
+## كيف يعمل
+
+تتبع DataFast الزوار من خلال معرف زائر فريد يتم تخزينه في ملف تعريف الارتباط. لنسب الإيرادات إلى قنوات التسويق، تحتاج إلى:
+
+1. **التقاط معرف زائر DataFast** من `datafast_visitor_id` عند إنشاء جلسات الدفع
+2. **تخزين معرف الزائر** في بيانات الدفع الخاصة بك
+3. **إرسال بيانات الدفع إلى DataFast** عند نجاح المدفوعات باستخدام واجهة برمجة التطبيقات الخاصة بهم
+
+يسمح ذلك لـ DataFast بمطابقة المدفوعات الناجحة مع مصدر الحركة الأصلي، مما يمنحك نسب الإيرادات الكاملة.
+
+## البدء
+
+<Steps>
+<Step title="تثبيت سكربت DataFast">
+  أولاً، قم بتثبيت سكربت تتبع DataFast على موقعك. هذا ينشئ ملف تعريف الارتباط `datafast_visitor_id` الذي يتتبع زوارك.
+  
+  قم بزيارة [وثائق DataFast](https://datafa.st/docs) للحصول على تعليمات التثبيت الخاصة بمنصتك.
+</Step>
+
+<Step title="احصل على مفتاح API الخاص بك">
+  قم بتسجيل الدخول إلى [لوحة معلومات DataFast](https://datafa.st/) وانتقل إلى إعدادات موقعك للحصول على مفتاح API الخاص بك.
+  
+  <Warning>
+  احتفظ بمفتاح API الخاص بك آمنًا ولا تكشف عنه في كود جانب العميل.
+  </Warning>
+</Step>
+
+<Step title="التقاط معرف الزائر في الدفع">
+  عند إنشاء جلسة دفع، قم بالتقاط معرف زائر DataFast من ملف تعريف الارتباط وأضفه إلى بيانات الدفع الخاصة بك.
+</Step>
+
+<Step title="إرسال بيانات الدفع عبر Webhook">
+  قم بتكوين Webhook لإرسال بيانات الدفع إلى واجهة برمجة التطبيقات الخاصة بـ DataFast عند نجاح المدفوعات.
+</Step>
+
+<Step title="تم!">
+  🎉 ستظهر الآن بيانات الإيرادات في لوحة معلومات DataFast الخاصة بك مع نسب كاملة إلى قنوات التسويق.
+</Step>
+</Steps>
+
+## دليل التنفيذ
+
+### الخطوة 1: إضافة معرف الزائر إلى بيانات الدفع
+
+عند إنشاء جلسة دفع، قم بالتقاط معرف زائر DataFast من ملف تعريف الارتباط وأدرجه في بيانات الدفع الخاصة بك.
+
+<CodeGroup>
+
+```typescript Next.js
+import { cookies } from 'next/headers';
+import { dodopayments } from '@/lib/dodopayments';
+
+export async function createCheckout(productId: string) {
+  // Capture DataFast visitor ID from cookie
+  const datafastVisitorId = cookies().get('datafast_visitor_id')?.value;
+
+  const payment = await dodopayments.payments.create({
+    product_id: productId,
+    // ... other payment configuration
+    metadata: {
+      datafast_visitor_id: datafastVisitorId, // Store visitor ID in metadata
+    },
+  });
+
+  return payment;
+}
+```
+
+```javascript Express.js
+const express = require('express');
+const router = express.Router();
+
+router.post('/create-checkout', async (req, res) => {
+  // Capture DataFast visitor ID from cookie
+  const datafastVisitorId = req.cookies?.datafast_visitor_id;
+
+  const payment = await dodopayments.payments.create({
+    product_id: req.body.productId,
+    // ... other payment configuration
+    metadata: {
+      datafast_visitor_id: datafastVisitorId, // Store visitor ID in metadata
+    },
+  });
+
+  res.json({ payment });
+});
+```
+
+```javascript Other Frameworks
+// Capture DataFast visitor ID from cookie
+const datafastVisitorId = getCookie('datafast_visitor_id'); // Use your framework's cookie method
+
+const payment = await dodopayments.payments.create({
+  product_id: productId,
+  // ... other payment configuration
+  metadata: {
+    datafast_visitor_id: datafastVisitorId, // Store visitor ID in metadata
+  },
+});
+```
+
+</CodeGroup>
+
+### الخطوة 2: إرسال بيانات الدفع إلى DataFast
+
+قم بتكوين نقطة نهاية Webhook لإرسال بيانات الدفع إلى واجهة برمجة التطبيقات الخاصة بـ DataFast عند نجاح المدفوعات.
+
+<Steps>
+<Step title="فتح قسم Webhook">
+  في لوحة معلومات Dodo Payments الخاصة بك، انتقل إلى <b>Webhooks → + إضافة نقطة نهاية</b> وقم بتوسيع قائمة التكامل.
+  <Frame>
+    <img src="/images/integrations/datafast/add.png" alt="إضافة نقطة نهاية وقائمة التكامل" />
+  </Frame>
+</Step>
+
+<Step title="اختيار DataFast">
+  اختر بطاقة تكامل <b>DataFast</b>.
+</Step>
+
+<Step title="إدخال مفتاح API">
+  قدم مفتاح API الخاص بـ DataFast في حقل التكوين.
+  <Frame>
+    <img src="/images/integrations/datafast/api-key.png" alt="إضافة مفتاح API" />
+  </Frame>
+</Step>
+
+<Step title="تكوين التحويل">
+  قم بتحرير كود التحويل لتنسيق بيانات الدفع لواجهة برمجة التطبيقات الخاصة بـ DataFast.
+</Step>
+
+<Step title="اختبار وإنشاء">
+  اختبر باستخدام حمولات عينة وانقر على <b>إنشاء</b> لتفعيل التكامل.
+</Step>
+</Steps>
+
+## أمثلة كود التحويل
+
+### نسب الدفع الأساسية
+
+```javascript basic_payment.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const payment = webhook.payload.data;
+    
+    // Only send to DataFast if visitor ID exists in metadata
+    if (payment.metadata?.datafast_visitor_id) {
+      webhook.url = "https://datafa.st/api/v1/payments";
+      webhook.payload = {
+        amount: payment.total_amount / 100, // Convert from cents to dollars
+        currency: payment.currency,
+        transaction_id: payment.payment_id,
+        datafast_visitor_id: payment.metadata.datafast_visitor_id,
+      };
+    } else {
+      // Skip if no visitor ID (prevents unnecessary API calls)
+      return null;
+    }
+  }
+  return webhook;
+}
+```
+
+### التعامل مع العملات ذات الصفر العشري
+
+بعض العملات (مثل JPY) لا تستخدم أماكن عشرية. قم بتعديل حساب المبلغ وفقًا لذلك:
+
+```javascript zero_decimal.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const payment = webhook.payload.data;
+    
+    if (payment.metadata?.datafast_visitor_id) {
+      // Zero decimal currencies: JPY, KRW, CLP, etc.
+      const zeroDecimalCurrencies = ['JPY', 'KRW', 'CLP', 'VND', 'UGX', 'MGA'];
+      const isZeroDecimal = zeroDecimalCurrencies.includes(payment.currency);
+      
+      webhook.url = "https://datafa.st/api/v1/payments";
+      webhook.payload = {
+        amount: isZeroDecimal 
+          ? payment.total_amount // Use amount as-is for zero decimal currencies
+          : payment.total_amount / 100, // Convert from cents for other currencies
+        currency: payment.currency,
+        transaction_id: payment.payment_id,
+        datafast_visitor_id: payment.metadata.datafast_visitor_id,
+      };
+    } else {
+      return null;
+    }
+  }
+  return webhook;
+}
+```
+
+### مدفوعات الاشتراك
+
+لمدفوعات الاشتراك المتكررة، يمكنك تتبع كل دفعة:
+
+```javascript subscription_payment.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const payment = webhook.payload.data;
+    
+    // Check if this is a subscription payment
+    const isSubscription = payment.subscription_id !== null;
+    
+    if (payment.metadata?.datafast_visitor_id) {
+      webhook.url = "https://datafa.st/api/v1/payments";
+      webhook.payload = {
+        amount: payment.total_amount / 100,
+        currency: payment.currency,
+        transaction_id: payment.payment_id,
+        datafast_visitor_id: payment.metadata.datafast_visitor_id,
+        // Optional: Add subscription context
+        ...(isSubscription && {
+          subscription_id: payment.subscription_id,
+        }),
+      };
+    } else {
+      return null;
+    }
+  }
+  return webhook;
+}
+```
+
+## أفضل الممارسات
+
+<Tip>
+**التقاط معرف الزائر مبكرًا**: قم بتخزين معرف زائر DataFast في أقرب وقت ممكن في تدفق الدفع الخاص بك لضمان نسب دقيقة، حتى إذا انتقل المستخدم بعيدًا وعاد لاحقًا.
+</Tip>
+
+- **تأكد دائمًا من تضمين معرف الزائر في البيانات الوصفية**: بدون معرف الزائر، لا يمكن لـ DataFast نسب الإيرادات إلى قنوات التسويق
+- **التعامل مع العملات ذات الصفر العشري**: بعض العملات (JPY، KRW، إلخ) لا تستخدم أماكن عشرية - قم بتعديل حساب المبلغ وفقًا لذلك
+- **اختبر باستخدام مدفوعات عينة**: تحقق من أن التكامل يعمل بشكل صحيح قبل الذهاب للعرض
+- **راقب لوحة معلومات DataFast الخاصة بك**: تحقق من أن المدفوعات تظهر بشكل صحيح مع نسب صحيحة
+- **استخدم إعادة المحاولة لـ Webhook**: واجهة برمجة التطبيقات الخاصة بـ DataFast هي idempotent، لذا فإن إعادة المحاولة آمنة إذا فشل Webhook
+
+## استكشاف الأخطاء وإصلاحها
+
+<AccordionGroup>
+<Accordion title="المدفوعات لا تظهر في DataFast">
+- تحقق من أن مفتاح API الخاص بـ DataFast صحيح ونشط
+- تحقق من أن `datafast_visitor_id` يتم التقاطه وتخزينه في بيانات الدفع
+- تأكد من أن تحويل Webhook يقوم بتنسيق الحمولة بشكل صحيح
+- تحقق من أن Webhook يتم تفعيله على أحداث `payment.succeeded`
+- تحقق من لوحة معلومات DataFast لأي رسائل خطأ أو سجلات API
+</Accordion>
+
+<Accordion title="نسب الإيرادات لا تعمل">
+- تأكد من أن سكربت تتبع DataFast مثبت ويعمل على موقعك
+- تحقق من أن ملف تعريف الارتباط `datafast_visitor_id` يتم تعيينه بشكل صحيح
+- تحقق من أن معرفات الزوار تتطابق بين إنشاء الدفع وإكمال الدفع
+- تأكد من أنك تلتقط معرف الزائر قبل إنشاء جلسة الدفع
+- راجع [وثائق واجهة برمجة التطبيقات الخاصة بالدفع](https://datafa.st/docs/payments-api) للحصول على إرشادات إضافية
+</Accordion>
+
+<Accordion title="أخطاء التحويل">
+- تحقق من أن هيكل JSON يتطابق مع تنسيق واجهة برمجة التطبيقات الخاصة بـ DataFast
+- تحقق من أن جميع الحقول المطلوبة (`amount`، `currency`، `transaction_id`، `datafast_visitor_id`) موجودة
+- تأكد من تحويل المبلغ بشكل صحيح (قسمه على 100 لمعظم العملات، باستثناء العملات ذات الصفر العشري)
+- تحقق من أن عنوان URL لنقطة نهاية واجهة برمجة التطبيقات صحيح: `https://datafa.st/api/v1/payments`
+- اختبر التحويل باستخدام حمولات Webhook عينة
+</Accordion>
+
+<Accordion title="مشاكل تحويل العملات">
+- بالنسبة للعملات ذات الصفر العشري (JPY، KRW، CLP، VND، UGX، MGA)، أرسل المبلغ كما هو دون قسمته على 100
+- بالنسبة لجميع العملات الأخرى، قسم المبلغ على 100 للتحويل من السنتات إلى الوحدة الأساسية
+- تحقق من أن رمز العملة يتطابق مع تنسيق ISO 4217 (مثل "USD"، "EUR"، "JPY")
+</Accordion>
+</AccordionGroup>
+
+## موارد إضافية
+
+<CardGroup cols={2}>
+<Card title="وثائق DataFast" icon="book" href="https://datafa.st/docs/payments-api">
+  تعرف على المزيد حول واجهة برمجة التطبيقات الخاصة بالدفع في DataFast وميزات نسب الإيرادات.
+</Card>
+
+<Card title="لوحة معلومات DataFast" icon="chart-bar" href="https://datafa.st/">
+  الوصول إلى لوحة معلومات DataFast الخاصة بك لعرض تحليلات الإيرادات وبيانات النسب.
+</Card>
+</CardGroup>
+
+<Info>
+تحتاج إلى مساعدة؟ اتصل بدعم Dodo Payments على [support@dodopayments.com](mailto:support@dodopayments.com) للحصول على المساعدة في التكامل.
+</Info>

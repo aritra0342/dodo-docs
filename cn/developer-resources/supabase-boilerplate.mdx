@@ -1,0 +1,265 @@
+---
+sidebarTitle: Supabase
+title: Supabase 模板
+description: 使用官方的 Next.js + Supabase + Dodo Payments
+  订阅启动器快速发布订阅。包括身份验证、数据库架构、Webhook 处理和定价 UI。
+icon: database
+---
+
+<CardGroup cols={2}>
+<Card title="GitHub 仓库" icon="github" href="https://github.com/dodopayments/dodo-supabase-subscription-starter">
+    最小的 Next.js + Supabase + Dodo Payments 订阅模板
+</Card>
+<Card title="在线演示" icon="rocket" href="https://dodopayments-supabase-nextjs.vercel.app">
+    探索已部署的演示
+</Card>
+</CardGroup>
+
+## 概述
+
+一个适用于生产的订阅模板，使用 Next.js 15、React 19、Supabase、Drizzle ORM 和 Dodo Payments。它配备了 Google OAuth、订阅结账、Webhook 处理、数据库架构和基本仪表板。
+
+<Info>
+如果您只需要现有应用程序的路由处理程序，请参阅专用适配器：<a href="/developer-resources/nextjs-adaptor">Next.js 适配器</a> 和 <a href="/developer-resources/express-adaptor">Express 适配器</a>。
+</Info>
+
+## 先决条件
+
+- Node.js 18+（或 Bun 1.0+）
+- Supabase 项目（URL、匿名密钥、服务角色密钥、数据库 URL）
+- Dodo Payments 账户（API 密钥、Webhook 密钥）
+- Google Cloud OAuth 客户端（客户端 ID 和密钥）
+
+## 快速开始
+
+<Steps>
+<Step title="克隆并安装">
+
+```bash
+git clone https://github.com/dodopayments/dodo-supabase-subscription-starter.git
+cd dodo-supabase-subscription-starter
+# choose one
+bun install
+# or
+npm install
+# or
+pnpm install
+```
+
+</Step>
+
+<Step title="创建 Supabase 项目">
+创建一个 Supabase 项目并复制：
+- NEXT_PUBLIC_SUPABASE_URL
+- NEXT_PUBLIC_SUPABASE_ANON_KEY
+- SUPABASE_SERVICE_ROLE_KEY
+- DATABASE_URL（连接字符串）
+</Step>
+
+<Step title="配置 Google OAuth">
+在 Google Cloud 中将重定向 URI 设置为：`https://[your-project-ref].supabase.co/auth/v1/callback`，然后使用您的客户端 ID 和密钥在 Supabase Auth 中启用 Google 提供程序。
+</Step>
+
+<Step title="配置 Dodo Payments">
+从 Dodo 仪表板生成 API 密钥和 Webhook 密钥。在开发时将环境设置为 `test_mode`。
+</Step>
+
+<Step title="创建 .env.local">
+
+```env
+# Supabase
+NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role
+
+# Database
+DATABASE_URL=postgresql://postgres:[password]@db.[project-ref].supabase.co:5432/postgres
+
+# Dodo Payments
+DODO_PAYMENTS_API_KEY=your-dodo-api-key
+DODO_WEBHOOK_SECRET=your-webhook-secret
+DODO_PAYMENTS_ENVIRONMENT=test_mode
+```
+
+<Warning>
+绝不要提交密钥。在部署环境中使用环境变量。
+</Warning>
+</Step>
+
+<Step title="配置数据库架构">
+
+```bash
+bun run db:push
+# or
+npm run db:push
+# or
+pnpm run db:push
+```
+
+<Check>
+已创建的表：`users`, `subscriptions`, `payments`。
+</Check>
+</Step>
+
+<Step title="部署 webhook 函数">
+
+```bash
+# login (one-time)
+bunx supabase login
+# or
+npx supabase login
+
+# deploy the edge function
+bun run deploy:webhook --project-ref [your-project-ref]
+# or
+npm run deploy:webhook -- --project-ref [your-project-ref]
+# or
+pnpm run deploy:webhook --project-ref [your-project-ref]
+```
+
+```bash cURL
+curl -X POST \
+  'https://[your-project-ref].supabase.co/functions/v1/dodo-webhook' \
+  -H 'Content-Type: application/json' \
+  -H 'Dodo-Signature: <signature>' \
+  -d '{"type":"payment.succeeded","data":{}}'
+```
+
+</Step>
+
+<Step title="在 Dodo Payments 中添加 webhook">
+将端点 URL 设置为：
+
+```text
+https://[your-project-ref].supabase.co/functions/v1/dodo-webhook
+```
+
+选择支付和订阅事件。
+</Step>
+
+<Step title="创建产品和功能">
+在 Dodo 仪表板 → 产品 → 创建产品。可选地添加元数据：
+
+```json
+{
+  "features": ["Feature 1", "Feature 2", "Feature 3"]
+}
+```
+
+定价 UI 读取此 `features` 数组并动态呈现。
+</Step>
+
+<Step title="运行开发服务器">
+
+```bash
+bun run dev
+# or
+npm run dev
+# or
+pnpm run dev
+```
+
+打开 http://localhost:3000。
+</Step>
+</Steps>
+
+## 包含内容
+
+- 通过 Supabase 进行身份验证（已配置 Google OAuth）
+- 通过 Dodo Payments 进行订阅结账
+- 用于 Webhook 的 Supabase Edge 函数（`dodo-webhook`）
+- Drizzle ORM 架构和迁移
+- 带有发票、订阅状态和计划功能的仪表板
+
+<Tip>
+在完成端到端测试之前，将 `DODO_PAYMENTS_ENVIRONMENT` 保持为 `test_mode`。
+</Tip>
+
+## 关键文件和路径
+
+<Tabs>
+<Tab title="边缘函数">
+
+```text
+supabase/functions/dodo-webhook/
+  index.ts            # webhook handler verifying signatures
+  deno.json           # permissions
+```
+
+</Tab>
+<Tab title="Next.js 路由">
+
+```text
+app/(marketing)/*     # landing + pricing UI
+app/(dashboard)/*     # protected pages
+app/api/*             # server actions & helpers
+```
+
+</Tab>
+<Tab title="数据库（Drizzle）">
+
+```text
+lib/db/schema.ts      # users, subscriptions, payments
+lib/db/index.ts       # client
+```
+
+</Tab>
+</Tabs>
+
+## 环境变量
+
+<AccordionGroup>
+<Accordion title="Supabase">
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+DATABASE_URL=
+```
+
+</Accordion>
+<Accordion title="Dodo Payments">
+
+```env
+DODO_PAYMENTS_API_KEY=
+DODO_WEBHOOK_SECRET=
+DODO_PAYMENTS_ENVIRONMENT=test_mode|live_mode
+```
+
+</Accordion>
+<Accordion title="Google OAuth">
+
+```env
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+```
+
+</Accordion>
+</AccordionGroup>
+
+## 验证和故障排除
+
+<AccordionGroup>
+<Accordion title="Webhook 签名无效 (401)">
+- 确保 `DODO_WEBHOOK_SECRET` 与 Dodo 仪表板中的值匹配
+- 确认您已部署最新的 `dodo-webhook` 函数
+- 验证您的函数中的头名称是否正确（Dodo-Signature）
+</Accordion>
+<Accordion title="数据库推送失败">
+- 检查 `DATABASE_URL` 语法和 Supabase 网络出站
+- 在项目创建后等待 ~2–3 分钟再进行第一次推送
+</Accordion>
+<Accordion title="OAuth 重定向不匹配">
+- 重定向 URI 必须是 `https://[ref].supabase.co/auth/v1/callback`
+- 确保 Google Cloud 和 Supabase Auth 提供程序中的设置相同
+</Accordion>
+</AccordionGroup>
+
+<Check>
+您现在拥有一个使用 Supabase 和 Dodo Payments 构建的工作订阅 SaaS。
+</Check>
+
+<Info>
+原始仓库和详细步骤：<a href="https://github.com/dodopayments/dodo-supabase-subscription-starter">dodo-supabase-subscription-starter</a>。
+</Info>

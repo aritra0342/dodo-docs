@@ -1,0 +1,54 @@
+---
+openapi-schema: SubscriptionResponse
+title: الاشتراك
+description: الحمولة المرسلة إلى نقطة نهاية الويب الخاصة بك عند إنشاء الاشتراك
+  أو تحديثه أو تغيير حالته.
+icon: repeat
+---
+
+## أحداث ويب هوك الاشتراك
+
+الأحداث التالية متاحة لتتبع تغييرات دورة حياة الاشتراك:
+
+| الحدث | الوصف |
+|-------|-------------|
+| `subscription.active` | تم تفعيل الاشتراك بنجاح |
+| `subscription.updated` | تم تحديث كائن الاشتراك (أي تغيير في الحقل يؤدي إلى تشغيل هذا الحدث) |
+| `subscription.on_hold` | تم تعليق الاشتراك بسبب فشل التجديد |
+| `subscription.renewed` | تم تجديد الاشتراك للفترة التالية من الفوترة |
+| `subscription.plan_changed` | تم ترقية أو تخفيض أو تعديل خطة الاشتراك |
+| `subscription.cancelled` | تم إلغاء الاشتراك |
+| `subscription.failed` | فشل إنشاء الاشتراك أثناء إنشاء التفويض |
+| `subscription.expired` | انتهى الاشتراك من مدته |
+
+### استخدام `subscription.updated` للمزامنة في الوقت الحقيقي
+
+يتم تشغيل ويب هوك `subscription.updated` كلما تغير أي حقل من حقول الاشتراك، مما يتيح لك الحفاظ على حالة تطبيقك متزامنة دون الحاجة إلى الاستعلام:
+
+```javascript
+app.post('/webhooks/dodo', async (req, res) => {
+  const event = req.body;
+  
+  if (event.type === 'subscription.updated') {
+    const subscription = event.data;
+    
+    // Sync subscription changes to your database
+    await syncSubscription(subscription.subscription_id, {
+      status: subscription.status,
+      next_billing_date: subscription.next_billing_date,
+      metadata: subscription.metadata,
+      // ... other fields you want to track
+    });
+    
+    console.log(`Subscription ${subscription.subscription_id} updated`);
+  }
+  
+  res.json({ received: true });
+});
+```
+
+<Tip>
+اشترك في `subscription.updated` للحصول على إشعارات في الوقت الحقيقي حول أي تغييرات في الاشتراك، مما يلغي الحاجة إلى الاستعلام عن واجهة برمجة التطبيقات للحصول على التحديثات.
+</Tip>
+
+## مخطط حمولة ويب هوك

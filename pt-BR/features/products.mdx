@@ -1,0 +1,193 @@
+---
+sidebarTitle: Produtos
+title: Produtos
+description: Crie produtos de pagamento único, assinatura ou baseados em uso em
+  minutos. Gerencie preços, mídia, campos e direitos automatizados - tudo em um
+  só lugar.
+icon: box
+---
+<Info>
+Os produtos são a base do Dodo Payments. Seja você vendendo um download único, uma assinatura recorrente ou acesso baseado em uso, você começa criando um produto. Cada produto define como ele é precificado, apresentado no checkout e cumprido após a compra.
+</Info>
+
+<CardGroup cols={3}>
+<Card title="Pagamento Único" icon="credit-card" href="/features/one-time-payment-products">
+Cobrar uma vez por acesso vitalício ou um único entregável.
+</Card>
+
+<Card title="Assinaturas" icon="repeat" href="/features/subscription">
+Fature em um cronograma com testes, prorrata e complementos.
+</Card>
+
+<Card title="Baseado em Uso" icon="arrow-trend-up" href="/features/usage-based-billing">
+Meça o consumo e cobre pelo uso real.
+</Card>
+</CardGroup>
+
+## Criar um produto
+
+Você pode criar produtos a partir do painel ou via API. Escolha o modelo de precificação de antemão: Pagamento Único, Assinatura ou Baseado em Uso e, em seguida, configure os detalhes. O modelo de precificação não pode ser alterado posteriormente; crie um novo produto se precisar de um modelo diferente.
+
+<Steps>
+<Step title="Nome & descrição">
+Forneça um título claro e uma descrição concisa orientada ao valor. Markdown é suportado nas descrições.
+
+<Tip>
+Mantenha a primeira frase voltada para o cliente e orientada a resultados; ela aparece de forma proeminente no checkout.
+</Tip>
+
+<Frame>
+  <img src="/images/products.png" alt="Produtos"/>
+</Frame>
+
+</Step>
+
+<Step title="Modelo de precificação & preço">
+Selecione o modelo de precificação:
+
+- **Pagamento Único**: Preço fixo pago uma vez.
+- **Assinatura**: Preço recorrente com intervalo e teste opcional.
+- **Baseado em Uso**: Preço derivado de eventos medidos.
+
+Em seguida, defina os preços:
+
+- **Preço**: Valor base e moeda.
+- **Desconto (%)**: Desconto opcional em linha mostrado no checkout e faturas.
+- Para assinaturas, defina **Repetir a cada** (por exemplo, 1 mês ou 1 ano) e **Dias de teste** se necessário.
+
+<Warning>
+Alterar o preço afeta apenas novas compras. Assinaturas existentes seguem as regras de alteração de plano.
+</Warning>
+</Step>
+
+<Step title="Mídia do produto">
+Carregue imagens para mostrar o produto no checkout e nas faturas. PNG/JPG/WebP suportados até 3 MB. Reordene ou substitua a qualquer momento.
+</Step>
+
+<Step title="Direitos automatizados (Sob Configurações Avançadas)">
+Anexe o cumprimento que é ativado automaticamente após o pagamento:
+
+- **Chaves de Licença**: Emita e valide chaves únicas
+- **Downloads de Arquivos**: Conceda acesso seguro a arquivos
+- **Personalizado**: Acione sua própria lógica de direitos via webhooks
+
+Adicione ou remova benefícios à medida que sua oferta evolui. Assinantes existentes ganham ou perdem acesso de acordo.
+</Step>
+</Steps>
+
+## Variantes e opções de preços
+
+Em vez de variantes sob um produto, crie produtos separados para cada opção de preço (por exemplo, Mensal e Anual). Você pode apresentar vários produtos lado a lado no mesmo checkout e permitir que os clientes alternem entre eles.
+
+<Info>
+Isso mantém as APIs previsíveis e simplifica os relatórios. Cada produto tem um único modelo de precificação.
+</Info>
+
+## Gerenciando produtos
+
+Você pode gerenciar produtos através do painel ou programaticamente via API. A API fornece controle total sobre a criação, atualização, recuperação, upload de imagens e arquivamento de produtos.
+
+### Gerenciamento do Painel
+
+- **Atualizar**: Edite nome, descrição, imagens, preço, campos e benefícios a qualquer momento (o modelo de precificação é imutável).
+- **Arquivar**: Oculte um produto de novas compras sem interromper clientes existentes. Você pode desarquivar depois.
+
+### Gerenciamento da API
+
+As seguintes instruções permitem que você crie, atualize, gerencie e recupere produtos, incluindo o upload de imagens.
+
+<AccordionGroup>
+<Accordion title="Criando um Produto">
+Um produto pode ser um item único ou um serviço baseado em assinatura. Para criar um novo produto, envie um `POST` pedido para o `/products` endpoint com detalhes como nome, descrição, preço, moeda e se é um produto recorrente.
+
+Para produtos recorrentes, defina `recurring: true` e especifique um `billing_cycle` (`daily`, `weekly`, `monthly`, `yearly`).
+
+<Card title="Criar Produto API" icon="code" href="/api-reference/products/post-products">
+  Veja a estrutura detalhada de solicitação e resposta na documentação da API Criar Produto.
+</Card>
+</Accordion>
+
+<Accordion title="Atualizando um Produto">
+Para modificar um produto existente, envie um `PATCH` pedido para o `/products/{product_id}` endpoint. Você pode atualizar propriedades como nome, preço e descrição enquanto mantém outros detalhes inalterados.
+
+Certifique-se de que o `product_id` no endpoint corresponda a um produto existente.
+
+<Card title="Atualizar Produto API" icon="code" href="/api-reference/products/patch-products">
+  Veja a estrutura detalhada de solicitação e resposta na documentação da API Atualizar Produto.
+</Card>
+</Accordion>
+
+<Accordion title="Recuperando Produtos">
+Você pode buscar uma lista de produtos armazenados em sua conta usando um `GET` pedido para o `/products` endpoint. Isso permite que você recupere detalhes do produto, incluindo produtos ativos e arquivados.
+
+<Card title="Recuperar Produtos API" icon="code" href="/api-reference/products/get-products">
+  Veja a estrutura detalhada de solicitação e resposta na documentação da API Recuperar Produtos.
+</Card>
+</Accordion>
+
+<Accordion title="Fazendo Upload de Imagens de Produtos">
+Você pode associar uma imagem a um produto fazendo o upload para o AWS S3 usando uma URL pré-assinada fornecida pela API. Primeiro, solicite uma URL de upload de imagem do `/products/{product_id}/images` endpoint, em seguida, use a URL fornecida para fazer o upload da imagem dentro de 60 segundos.
+
+<Warning>
+A URL pré-assinada expira em 60 segundos, então a imagem deve ser carregada dentro desse prazo.
+</Warning>
+
+Uma vez que a URL pré-assinada é recebida da API, faça o upload da imagem usando o `PUT` método. Isso garante acesso seguro e temporário ao AWS S3 para o upload da imagem.
+
+**Bibliotecas suportadas para upload para S3:**
+- **Node.js**: `axios`, `node-fetch`
+- **Python**: `requests`, `boto3`
+- **Go**: `net/http`
+- **PHP**: `GuzzleHttp`
+- **Ruby**: `rest-client`
+
+Se o upload for bem-sucedido, o AWS S3 retornará um `200 OK` status, indicando que a imagem foi armazenada com sucesso.
+
+<Card title="Upload de Imagem do Produto API" icon="code" href="/api-reference/products/put-products-images">
+  Veja a estrutura detalhada de solicitação e resposta na documentação da API Upload de Imagem do Produto.
+</Card>
+</Accordion>
+
+<Accordion title="Arquivando um Produto">
+Se você não deseja mais exibir ou usar um produto, pode arquivá-lo usando um `POST` pedido para o `/products/{product_id}/archive` endpoint. Esta ação oculta o produto, mas não o exclui permanentemente.
+
+<Card title="Arquivar Produto API" icon="code" href="/api-reference/products/archive-product">
+  Veja a estrutura detalhada de solicitação e resposta na documentação da API Arquivar Produto.
+</Card>
+</Accordion>
+
+<Accordion title="Desarquivando um Produto">
+Se você precisar restaurar um produto arquivado, envie um `POST` pedido para o `/products/{product_id}/unarchive` endpoint. Isso reativará o produto e o tornará disponível para uso novamente.
+
+<Card title="Desarquivar Produto API" icon="code" href="/api-reference/products/unarchive-product">
+  Veja a estrutura detalhada de solicitação e resposta na documentação da API Desarquivar Produto.
+</Card>
+</Accordion>
+
+<Accordion title="Checkout & cumprimento">
+Crie fluxos de pagamento ou assinatura a partir de produtos e cumpra automaticamente via benefícios e webhooks.
+
+<CardGroup cols={3}>
+<Card title="Sessões de Checkout" icon="code" href="/developer-resources/checkout-session">
+Crie sessões de checkout para compras únicas ou por assinatura.
+</Card>
+<Card title="Webhooks de Pagamento" icon="code" href="/developer-resources/webhooks/intents/payment">
+Reaja a eventos do ciclo de vida do pagamento.
+</Card>
+<Card title="Webhooks de Assinatura" icon="code" href="/developer-resources/webhooks/intents/subscription">
+Gerencie eventos de assinatura criados, renovados e cancelados.
+</Card>
+</CardGroup>
+</Accordion>
+</AccordionGroup>
+
+## Melhores práticas
+
+- **Comece com clareza**: Produtos separados para cada opção de preço (Mensal vs Anual)
+- **Use testes de forma consciente**: Combine testes com integração para impulsionar a ativação
+- **Automatize o cumprimento**: Use benefícios e webhooks para entregar instantaneamente
+- **Tag com metadados**: Armazene seus IDs de sistema para reconciliação
+
+<Check>
+Você está pronto para criar produtos e começar a vender - uma vez, recorrente ou por uso.
+</Check>

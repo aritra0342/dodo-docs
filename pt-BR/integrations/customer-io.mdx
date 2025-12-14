@@ -1,0 +1,174 @@
+---
+title: Customer.io
+description: Envie eventos de Dodo Payments para Customer.io para acionar
+  automações de e-mail e jornadas do cliente.
+icon: chart-area
+---
+
+## Introdução
+
+Acione campanhas de e-mail personalizadas e jornadas do cliente com base em eventos de pagamento. Envie e-mails de boas-vindas para novos clientes, atualizações de assinatura e notificações de falha de pagamento automaticamente através do Customer.io.
+
+<Info>
+Esta integração requer seu ID do Site Customer.io e Chave da API.
+</Info>
+
+## Começando
+
+<Steps>
+<Step title="Abra a Seção de Webhook">
+  No seu painel do Dodo Payments, navegue até <b>Webhooks → + Adicionar Endpoint</b> e expanda o dropdown de integrações.
+  <Frame>
+    <img src="/images/integrations/customer-io.png" alt="Adicionar Endpoint e dropdown de integrações" />
+  </Frame>
+</Step>
+
+<Step title="Selecione Customer.io">
+  Escolha o cartão de integração <b>Customer.io</b>.
+</Step>
+
+<Step title="Insira Credenciais">
+  Forneça seu ID do Site Customer.io e Chave da API na configuração.
+</Step>
+
+<Step title="Configure a Transformação">
+  Edite o código de transformação para formatar eventos para a API Track do Customer.io.
+</Step>
+
+<Step title="Teste e Crie">
+  Teste com cargas úteis de exemplo e clique em <b>Criar</b> para ativar a sincronização.
+</Step>
+
+<Step title="Pronto!">
+  🎉 Eventos de pagamento agora acionarão automações de e-mail do Customer.io.
+</Step>
+</Steps>
+
+## Exemplos de Código de Transformação
+
+### Rastrear Eventos de Pagamento
+
+```javascript track_payments.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.url = "https://track.customer.io/api/v2/entity";
+    webhook.payload = {
+      type: "person",
+      identifiers: {
+        id: p.customer.customer_id
+      },
+      action: "payment_completed",
+      name: "Payment Completed",
+      attributes: {
+        email: p.customer.email,
+        name: p.customer.name,
+        payment_amount: (p.total_amount / 100).toFixed(2),
+        payment_method: p.payment_method || "unknown",
+        payment_id: p.payment_id,
+        currency: p.currency || "USD"
+      }
+    };
+  }
+  return webhook;
+}
+```
+
+### Rastrear Ciclo de Vida da Assinatura
+
+```javascript track_subscriptions.js icon="js" expandable
+function handler(webhook) {
+  const s = webhook.payload.data;
+  switch (webhook.eventType) {
+    case "subscription.active":
+      webhook.url = "https://track.customer.io/api/v2/entity";
+      webhook.payload = {
+        type: "person",
+        identifiers: {
+          id: s.customer.customer_id
+        },
+        action: "subscription_started",
+        name: "Subscription Started",
+        attributes: {
+          email: s.customer.email,
+          subscription_id: s.subscription_id,
+          product_id: s.product_id,
+          amount: (s.recurring_pre_tax_amount / 100).toFixed(2),
+          frequency: s.payment_frequency_interval,
+          next_billing: s.next_billing_date
+        }
+      };
+      break;
+    case "subscription.cancelled":
+      webhook.url = "https://track.customer.io/api/v2/entity";
+      webhook.payload = {
+        type: "person",
+        identifiers: {
+          id: s.customer.customer_id
+        },
+        action: "subscription_cancelled",
+        name: "Subscription Cancelled",
+        attributes: {
+          email: s.customer.email,
+          subscription_id: s.subscription_id,
+          cancelled_at: s.cancelled_at,
+          cancel_at_next_billing: s.cancel_at_next_billing_date
+        }
+      };
+      break;
+  }
+  return webhook;
+}
+```
+
+### Rastrear Atributos do Cliente
+
+```javascript track_attributes.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.url = "https://track.customer.io/api/v2/entity";
+    webhook.payload = {
+      type: "person",
+      identifiers: {
+        id: p.customer.customer_id
+      },
+      action: "identify",
+      name: "Customer Identified",
+      attributes: {
+        email: p.customer.email,
+        name: p.customer.name,
+        total_spent: (p.total_amount / 100).toFixed(2),
+        payment_method: p.payment_method || "unknown",
+        last_payment_date: webhook.payload.timestamp,
+        customer_since: webhook.payload.timestamp
+      }
+    };
+  }
+  return webhook;
+}
+```
+
+## Dicas
+
+- Use nomes de eventos consistentes que correspondam às suas campanhas do Customer.io
+- Inclua atributos relevantes para personalização
+- Defina identificadores de clientes adequados para rastreamento preciso
+- Use nomes de eventos significativos para acionadores de campanha
+
+## Solução de Problemas
+
+<AccordionGroup>
+<Accordion title="Eventos não acionando campanhas">
+- Verifique se o ID do Site e a Chave da API estão corretos
+- Verifique se os nomes dos eventos correspondem às suas campanhas do Customer.io
+- Certifique-se de que os identificadores de clientes estão configurados corretamente
+- Revise os limites de taxa da API do Customer.io
+</Accordion>
+
+<Accordion title="Erros de Transformação">
+- Valide se a estrutura JSON corresponde ao formato da API do Customer.io
+- Verifique se todos os campos obrigatórios estão presentes
+- Certifique-se de que os nomes dos eventos e atributos estão formatados corretamente
+</Accordion>
+</AccordionGroup>

@@ -1,0 +1,332 @@
+---
+sidebarTitle: Đồng bộ cơ sở dữ liệu
+title: Đồng bộ với cơ sở dữ liệu của bạn
+icon: database
+description: Tự động đồng bộ dữ liệu Dodo Payments của bạn với cơ sở dữ liệu của
+  riêng bạn để phân tích, báo cáo và tích hợp.
+---
+
+Dodo Payments cung cấp tính năng đồng bộ cơ sở dữ liệu tích hợp sẵn, tự động đồng bộ hóa dữ liệu thanh toán của bạn với cơ sở dữ liệu của riêng bạn. Bạn có thể đồng bộ **thanh toán**, **khách hàng**, **đăng ký**, và **giấy phép** để duy trì một bản sao cục bộ của dữ liệu của bạn cho phân tích, báo cáo hoặc tích hợp với các hệ thống khác.
+
+<Info>
+**Triển khai**: Có sẵn qua [gói npm](https://www.npmjs.com/package/dodo-sync) | **Mã nguồn**: [GitHub](https://github.com/dodopayments/dodo-sync)
+</Info>
+
+## Bạn có thể đồng bộ những gì?
+
+Tính năng đồng bộ cơ sở dữ liệu của chúng tôi hỗ trợ đồng bộ hóa các thực thể Dodo Payments sau đây với cơ sở dữ liệu của bạn:
+
+<CardGroup cols={2}>
+  <Card title="Thanh toán" icon="credit-card">
+    Đồng bộ tất cả các giao dịch thanh toán, bao gồm thanh toán một lần, hoàn tiền và cập nhật trạng thái thanh toán.
+  </Card>
+  <Card title="Khách hàng" icon="users">
+    Giữ dữ liệu khách hàng của bạn đồng bộ, bao gồm hồ sơ khách hàng, thông tin liên hệ và siêu dữ liệu.
+  </Card>
+  <Card title="Đăng ký" icon="repeat">
+    Đồng bộ hóa dữ liệu đăng ký, bao gồm các đăng ký đang hoạt động, chu kỳ thanh toán và thay đổi trạng thái đăng ký.
+  </Card>
+  <Card title="Giấy phép" icon="key">
+    Đồng bộ thông tin giấy phép, bao gồm khóa giấy phép, kích hoạt và cập nhật trạng thái giấy phép.
+  </Card>
+</CardGroup>
+
+Bạn có thể đồng bộ bất kỳ sự kết hợp nào của các thực thể này bằng cách chỉ định chúng trong tham số `scopes`. Tất cả các hoạt động đồng bộ là gia tăng và chỉ chuyển giao các bản ghi mới hoặc đã cập nhật để tối ưu hóa hiệu suất.
+
+## Hỗ trợ cơ sở dữ liệu
+
+Chúng tôi hiện hỗ trợ **MongoDB**, **PostgreSQL**, **MySQL**, và **ClickHouse**.
+
+Chúng tôi đang tích cực làm việc để mở rộng hỗ trợ cho:
+- **Cơ sở dữ liệu**: Snowflake và các cơ sở dữ liệu khác.
+- **Pipelines**: Pipelines ETL, đồng bộ thời gian thực.
+
+<Tip>
+Chúng tôi đang liên tục mở rộng hỗ trợ cơ sở dữ liệu. Nếu bạn muốn đóng góp một tích hợp cơ sở dữ liệu mới, vui lòng gửi một Pull Request đến [kho lưu trữ GitHub của chúng tôi](https://github.com/dodopayments/dodo-sync).
+</Tip>
+
+## Bắt đầu
+
+Bạn có thể sử dụng tính năng đồng bộ cơ sở dữ liệu của chúng tôi qua **CLI** hoặc lập trình trong **mã** của bạn. Cả hai phương pháp đều cung cấp cùng một chức năng—chọn phương pháp phù hợp nhất với quy trình làm việc của bạn.
+
+### Sử dụng CLI
+
+Công cụ CLI cung cấp một cách nhanh chóng để thiết lập và chạy đồng bộ cơ sở dữ liệu. Cài đặt nó toàn cầu để sử dụng từ bất kỳ đâu trong terminal của bạn:
+
+<CodeGroup>
+
+```bash npm
+npm install -g dodo-sync
+```
+
+```bash bun
+bun add -g dodo-sync
+```
+
+</CodeGroup>
+
+#### Chạy CLI
+
+CLI hỗ trợ hai chế độ: **Chế độ tương tác** cho thiết lập hướng dẫn, và **Chế độ thủ công** cho cấu hình trực tiếp.
+
+**Chế độ tương tác**: Chỉ cần chạy lệnh mà không có tham số để bắt đầu trình hướng dẫn thiết lập tương tác.
+
+```bash
+dodo-sync
+```
+
+**Chế độ thủ công**: Truyền tham số trực tiếp để bỏ qua trình hướng dẫn.
+
+```bash
+dodo-sync -i [interval] -d [database] -u [database_uri] --scopes [scopes] --api-key [api_key] --env [environment]
+```
+
+**Ví dụ:**
+
+```bash
+# MongoDB
+dodo-sync -i 600 -d mongodb -u mongodb://mymongodb.url --scopes "licences,payments,customers,subscriptions" --api-key YOUR_API_KEY --env test_mode
+
+# PostgreSQL
+dodo-sync -i 600 -d postgres -u postgresql://user:password@localhost:5432/mydb --scopes "licences,payments,customers,subscriptions" --api-key YOUR_API_KEY --env test_mode
+
+# MySQL
+dodo-sync -i 600 -d mysql -u mysql://user:password@localhost:3306/mydb --scopes "licences,payments,customers,subscriptions" --api-key YOUR_API_KEY --env test_mode
+
+# ClickHouse
+dodo-sync -i 600 -d clickhouse -u http://localhost:8123 --scopes "licences,payments,customers,subscriptions" --api-key YOUR_API_KEY --env test_mode
+```
+
+#### Tham số CLI
+
+<ParamField path="--interval" type="number" alias="-i">
+Khoảng thời gian đồng bộ tính bằng giây. Xác định tần suất mà hoạt động đồng bộ diễn ra. Nếu không được cung cấp, đồng bộ sẽ chạy một lần và thoát.
+</ParamField>
+
+<ParamField path="--database" type="string" alias="-d" required>
+Loại cơ sở dữ liệu để sử dụng. Các giá trị được hỗ trợ: `"mongodb"`, `"postgres"`, `"mysql"`, hoặc `"clickhouse"`.
+</ParamField>
+
+<ParamField path="--database-uri" type="string" alias="-u" required>
+URI kết nối cho cơ sở dữ liệu của bạn:
+- **MongoDB**: `mongodb://localhost:27017` hoặc `mongodb+srv://user:pass@cluster.mongodb.net/`
+- **PostgreSQL**: `postgresql://user:password@localhost:5432/mydb`
+- **MySQL**: `mysql://user:password@localhost:3306/mydb`
+- **ClickHouse**: `http://localhost:8123`
+</ParamField>
+
+<ParamField path="--scopes" type="string" required>
+Danh sách các thực thể dữ liệu để đồng bộ, phân tách bằng dấu phẩy. Các phạm vi có sẵn: `licences`, `payments`, `customers`, `subscriptions`. Ví dụ: `"payments,customers"`.
+</ParamField>
+
+<ParamField path="--api-key" type="string" required>
+Khóa API Dodo Payments của bạn. Nên bắt đầu bằng `dp_live_` cho chế độ trực tiếp hoặc `dp_test_` cho chế độ thử nghiệm.
+</ParamField>
+
+<ParamField path="--env" type="string" required>
+Mục tiêu môi trường. Phải là `"live_mode"` hoặc `"test_mode"`. Điều này xác định môi trường Dodo Payments nào để đồng bộ từ.
+</ParamField>
+
+<ParamField path="--rate-limit" type="number" alias="--rl">
+Giới hạn tỷ lệ trong các yêu cầu mỗi giây. Kiểm soát tốc độ mà động cơ đồng bộ thực hiện các yêu cầu API để tránh làm quá tải API Dodo Payments.
+</ParamField>
+
+### Sử dụng trong mã của bạn
+
+Để kiểm soát lập trình, tích hợp tính năng đồng bộ trực tiếp vào ứng dụng của bạn. Cài đặt nó như một phụ thuộc trong dự án của bạn:
+
+<CodeGroup>
+
+```bash npm
+npm install dodo-sync
+```
+
+```bash bun
+bun add dodo-sync
+```
+
+</CodeGroup>
+
+#### Đồng bộ tự động (dựa trên khoảng thời gian)
+
+Sử dụng đồng bộ tự động khi bạn muốn đồng bộ chạy liên tục theo các khoảng thời gian đều đặn:
+
+```typescript
+import { DodoSync } from 'dodo-sync';
+
+const syncDodoPayments = new DodoSync({
+  interval: 60, // Sync every 60 seconds
+  database: 'mongodb',
+  databaseURI: process.env.MONGODB_URI, // e.g., 'mongodb://localhost:27017'
+  scopes: ['licences', 'payments', 'customers', 'subscriptions'],
+  dodoPaymentsOptions: {
+    bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+    environment: 'test_mode' // or 'live_mode'
+  }
+});
+
+// Initialize connection
+await syncDodoPayments.init();
+
+// Start the sync loop
+syncDodoPayments.start();
+```
+
+<Tip>
+Tùy chọn `interval` là bắt buộc khi sử dụng `.start()` để đồng bộ tự động. Đồng bộ sẽ chạy liên tục theo khoảng thời gian đã chỉ định cho đến khi quá trình bị dừng lại.
+</Tip>
+
+#### Đồng bộ thủ công
+
+Sử dụng đồng bộ thủ công khi bạn muốn kích hoạt các hoạt động đồng bộ theo yêu cầu (ví dụ: từ một cron job hoặc điểm cuối API):
+
+```typescript
+import { DodoSync } from 'dodo-sync';
+
+const syncDodoPayments = new DodoSync({
+  database: 'mongodb',
+  databaseURI: process.env.MONGODB_URI,
+  scopes: ['licences', 'payments', 'customers', 'subscriptions'],
+  dodoPaymentsOptions: {
+    bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+    environment: 'test_mode'
+  }
+});
+
+// Initialize connection
+await syncDodoPayments.init();
+
+// Trigger a single sync operation
+await syncDodoPayments.run();
+```
+
+<Tip>
+Khi sử dụng đồng bộ thủ công, tùy chọn `interval` không bắt buộc. Bạn có thể gọi `.run()` bất cứ khi nào bạn cần thực hiện một hoạt động đồng bộ.
+</Tip>
+
+#### Ví dụ về PostgreSQL
+
+Dưới đây là cách sử dụng `dodo-sync` với PostgreSQL:
+
+```typescript
+import { DodoSync } from 'dodo-sync';
+
+const syncDodoPayments = new DodoSync({
+  interval: 60,
+  database: 'postgres',
+  databaseURI: process.env.POSTGRES_URI, // e.g., 'postgresql://user:password@localhost:5432/mydb'
+  scopes: ['licences', 'payments', 'customers', 'subscriptions'],
+  dodoPaymentsOptions: {
+    bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+    environment: 'test_mode'
+  }
+});
+
+await syncDodoPayments.init();
+syncDodoPayments.start();
+```
+
+#### Ví dụ về MySQL
+
+Dưới đây là cách sử dụng `dodo-sync` với MySQL:
+
+```typescript
+import { DodoSync } from 'dodo-sync';
+
+const syncDodoPayments = new DodoSync({
+  interval: 60,
+  database: 'mysql',
+  databaseURI: process.env.MYSQL_URI, // e.g., 'mysql://user:password@localhost:3306/mydb'
+  scopes: ['licences', 'payments', 'customers', 'subscriptions'],
+  dodoPaymentsOptions: {
+    bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+    environment: 'test_mode'
+  }
+});
+
+await syncDodoPayments.init();
+syncDodoPayments.start();
+```
+
+#### Ví dụ về ClickHouse
+
+Dưới đây là cách sử dụng `dodo-sync` với ClickHouse:
+
+```typescript
+import { DodoSync } from 'dodo-sync';
+
+const syncDodoPayments = new DodoSync({
+  interval: 60,
+  database: 'clickhouse',
+  databaseURI: process.env.CLICKHOUSE_URI, // e.g., 'http://localhost:8123'
+  scopes: ['licences', 'payments', 'customers', 'subscriptions'],
+  dodoPaymentsOptions: {
+    bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+    environment: 'test_mode'
+  }
+});
+
+await syncDodoPayments.init();
+syncDodoPayments.start();
+```
+
+#### Tùy chọn Constructor
+
+<ParamField body="database" type="string" required>
+Tên của cơ sở dữ liệu để sử dụng. Các giá trị được hỗ trợ: `"mongodb"`, `"postgres"`, `"mysql"`, hoặc `"clickhouse"`.
+</ParamField>
+
+<ParamField body="databaseURI" type="string" required>
+Chuỗi kết nối cho cơ sở dữ liệu của bạn:
+- **MongoDB**: `mongodb://localhost:27017` hoặc `mongodb+srv://...`
+- **PostgreSQL**: `postgresql://user:password@localhost:5432/mydb`
+- **MySQL**: `mysql://user:password@localhost:3306/mydb`
+- **ClickHouse**: `http://localhost:8123`
+</ParamField>
+
+<ParamField body="scopes" type="string[]" required>
+Mảng các thực thể để đồng bộ. Các tùy chọn có sẵn: `"licences"`, `"payments"`, `"customers"`, `"subscriptions"`. Bạn có thể bao gồm bất kỳ sự kết hợp nào trong số này.
+</ParamField>
+
+<ParamField body="dodoPaymentsOptions" type="object" required>
+Cấu hình API Dodo Payments cho xác thực và lựa chọn môi trường. Xem các [kiểu SDK TypeScript](https://github.com/dodopayments/dodopayments-typescript/blob/main/src/client.ts) để biết các tùy chọn đầy đủ.
+
+**Các thuộc tính bắt buộc:**
+- `bearerToken`: Khóa API Dodo Payments của bạn
+- `environment`: Hoặc `"test_mode"` hoặc `"live_mode"`
+</ParamField>
+
+<ParamField body="interval" type="number">
+Thời gian tính bằng giây giữa các lần đồng bộ tự động. Bắt buộc khi sử dụng `.start()` để đồng bộ tự động. Tùy chọn khi sử dụng `.run()` để đồng bộ thủ công.
+</ParamField>
+
+<ParamField body="rateLimit" type="number">
+Số lượng yêu cầu mỗi giây. Kiểm soát tốc độ mà động cơ đồng bộ thực hiện các yêu cầu API để tránh làm quá tải API Dodo Payments.
+</ParamField>
+
+## Thông tin quan trọng
+
+<Warning>
+**MongoDB**: Một cơ sở dữ liệu có tên `dodopayments_sync` sẽ được tự động tạo trên máy chủ cơ sở dữ liệu của bạn. Tất cả dữ liệu đồng bộ sẽ được lưu trữ ở đó. Tên cơ sở dữ liệu này hiện tại là cố định và không thể thay đổi.
+
+**PostgreSQL**: Các bảng (`Subscriptions`, `Payments`, `Licenses`, `Customers`) sẽ được tạo trong cơ sở dữ liệu được chỉ định trong URI kết nối của bạn. Dữ liệu được lưu trữ dưới dạng JSONB.
+
+**MySQL**: Các bảng (`Subscriptions`, `Payments`, `Licenses`, `Customers`) sẽ được tạo trong cơ sở dữ liệu được chỉ định trong URI kết nối của bạn. Dữ liệu được lưu trữ dưới dạng JSON.
+
+**ClickHouse**: Các bảng (`Subscriptions`, `Payments`, `Licenses`, `Customers`) sẽ được tạo bằng cách sử dụng động cơ ReplacingMergeTree. Khi truy vấn, hãy sử dụng từ khóa `FINAL` để đảm bảo kết quả không trùng lặp.
+</Warning>
+
+<Info>
+Động cơ đồng bộ theo dõi các thay đổi và chỉ đồng bộ hóa các bản ghi mới hoặc đã cập nhật, làm cho các lần đồng bộ tiếp theo hiệu quả ngay cả với các tập dữ liệu lớn.
+</Info>
+
+## Tài nguyên bổ sung
+
+<CardGroup cols={2}>
+  <Card title="Kho lưu trữ GitHub" icon="github" href="https://github.com/dodopayments/dodo-sync">
+    Xem mã nguồn, báo cáo sự cố, hoặc đóng góp cải tiến
+  </Card>
+  <Card title="Gói npm" icon="box-open" href="https://www.npmjs.com/package/dodo-sync">
+    Xem chi tiết gói và hướng dẫn cài đặt
+  </Card>
+</CardGroup>

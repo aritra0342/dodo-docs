@@ -1,0 +1,530 @@
+---
+sidebarTitle: Checkout Harga Dinamis
+title: Checkout Harga Dinamis dengan Bayar Sesuai Keinginan Anda
+description: Buat tautan checkout fleksibel dengan harga variabel menggunakan
+  satu produk. Aktifkan Bayar Sesuai Keinginan Anda untuk membiarkan pelanggan
+  memilih harga mereka atau menetapkan jumlah dinamis secara programatis.
+icon: tags
+---
+
+**Harga dinamis** memungkinkan Anda menawarkan harga variabel untuk produk Anda tanpa membuat beberapa entri produk. Dengan mengaktifkan **Bayar Sesuai Keinginan Anda (PWYW)** pada satu produk, Anda dapat menetapkan batas harga minimum dan maksimum, kemudian mengirimkan jumlah dinamis saat membuat tautan sesi checkout.
+
+Pendekatan ini ideal ketika Anda membutuhkan:
+- **Harga variabel** tanpa mengelola beberapa produk
+- **Harga yang ditentukan pelanggan** di mana pembeli memilih jumlah mereka
+- **Kontrol harga programatis** di mana Anda menetapkan jumlah secara dinamis melalui API
+- **Model harga fleksibel** untuk produk digital, donasi, atau peluncuran eksperimental
+
+<Warning>
+Bayar Sesuai Keinginan Anda hanya tersedia untuk produk **Pembayaran Tunggal** (sekali bayar). Ini tidak dapat digunakan dengan produk langganan.
+</Warning>
+
+## Cara Kerjanya
+
+Dengan Bayar Sesuai Keinginan Anda diaktifkan, Anda dapat:
+
+1. **Tetapkan batas harga**: Tentukan harga minimum (diperlukan) dan opsional harga maksimum
+2. **Kirim jumlah dinamis**: Sertakan field `amount` di keranjang produk saat membuat sesi checkout
+3. **Biarkan pelanggan memilih**: Jika tidak ada jumlah yang diberikan, pelanggan dapat memasukkan harga mereka sendiri (dalam batas Anda)
+
+<Info>
+Ketika Anda mengirimkan `amount` di keranjang produk, jumlah tersebut digunakan untuk checkout. Jika Anda mengabaikan field `amount`, pelanggan dapat memilih harga mereka sendiri selama checkout (tergantung pada pengaturan minimum/maksimum Anda).
+</Info>
+
+## Langkah 1: Buat Produk dengan Bayar Sesuai Keinginan Anda
+
+Pertama, buat produk sekali bayar di dasbor Dodo Payments Anda dan aktifkan harga Bayar Sesuai Keinginan Anda.
+
+<Steps>
+<Step title="Buat produk baru">
+Navigasikan ke **Produk** di dasbor Dodo Payments Anda dan klik **Tambah Produk**.
+</Step>
+
+<Step title="Konfigurasi detail produk">
+Isi informasi produk yang diperlukan:
+- **Nama Produk**: Nama tampilan untuk produk Anda
+- **Deskripsi Produk**: Deskripsi jelas tentang apa yang dibeli pelanggan
+- **Gambar Produk**: Unggah gambar (PNG/JPG/WebP, hingga 3 MB)
+- **Kategori Pajak**: Pilih kategori pajak yang sesuai
+</Step>
+
+<Step title="Tetapkan jenis harga">
+Pilih **Jenis Harga** sebagai **Pembayaran Tunggal** (pembayaran sekali).
+</Step>
+
+<Step title="Aktifkan Bayar Sesuai Keinginan Anda">
+Di bagian **Harga**, aktifkan toggle **Bayar Sesuai Keinginan Anda**.
+</Step>
+
+<Step title="Tetapkan harga minimum">
+Masukkan **Harga Minimum** yang harus dibayar pelanggan. Ini diperlukan dan memastikan Anda mempertahankan batas pendapatan.
+
+**Contoh**: Jika minimum Anda adalah $5.00, masukkan `5.00` (atau `500` sen).
+</Step>
+
+<Step title="Tetapkan harga maksimum (opsional)">
+Opsional, tetapkan **Harga Maksimum** untuk membatasi jumlah yang dapat dibayar pelanggan.
+</Step>
+
+<Step title="Tetapkan harga yang disarankan (opsional)">
+Opsional, masukkan **Harga yang Disarankan** yang akan ditampilkan untuk membimbing pelanggan. Ini membantu mengatur ekspektasi dan dapat meningkatkan nilai pesanan rata-rata.
+</Step>
+
+<Step title="Simpan produk">
+Klik **Tambah Produk** untuk menyimpan. Catat ID produk Anda (misalnya, `pdt_123abc456def`) untuk digunakan dalam sesi checkout.
+</Step>
+</Steps>
+
+<Tip>
+Anda dapat menemukan ID produk Anda di dasbor di bawah **Produk** → **Lihat Detail**, atau dengan menggunakan [API Daftar Produk](/api-reference/products/get-products).
+</Tip>
+
+## Langkah 2: Buat Sesi Checkout dengan Harga Dinamis
+
+Setelah produk Anda dikonfigurasi dengan Bayar Sesuai Keinginan Anda, Anda dapat membuat sesi checkout dengan jumlah dinamis. Field `amount` di keranjang produk memungkinkan Anda menetapkan harga secara programatis untuk setiap sesi checkout.
+
+### Memahami Field Jumlah
+
+Saat membuat sesi checkout, Anda dapat menyertakan field `amount` di setiap item keranjang produk:
+
+- **Jika `amount` disediakan**: Checkout menggunakan jumlah ini secara tepat (harus dalam batas minimum/maksimum Anda)
+- **Jika `amount` diabaikan**: Pelanggan dapat memasukkan harga mereka sendiri selama checkout (dalam batas Anda)
+
+<Warning>
+Field `amount` hanya berlaku untuk produk Bayar Sesuai Keinginan Anda. Untuk produk reguler, field ini diabaikan.
+</Warning>
+
+### Contoh Kode
+
+<CodeGroup>
+
+```typescript TypeScript
+import DodoPayments from 'dodopayments';
+
+// Initialize the Dodo Payments client
+const client = new DodoPayments({
+  bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+});
+
+async function createDynamicPricingCheckout(
+  productId: string,
+  amountInCents: number,
+  returnUrl: string
+) {
+  try {
+    const session = await client.checkoutSessions.create({
+      product_cart: [
+        {
+          product_id: productId,
+          quantity: 1,
+          // Dynamic amount in cents (e.g., 1500 = $15.00)
+          amount: amountInCents
+        }
+      ],
+      return_url: returnUrl,
+      // Optional: Pre-fill customer information
+      customer: {
+        email: 'customer@example.com',
+        name: 'John Doe'
+      },
+      // Optional: Add metadata for tracking
+      metadata: {
+        order_id: 'order_123',
+        pricing_tier: 'custom'
+      }
+    });
+
+    console.log('Checkout URL:', session.checkout_url);
+    console.log('Session ID:', session.session_id);
+    
+    return session;
+  } catch (error) {
+    console.error('Failed to create checkout session:', error);
+    throw error;
+  }
+}
+
+// Example: Create checkout with $25.00 (2500 cents)
+const session = await createDynamicPricingCheckout(
+  'prod_123abc456def',
+  2500, // $25.00 in cents
+  'https://yoursite.com/checkout/success'
+);
+
+// Example: Create checkout with $10.00 (1000 cents)
+const session2 = await createDynamicPricingCheckout(
+  'prod_123abc456def',
+  1000, // $10.00 in cents
+  'https://yoursite.com/checkout/success'
+);
+```
+
+```python Python
+import os
+from dodopayments import DodoPayments
+
+# Initialize the Dodo Payments client
+client = DodoPayments(
+    bearer_token=os.environ.get("DODO_PAYMENTS_API_KEY"),
+)
+
+def create_dynamic_pricing_checkout(
+    product_id: str,
+    amount_in_cents: int,
+    return_url: str
+):
+    """
+    Create a checkout session with dynamic pricing.
+    
+    Args:
+        product_id: The product ID with Pay What You Want enabled
+        amount_in_cents: The amount in cents (e.g., 2500 for $25.00)
+        return_url: URL to redirect after payment completion
+    
+    Returns:
+        Session object with checkout_url and session_id
+    """
+    try:
+        session = client.checkout_sessions.create(
+            product_cart=[
+                {
+                    "product_id": product_id,
+                    "quantity": 1,
+                    # Dynamic amount in cents (e.g., 1500 = $15.00)
+                    "amount": amount_in_cents
+                }
+            ],
+            return_url=return_url,
+            # Optional: Pre-fill customer information
+            customer={
+                "email": "customer@example.com",
+                "name": "John Doe"
+            },
+            # Optional: Add metadata for tracking
+            metadata={
+                "order_id": "order_123",
+                "pricing_tier": "custom"
+            }
+        )
+        
+        print(f"Checkout URL: {session.checkout_url}")
+        print(f"Session ID: {session.session_id}")
+        
+        return session
+    except Exception as error:
+        print(f"Failed to create checkout session: {error}")
+        raise error
+
+# Example: Create checkout with $25.00 (2500 cents)
+session = create_dynamic_pricing_checkout(
+    "prod_123abc456def",
+    2500,  # $25.00 in cents
+    "https://yoursite.com/checkout/success"
+)
+
+# Example: Create checkout with $10.00 (1000 cents)
+session2 = create_dynamic_pricing_checkout(
+    "prod_123abc456def",
+    1000,  # $10.00 in cents
+    "https://yoursite.com/checkout/success"
+)
+```
+
+</CodeGroup>
+
+<Note>
+**Format Jumlah**: Field `amount` harus dalam denominasi terendah dari mata uang. Untuk USD, ini berarti sen (misalnya, $25.00 = `2500`). Untuk mata uang lain, gunakan unit terkecil (misalnya, paise untuk INR).
+</Note>
+
+## Langkah 3: Biarkan Pelanggan Memilih Harga Mereka
+
+Jika Anda ingin pelanggan memilih harga mereka sendiri selama checkout, cukup abaikan field `amount` dari keranjang produk. Halaman checkout akan menampilkan field input di mana pelanggan dapat memasukkan jumlah apa pun dalam batas minimum dan maksimum Anda.
+
+<CodeGroup>
+
+```typescript TypeScript
+async function createCustomerChoiceCheckout(
+  productId: string,
+  returnUrl: string
+) {
+  try {
+    const session = await client.checkoutSessions.create({
+      product_cart: [
+        {
+          product_id: productId,
+          quantity: 1
+          // No amount field - customer will choose their price
+        }
+      ],
+      return_url: returnUrl,
+      customer: {
+        email: 'customer@example.com',
+        name: 'John Doe'
+      }
+    });
+
+    return session;
+  } catch (error) {
+    console.error('Failed to create checkout session:', error);
+    throw error;
+  }
+}
+```
+
+```python Python
+def create_customer_choice_checkout(
+    product_id: str,
+    return_url: str
+):
+    """
+    Create a checkout session where customers choose their own price.
+    """
+    try:
+        session = client.checkout_sessions.create(
+            product_cart=[
+                {
+                    "product_id": product_id,
+                    "quantity": 1
+                    # No amount field - customer will choose their price
+                }
+            ],
+            return_url=return_url,
+            customer={
+                "email": "customer@example.com",
+                "name": "John Doe"
+            }
+        )
+        
+        return session
+    except Exception as error:
+        print(f"Failed to create checkout session: {error}")
+        raise error
+```
+
+</CodeGroup>
+
+## Kasus Penggunaan Umum
+
+### Kasus Penggunaan 1: Harga Bertingkat Berdasarkan Tipe Pengguna
+
+Tawarkan harga yang berbeda untuk segmen pelanggan yang berbeda menggunakan produk yang sama:
+
+```typescript
+// Student discount: $10.00
+const studentSession = await createDynamicPricingCheckout(
+  'prod_123abc456def',
+  1000, // $10.00
+  'https://yoursite.com/success'
+);
+
+// Regular price: $25.00
+const regularSession = await createDynamicPricingCheckout(
+  'prod_123abc456def',
+  2500, // $25.00
+  'https://yoursite.com/success'
+);
+
+// Premium price: $50.00
+const premiumSession = await createDynamicPricingCheckout(
+  'prod_123abc456def',
+  5000, // $50.00
+  'https://yoursite.com/success'
+);
+```
+
+### Kasus Penggunaan 2: Harga Dinamis Berdasarkan Jumlah
+
+Sesuaikan harga berdasarkan jumlah yang dibeli:
+
+```typescript
+async function createQuantityBasedCheckout(
+  productId: string,
+  quantity: number
+) {
+  // Base price: $20.00 per unit
+  // Discount: 10% for 2+ items, 20% for 5+ items
+  const basePrice = 2000; // $20.00 in cents
+  let discount = 0;
+  
+  if (quantity >= 5) {
+    discount = 0.20; // 20% off
+  } else if (quantity >= 2) {
+    discount = 0.10; // 10% off
+  }
+  
+  const totalAmount = Math.round(basePrice * quantity * (1 - discount));
+  
+  const session = await client.checkoutSessions.create({
+    product_cart: [
+      {
+        product_id: productId,
+        quantity: quantity,
+        amount: totalAmount
+      }
+    ],
+    return_url: 'https://yoursite.com/success'
+  });
+  
+  return session;
+}
+```
+
+### Kasus Penggunaan 3: Harga Berdasarkan Waktu atau Promosi
+
+Terapkan harga promosi selama periode tertentu:
+
+```typescript
+async function createPromotionalCheckout(productId: string) {
+  const isPromoActive = checkIfPromotionActive(); // Your logic
+  const regularPrice = 3000; // $30.00
+  const promoPrice = 2000; // $20.00
+  
+  const amount = isPromoActive ? promoPrice : regularPrice;
+  
+  const session = await client.checkoutSessions.create({
+    product_cart: [
+      {
+        product_id: productId,
+        quantity: 1,
+        amount: amount
+      }
+    ],
+    return_url: 'https://yoursite.com/success',
+    metadata: {
+      pricing_type: isPromoActive ? 'promotional' : 'regular'
+    }
+  });
+  
+  return session;
+}
+```
+
+## Praktik Terbaik
+
+<CardGroup cols={2}>
+<Card title="Tetapkan Batas yang Wajar" icon="sliders">
+Pilih harga minimum yang menutupi biaya Anda sambil tetap dapat diakses. Gunakan harga yang disarankan untuk membimbing ekspektasi pelanggan.
+</Card>
+
+<Card title="Validasi Jumlah" icon="shield-check">
+Selalu validasi bahwa jumlah dinamis berada dalam batas minimum dan maksimum produk Anda sebelum membuat sesi checkout.
+</Card>
+
+<Card title="Lacak Keputusan Harga" icon="chart-line">
+Gunakan metadata untuk melacak mengapa jumlah tertentu dipilih (misalnya, `pricing_tier`, `discount_code`, `user_segment`).
+</Card>
+
+<Card title="Tangani Kasus Tepi" icon="exclamation-triangle">
+Pastikan aplikasi Anda menangani kasus di mana jumlah melebihi batas maksimum atau jatuh di bawah minimum dengan baik.
+</Card>
+</CardGroup>
+
+## Validasi dan Penanganan Kesalahan
+
+Selalu validasi jumlah terhadap pengaturan minimum dan maksimum produk Anda:
+
+<CodeGroup>
+
+```typescript TypeScript
+async function createValidatedCheckout(
+  productId: string,
+  amountInCents: number,
+  minAmount: number,
+  maxAmount: number | null
+) {
+  // Validate minimum
+  if (amountInCents < minAmount) {
+    throw new Error(
+      `Amount ${amountInCents} is below minimum ${minAmount}`
+    );
+  }
+  
+  // Validate maximum (if set)
+  if (maxAmount !== null && amountInCents > maxAmount) {
+    throw new Error(
+      `Amount ${amountInCents} exceeds maximum ${maxAmount}`
+    );
+  }
+  
+  // Create checkout session
+  return await client.checkoutSessions.create({
+    product_cart: [
+      {
+        product_id: productId,
+        quantity: 1,
+        amount: amountInCents
+      }
+    ],
+    return_url: 'https://yoursite.com/success'
+  });
+}
+```
+
+```python Python
+def create_validated_checkout(
+    product_id: str,
+    amount_in_cents: int,
+    min_amount: int,
+    max_amount: int | None
+):
+    """
+    Create a checkout session with amount validation.
+    """
+    # Validate minimum
+    if amount_in_cents < min_amount:
+        raise ValueError(
+            f"Amount {amount_in_cents} is below minimum {min_amount}"
+        )
+    
+    # Validate maximum (if set)
+    if max_amount is not None and amount_in_cents > max_amount:
+        raise ValueError(
+            f"Amount {amount_in_cents} exceeds maximum {max_amount}"
+        )
+    
+    # Create checkout session
+    return client.checkout_sessions.create(
+        product_cart=[
+            {
+                "product_id": product_id,
+                "quantity": 1,
+                "amount": amount_in_cents
+            }
+        ],
+        return_url="https://yoursite.com/success"
+    )
+```
+
+</CodeGroup>
+
+## Referensi API
+
+<CardGroup cols={2}>
+
+<Card title="Fitur Bayar Sesuai Keinginan Anda" icon="dollar-sign" href="/features/pay-what-you-want">
+Pelajari lebih lanjut tentang model harga Bayar Sesuai Keinginan Anda dan kemampuannya.
+</Card>
+
+<Card title="Panduan Sesi Checkout" icon="cart-shopping" href="/developer-resources/checkout-session">
+Jelajahi fitur sesi checkout yang lebih canggih dan opsi kustomisasi.
+</Card>
+</CardGroup>
+
+## Pemecahan Masalah
+
+<AccordionGroup>
+<Accordion title="Jumlah diabaikan">
+Jika field `amount` Anda diabaikan, verifikasi bahwa:
+- Produk memiliki **Bayar Sesuai Keinginan Anda** diaktifkan di dasbor
+- Produk adalah produk **Pembayaran Tunggal** (sekali bayar), bukan langganan
+- Jumlah dalam format yang benar (denominasi mata uang terendah, misalnya, sen untuk USD)
+</Accordion>
+
+<Accordion title="Jumlah melebihi maksimum atau di bawah minimum">
+API akan menolak sesi checkout di mana jumlah melanggar batas harga produk Anda. Selalu validasi jumlah sebelum membuat sesi checkout, atau biarkan pelanggan memilih harga mereka dengan mengabaikan field `amount`.
+</Accordion>
+
+<Accordion title="Pelanggan tidak dapat memasukkan harga mereka sendiri">
+Jika pelanggan tidak melihat field input harga, pastikan Anda telah mengabaikan field `amount` dari keranjang produk. Ketika `amount` disediakan, checkout menggunakan jumlah tersebut secara tepat.
+</Accordion>
+</AccordionGroup>

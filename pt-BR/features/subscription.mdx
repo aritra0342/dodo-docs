@@ -1,0 +1,508 @@
+---
+sidebarTitle: Assinaturas
+title: Assinaturas
+description: Ofereça cobrança recorrente para assinaturas, SaaS ou serviços com
+  ciclos flexíveis, testes, prorrata, complementos e cobranças sob demanda.
+icon: repeat
+---
+
+<Info>
+Assinaturas permitem que você venda acesso contínuo com renovações automatizadas. Use ciclos de cobrança flexíveis, testes gratuitos, mudanças de plano e complementos para personalizar os preços para cada cliente.
+</Info>
+
+<CardGroup cols={2}>
+<Card title="Atualizar & Rebaixar" icon="repeat" href="/developer-resources/subscription-upgrade-downgrade">
+Controle mudanças de plano com prorrata e atualizações de quantidade.
+</Card>
+
+<Card title="Assinaturas Sob Demanda" icon="bolt" href="/developer-resources/ondemand-subscriptions">
+Autorize um mandato agora e cobre depois com valores personalizados.
+</Card>
+
+<Card title="Portal do Cliente" icon="id-card" href="/features/customer-portal">
+Permita que os clientes gerenciem planos, cobranças e cancelamentos.
+</Card>
+
+<Card title="Webhooks de Assinatura" icon="code" href="/developer-resources/webhooks/intents/subscription">
+Reaja a eventos de ciclo de vida como criado, renovado e cancelado.
+</Card>
+</CardGroup>
+
+## O Que São Assinaturas?
+
+Assinaturas são produtos recorrentes que os clientes compram em um cronograma. Elas são ideais para:
+
+- **Licenças SaaS**: Apps, APIs ou acesso a plataformas
+- **Associações**: Comunidades, programas ou clubes
+- **Conteúdo digital**: Cursos, mídias ou conteúdo premium
+- **Planos de suporte**: SLAs, pacotes de sucesso ou manutenção
+
+## Principais Benefícios
+
+- **Receita previsível**: Cobrança recorrente com renovações automatizadas
+- **Ciclos flexíveis**: Mensais, anuais, intervalos personalizados e testes
+- **Agilidade no plano**: Prorrata para upgrades e downgrades
+- **Complementos e assentos**: Anexe upgrades opcionais e quantificáveis
+- **Checkout sem costura**: Checkout hospedado e portal do cliente
+- **Focado no desenvolvedor**: APIs claras para criação, mudanças e rastreamento de uso
+
+## Criando Assinaturas
+
+Crie produtos de assinatura no seu painel do Dodo Payments e, em seguida, venda-os através do checkout ou da sua API. Separar produtos de assinaturas ativas permite que você versione preços, anexe complementos e rastreie o desempenho de forma independente.
+
+### Criação de produtos de assinatura
+
+Configure os campos no painel para definir como sua assinatura é vendida, renovada e cobrada. As seções abaixo mapeiam diretamente o que você vê no formulário de criação.
+
+#### Detalhes do produto
+
+- **Nome do Produto** (obrigatório): O nome exibido no checkout, portal do cliente e faturas.
+- **Descrição do Produto** (obrigatório): Uma declaração de valor clara que aparece no checkout e nas faturas.
+- **Imagem do Produto** (obrigatório): PNG/JPG/WebP de até 3 MB. Usada no checkout e nas faturas.
+- **Marca**: Associe o produto a uma marca específica para temas e e-mails.
+- **Categoria Fiscal** (obrigatório): Escolha a categoria (por exemplo, SaaS) para determinar as regras fiscais.
+
+<Tip>
+Escolha a categoria fiscal mais precisa para garantir a correta coleta de impostos por região.
+</Tip>
+
+#### Preços
+
+- **Tipo de Preço**: Escolha <b>Assinatura</b> (este guia). Alternativas são Pagamento Único e Cobrança Baseada em Uso.
+- **Preço** (obrigatório): Preço base recorrente com moeda.
+- **Desconto Aplicável (%)**: Desconto percentual opcional aplicado ao preço base; refletido no checkout e nas faturas.
+- **Repetir pagamento a cada** (obrigatório): Intervalo para renovações, por exemplo, a cada 1 Mês. Selecione a cadência (meses ou anos) e a quantidade.
+- **Período de Assinatura** (obrigatório): Prazo total pelo qual a assinatura permanece ativa (por exemplo, 10 Anos). Após esse período, as renovações param, a menos que sejam estendidas.
+- **Dias do Período de Teste** (obrigatório): Defina a duração do teste em dias. Use 0 para desativar testes. A primeira cobrança ocorre automaticamente quando o teste termina.
+- **Selecionar complemento**: Anexe até 3 complementos que os clientes podem comprar junto com o plano base.
+
+<Warning>
+Alterar o preço de um produto ativo afeta novas compras. Assinaturas existentes seguem suas configurações de mudança de plano e prorrata.
+</Warning>
+
+<Info>
+Complementos são ideais para extras quantificáveis, como assentos ou armazenamento. Você pode controlar as quantidades permitidas e o comportamento de prorrata quando os clientes os alteram.
+</Info>
+
+#### Configurações Avançadas
+
+- **Preços Inclusivos de Impostos**: Exiba preços inclusivos de impostos aplicáveis. O cálculo final do imposto ainda varia de acordo com a localização do cliente.
+- **Gerar chaves de licença**: Emita uma chave única para cada cliente após a compra. Veja o guia de <a href="/features/license-keys">Chaves de Licença</a>.
+- **Entrega de Produto Digital**: Entregue arquivos ou conteúdo automaticamente após a compra. Saiba mais em <a href="/features/digital-product-delivery">Entrega de Produto Digital</a>.
+- **Metadados**: Anexe pares de chave-valor personalizados para marcação interna ou integrações de clientes. Veja <a href="/api-reference/metadata">Metadados</a>.
+
+<Tip>
+Use metadados para armazenar identificadores do seu sistema (por exemplo, accountId) para que você possa reconciliar eventos e faturas mais tarde.
+</Tip>
+
+## Testes de Assinatura
+
+Testes permitem que os clientes acessem assinaturas sem pagamento imediato. A primeira cobrança ocorre automaticamente quando o teste termina.
+
+### Configurando Testes
+
+Defina **Dias do Período de Teste** na seção de preços do produto (use `0` para desativar). Você pode substituir isso ao criar assinaturas:
+
+```typescript
+// Via subscription creation
+const subscription = await client.subscriptions.create({
+  customer_id: 'cus_123',
+  product_id: 'prod_monthly',
+  trial_period_days: 14  // Overrides product's trial period
+});
+
+// Via checkout session
+const session = await client.checkoutSessions.create({
+  product_cart: [{ product_id: 'prod_monthly', quantity: 1 }],
+  subscription_data: { trial_period_days: 14 }
+});
+```
+
+<Warning>
+O valor `trial_period_days` deve estar entre 0 e 10.000 dias.
+</Warning>
+
+### Detectando o Status do Teste
+
+<Warning>
+Atualmente, não há um campo direto para detectar o status do teste. A seguir está uma solução alternativa que requer consultar pagamentos, o que é ineficiente. Estamos trabalhando em uma solução mais eficiente.
+</Warning>
+
+Para determinar se uma assinatura está em período de teste, recupere a lista de pagamentos da assinatura. Se houver exatamente um pagamento com valor 0, a assinatura está no período de teste:
+
+```typescript
+const subscription = await client.subscriptions.retrieve('sub_123');
+const payments = await client.payments.list({
+  subscription_id: subscription.subscription_id
+});
+
+// Check if subscription is in trial
+const isInTrial = payments.items.length === 1 && 
+                  payments.items[0].total_amount === 0;
+```
+
+### Atualizando o Período de Teste
+
+Estenda o teste atualizando `next_billing_date`:
+
+```typescript
+await client.subscriptions.update('sub_123', {
+  next_billing_date: '2025-02-15T00:00:00Z'  // New trial end date
+});
+```
+
+<Warning>
+Você não pode definir `next_billing_date` para um tempo passado. A data deve estar no futuro.
+</Warning>
+
+## Mudanças de Plano de Assinatura
+
+Mudanças de plano permitem que você atualize ou rebaixe assinaturas, ajuste quantidades ou migre para produtos diferentes. Cada mudança aciona uma cobrança imediata com base no modo de prorrata que você selecionar.
+
+### Modos de Prorrata
+
+Escolha como os clientes são cobrados ao mudar de planos:
+
+#### `prorated_immediately`
+Cobra o valor proporcional com base no tempo restante no ciclo de cobrança atual. Melhor para cobrança justa que considera o tempo não utilizado.
+
+```typescript
+await client.subscriptions.changePlan('sub_123', {
+  product_id: 'prod_pro',
+  quantity: 1,
+  proration_billing_mode: 'prorated_immediately'
+});
+```
+
+#### `difference_immediately`
+Cobra a diferença de preço imediatamente (upgrade) ou adiciona crédito para renovações futuras (downgrade). Melhor para cenários simples de upgrade/downgrade.
+
+```typescript
+// Upgrade: charges $50 (difference between $30 and $80)
+// Downgrade: credits remaining value, auto-applied to renewals
+await client.subscriptions.changePlan('sub_123', {
+  product_id: 'prod_pro',
+  quantity: 1,
+  proration_billing_mode: 'difference_immediately'
+});
+```
+
+<Info>
+Créditos de downgrades usando `difference_immediately` são escopados por assinatura e aplicados automaticamente a renovações futuras. Eles são distintos de <a href="/features/customer-credit">Créditos de Clientes</a>.
+</Info>
+
+#### `full_immediately`
+Cobra o valor total do novo plano imediatamente, ignorando o tempo restante. Melhor para redefinir ciclos de cobrança.
+
+```typescript
+await client.subscriptions.changePlan('sub_123', {
+  product_id: 'prod_monthly',
+  quantity: 1,
+  proration_billing_mode: 'full_immediately'
+});
+```
+
+### Mudando Planos com Complementos
+
+Modifique complementos ao mudar de planos. Complementos estão incluídos nos cálculos de prorrata:
+
+```typescript
+await client.subscriptions.changePlan('sub_123', {
+  product_id: 'prod_pro',
+  quantity: 1,
+  proration_billing_mode: 'difference_immediately',
+  addons: [{ addon_id: 'addon_extra_seats', quantity: 2 }]  // Add add-ons
+  // addons: []  // Empty array removes all existing add-ons
+});
+```
+
+<Info>
+Mudanças de plano acionam cobranças imediatas. Cobranças falhadas podem mover a assinatura para o status `on_hold`. Rastreie mudanças através de eventos de webhook `subscription.plan_changed`.
+</Info>
+
+### Visualizando Mudanças de Plano
+
+Antes de se comprometer com uma mudança de plano, visualize a cobrança exata e a assinatura resultante:
+
+```typescript
+const preview = await client.subscriptions.previewChangePlan('sub_123', {
+  product_id: 'prod_pro',
+  quantity: 1,
+  proration_billing_mode: 'prorated_immediately'
+});
+
+// Show customer the charge before confirming
+console.log('You will be charged:', preview.immediate_charge.summary);
+```
+
+<Card title="API de Visualização de Mudança de Plano" icon="eye" href="/api-reference/subscriptions/preview-change-plan">
+  Visualize mudanças de plano antes de se comprometer com elas.
+</Card>
+
+## Estados de Assinatura
+
+Assinaturas podem estar em diferentes estados ao longo de seu ciclo de vida:
+
+- **`active`**: Assinatura está ativa e será renovada automaticamente
+- **`on_hold`**: Assinatura está pausada devido a pagamento falhado. Atualização do método de pagamento necessária para reativar
+- **`cancelled`**: Assinatura está cancelada e não será renovada
+- **`expired`**: Assinatura atingiu sua data de término
+- **`pending`**: Assinatura está sendo criada ou processada
+
+### Estado Em Espera
+
+Uma assinatura entra no estado `on_hold` quando:
+
+- Um pagamento de renovação falha (fundos insuficientes, cartão expirado, etc.)
+- Uma cobrança de mudança de plano falha
+- A autorização do método de pagamento falha
+
+<Warning>
+Quando uma assinatura está no estado `on_hold`, ela não renovará automaticamente. Você deve atualizar o método de pagamento para reativar a assinatura.
+</Warning>
+
+### Reativando de Em Espera
+
+Para reativar uma assinatura do estado `on_hold`, atualize o método de pagamento. Isso automaticamente:
+
+1. Cria uma cobrança para as pendências restantes
+2. Gera uma fatura
+3. Processa o pagamento usando o novo método de pagamento
+4. Reativa a assinatura para o estado `active` após o pagamento bem-sucedido
+
+```typescript
+// Reactivate subscription from on_hold
+const response = await client.subscriptions.updatePaymentMethod('sub_123', {
+  type: 'new',
+  return_url: 'https://example.com/return'
+});
+
+// For on_hold subscriptions, a charge is automatically created
+if (response.payment_id) {
+  console.log('Charge created:', response.payment_id);
+  // Redirect customer to response.payment_link to complete payment
+  // Monitor webhooks for payment.succeeded and subscription.active
+}
+```
+
+<Info>
+Após atualizar com sucesso o método de pagamento para uma assinatura `on_hold`, você receberá eventos de webhook `payment.succeeded` seguidos por `subscription.active`.
+</Info>
+
+## Gerenciamento de API
+
+<AccordionGroup>
+<Accordion title="Criar assinaturas">
+Use `POST /subscriptions` para criar assinaturas programaticamente a partir de produtos, com testes e complementos opcionais.
+
+<Card title="Referência da API" icon="code" href="/api-reference/subscriptions/post-subscriptions">
+Veja a API de criação de assinatura.
+</Card>
+</Accordion>
+
+<Accordion title="Atualizar assinaturas">
+Use `PATCH /subscriptions/{id}` para atualizar quantidades, cancelar no final do período ou modificar metadados.
+
+<Card title="Referência da API" icon="code" href="/api-reference/subscriptions/patch-subscriptions">
+Saiba como atualizar os detalhes da assinatura.
+</Card>
+</Accordion>
+
+<Accordion title="Mudar planos (prorrata)">
+Mude o produto ativo e as quantidades com controles de prorrata.
+
+<Card title="Referência da API" icon="code" href="/api-reference/subscriptions/change-plan">
+Revise as opções de mudança de plano.
+</Card>
+</Accordion>
+
+<Accordion title="Cobranças sob demanda">
+Para assinaturas sob demanda, cobre valores específicos sob demanda.
+
+<Card title="Referência da API" icon="code" href="/api-reference/subscriptions/create-charge">
+Cobre uma assinatura sob demanda.
+</Card>
+</Accordion>
+
+<Accordion title="Listar e recuperar">
+Use `GET /subscriptions` para listar todas as assinaturas e `GET /subscriptions/{id}` para recuperar uma.
+
+<Card title="Referência da API" icon="code" href="/api-reference/subscriptions/get-subscriptions">
+Navegue pelas APIs de listagem e recuperação.
+</Card>
+</Accordion>
+
+<Accordion title="Histórico de uso">
+Recupere o uso registrado para modelos de preços medidos ou híbridos.
+
+<Card title="Referência da API" icon="code" href="/api-reference/subscriptions/get-usage-history">
+Veja a API de histórico de uso.
+</Card>
+</Accordion>
+
+<Accordion title="Atualizar método de pagamento">
+Atualize o método de pagamento para uma assinatura. Para assinaturas ativas, isso atualiza o método de pagamento para renovações futuras. Para assinaturas no estado `on_hold`, isso reativa a assinatura criando uma cobrança para as pendências restantes.
+
+<Card title="Referência da API" icon="code" href="/api-reference/subscriptions/update-payment-method">
+Saiba como atualizar métodos de pagamento e reativar assinaturas.
+</Card>
+</Accordion>
+</AccordionGroup>
+
+## Casos de Uso Comuns
+
+- **SaaS e APIs**: Acesso em camadas com complementos para assentos ou uso
+- **Conteúdo e mídia**: Acesso mensal com testes introdutórios
+- **Planos de suporte B2B**: Contratos anuais com complementos de suporte premium
+- **Ferramentas e plugins**: Chaves de licença e lançamentos versionados
+
+## Exemplos de Integração
+
+### Sessões de Checkout (assinaturas)
+Ao criar sessões de checkout, inclua seu produto de assinatura e complementos opcionais:
+
+```typescript
+const session = await client.checkoutSessions.create({
+  product_cart: [
+    {
+      product_id: 'prod_subscription',
+      quantity: 1
+    }
+  ]
+});
+```
+
+### Mudanças de plano com prorrata
+Atualize ou rebaixe uma assinatura e controle o comportamento de prorrata:
+
+```typescript
+await client.subscriptions.changePlan('sub_123', {
+  product_id: 'prod_new',
+  quantity: 1,
+  proration_billing_mode: 'difference_immediately'
+});
+```
+
+### Cancelar no final do período
+Agende um cancelamento sem a rescisão imediata do acesso:
+
+```typescript
+await client.subscriptions.update('sub_123', {
+  cancel_at_period_end: true
+});
+```
+
+### Assinaturas sob demanda
+Crie uma assinatura sob demanda e cobre depois conforme necessário:
+
+```typescript
+const onDemand = await client.subscriptions.create({
+  customer_id: 'cus_123',
+  product_id: 'prod_on_demand',
+  on_demand: true
+});
+
+await client.subscriptions.createCharge(onDemand.id, {
+  amount: 4900,
+  currency: 'USD',
+  description: 'Extra usage for September'
+});
+```
+
+### Atualizar método de pagamento para assinatura ativa
+Atualize o método de pagamento para uma assinatura ativa:
+
+```typescript
+// Update with new payment method
+const response = await client.subscriptions.updatePaymentMethod('sub_123', {
+  type: 'new',
+  return_url: 'https://example.com/return'
+});
+
+// Or use existing payment method
+await client.subscriptions.updatePaymentMethod('sub_123', {
+  type: 'existing',
+  payment_method_id: 'pm_abc123'
+});
+```
+
+### Reativar assinatura de em espera
+Reative uma assinatura que foi colocada em espera devido a pagamento falhado:
+
+```typescript
+// Update payment method - automatically creates charge for remaining dues
+const response = await client.subscriptions.updatePaymentMethod('sub_123', {
+  type: 'new',
+  return_url: 'https://example.com/return'
+});
+
+if (response.payment_id) {
+  // Charge created for remaining dues
+  // Redirect customer to response.payment_link
+  // Monitor webhooks: payment.succeeded → subscription.active
+}
+```
+
+## Assinaturas com Mandatos em Conformidade com o RBI
+
+  Assinaturas UPI e de cartões indianos operam sob as regulamentações do RBI (Banco da Reserva da Índia) com requisitos específicos de mandato:
+
+  ### Limites de Mandato
+
+  O tipo e o valor do mandato dependem da cobrança recorrente da sua assinatura:
+
+  - **Cobranças abaixo de ₹15.000:** Criamos um mandato sob demanda para ₹15.000 INR. O valor da assinatura é cobrado periodicamente de acordo com a frequência da sua assinatura, até o limite do mandato.
+  - **Cobranças de ₹15.000 ou mais:** Criamos um mandato de assinatura (ou mandato sob demanda) para o valor exato da assinatura.
+
+  ### Considerações para Upgrade e Downgrade
+
+  **Importante:** Ao atualizar ou rebaixar assinaturas, considere cuidadosamente os limites de mandato:
+
+  - Se um upgrade/downgrade resultar em um valor de cobrança que exceda ₹15.000 e vá além do limite de pagamento sob demanda existente, a cobrança da transação pode falhar.
+  - Nesses casos, o cliente pode precisar atualizar seu método de pagamento ou mudar a assinatura novamente para estabelecer um novo mandato com o limite correto.
+
+  ### Autorização para Cobranças de Alto Valor
+
+  Para cobranças de assinatura de ₹15.000 ou mais:
+
+  - O cliente será solicitado pelo seu banco a autorizar a transação.
+  - Se o cliente não conseguir autorizar a transação, a transação falhará e a assinatura será colocada em espera.
+
+  ### Atraso de Processamento de 48 Horas
+
+  **Cronograma de Processamento:** Cobranças recorrentes em cartões indianos e assinaturas UPI seguem um padrão de processamento único:
+
+  - As cobranças são **iniciadas** na data programada de acordo com a frequência da sua assinatura.
+  - A **dedução** real da conta do cliente ocorre apenas após **48 horas** da iniciação do pagamento.
+  - Esta janela de 48 horas pode se estender por até **2-3 horas adicionais** dependendo das respostas da API do banco.
+
+  ### Janela de Cancelamento de Mandato
+
+  Durante a janela de processamento de 48 horas:
+
+  - Os clientes podem cancelar o mandato através de seus aplicativos bancários.
+  - Se um cliente cancelar o mandato durante este período, a assinatura permanecerá **ativa** (este é um caso específico para assinaturas de cartões indianos e UPI AutoPay).
+  - No entanto, a dedução real pode falhar e, nesse caso, colocaremos a assinatura **em espera**.
+
+  **Tratamento de Casos Especiais:** Se você fornecer benefícios, créditos ou uso de assinatura aos clientes imediatamente após a iniciação da cobrança, precisará lidar com essa janela de 48 horas de forma apropriada em sua aplicação. Considere:
+
+  - Atrasar a ativação de benefícios até a confirmação do pagamento
+  - Implementar períodos de carência ou acesso temporário
+  - Monitorar o status da assinatura para cancelamentos de mandato
+  - Lidar com estados de espera de assinatura na lógica da sua aplicação
+
+  <Tip>
+  Monitore os webhooks de assinatura para rastrear mudanças no status de pagamento e lidar com casos especiais onde mandatos são cancelados durante a janela de 48 horas.
+  </Tip>
+
+## Melhores Práticas
+
+- **Comece com níveis claros**: 2–3 planos com diferenças óbvias
+- **Comunique preços**: Mostre totais, prorrata e próxima renovação
+- **Use testes de forma consciente**: Converta com integração, não apenas tempo
+- **Aproveite os complementos**: Mantenha os planos base simples e venda extras
+- **Teste mudanças**: Valide mudanças de plano e prorrata em modo de teste
+
+<Info>
+Assinaturas são uma base flexível para receita recorrente. Comece simples, teste minuciosamente e itere com base em métricas de adoção, churn e expansão.
+</Info>

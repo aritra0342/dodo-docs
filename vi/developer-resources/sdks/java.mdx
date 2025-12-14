@@ -1,0 +1,413 @@
+---
+title: Java
+description: Tích hợp Dodo Payments vào các ứng dụng Java của bạn với một SDK
+  mạnh mẽ, an toàn kiểu.
+icon: java
+---
+
+SDK Java cung cấp quyền truy cập thuận tiện và dễ sử dụng vào Dodo Payments REST API cho các ứng dụng viết bằng Java. Nó sử dụng các tính năng đặc thù của Java như Optional, Stream và CompletableFuture cho phát triển Java hiện đại.
+
+## Cài đặt
+
+### Maven
+
+Thêm phụ thuộc vào `pom.xml`:
+
+```xml pom.xml
+<dependency>
+  <groupId>com.dodopayments.api</groupId>
+  <artifactId>dodo-payments-java</artifactId>
+  <version>1.61.5</version>
+</dependency>
+```
+
+### Gradle
+
+Thêm phụ thuộc vào `build.gradle`:
+
+```kotlin build.gradle.kts
+implementation("com.dodopayments.api:dodo-payments-java:1.61.5")
+```
+
+<Tip>
+Luôn sử dụng phiên bản SDK mới nhất để truy cập các tính năng mới nhất của Dodo Payments. Kiểm tra [Maven Central](https://central.sonatype.com/artifact/com.dodopayments.api/dodo-payments-java) để biết phiên bản mới nhất.
+</Tip>
+
+<Info>
+SDK hỗ trợ Java 8 và tất cả các phiên bản sau, bao gồm Java 11, 17 và 21.
+</Info>
+
+## Bắt đầu nhanh
+
+Khởi tạo client và tạo một phiên giao dịch thanh toán:
+
+```java
+import com.dodopayments.api.client.DodoPaymentsClient;
+import com.dodopayments.api.client.okhttp.DodoPaymentsOkHttpClient;
+import com.dodopayments.api.models.checkoutsessions.CheckoutSessionRequest;
+import com.dodopayments.api.models.checkoutsessions.CheckoutSessionResponse;
+
+// Configure using environment variables (DODO_PAYMENTS_API_KEY, DODO_PAYMENTS_BASE_URL)
+// Or system properties (dodopayments.apiKey, dodopayments.baseUrl)
+DodoPaymentsClient client = DodoPaymentsOkHttpClient.fromEnv();
+
+CheckoutSessionRequest params = CheckoutSessionRequest.builder()
+    .addProductCart(CheckoutSessionRequest.ProductCart.builder()
+        .productId("product_id")
+        .quantity(1)
+        .build())
+    .build();
+    
+CheckoutSessionResponse checkoutSessionResponse = client.checkoutSessions().create(params);
+System.out.println(checkoutSessionResponse.sessionId());
+```
+
+<Warning>
+Luôn lưu trữ các khóa API của bạn một cách an toàn bằng cách sử dụng biến môi trường, thuộc tính hệ thống hoặc một hệ thống quản lý cấu hình an toàn. Không bao giờ mã hóa chúng trong mã nguồn của bạn.
+</Warning>
+
+## Tính năng chính
+
+<CardGroup cols={2}>
+<Card title="An toàn kiểu" icon="shield-check">
+  API kiểu mạnh với độ an toàn tại thời điểm biên dịch
+</Card>
+
+<Card title="An toàn với luồng" icon="bolt">
+  An toàn cho việc sử dụng đồng thời trong các ứng dụng đa luồng
+</Card>
+
+<Card title="Mẫu Builder" icon="layer-group">
+  Mẫu builder trực quan để xây dựng các yêu cầu
+</Card>
+
+<Card title="Hỗ trợ bất đồng bộ" icon="arrows-rotate">
+  Hỗ trợ CompletableFuture cho các thao tác bất đồng bộ
+</Card>
+</CardGroup>
+
+## Cấu hình
+
+### Biến môi trường
+
+Cấu hình bằng cách sử dụng biến môi trường hoặc thuộc tính hệ thống:
+
+```bash .env
+DODO_PAYMENTS_API_KEY=your_api_key_here
+DODO_PAYMENTS_BASE_URL=https://live.dodopayments.com
+```
+
+```java
+// Automatically reads from environment variables
+DodoPaymentsClient client = DodoPaymentsOkHttpClient.fromEnv();
+```
+
+### Cấu hình thủ công
+
+Cấu hình thủ công với tất cả các tùy chọn:
+
+```java
+import java.time.Duration;
+
+DodoPaymentsClient client = DodoPaymentsOkHttpClient.builder()
+    .bearerToken("your_api_key_here")
+    .baseUrl("https://live.dodopayments.com")
+    .maxRetries(4)
+    .timeout(Duration.ofSeconds(30))
+    .responseValidation(true)
+    .build();
+```
+
+### Chế độ thử nghiệm
+
+Cấu hình cho môi trường thử nghiệm/sandbox:
+
+```java
+DodoPaymentsClient testClient = DodoPaymentsOkHttpClient.builder()
+    .fromEnv()
+    .testMode()
+    .build();
+```
+
+## Các thao tác thông thường
+
+### Tạo một phiên giao dịch thanh toán
+
+Tạo một phiên giao dịch thanh toán:
+
+```java
+CheckoutSessionRequest params = CheckoutSessionRequest.builder()
+    .addProductCart(CheckoutSessionRequest.ProductCart.builder()
+        .productId("prod_123")
+        .quantity(1)
+        .build())
+    .returnUrl("https://yourdomain.com/return")
+    .build();
+
+CheckoutSessionResponse session = client.checkoutSessions().create(params);
+System.out.println("Checkout URL: " + session.url());
+```
+
+### Quản lý khách hàng
+
+Tạo và truy xuất thông tin khách hàng:
+
+```java
+import com.dodopayments.api.models.customers.Customer;
+import com.dodopayments.api.models.customers.CustomerCreateParams;
+
+// Create a customer
+CustomerCreateParams createParams = CustomerCreateParams.builder()
+    .email("customer@example.com")
+    .name("John Doe")
+    .putMetadata("user_id", "12345")
+    .build();
+
+Customer customer = client.customers().create(createParams);
+
+// Retrieve customer
+Customer retrieved = client.customers().retrieve("cus_123");
+System.out.println("Customer: " + retrieved.name() + " (" + retrieved.email() + ")");
+```
+
+### Xử lý đăng ký
+
+Tạo và quản lý các đăng ký định kỳ:
+
+```java
+import com.dodopayments.api.models.subscriptions.*;
+
+// Create a subscription
+SubscriptionNewParams subscriptionParams = SubscriptionNewParams.builder()
+    .customerId("cus_123")
+    .productId("prod_456")
+    .priceId("price_789")
+    .build();
+
+Subscription subscription = client.subscriptions().create(subscriptionParams);
+
+// Charge subscription
+SubscriptionChargeParams chargeParams = SubscriptionChargeParams.builder()
+    .amount(1000)
+    .build();
+
+SubscriptionChargeResponse chargeResponse = client.subscriptions()
+    .charge(subscription.id(), chargeParams);
+```
+
+## Thanh toán dựa trên mức sử dụng
+
+### Cấu hình đồng hồ đo
+
+Tạo và quản lý các đồng hồ đo để theo dõi mức sử dụng:
+
+```java
+import com.dodopayments.api.models.meters.*;
+
+// Create API calls meter
+MeterCreateParams apiMeterParams = MeterCreateParams.builder()
+    .name("API Requests")
+    .eventName("api_request")
+    .aggregation("count")
+    .putMetadata("category", "api_usage")
+    .build();
+
+Meter apiMeter = client.meters().create(apiMeterParams);
+System.out.println("Meter created: " + apiMeter.meterId());
+
+// List all meters
+client.meters().list()
+    .autoPager()
+    .forEach(m -> System.out.println("Meter: " + m.name() + " - " + m.aggregation()));
+```
+
+### Nhập sự kiện sử dụng
+
+Theo dõi các sự kiện tùy chỉnh:
+
+```java
+import com.dodopayments.api.models.usageevents.*;
+import java.time.OffsetDateTime;
+
+// Ingest single event
+UsageEventIngestParams singleEventParams = UsageEventIngestParams.builder()
+    .addEvent(UsageEventIngestParams.Event.builder()
+        .eventId("api_call_" + System.currentTimeMillis())
+        .customerId("cus_abc123")
+        .eventName("api_request")
+        .timestamp(OffsetDateTime.now())
+        .putMetadata("endpoint", "/api/v1/users")
+        .putMetadata("method", "GET")
+        .putMetadata("tokens_used", "150")
+        .build())
+    .build();
+
+UsageEventIngestResponse response = client.usageEvents().ingest(singleEventParams);
+System.out.println("Processed: " + response.processedEvents());
+```
+
+### Nhập sự kiện theo lô
+
+Nhập nhiều sự kiện một cách hiệu quả (tối đa 1000 mỗi yêu cầu):
+
+```java
+UsageEventIngestParams.Builder batchBuilder = UsageEventIngestParams.builder();
+
+for (int i = 0; i < 100; i++) {
+    batchBuilder.addEvent(UsageEventIngestParams.Event.builder()
+        .eventId("batch_event_" + i + "_" + System.currentTimeMillis())
+        .customerId("cus_abc123")
+        .eventName("video_transcode")
+        .timestamp(OffsetDateTime.now().minusMinutes(i))
+        .putMetadata("video_id", "video_" + i)
+        .putMetadata("duration_seconds", String.valueOf(120 + i))
+        .build());
+}
+
+UsageEventIngestResponse batchResponse = client.usageEvents().ingest(batchBuilder.build());
+System.out.println("Batch processed: " + batchResponse.processedEvents() + " events");
+```
+
+## Xử lý lỗi
+
+Xử lý lỗi toàn diện cho các tình huống khác nhau:
+
+```java
+import com.dodopayments.api.errors.*;
+
+try {
+    Payment payment = client.payments().retrieve("pay_invalid");
+} catch (NotFoundException e) {
+    System.err.println("Payment not found: " + e.getMessage());
+} catch (UnauthorizedException e) {
+    System.err.println("Authentication failed: " + e.getMessage());
+} catch (PermissionDeniedException e) {
+    System.err.println("Permission denied: " + e.getMessage());
+} catch (BadRequestException e) {
+    System.err.println("Invalid request: " + e.getMessage());
+} catch (UnprocessableEntityException e) {
+    System.err.println("Validation error: " + e.getMessage());
+} catch (RateLimitException e) {
+    System.err.println("Rate limit exceeded: " + e.getMessage());
+    // SDK automatically retries with backoff
+} catch (InternalServerException e) {
+    System.err.println("Server error: " + e.getMessage());
+} catch (DodoPaymentsServiceException e) {
+    System.err.println("API error: " + e.statusCode() + " - " + e.getMessage());
+}
+```
+
+<Tip>
+SDK tự động thử lại các yêu cầu khi gặp lỗi kết nối, 408, 409, 429 và lỗi 5xx với phương pháp tăng dần.
+</Tip>
+
+## Các thao tác bất đồng bộ
+
+Sử dụng CompletableFuture cho các thao tác bất đồng bộ:
+
+```java
+import java.util.concurrent.CompletableFuture;
+
+CompletableFuture<CheckoutSessionResponse> future = client.async()
+    .checkoutSessions()
+    .create(params);
+
+// Handle response asynchronously
+future.thenAccept(response -> {
+    System.out.println("Session created: " + response.sessionId());
+}).exceptionally(ex -> {
+    System.err.println("Error: " + ex.getMessage());
+    return null;
+});
+```
+
+## Tích hợp Spring Boot
+
+### Lớp cấu hình
+
+```java
+import com.dodopayments.api.client.DodoPaymentsClient;
+import com.dodopayments.api.client.okhttp.DodoPaymentsOkHttpClient;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+@Configuration
+public class DodoPaymentsConfig {
+    
+    @Value("${dodo.api.key}")
+    private String apiKey;
+    
+    @Value("${dodo.environment:sandbox}")
+    private String environment;
+    
+    @Bean
+    public DodoPaymentsClient dodoPayments() {
+        return DodoPaymentsOkHttpClient.builder()
+            .bearerToken(apiKey)
+            .baseUrl(environment.equals("live") 
+                ? "https://live.dodopayments.com" 
+                : "https://sandbox.dodopayments.com")
+            .build();
+    }
+}
+```
+
+### Lớp dịch vụ
+
+```java
+import com.dodopayments.api.client.DodoPaymentsClient;
+import com.dodopayments.api.models.checkoutsessions.*;
+import org.springframework.stereotype.Service;
+
+@Service
+public class PaymentService {
+    
+    private final DodoPaymentsClient client;
+    
+    public PaymentService(DodoPaymentsClient client) {
+        this.client = client;
+    }
+    
+    public CheckoutSessionResponse createCheckout(List<CheckoutSessionRequest.ProductCart> items) {
+        CheckoutSessionRequest params = CheckoutSessionRequest.builder()
+            .productCart(items)
+            .returnUrl("https://yourdomain.com/return")
+            .build();
+            
+        return client.checkoutSessions().create(params);
+    }
+}
+```
+
+## Tài nguyên
+
+<CardGroup cols={2}>
+<Card title="Kho lưu trữ GitHub" icon="github" href="https://github.com/dodopayments/dodopayments-java">
+  Xem mã nguồn và đóng góp
+</Card>
+
+<Card title="Tài liệu API" icon="book" href="/api-reference/introduction">
+  Tài liệu API đầy đủ
+</Card>
+
+<Card title="Cộng đồng Discord" icon="discord" href="https://discord.gg/bYqAp4ayYh">
+  Nhận trợ giúp và kết nối với các nhà phát triển
+</Card>
+
+<Card title="Báo cáo sự cố" icon="bug" href="https://github.com/dodopayments/dodopayments-java/issues">
+  Báo cáo lỗi hoặc yêu cầu tính năng
+</Card>
+</CardGroup>
+
+## Hỗ trợ
+
+Cần trợ giúp với SDK Java?
+
+- **Discord**: Tham gia [máy chủ cộng đồng](https://discord.gg/bYqAp4ayYh) của chúng tôi để được hỗ trợ theo thời gian thực
+- **Email**: Liên hệ với chúng tôi qua support@dodopayments.com
+- **GitHub**: Mở một vấn đề trên [kho lưu trữ](https://github.com/dodopayments/dodopayments-java)
+
+## Đóng góp
+
+Chúng tôi hoan nghênh các đóng góp! Kiểm tra [hướng dẫn đóng góp](https://github.com/dodopayments/dodopayments-java/blob/main/CONTRIBUTING.md) để bắt đầu.

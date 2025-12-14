@@ -1,0 +1,509 @@
+---
+title: 覆盖结账
+description: 一个现代的 TypeScript 库，用于嵌入 Dodo Payments 覆盖结账并实时监听结账事件。
+icon: cart-shopping
+---
+
+## 概述
+
+Dodo Payments Checkout SDK 提供了一种无缝的方式将我们的支付覆盖集成到您的 Web 应用程序中。它使用 TypeScript 和现代 Web 标准构建，提供了一个强大的解决方案，用于处理实时事件处理和可自定义主题的支付。
+
+<Frame>
+    <img src="/images/cover-images/overlay-checkout.png" alt="覆盖结账封面图"/>
+</Frame>
+
+## 演示
+
+<Card title="互动演示" icon="play" href="https://atlas.dodopayments.com/pricing">
+查看我们的实时演示中的覆盖结账。
+</Card>
+
+## 快速开始
+
+只需几行代码即可开始使用 Dodo Payments Checkout SDK：
+
+```typescript
+import { DodoPayments } from "dodopayments-checkout";
+
+// Initialize the SDK
+DodoPayments.Initialize({
+  mode: "test", // 'test' or 'live'
+  onEvent: (event) => {
+    console.log("Checkout event:", event);
+  },
+});
+
+// Open checkout
+DodoPayments.Checkout.open({
+  checkoutUrl: "https://checkout.dodopayments.com/session/cks_123"
+});
+```
+
+<Tip>
+从 [创建结账会话 API](/api-reference/checkout-sessions/create) 获取您的结账 URL。
+</Tip>
+
+## 分步集成指南
+
+<Steps>
+<Step title="安装 SDK">
+
+使用您喜欢的包管理器安装 Dodo Payments Checkout SDK：
+
+<CodeGroup>
+
+```bash npm
+npm install dodopayments-checkout
+```
+
+```bash yarn
+yarn add dodopayments-checkout
+```
+
+```bash pnpm
+pnpm add dodopayments-checkout
+```
+
+</CodeGroup>
+
+</Step>
+
+<Step title="初始化 SDK">
+
+在您的应用程序中初始化 SDK，通常在您的主组件或应用程序入口点：
+
+```typescript
+import { DodoPayments } from "dodopayments-checkout";
+
+DodoPayments.Initialize({
+  mode: "test", // Change to 'live' for production
+  onEvent: (event) => {
+    console.log("Checkout event:", event);
+    
+    // Handle different events
+    switch (event.event_type) {
+      case "checkout.opened":
+        // Checkout overlay has been opened
+        break;
+      case "checkout.closed":
+        // Checkout has been closed
+        break;
+      case "checkout.error":
+        // Handle errors
+        console.error("Checkout error:", event.data?.message);
+        break;
+    }
+  },
+});
+```
+
+<Warning>
+在尝试打开结账之前，请始终初始化 SDK。初始化应在您的应用程序加载时进行一次。
+</Warning>
+
+</Step>
+
+<Step title="创建结账按钮组件">
+
+创建一个打开结账覆盖的组件：
+
+```typescript
+// components/CheckoutButton.tsx
+"use client";
+
+import { Button } from "@/components/ui/button";
+import { DodoPayments } from "dodopayments-checkout";
+import { useEffect, useState } from "react";
+
+export function CheckoutButton() {
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    // Initialize the SDK
+    DodoPayments.Initialize({
+      mode: "test",
+      onEvent: (event) => {
+        switch (event.event_type) {
+          case "checkout.opened":
+            setIsLoading(false);
+            break;
+          case "checkout.error":
+            setIsLoading(false);
+            console.error("Checkout error:", event.data?.message);
+            break;
+        }
+      },
+    });
+  }, []);
+
+  const handleCheckout = async () => {
+    try {
+      setIsLoading(true);
+      await DodoPayments.Checkout.open({
+        checkoutUrl: "https://checkout.dodopayments.com/session/cks_123"
+      });
+    } catch (error) {
+      console.error("Failed to open checkout:", error);
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <Button 
+      onClick={handleCheckout}
+      disabled={isLoading}
+    >
+      {isLoading ? "Loading..." : "Checkout Now"}
+    </Button>
+  );
+}
+```
+
+</Step>
+
+<Step title="将结账添加到您的页面">
+
+在您的应用程序中使用结账按钮组件：
+
+```typescript
+// app/page.tsx
+import { CheckoutButton } from "@/components/CheckoutButton";
+
+export default function Home() {
+  return (
+    <main className="flex min-h-screen flex-col items-center justify-center p-24">
+      <h1>Welcome to Our Store</h1>
+      <CheckoutButton />
+    </main>
+  );
+}
+```
+
+</Step>
+
+<Step title="处理成功和失败页面">
+
+创建页面以处理结账重定向：
+
+```typescript
+// app/success/page.tsx
+export default function SuccessPage() {
+  return (
+    <div className="flex min-h-screen flex-col items-center justify-center">
+      <h1>Payment Successful!</h1>
+      <p>Thank you for your purchase.</p>
+    </div>
+  );
+}
+
+// app/failure/page.tsx
+export default function FailurePage() {
+  return (
+    <div className="flex min-h-screen flex-col items-center justify-center">
+      <h1>Payment Failed</h1>
+      <p>Please try again or contact support.</p>
+    </div>
+  );
+}
+```
+
+</Step>
+
+<Step title="测试您的集成">
+
+1. 启动您的开发服务器：
+
+```bash
+npm run dev
+```
+
+2. 测试结账流程：
+   - 点击结账按钮
+   - 验证覆盖是否出现
+   - 使用测试凭据测试支付流程
+   - 确认重定向正常工作
+
+<Check>
+您应该在浏览器控制台中看到结账事件的日志。
+</Check>
+
+</Step>
+
+<Step title="上线">
+
+当您准备好进行生产时：
+
+1. 将模式更改为 `'live'`：
+
+```typescript
+DodoPayments.Initialize({
+  mode: "live",
+  onEvent: (event) => {
+    console.log("Checkout event:", event);
+  }
+});
+```
+
+2. 更新您的结账 URL，以使用来自后端的实时结账会话
+3. 在生产环境中测试完整流程
+4. 监控事件和错误
+
+</Step>
+</Steps>
+
+## API 参考
+
+### 配置
+
+#### 初始化选项
+
+```typescript
+interface InitializeOptions {
+  mode: "test" | "live";
+  onEvent: (event: CheckoutEvent) => void;
+}
+```
+
+| 选项 | 类型 | 必需 | 描述 |
+|--------|------|----------|-------------|
+| `mode` | `"test" \| "live"` | 是 | 环境模式：`'test'` 用于开发，`'live'` 用于生产 |
+| `onEvent` | `function` | 是 | 处理结账事件的回调函数 |
+
+#### 结账选项
+
+```typescript
+interface CheckoutOptions {
+  checkoutUrl: string;
+}
+```
+
+| 选项 | 类型 | 必需 | 描述 |
+|--------|------|----------|-------------|
+| `checkoutUrl` | `string` | 是 | 来自 [创建结账会话 API](/api-reference/checkout-sessions/create) 的结账会话 URL |
+
+### 方法
+
+#### 打开结账
+
+使用指定的结账会话 URL 打开结账覆盖。
+
+```typescript
+DodoPayments.Checkout.open({
+  checkoutUrl: "https://checkout.dodopayments.com/session/cks_123"
+});
+```
+
+#### 关闭结账
+
+以编程方式关闭结账覆盖。
+
+```typescript
+DodoPayments.Checkout.close();
+```
+
+#### 检查状态
+
+返回结账覆盖当前是否打开。
+
+```typescript
+const isOpen = DodoPayments.Checkout.isOpen();
+// Returns: boolean
+```
+
+### 事件
+
+SDK 提供实时事件，您可以通过 `onEvent` 回调进行监听：
+
+```typescript
+DodoPayments.Initialize({
+  onEvent: (event: CheckoutEvent) => {
+    switch (event.event_type) {
+      case "checkout.opened":
+        // Checkout overlay has been opened
+        break;
+      case "checkout.payment_page_opened":
+        // Payment page has been displayed
+        break;
+      case "checkout.customer_details_submitted":
+        // Customer and billing details submitted
+        break;
+      case "checkout.closed":
+        // Checkout has been closed
+        break;
+      case "checkout.redirect":
+        // Checkout will perform a redirect
+        break;
+      case "checkout.error":
+        // An error occurred
+        console.error("Error:", event.data?.message);
+        break;
+    }
+  }
+});
+```
+
+| 事件类型 | 描述 |
+|------------|-------------|
+| `checkout.opened` | 结账覆盖已打开 |
+| `checkout.payment_page_opened` | 支付页面已显示 |
+| `checkout.customer_details_submitted` | 客户和账单详细信息已提交 |
+| `checkout.closed` | 结账覆盖已关闭 |
+| `checkout.redirect` | 结账将执行重定向 |
+| `checkout.error` | 结账过程中发生错误 |
+
+## 实现选项
+
+### 包管理器安装
+
+通过 npm、yarn 或 pnpm 安装，如 [分步集成指南](#step-by-step-integration-guide) 中所示。
+
+### CDN 实现
+
+为了快速集成而无需构建步骤，您可以使用我们的 CDN：
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dodo Payments Checkout</title>
+    
+    <!-- Load DodoPayments -->
+    <script src="https://cdn.jsdelivr.net/npm/dodopayments-checkout@latest/dist/index.js"></script>
+    <script>
+        // Initialize the SDK
+        DodoPaymentsCheckout.DodoPayments.Initialize({
+            mode: "test", // Change to 'live' for production
+            onEvent: (event) => {
+                console.log('Checkout event:', event);
+            }
+        });
+    </script>
+</head>
+<body>
+    <button onclick="openCheckout()">Checkout Now</button>
+
+    <script>
+        function openCheckout() {
+            DodoPaymentsCheckout.DodoPayments.Checkout.open({
+                checkoutUrl: "https://checkout.dodopayments.com/session/cks_123"
+            });
+        }
+    </script>
+</body>
+</html>
+```
+
+## TypeScript 支持
+
+SDK 使用 TypeScript 编写，并包含全面的类型定义。所有公共 API 都经过完全类型化，以提供更好的开发者体验和 IntelliSense 支持。
+
+```typescript
+import { DodoPayments, CheckoutEvent } from "dodopayments-checkout";
+
+DodoPayments.Initialize({
+  mode: "test",
+  onEvent: (event: CheckoutEvent) => {
+    // event is fully typed
+    console.log(event.event_type, event.data);
+  },
+});
+```
+
+## 错误处理
+
+SDK 通过事件系统提供详细的错误信息。始终在您的 `onEvent` 回调中实现适当的错误处理：
+
+```typescript
+DodoPayments.Initialize({
+  onEvent: (event: CheckoutEvent) => {
+    if (event.event_type === "checkout.error") {
+      console.error("Checkout error:", event.data?.message);
+      // Handle error appropriately
+      // You may want to show a user-friendly error message
+      // or retry the checkout process
+    }
+  }
+});
+```
+
+<Warning>
+在发生错误时，请始终处理 `checkout.error` 事件，以提供良好的用户体验。
+</Warning>
+
+## 最佳实践
+
+1. **仅初始化一次**：在您的应用程序加载时初始化 SDK，而不是在每次结账尝试时
+2. **错误处理**：始终在您的事件回调中实现适当的错误处理
+3. **测试模式**：在开发期间使用 `test` 模式，并在准备好进行生产时切换到 `live`
+4. **事件处理**：处理所有相关事件以获得完整的用户体验
+5. **有效的 URL**：始终使用来自创建结账会话 API 的有效结账 URL
+6. **TypeScript**：使用 TypeScript 以获得更好的类型安全性和开发者体验
+7. **加载状态**：在结账打开时显示加载状态以改善用户体验
+
+## 故障排除
+
+<AccordionGroup>
+<Accordion title="结账未打开">
+
+**可能的原因：**
+- 在调用 `open()` 之前未初始化 SDK
+- 无效的结账 URL
+- 控制台中的 JavaScript 错误
+- 网络连接问题
+
+**解决方案：**
+- 验证 SDK 初始化在打开结账之前发生
+- 检查控制台错误
+- 确保结账 URL 有效且来自创建结账会话 API
+- 验证网络连接
+
+</Accordion>
+
+<Accordion title="事件未触发">
+
+**可能的原因：**
+- 事件处理程序未正确设置
+- JavaScript 错误阻止事件传播
+- SDK 未正确初始化
+
+**解决方案：**
+- 确认事件处理程序在 `Initialize()` 中正确配置
+- 检查浏览器控制台中的 JavaScript 错误
+- 验证 SDK 初始化是否成功完成
+- 首先使用简单的事件处理程序进行测试
+
+</Accordion>
+
+<Accordion title="样式问题">
+
+**可能的原因：**
+- CSS 与您的应用样式冲突
+- 主题设置未正确应用
+- 响应式设计问题
+
+**解决方案：**
+- 在浏览器开发者工具中检查 CSS 冲突
+- 验证主题设置是否正确
+- 在不同屏幕尺寸上进行测试
+- 确保覆盖没有 z-index 冲突
+
+</Accordion>
+</AccordionGroup>
+
+## 浏览器支持
+
+Dodo Payments Checkout SDK 支持以下浏览器：
+
+- Chrome（最新）
+- Firefox（最新）
+- Safari（最新）
+- Edge（最新）
+- IE11+
+
+<Note>
+Apple Pay 目前不支持覆盖结账体验。我们计划在未来的版本中添加对 Apple Pay 的支持。
+</Note>
+
+如需更多帮助，请访问我们的 [Discord 社区](https://discord.gg/bYqAp4ayYh) 或联系开发者支持团队。

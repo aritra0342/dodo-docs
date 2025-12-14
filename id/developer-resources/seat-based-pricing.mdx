@@ -1,0 +1,479 @@
+---
+title: Penetapan Harga Berdasarkan Kursi dengan Add-on dan Tautan Pembayaran
+description: Pelajari cara membuat add-on untuk penetapan harga berdasarkan
+  kursi dan menghasilkan tautan pembayaran dengan jumlah add-on kustom
+  menggunakan Dodo Payments
+icon: users
+---
+
+Dalam tutorial ini, Anda akan belajar cara menerapkan penetapan harga berdasarkan kursi menggunakan add-on Dodo Payments. Kami akan membuat produk langganan dengan add-on untuk kursi tambahan dan menunjukkan cara menghasilkan tautan pembayaran dengan jumlah add-on kustom.
+
+<Note>
+Tutorial ini menyediakan kode implementasi contoh untuk aplikasi Node.js/Express. Anda dapat memodifikasi kode ini untuk kerangka kerja spesifik Anda (Next.js, React, Vue, dll.) dan menyesuaikan antarmuka pengguna sesuai dengan kebutuhan aplikasi Anda.
+</Note>
+
+Pada akhir tutorial ini, Anda akan tahu cara:
+- Membuat produk langganan dengan penetapan harga berdasarkan kursi
+- Mengatur add-on untuk kursi tambahan
+- Menghasilkan tautan pembayaran dengan jumlah add-on kustom
+- Menangani sesi checkout dengan jumlah kursi dinamis
+
+## Apa yang Kita Bangun
+
+Mari kita buat model penetapan harga berdasarkan kursi:
+
+- **Rencana Dasar**: $49/bulan untuk hingga 5 anggota tim
+- **Add-on Kursi**: $2/bulan per kursi tambahan
+- **Tautan Pembayaran**: Checkout dinamis dengan jumlah kursi kustom
+
+<Info>
+Sebelum kita mulai, pastikan Anda memiliki:
+- Akun Dodo Payments
+- Pemahaman dasar tentang TypeScript/Node.js
+</Info>
+
+## Langkah 1: Buat Add-On Kursi Anda
+
+Sekarang kita perlu membuat add-on yang mewakili kursi tambahan. Add-on ini akan dilampirkan pada langganan dasar kita dan memungkinkan pelanggan untuk membeli kursi tambahan.
+
+<Frame>
+  <img src="/images/cookbooks/seat-based/seat-based-addons-creation.png" alt="Membuat produk langganan dasar" />
+</Frame>
+
+<Tip>
+**Apa yang kita bangun**: Sebuah add-on yang biayanya $2/bulan per kursi dan dapat ditambahkan ke langganan dasar mana pun.
+</Tip>
+
+<Steps>
+<Step title="Navigasi ke Add-Ons">
+1. Di dasbor Dodo Payments Anda, tetap di bagian **Produk**
+2. Klik pada tab **Add-Ons**
+3. Klik **Buat Add-On**
+
+Ini akan membuka formulir pembuatan add-on.
+</Step>
+
+<Step title="Masukkan detail add-on">
+Isi nilai-nilai ini untuk add-on kursi kita:
+
+**Nama Add-On**: `Additional Team Seat`
+
+**Deskripsi**: `Add extra team members to your workspace with full access to all features`
+
+**Harga**: Masukkan → `2.00`
+
+**Mata Uang**: Harus sesuai dengan mata uang langganan dasar Anda
+
+**Kategori Pajak**: Pilih kategori yang sesuai untuk produk Anda.
+
+</Step>
+
+<Step title="Simpan add-on Anda">
+1. Tinjau semua pengaturan Anda:
+   - Nama: Kursi Tim Tambahan
+   - Harga: $2.00/bulan
+2. Klik **Buat Add-On**
+
+<Check>
+**Add-on dibuat!** Add-on kursi Anda sekarang tersedia untuk dilampirkan pada langganan.
+</Check>
+</Step>
+</Steps>
+
+## Langkah 2: Buat Produk Langganan Dasar Anda
+
+Kita akan mulai dengan membuat produk langganan dasar yang mencakup 5 anggota tim. Ini akan menjadi dasar dari model penetapan harga berdasarkan kursi kita.
+
+<Frame>
+  <img src="/images/cookbooks/seat-based/seat-based-subscription.png" alt="Membuat produk langganan dasar" />
+</Frame>
+
+<Steps>
+<Step title="Navigasi ke Produk">
+1. Masuk ke dasbor Dodo Payments Anda
+2. Klik pada **Produk** di sidebar kiri
+3. Klik tombol **Buat Produk**
+4. Pilih **Langganan** sebagai jenis produk
+
+Anda seharusnya melihat formulir di mana kita akan mengonfigurasi langganan dasar kita.
+</Step>
+
+<Step title="Isi detail langganan">
+Sekarang kita akan memasukkan detail spesifik untuk rencana dasar kita:
+
+**Nama Produk**: `Motion`
+
+**Deskripsi**: `Where your team's documentation lives.`
+
+**Harga Berulang**: Masukkan → `49.00`
+
+**Siklus Penagihan**: Pilih → `Monthly`
+
+**Mata Uang**: Pilih mata uang yang Anda inginkan (misalnya, `USD`)
+
+</Step>
+
+</Steps>
+
+## Langkah 3: Hubungkan Add-On ke Langganan
+
+Sekarang kita perlu mengaitkan add-on kursi kita dengan langganan dasar agar pelanggan dapat membeli kursi tambahan selama checkout.
+
+<Steps>
+
+<Step title="Lampirkan add-on kursi">
+
+<Frame>
+  <img src="/images/cookbooks/seat-based/seat-based-addons.png" alt="Melampirkan add-on ke langganan" />
+</Frame>
+
+1. Gulir ke bawah ke bagian **Add-Ons**
+2. Klik **Tambahkan Add-Ons**
+3. Dari dropdown, pilih add-on kursi Anda
+4. Konfirmasi bahwa itu muncul dalam konfigurasi langganan Anda
+
+</Step>
+
+<Step title="Simpan perubahan langganan">
+1. Tinjau pengaturan lengkap langganan Anda:
+   - Rencana dasar: $49/bulan untuk 5 kursi
+   - Add-on: $2/bulan per kursi tambahan
+   - Uji coba gratis: 14 hari
+2. Klik **Simpan Perubahan**
+
+<Check>
+**Penetapan harga berdasarkan kursi telah dikonfigurasi!** Pelanggan sekarang dapat membeli rencana dasar Anda dan menambahkan kursi tambahan sesuai kebutuhan.
+</Check>
+</Step>
+</Steps>
+
+## Langkah 4: Hasilkan Tautan Pembayaran dengan Jumlah Add-On Kustom
+
+Sekarang mari kita buat aplikasi Express.js yang menghasilkan tautan pembayaran dengan jumlah add-on kustom. Di sinilah kekuatan nyata dari penetapan harga berdasarkan kursi muncul - Anda dapat secara dinamis membuat sesi checkout dengan jumlah kursi tambahan yang diinginkan.
+
+<Steps>
+<Step title="Siapkan proyek Anda">
+Buat proyek Node.js baru dan instal dependensi yang diperlukan:
+
+```bash
+mkdir seat-based-pricing
+cd seat-based-pricing
+npm init -y
+npm install dodopayments express dotenv
+npm install -D @types/node @types/express typescript ts-node
+```
+
+Buat file `tsconfig.json`:
+
+```json
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "commonjs",
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true
+  }
+}
+```
+
+</Step>
+
+<Step title="Buat file lingkungan Anda">
+Buat file `.env` dengan kunci API Dodo Payments Anda:
+
+```bash
+DODO_PAYMENTS_API_KEY=your_actual_dodo_api_key_here
+```
+
+<Warning>
+Jangan pernah mengkomit kunci API Anda ke kontrol versi. Tambahkan `.env` ke file `.gitignore` Anda.
+</Warning>
+</Step>
+
+<Step title="Implementasikan pembuatan sesi checkout">
+Buat file `src/server.ts` dengan kode berikut:
+
+<CodeGroup>
+
+```typescript server.ts expandable
+// Add this new endpoint for dynamic seat quantities
+import 'dotenv/config';
+import DodoPayments from 'dodopayments';
+import express, { Request, Response } from 'express';
+
+const app = express();
+
+// Initialize the Dodo Payments client
+const client = new DodoPayments({
+  bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'test_mode'
+});
+
+async function createCheckoutSession(seatCount: number) {
+  try {
+    const session = await client.checkoutSessions.create({
+      // Products to sell - use IDs from your Dodo Payments dashboard
+      product_cart: [
+        {
+          product_id: 'pdt_7Rl9OWT2Mz4wwUTKz74iZ', // Replace with your actual product ID
+          quantity: 1,
+          addons: [
+            {
+              addon_id: 'adn_eKQbNakKrivDpaxmI8wKI', // Replace with your actual addon ID
+              quantity: seatCount
+            }
+          ]
+        }
+      ],
+      
+      // Pre-fill customer information to reduce friction
+      customer: {
+        email: 'steve@example.com',
+        name: 'Steve Irwin',
+      },
+      // Where to redirect after successful payment
+      return_url: 'https://example.com/checkout/success',
+    });
+
+    // Redirect your customer to this URL to complete payment
+    console.log('Checkout URL:', session.checkout_url);
+    console.log('Session ID:', session.session_id);
+    
+    return session;
+    
+  } catch (error) {
+    console.error('Failed to create checkout session:', error);
+    throw error;
+  }
+}
+
+// Example usage in an Express.js route
+app.post('/create-checkout/:seatCount', async (req: Request, res: Response) => {
+  try {
+    const seatCount = parseInt(req.params.seatCount);
+    const session = await createCheckoutSession(seatCount);
+    res.json({ checkout_url: session.checkout_url });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to create checkout session' });
+  }
+});
+
+// Add this line after your other middleware
+app.use(express.static('public'));
+
+// Add this route to serve the demo page
+app.get('/', (req, res) => {
+  res.sendFile(__dirname + '/../public/index.html');
+});
+
+app.listen(3000, () => {
+  console.log('Server is running on port 3000');
+});
+```
+
+</CodeGroup>
+
+</Step>
+
+<Step title="Tambahkan antarmuka web sederhana">
+Buat file `public/index.html` untuk pengujian yang mudah:
+
+<CodeGroup>
+
+```html index.html expandable
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Seat-Based Pricing Demo</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; }
+        .form-group { margin: 20px 0; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; }
+        button { background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        .result { margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <h1>Seat-Based Pricing Demo</h1>
+    <p>Generate checkout links with custom seat quantities:</p>
+    
+    <div class="form-group">
+        <label for="seatCount">Number of Additional Seats:</label>
+        <input type="number" id="seatCount" value="3" min="0" max="50">
+    </div>
+    
+    <button onclick="createCheckout()">Generate Checkout Link</button>
+    
+    <div id="result" class="result" style="display: none;">
+        <h3>Checkout Link Generated!</h3>
+        <p><strong>Seat Count:</strong> <span id="seatCountDisplay"></span></p>
+        <p><strong>Total Cost:</strong> $<span id="totalCost"></span>/month</p>
+        <p><strong>Checkout URL:</strong></p>
+        <a id="checkoutUrl" href="#" target="_blank">Click here to checkout</a>
+    </div>
+
+    <script>
+        async function createCheckout() {
+            const seatCount = document.getElementById('seatCount').value;
+            
+            try {
+                const response = await fetch(`/create-checkout/${seatCount}`, {
+                    method: 'POST'
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    document.getElementById('seatCountDisplay').textContent = seatCount;
+                    document.getElementById('totalCost').textContent = data.total_cost;
+                    document.getElementById('checkoutUrl').href = data.checkout_url;
+                    document.getElementById('result').style.display = 'block';
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            } catch (error) {
+                alert('Error creating checkout session');
+            }
+        }
+    </script>
+</body>
+</html>
+```
+
+</CodeGroup>
+
+<Check>
+**Antarmuka web dibuat!** Anda sekarang memiliki UI sederhana untuk menguji berbagai jumlah kursi.
+</Check>
+</Step>
+
+<Step title="Layani file statis">
+Tambahkan ini ke `src/server.ts` Anda untuk melayani file HTML:
+
+```typescript
+// Add this line after your other middleware
+app.use(express.static('public'));
+
+// Add this route to serve the demo page
+app.get('/', (req, res) => {
+  res.sendFile(__dirname + '/../public/index.html');
+});
+```
+
+<Check>
+**File statis dikonfigurasi!** Kunjungi `http://localhost:3000` untuk melihat antarmuka demo Anda.
+</Check>
+</Step>
+</Steps>
+
+## Langkah 5: Uji Implementasi Anda
+
+Mari kita uji implementasi penetapan harga berdasarkan kursi kita untuk memastikan semuanya berfungsi dengan benar.
+
+<Steps>
+<Step title="Mulai server Anda">
+1. Pastikan Anda memiliki file `.env` dengan kunci API yang benar
+2. Perbarui ID produk dan add-on dalam kode Anda dengan nilai aktual dari dasbor Dodo Payments Anda
+3. Mulai server Anda:
+
+```bash
+npm run dev
+```
+
+<Check>
+Server Anda harus mulai dengan sukses dan menunjukkan "Server berjalan di http://localhost:3000"
+</Check>
+</Step>
+
+<Step title="Uji antarmuka web">
+
+<Frame>
+  <img src="/images/cookbooks/seat-based/seat-based-billing-ui.png" alt="Membuat produk langganan dasar" />
+</Frame>
+
+1. Buka browser Anda dan pergi ke `http://localhost:3000`
+2. Anda seharusnya melihat antarmuka demo penetapan harga berdasarkan kursi
+3. Coba jumlah kursi yang berbeda (0, 3, 10, dll.)
+4. Klik "Hasilkan Tautan Checkout" untuk setiap jumlah
+5. Verifikasi bahwa URL checkout dihasilkan dengan benar
+
+</Step>
+
+<Step title="Uji sesi checkout">
+1. Hasilkan tautan checkout dengan 3 kursi tambahan
+2. Klik URL checkout untuk membuka checkout Dodo Payments
+3. Verifikasi bahwa checkout menunjukkan:
+   - Rencana dasar: $49/bulan
+   - Kursi tambahan: 3 × 2 dolar = $6/bulan
+4. Selesaikan pembelian uji coba
+
+<Check>
+Checkout harus menampilkan rincian harga yang benar dan memungkinkan Anda menyelesaikan pembelian.
+</Check>
+</Step>
+
+<Step title="Dengarkan webhook dan perbarui DB Anda">
+Untuk menjaga database Anda tetap sinkron dengan perubahan langganan dan kursi, Anda perlu mendengarkan peristiwa webhook dari Dodo Payments. Webhook memberi tahu backend Anda ketika seorang pelanggan menyelesaikan checkout, memperbarui langganan mereka, atau mengubah jumlah kursi.
+
+Ikuti panduan webhook resmi Dodo Payments untuk instruksi langkah demi langkah tentang cara mengatur endpoint webhook dan menangani peristiwa:
+
+<Card title="Dokumentasi Webhook Dodo Payments" icon="bell" href="/developer-resources/webhooks">
+Pelajari cara menerima dan memproses peristiwa webhook dengan aman untuk manajemen langganan dan kursi.
+</Card>
+
+</Step>
+
+</Steps>
+
+## Pemecahan Masalah
+
+Masalah umum dan solusinya:
+
+<AccordionGroup>
+<Accordion title="Pembuatan checkout gagal">
+**Kemungkinan penyebab:**
+- ID produk atau ID add-on tidak valid
+- Kunci API tidak memiliki izin yang cukup
+- Add-on tidak terhubung dengan benar ke langganan
+- Masalah konektivitas jaringan
+
+**Solusi:**
+1. Verifikasi bahwa ID produk dan add-on ada di dasbor Dodo Payments Anda
+2. Periksa bahwa add-on terlampir dengan benar ke langganan
+3. Pastikan kunci API memiliki izin untuk pembuatan sesi checkout
+4. Uji konektivitas API dengan permintaan GET sederhana
+</Accordion>
+
+</AccordionGroup>
+
+## Selamat! Anda Telah Menerapkan Penetapan Harga Berdasarkan Kursi
+
+Anda telah berhasil membuat sistem penetapan harga berdasarkan kursi dengan Dodo Payments! Berikut adalah apa yang telah Anda capai:
+
+<CardGroup cols={2}>
+<Card title="Langganan Dasar">
+Membuat produk langganan dengan 5 kursi yang termasuk seharga $49/bulan
+</Card>
+
+<Card title="Add-on Kursi">
+Mengonfigurasi add-on untuk kursi tambahan seharga $2/bulan per kursi
+</Card>
+
+<Card title="Checkout">
+Membangun API yang menghasilkan sesi checkout dengan jumlah kursi kustom
+</Card>
+
+<Card title="Antarmuka Web">
+Membuat antarmuka web sederhana untuk menguji berbagai jumlah kursi
+</Card>
+</CardGroup>
+
+<Info>
+Contoh ini hanya menunjukkan implementasi minimal dari penetapan harga berdasarkan kursi. Untuk penggunaan produksi, Anda harus menambahkan penanganan kesalahan yang kuat, otentikasi, validasi data, langkah-langkah keamanan, dan menyesuaikan logika agar sesuai dengan kebutuhan aplikasi Anda.
+</Info>

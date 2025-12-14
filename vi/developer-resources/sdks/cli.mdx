@@ -1,0 +1,248 @@
+---
+title: CLI
+description: Giao diện dòng lệnh để tương tác với API Dodo Payments từ terminal của bạn
+icon: terminal
+---
+
+## Cài đặt
+
+### Cài đặt bằng Go
+
+```bash
+go install github.com/dodopayments/dodopayments-cli/cmd/dodopayments@latest
+```
+
+### Từ mã nguồn
+
+```bash
+git clone https://github.com/dodopayments/dodopayments-cli.git
+cd dodopayments-cli
+go install ./cmd/dodopayments
+```
+
+## Bắt đầu nhanh
+
+Đặt khóa API của bạn:
+
+```bash
+export DODO_PAYMENTS_API_KEY=your_api_key_here
+```
+
+Cấu trúc lệnh cơ bản:
+
+```bash
+dodopayments [resource] [command] [flags]
+```
+
+Tạo một phiên thanh toán:
+
+```bash
+dodopayments checkout-sessions create \
+  --product-cart.product_id prod_123 \
+  --product-cart.quantity 1 \
+  --return-url https://yourdomain.com/return
+```
+
+## Cờ toàn cầu
+
+| Cờ | Mô tả |
+|------|-------------|
+| `--format` | Định dạng đầu ra: `auto`, `json`, `yaml`, `pretty`, `explore` |
+| `--transform` | Lọc phản hồi bằng cú pháp gjson |
+| `--debug` | Bật ghi log chi tiết |
+| `--version`, `-v` | Hiển thị phiên bản CLI |
+
+## Lệnh thông dụng
+
+### Thanh toán
+
+```bash
+# List payments
+dodopayments payments list --limit 20 --format json
+
+# Retrieve payment
+dodopayments payments retrieve pay_123
+
+# Get line items
+dodopayments payments line-items pay_123
+```
+
+### Khách hàng
+
+```bash
+# Create customer
+dodopayments customers create \
+  --email customer@example.com \
+  --name "John Doe"
+
+# List customers
+dodopayments customers list
+
+# Update customer
+dodopayments customers update cus_123 --name "Jane Doe"
+```
+
+### Đăng ký
+
+```bash
+# Create subscription
+dodopayments subscriptions create \
+  --customer-id cus_123 \
+  --product-id prod_456
+
+# List subscriptions
+dodopayments subscriptions list
+
+# Get usage history
+dodopayments subscriptions usage-history sub_123
+```
+
+### Sản phẩm
+
+```bash
+# Create product
+dodopayments products create \
+  --name "Premium Plan" \
+  --price.amount 2999 \
+  --price.currency USD
+
+# List products
+dodopayments products list
+```
+
+## Thanh toán dựa trên mức sử dụng
+
+### Nhập sự kiện
+
+```bash
+dodopayments usage-events ingest \
+  --events.event_id api_call_12345 \
+  --events.customer_id cus_abc123 \
+  --events.event_name api_request \
+  --events.timestamp 2024-01-15T10:30:00Z \
+  --events.metadata.endpoint /api/v1/users
+```
+
+### Quản lý đồng hồ đo
+
+```bash
+# Create meter
+dodopayments meters create \
+  --name "API Requests" \
+  --event-name api_request \
+  --aggregation count
+
+# List meters
+dodopayments meters list
+```
+
+## Định dạng đầu ra
+
+### JSON (dành cho scripting)
+
+```bash
+dodopayments payments list --format json | jq '.data[] | {id, amount}'
+```
+
+### Đẹp (dành cho đọc)
+
+```bash
+dodopayments payments retrieve pay_123 --format pretty
+```
+
+### Khám phá tương tác
+
+```bash
+dodopayments payments list --format explore
+```
+
+### Chuyển đổi với gjson
+
+```bash
+# Extract all payment IDs
+dodopayments payments list --transform "data.#.id"
+
+# Filter and extract
+dodopayments payments list --transform "data.#(amount>5000)#.id"
+```
+
+<Tip>
+Sử dụng `--format json` với `jq` để xử lý dữ liệu mạnh mẽ trong các script shell.
+</Tip>
+
+## Ví dụ về scripting
+
+```bash
+#!/bin/bash
+
+# Export all payments to CSV
+dodopayments payments list --format json | \
+  jq -r '.data[] | [.id, .amount, .currency, .status] | @csv' > payments.csv
+
+# Create customers from file
+while IFS=',' read -r email name; do
+  dodopayments customers create \
+    --email "$email" \
+    --name "$name" \
+    --format json
+done < customers.csv
+```
+
+## Hoàn thành Shell
+
+Bật tự động hoàn thành:
+
+```bash
+# Bash
+eval "$(dodopayments completion bash)"
+
+# Zsh
+eval "$(dodopayments completion zsh)"
+
+# Fish
+dodopayments completion fish | source
+```
+
+## Tài nguyên có sẵn
+
+CLI cung cấp các lệnh cho 24 loại tài nguyên:
+
+- `checkout-sessions` - Quản lý phiên thanh toán
+- `payments` - Các hoạt động thanh toán
+- `subscriptions` - Thanh toán định kỳ
+- `customers` - Tài khoản khách hàng
+- `products` - Danh mục sản phẩm
+- `licenses` - Cấp phép phần mềm
+- `refunds` - Hoàn tiền thanh toán
+- `disputes` - Tranh chấp thanh toán
+- `webhooks` - Webhook sự kiện
+- `meters` - Đồng hồ đo mức sử dụng
+- `usage-events` - Theo dõi mức sử dụng
+- `discounts` - Mã giảm giá
+- `payouts` - Thanh toán cho người bán
+- `brands` - Quản lý đa thương hiệu
+- Cùng với 10 tài nguyên bổ sung
+
+<Info>
+Sử dụng `dodopayments --help` để xem tất cả tài nguyên có sẵn và `dodopayments [resource] --help` cho các lệnh cụ thể cho tài nguyên.
+</Info>
+
+## Tài nguyên
+
+<CardGroup cols={2}>
+<Card title="Kho lưu trữ GitHub" icon="github" href="https://github.com/dodopayments/dodopayments-cli">
+  Xem mã nguồn và các bản phát hành
+</Card>
+
+<Card title="Tài liệu API" icon="book" href="/api-reference/introduction">
+  Tài liệu API đầy đủ
+</Card>
+</CardGroup>
+
+## Hỗ trợ
+
+Cần giúp đỡ với CLI?
+
+- **Discord**: Tham gia [máy chủ cộng đồng](https://discord.gg/bYqAp4ayYh)
+- **Email**: Liên hệ với chúng tôi tại support@dodopayments.com
+- **GitHub**: Mở một vấn đề trên [kho lưu trữ](https://github.com/dodopayments/dodopayments-cli)

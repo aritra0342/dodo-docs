@@ -1,0 +1,167 @@
+---
+title: SendGrid
+description: Kirim email transaksional berdasarkan peristiwa Dodo Payments
+  menggunakan API Kirim Email SendGrid.
+icon: inbox
+---
+
+## Pendahuluan
+
+Kirim email transaksional secara otomatis untuk konfirmasi pembayaran, pembaruan langganan, dan pemberitahuan penting menggunakan SendGrid. Trigger email yang dipersonalisasi berdasarkan peristiwa pembayaran dengan konten dinamis dan template profesional.
+
+<Info>
+Integrasi ini memerlukan Kunci API SendGrid dengan izin Kirim Email.
+</Info>
+
+## Memulai
+
+<Steps>
+<Step title="Buka Bagian Webhook">
+  Di dasbor Dodo Payments Anda, navigasikan ke <b>Webhooks → + Tambah Endpoint</b> dan perluas dropdown integrasi.
+  <Frame>
+    <img src="/images/integrations/sendgrid.png" alt="Tambah Endpoint dan dropdown integrasi" />
+  </Frame>
+</Step>
+
+<Step title="Pilih SendGrid">
+  Pilih kartu integrasi <b>SendGrid</b>.
+</Step>
+
+<Step title="Masukkan Kunci API">
+  Berikan Kunci API SendGrid Anda dalam konfigurasi.
+</Step>
+
+<Step title="Konfigurasi Transformasi">
+  Edit kode transformasi untuk memformat email untuk API Kirim Email SendGrid.
+</Step>
+
+<Step title="Uji & Buat">
+  Uji dengan payload contoh dan klik <b>Buat</b> untuk mengaktifkan pengiriman email.
+</Step>
+
+<Step title="Selesai!">
+  🎉 Peristiwa pembayaran sekarang akan secara otomatis memicu email transaksional melalui SendGrid.
+</Step>
+</Steps>
+
+## Contoh Kode Transformasi
+
+### Email Konfirmasi Pembayaran
+
+```javascript payment_confirmation.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.url = "https://api.sendgrid.com/v3/mail/send";
+    webhook.payload = {
+      personalizations: [
+        {
+          to: [{ email: p.customer.email }],
+          dynamic_template_data: {
+            customer_name: p.customer.name,
+            payment_amount: (p.total_amount / 100).toFixed(2),
+            payment_id: p.payment_id,
+            payment_date: new Date(webhook.payload.timestamp).toLocaleDateString(),
+            currency: p.currency || "USD"
+          }
+        }
+      ],
+      from: {
+        email: "payments@yourdomain.com",
+        name: "Your Company"
+      },
+      template_id: "d-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    };
+  }
+  return webhook;
+}
+```
+
+### Email Selamat Datang Langganan
+
+```javascript subscription_welcome.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "subscription.active") {
+    const s = webhook.payload.data;
+    webhook.url = "https://api.sendgrid.com/v3/mail/send";
+    webhook.payload = {
+      personalizations: [
+        {
+          to: [{ email: s.customer.email }],
+          dynamic_template_data: {
+            customer_name: s.customer.name,
+            subscription_id: s.subscription_id,
+            product_name: s.product_id,
+            amount: (s.recurring_pre_tax_amount / 100).toFixed(2),
+            frequency: s.payment_frequency_interval,
+            next_billing: new Date(s.next_billing_date).toLocaleDateString()
+          }
+        }
+      ],
+      from: {
+        email: "welcome@yourdomain.com",
+        name: "Your Company"
+      },
+      template_id: "d-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    };
+  }
+  return webhook;
+}
+```
+
+### Pemberitahuan Kegagalan Pembayaran
+
+```javascript payment_failure.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.failed") {
+    const p = webhook.payload.data;
+    webhook.url = "https://api.sendgrid.com/v3/mail/send";
+    webhook.payload = {
+      personalizations: [
+        {
+          to: [{ email: p.customer.email }],
+          dynamic_template_data: {
+            customer_name: p.customer.name,
+            payment_amount: (p.total_amount / 100).toFixed(2),
+            error_message: p.error_message || "Payment processing failed",
+            payment_id: p.payment_id,
+            retry_link: `https://yourdomain.com/retry-payment/${p.payment_id}`
+          }
+        }
+      ],
+      from: {
+        email: "support@yourdomain.com",
+        name: "Your Company Support"
+      },
+      template_id: "d-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    };
+  }
+  return webhook;
+}
+```
+
+## Tips
+
+- Gunakan template dinamis SendGrid untuk konten yang dipersonalisasi
+- Sertakan data pembayaran yang relevan dalam variabel template
+- Atur alamat pengirim dan nama pengirim yang tepat
+- Gunakan ID template untuk format email yang konsisten
+- Sertakan tautan berhenti berlangganan untuk kepatuhan
+
+## Pemecahan Masalah
+
+<AccordionGroup>
+<Accordion title="Email tidak terkirim">
+- Verifikasi Kunci API memiliki izin Kirim Email
+- Periksa bahwa ID template valid dan aktif
+- Pastikan alamat email penerima valid
+- Tinjau batas dan kuota pengiriman SendGrid
+</Accordion>
+
+<Accordion title="Kesalahan transformasi">
+- Validasi struktur JSON sesuai dengan format API SendGrid
+- Periksa bahwa semua field yang diperlukan ada
+- Pastikan variabel data template diformat dengan benar
+- Verifikasi alamat email pengirim terverifikasi di SendGrid
+</Accordion>
+</AccordionGroup>

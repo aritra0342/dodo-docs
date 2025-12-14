@@ -1,0 +1,54 @@
+---
+openapi-schema: SubscriptionResponse
+title: Assinatura
+description: A carga útil enviada para o seu endpoint de webhook quando uma
+  assinatura é criada, atualizada ou muda de estado.
+icon: repeat
+---
+
+## Eventos de Webhook de Assinatura
+
+Os seguintes eventos de webhook estão disponíveis para rastrear mudanças no ciclo de vida da assinatura:
+
+| Evento | Descrição |
+|-------|-------------|
+| `subscription.active` | Assinatura ativada com sucesso |
+| `subscription.updated` | Objeto de assinatura foi atualizado (qualquer alteração de campo aciona este evento) |
+| `subscription.on_hold` | Assinatura foi suspensa devido a falha na renovação |
+| `subscription.renewed` | Assinatura foi renovada para o próximo período de cobrança |
+| `subscription.plan_changed` | Plano de assinatura foi atualizado, rebaixado ou modificado |
+| `subscription.cancelled` | Assinatura foi cancelada |
+| `subscription.failed` | Falha na criação da assinatura durante a criação do mandato |
+| `subscription.expired` | Assinatura atingiu o fim do seu prazo |
+
+### Usando `subscription.updated` para Sincronização em Tempo Real
+
+O webhook `subscription.updated` é acionado sempre que qualquer campo da assinatura muda, permitindo que você mantenha o estado da sua aplicação sincronizado sem polling:
+
+```javascript
+app.post('/webhooks/dodo', async (req, res) => {
+  const event = req.body;
+  
+  if (event.type === 'subscription.updated') {
+    const subscription = event.data;
+    
+    // Sync subscription changes to your database
+    await syncSubscription(subscription.subscription_id, {
+      status: subscription.status,
+      next_billing_date: subscription.next_billing_date,
+      metadata: subscription.metadata,
+      // ... other fields you want to track
+    });
+    
+    console.log(`Subscription ${subscription.subscription_id} updated`);
+  }
+  
+  res.json({ received: true });
+});
+```
+
+<Tip>
+Inscreva-se no `subscription.updated` para receber notificações em tempo real sobre quaisquer mudanças na assinatura, eliminando a necessidade de fazer polling na API para atualizações.
+</Tip>
+
+## Esquema de Carga Útil do Webhook

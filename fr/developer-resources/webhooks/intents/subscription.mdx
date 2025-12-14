@@ -1,0 +1,54 @@
+---
+openapi-schema: SubscriptionResponse
+title: Abonnement
+description: La charge utile envoyée à votre point de terminaison webhook
+  lorsqu'un abonnement est créé, mis à jour ou change d'état.
+icon: repeat
+---
+
+## Événements Webhook d'Abonnement
+
+Les événements webhook suivants sont disponibles pour suivre les changements du cycle de vie des abonnements :
+
+| Événement | Description |
+|-------|-------------|
+| `subscription.active` | L'abonnement est activé avec succès |
+| `subscription.updated` | L'objet d'abonnement a été mis à jour (tout changement de champ déclenche cet événement) |
+| `subscription.on_hold` | L'abonnement est suspendu en raison d'un échec de renouvellement |
+| `subscription.renewed` | L'abonnement est renouvelé pour la prochaine période de facturation |
+| `subscription.plan_changed` | Le plan d'abonnement a été mis à niveau, rétrogradé ou modifié |
+| `subscription.cancelled` | L'abonnement est annulé |
+| `subscription.failed` | La création de l'abonnement a échoué lors de la création du mandat |
+| `subscription.expired` | L'abonnement a atteint la fin de sa période |
+
+### Utilisation de `subscription.updated` pour la Synchronisation en Temps Réel
+
+Le webhook `subscription.updated` se déclenche chaque fois qu'un champ d'abonnement change, vous permettant de garder l'état de votre application synchronisé sans interroger :
+
+```javascript
+app.post('/webhooks/dodo', async (req, res) => {
+  const event = req.body;
+  
+  if (event.type === 'subscription.updated') {
+    const subscription = event.data;
+    
+    // Sync subscription changes to your database
+    await syncSubscription(subscription.subscription_id, {
+      status: subscription.status,
+      next_billing_date: subscription.next_billing_date,
+      metadata: subscription.metadata,
+      // ... other fields you want to track
+    });
+    
+    console.log(`Subscription ${subscription.subscription_id} updated`);
+  }
+  
+  res.json({ received: true });
+});
+```
+
+<Tip>
+Abonnez-vous à `subscription.updated` pour recevoir des notifications en temps réel sur tout changement d'abonnement, éliminant ainsi le besoin d'interroger l'API pour des mises à jour.
+</Tip>
+
+## Schéma de Charge Utile Webhook

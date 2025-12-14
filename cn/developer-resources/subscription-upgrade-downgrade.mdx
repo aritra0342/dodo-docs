@@ -1,0 +1,816 @@
+---
+title: 订阅升级与降级指南
+description: 了解如何更改客户的订阅计划，处理按比例收费，并可靠地处理 Webhook。
+icon: arrows-rotate
+---
+
+<CardGroup cols={2}>
+<Card title="更改计划 API 参考" icon="code" href="/api-reference/subscriptions/change-plan">
+  访问完整的 API 文档，以交互方式测试更改订阅计划的请求。
+</Card>
+
+<Card title="预览计划变更 API" icon="eye" href="/api-reference/subscriptions/preview-change-plan">
+  在提交计划变更之前，预览确切的收费金额。
+</Card>
+
+<Card title="订阅集成指南" icon="book" href="/developer-resources/subscription-integration-guide">
+  通过我们的综合集成指南，了解如何从头开始创建和管理订阅。
+</Card>
+</CardGroup>
+
+## 什么是订阅升级或降级？
+
+更改计划允许您在订阅层级或数量之间移动客户。使用它来：
+- 根据使用情况或功能调整定价
+- 从按月计费转为按年计费（或反之）
+- 调整基于座位的产品数量
+
+<Info>
+计划变更可能会根据您选择的按比例计费模式触发立即收费。
+</Info>
+
+## 何时使用计划变更
+
+- 当客户需要更多功能、使用量或座位时进行升级
+- 当使用量减少时进行降级
+- 在不取消订阅的情况下将用户迁移到新产品或价格
+
+## 前提条件
+
+在实施订阅计划变更之前，请确保您拥有：
+
+- 一个具有活跃订阅产品的 Dodo Payments 商户账户
+- 从仪表板获取的 API 凭证（API 密钥和 Webhook 密钥）
+- 一个现有的活跃订阅以进行修改
+- 配置好的 Webhook 端点以处理订阅事件
+
+<Info>
+有关详细的设置说明，请参见我们的 [集成指南](/developer-resources/integration-guide#dashboard-setup)。
+</Info>
+
+## 分步实施指南
+
+按照此综合指南在您的应用程序中实施订阅计划变更：
+
+<Steps>
+<Step title="了解计划变更要求">
+在实施之前，确定：
+- 哪些订阅产品可以更改为其他产品
+- 哪种按比例计费模式适合您的商业模式
+- 如何优雅地处理失败的计划变更
+- 需要跟踪哪些 Webhook 事件以进行状态管理
+
+<Tip>
+在生产环境中实施之前，请在测试模式下彻底测试计划变更。
+</Tip>
+</Step>
+
+<Step title="选择您的按比例计费策略">
+选择与您的业务需求相符的计费方法：
+
+<Tabs>
+<Tab title="prorated_immediately">
+最佳适用：希望公平收费未使用时间的 SaaS 应用程序
+- 根据剩余周期时间计算确切的按比例金额
+- 根据周期中剩余的未使用时间收取按比例金额
+- 为客户提供透明的计费
+</Tab>
+
+<Tab title="difference_immediately">
+最佳适用：明确的升级/降级场景
+- 升级：立即收取差额（例如，$30→$80 = 收取 $50）
+- 降级：为未来续订提供剩余价值的信用
+- 简化计费逻辑和客户沟通
+</Tab>
+
+<Tab title="full_immediately">
+最佳适用：当您想重置计费周期时
+- 立即收取新计划的全额
+- 忽略旧计划的剩余时间
+- 适用于年度到月度的过渡
+</Tab>
+</Tabs>
+</Step>
+
+<Step title="实施更改计划 API">
+使用更改计划 API 修改订阅详细信息：
+
+<ParamField path="subscription_id" type="string" required>
+要修改的活跃订阅的 ID。
+</ParamField>
+
+<ParamField path="product_id" type="string" required>
+要更改订阅的新产品 ID。
+</ParamField>
+
+<ParamField path="quantity" type="integer" default="1">
+新计划的单位数量（适用于基于座位的产品）。
+</ParamField>
+
+<ParamField path="proration_billing_mode" type="string" required>
+如何处理立即计费：`prorated_immediately`, `full_immediately`, 或 `difference_immediately`。
+</ParamField>
+
+<ParamField path="addons" type="array">
+新计划的可选附加组件。将此项留空将删除任何现有附加组件。
+</ParamField>
+</Step>
+
+<Step title="处理 Webhook 事件">
+设置 Webhook 处理以跟踪计划变更结果：
+
+- `subscription.active`：计划变更成功，订阅已更新
+- `subscription.plan_changed`：订阅计划已更改（升级/降级/附加组件更新）
+- `subscription.on_hold`：计划变更收费失败，订阅已暂停
+- `payment.succeeded`：计划变更的立即收费成功
+- `payment.failed`：立即收费失败
+
+<Warning>
+始终验证 Webhook 签名并实现幂等事件处理。
+</Warning>
+</Step>
+
+<Step title="更新您的应用程序状态">
+根据 Webhook 事件更新您的应用程序：
+- 根据新计划授予/撤销功能
+- 使用新计划详细信息更新客户仪表板
+- 发送有关计划变更的确认电子邮件
+- 记录计费变更以备审计
+</Step>
+
+<Step title="测试和监控">
+彻底测试您的实现：
+- 测试所有按比例计费模式与不同场景
+- 验证 Webhook 处理是否正常工作
+- 监控计划变更成功率
+- 设置失败计划变更的警报
+
+<Check>
+您的订阅计划变更实现现在可以投入生产使用。
+</Check>
+</Step>
+</Steps>
+
+## 预览计划变更
+
+在提交计划变更之前，使用预览 API 向客户显示他们将被收取的确切金额：
+
+<Tabs>
+<Tab title="Node.js SDK">
+
+```javascript
+const preview = await client.subscriptions.previewChangePlan('sub_123', {
+  product_id: 'prod_pro',
+  quantity: 1,
+  proration_billing_mode: 'prorated_immediately'
+});
+
+// Show customer the charge before confirming
+console.log('Immediate charge:', preview.immediate_charge.summary);
+console.log('New plan details:', preview.new_plan);
+```
+
+</Tab>
+
+<Tab title="Python SDK">
+
+```python
+preview = client.subscriptions.preview_change_plan(
+    subscription_id="sub_123",
+    product_id="prod_pro",
+    quantity=1,
+    proration_billing_mode="prorated_immediately"
+)
+
+# Show customer the charge before confirming
+print("Immediate charge:", preview.immediate_charge.summary)
+print("New plan details:", preview.new_plan)
+```
+
+</Tab>
+</Tabs>
+
+<Tip>
+使用预览 API 构建确认对话框，向客户显示他们在确认计划变更之前将被收取的确切金额。
+</Tip>
+
+## 更改计划 API
+
+使用更改计划 API 修改活跃订阅的产品、数量和按比例计费行为。
+
+### 快速入门示例
+
+<Tabs>
+  <Tab title="Node.js SDK">
+
+    ```javascript
+    import DodoPayments from 'dodopayments';
+
+    const client = new DodoPayments({
+      bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+      environment: 'test_mode', // defaults to 'live_mode'
+    });
+
+    async function changePlan() {
+      const result = await client.subscriptions.changePlan('sub_123', {
+        product_id: 'prod_new',
+        quantity: 3,
+        proration_billing_mode: 'prorated_immediately',
+      });
+      console.log(result.status, result.invoice_id, result.payment_id);
+    }
+
+    changePlan();
+    ```
+
+  </Tab>
+  <Tab title="Python SDK">
+
+    ```python
+    import os
+    from dodopayments import DodoPayments
+
+    client = DodoPayments(
+        bearer_token=os.environ.get("DODO_PAYMENTS_API_KEY"),
+        environment="test_mode",  # defaults to "live_mode"
+    )
+
+    result = client.subscriptions.change_plan(
+        subscription_id="sub_123",
+        product_id="prod_new",
+        quantity=3,
+        proration_billing_mode="prorated_immediately",
+    )
+    print(result.status, result.get("invoice_id"), result.get("payment_id"))
+    ```
+
+  </Tab>
+  <Tab title="Go SDK">
+
+    ```go
+    package main
+
+    import (
+      "context"
+      "fmt"
+      "github.com/dodopayments/dodopayments-go"
+      "github.com/dodopayments/dodopayments-go/option"
+    )
+
+    func main() {
+      client := dodopayments.NewClient(option.WithBearerToken("YOUR_TOKEN"))
+      res, err := client.Subscriptions.ChangePlan(context.TODO(), dodopayments.SubscriptionChangePlanParams{
+        SubscriptionID: dodopayments.F("sub_123"),
+        ProductID:             dodopayments.F("prod_new"),
+        Quantity:              dodopayments.F(int64(3)),
+        ProrationBillingMode:  dodopayments.F(dodopayments.SubscriptionChangePlanParamsProrationBillingModeProratedImmediately),
+      })
+      if err != nil { panic(err) }
+      fmt.Println(res.Status, res.InvoiceID, res.PaymentID)
+    }
+    ```
+
+  </Tab>
+  <Tab title="HTTP">
+
+    ```bash
+    curl -X POST "$DODO_API_BASE/subscriptions/sub_123/change-plan" \
+      -H "Authorization: Bearer $DODO_PAYMENTS_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "product_id": "prod_new",
+        "quantity": 3,
+        "proration_billing_mode": "prorated_immediately"
+      }'
+    ```
+
+  </Tab>
+</Tabs>
+
+```json Success
+{
+  "status": "processing",
+  "subscription_id": "sub_123",
+  "invoice_id": "inv_789",
+  "payment_id": "pay_456",
+  "proration_billing_mode": "prorated_immediately"
+}
+```
+
+<Note>
+像 <code>invoice_id</code> 和 <code>payment_id</code> 这样的字段仅在计划变更期间创建立即收费和/或发票时返回。始终依赖 Webhook 事件（例如，<code>payment.succeeded</code>, <code>subscription.plan_changed</code>）来确认结果。
+</Note>
+
+<Warning>
+如果立即收费失败，订阅可能会转到 `subscription.on_hold`，直到付款成功。
+</Warning>
+
+## 管理附加组件
+
+在更改订阅计划时，您还可以修改附加组件：
+
+```javascript
+// Add addons to the new plan
+await client.subscriptions.changePlan('sub_123', {
+  product_id: 'prod_new',
+  quantity: 1,
+  proration_billing_mode: 'difference_immediately',
+  addons: [
+    { addon_id: 'addon_123', quantity: 2 }
+  ]
+});
+
+// Remove all existing addons
+await client.subscriptions.changePlan('sub_123', {
+  product_id: 'prod_new',
+  quantity: 1,
+  proration_billing_mode: 'difference_immediately',
+  addons: [] // Empty array removes all existing addons
+});
+```
+
+<Info>
+附加组件包含在按比例计算中，并将根据所选的按比例计费模式收费。
+</Info>
+
+## 按比例计费模式
+
+选择在更改计划时如何向客户收费：
+
+#### `prorated_immediately`
+- 收取当前周期的部分差额
+- 如果在试用期内，立即收费并立即切换到新计划
+- 降级：可能会生成适用于未来续订的按比例信用
+
+#### `full_immediately`
+- 立即收取新计划的全额
+- 忽略旧计划的剩余时间
+
+<Info>
+使用 <code>difference_immediately</code> 进行降级所创建的信用是订阅范围内的，并且与 <a href="/features/customer-credit">客户信用</a> 不同。它们会自动应用于同一订阅的未来续订，并且不可在订阅之间转移。
+</Info>
+
+#### `difference_immediately`
+- 升级：立即收取旧计划和新计划之间的价格差
+- 降级：将剩余价值作为内部信用添加到订阅中，并在续订时自动应用
+
+### 示例场景
+
+<AccordionGroup>
+  <Accordion title="升级：基础 ($30) → 专业 ($80) 使用 difference_immediately">
+
+    ```javascript
+    await client.subscriptions.changePlan('sub_123', {
+      product_id: 'prod_pro',
+      quantity: 1,
+      proration_billing_mode: 'difference_immediately'
+    })
+    // Immediate charge: $50
+    ```
+
+  </Accordion>
+  <Accordion title="降级：加 ($50) → 入门 ($20) 使用 difference_immediately">
+
+    ```javascript
+    await client.subscriptions.changePlan('sub_123', {
+      product_id: 'prod_starter',
+      quantity: 1,
+      proration_billing_mode: 'difference_immediately'
+    })
+    // Credit added: $30 (auto-applied to future renewals for this subscription)
+    ```
+
+  </Accordion>
+  <Accordion title="中途升级使用 prorated_immediately">
+
+    ```javascript
+    await client.subscriptions.changePlan('sub_123', {
+      product_id: 'prod_new',
+      quantity: 1,
+      proration_billing_mode: 'prorated_immediately'
+    })
+    // Immediate prorated charge based on remaining days in cycle
+    ```
+
+  </Accordion>
+  <Accordion title="使用 full_immediately 重置计费">
+
+    ```javascript
+    await client.subscriptions.changePlan('sub_123', {
+      product_id: 'prod_new',
+      quantity: 1,
+      proration_billing_mode: 'full_immediately'
+    })
+    // Immediate full charge for new plan; no credits calculated
+    ```
+
+  </Accordion>
+</AccordionGroup>
+
+<Tip>
+选择 `prorated_immediately` 以进行公平的时间核算；选择 `full_immediately` 以重启计费；使用 `difference_immediately` 进行简单的升级和自动降级信用。
+</Tip>
+
+## 处理 Webhook
+
+通过 Webhook 跟踪订阅状态以确认计划变更和付款。
+
+### 需要处理的事件类型
+- `subscription.active`：订阅已激活
+- `subscription.plan_changed`：订阅计划已更改（升级/降级/附加组件变更）
+- `subscription.on_hold`：收费失败，订阅已暂停
+- `subscription.renewed`：续订成功
+- `payment.succeeded`：计划变更或续订的付款成功
+- `payment.failed`：付款失败
+
+<Info>
+我们建议根据订阅事件驱动业务逻辑，并使用付款事件进行确认和对账。
+</Info>
+
+### 验证签名并处理意图
+
+<Tabs>
+  <Tab title="Next.js 路由处理程序">
+
+    ```javascript
+    import { NextRequest, NextResponse } from 'next/server';
+    
+    export async function POST(req) {
+      const webhookId = req.headers.get('webhook-id');
+      const webhookSignature = req.headers.get('webhook-signature');
+      const webhookTimestamp = req.headers.get('webhook-timestamp');
+      const secret = process.env.DODO_WEBHOOK_SECRET;
+    
+      const payload = await req.text();
+      // verifySignature is a placeholder – in production, use a Standard Webhooks library
+      const { valid, event } = await verifySignature(
+        payload,
+        { id: webhookId, signature: webhookSignature, timestamp: webhookTimestamp },
+        secret
+      );
+      if (!valid) return NextResponse.json({ error: 'Invalid signature' }, { status: 400 });
+    
+      switch (event.type) {
+        case 'subscription.active':
+          // mark subscription active in your DB
+          break;
+        case 'subscription.plan_changed':
+          // refresh entitlements and reflect the new plan in your UI
+          break;
+        case 'subscription.on_hold':
+          // notify user to update payment method
+          break;
+        case 'subscription.renewed':
+          // extend access window
+          break;
+        case 'payment.succeeded':
+          // reconcile payment for plan change
+          break;
+        case 'payment.failed':
+          // log and alert
+          break;
+        default:
+          // ignore unknown events
+          break;
+      }
+    
+      return NextResponse.json({ received: true });
+    }
+    ```
+
+  </Tab>
+  <Tab title="Express.js">
+
+    ```javascript
+    import express from 'express';
+    
+    const app = express();
+    app.post('/webhooks/dodo', express.raw({ type: 'application/json' }), async (req, res) => {
+      const webhookId = req.header('webhook-id');
+      const webhookSignature = req.header('webhook-signature');
+      const webhookTimestamp = req.header('webhook-timestamp');
+      const secret = process.env.DODO_WEBHOOK_SECRET;
+      const payload = req.body.toString('utf8');
+    
+      const { valid, event } = await verifySignature(
+        payload,
+        { id: webhookId, signature: webhookSignature, timestamp: webhookTimestamp },
+        secret
+      );
+      if (!valid) return res.status(400).send('Invalid signature');
+    
+      // handle events like above
+      res.json({ received: true });
+    });
+    
+    app.listen(3000);
+    ```
+
+  </Tab>
+</Tabs>
+
+<Note>
+有关详细的有效负载架构，请参见 <a href="/developer-resources/webhooks/intents/subscription">订阅 Webhook 有效负载</a> 和 <a href="/developer-resources/webhooks/intents/payment">付款 Webhook 有效负载</a>。
+</Note>
+
+## 最佳实践
+
+遵循以下建议以确保可靠的订阅计划变更：
+
+### 计划变更策略
+- **彻底测试**：在生产之前始终在测试模式下测试计划变更
+- **仔细选择按比例计费**：选择与您的商业模式相符的按比例计费模式
+- **优雅地处理失败**：实现适当的错误处理和重试逻辑
+- **监控成功率**：跟踪计划变更的成功/失败率并调查问题
+
+### Webhook 实施
+- **验证签名**：始终验证 Webhook 签名以确保真实性
+- **实现幂等性**：优雅地处理重复的 Webhook 事件
+- **异步处理**：不要用繁重的操作阻塞 Webhook 响应
+- **记录所有内容**：保持详细的日志以便调试和审计
+
+### 用户体验
+- **清晰沟通**：告知客户有关计费变更和时间的信息
+- **提供确认**：发送成功计划变更的电子邮件确认
+- **处理边缘情况**：考虑试用期、按比例计费和付款失败
+- **立即更新 UI**：在您的应用程序界面中反映计划变更
+
+## 常见问题及解决方案
+
+解决在订阅计划变更过程中遇到的典型问题：
+
+<AccordionGroup>
+<Accordion title="创建收费但未更新订阅">
+**症状**：API 调用成功，但订阅仍保持在旧计划上
+
+**常见原因**：
+- Webhook 处理失败或延迟
+- 收到 Webhook 后应用程序状态未更新
+- 状态更新期间的数据库事务问题
+
+**解决方案**：
+- 实施强大的 Webhook 处理和重试逻辑
+- 对状态更新使用幂等操作
+- 添加监控以检测和警报未接收的 Webhook 事件
+- 验证 Webhook 端点是否可访问并正确响应
+</Accordion>
+
+<Accordion title="降级后未应用信用">
+**症状**：客户降级但未看到信用余额
+
+**常见原因**：
+- 按比例计费模式预期：使用 `difference_immediately` 的降级会对全额计划价格差额进行信用，而 `prorated_immediately` 会根据周期中剩余时间生成按比例信用
+- 信用是特定于订阅的，不能在订阅之间转移
+- 客户仪表板中未显示信用余额
+
+**解决方案**：
+- 当您希望自动信用时，使用 `difference_immediately` 进行降级
+- 向客户解释信用适用于同一订阅的未来续订
+- 实施客户门户以显示信用余额
+- 检查下一个发票预览以查看应用的信用
+</Accordion>
+
+<Accordion title="Webhook 签名验证失败">
+**症状**：由于无效签名而拒绝 Webhook 事件
+
+**常见原因**：
+- Webhook 密钥不正确
+- 在签名验证之前修改了原始请求体
+- 错误的签名验证算法
+
+**解决方案**：
+- 验证您使用的 `DODO_WEBHOOK_SECRET` 是否正确
+- 在任何 JSON 解析中间件之前读取原始请求体
+- 使用您平台的标准 Webhook 验证库
+- 在开发环境中测试 Webhook 签名验证
+</Accordion>
+
+<Accordion title="计划变更失败，返回 422 错误">
+**症状**：API 返回 422 无法处理的实体错误
+
+**常见原因**：
+- 无效的订阅 ID 或产品 ID
+- 订阅不在活动状态
+- 缺少必需的参数
+- 产品不适用于计划变更
+
+**解决方案**：
+- 验证订阅是否存在且处于活动状态
+- 检查产品 ID 是否有效且可用
+- 确保提供所有必需的参数
+- 查看 API 文档以获取参数要求
+</Accordion>
+
+<Accordion title="计划变更期间立即收费失败">
+**症状**：计划变更已启动，但立即收费失败
+
+**常见原因**：
+- 客户的支付方式资金不足
+- 支付方式过期或无效
+- 银行拒绝交易
+- 欺诈检测阻止了收费
+
+**解决方案**：
+- 适当地处理 `payment.failed` Webhook 事件
+- 通知客户更新支付方式
+- 实施临时失败的重试逻辑
+- 考虑允许在立即收费失败的情况下进行计划变更
+</Accordion>
+
+<Accordion title="计划变更后订阅被暂停">
+**症状**：计划变更收费失败，订阅转到 `on_hold` 状态
+
+**发生了什么**：
+当计划变更收费失败时，订阅会自动置于 `on_hold` 状态。订阅将不会自动续订，直到更新支付方式。
+
+**解决方案**：更新支付方式以重新激活订阅
+
+要从 `on_hold` 状态重新激活订阅，请执行以下操作：
+
+1. **使用更新支付方式 API 更新支付方式**
+2. **自动创建收费**：API 会自动为剩余欠款创建收费
+3. **发票生成**：为收费生成发票
+4. **付款处理**：使用新支付方式处理付款
+5. **重新激活**：在成功付款后，订阅重新激活为 `active` 状态
+
+<CodeGroup>
+
+```javascript Node.js
+// Reactivate subscription from on_hold after failed plan change
+async function reactivateAfterFailedPlanChange(subscriptionId) {
+  // Update payment method - automatically creates charge for remaining dues
+  const response = await client.subscriptions.updatePaymentMethod(subscriptionId, {
+    type: 'new',
+    return_url: 'https://example.com/return'
+  });
+  
+  if (response.payment_id) {
+    console.log('Charge created for remaining dues:', response.payment_id);
+    console.log('Payment link:', response.payment_link);
+    
+    // Redirect customer to payment_link to complete payment
+    // Monitor webhooks for:
+    // 1. payment.succeeded - charge succeeded
+    // 2. subscription.active - subscription reactivated
+  }
+  
+  return response;
+}
+
+// Or use existing payment method if available
+async function reactivateWithExistingPaymentMethod(subscriptionId, paymentMethodId) {
+  const response = await client.subscriptions.updatePaymentMethod(subscriptionId, {
+    type: 'existing',
+    payment_method_id: paymentMethodId
+  });
+  
+  // Monitor webhooks for payment.succeeded and subscription.active
+  return response;
+}
+```
+
+```python Python
+# Reactivate subscription from on_hold after failed plan change
+def reactivate_after_failed_plan_change(subscription_id):
+    # Update payment method - automatically creates charge for remaining dues
+    response = client.subscriptions.update_payment_method(
+        subscription_id=subscription_id,
+        type="new",
+        return_url="https://example.com/return"
+    )
+    
+    if response.payment_id:
+        print("Charge created for remaining dues:", response.payment_id)
+        print("Payment link:", response.payment_link)
+        
+        # Redirect customer to payment_link to complete payment
+        # Monitor webhooks for:
+        # 1. payment.succeeded - charge succeeded
+        # 2. subscription.active - subscription reactivated
+    
+    return response
+
+# Or use existing payment method if available
+def reactivate_with_existing_payment_method(subscription_id, payment_method_id):
+    response = client.subscriptions.update_payment_method(
+        subscription_id=subscription_id,
+        type="existing",
+        payment_method_id=payment_method_id
+    )
+    
+    # Monitor webhooks for payment.succeeded and subscription.active
+    return response
+```
+
+</CodeGroup>
+
+**需要监控的 Webhook 事件**：
+- `subscription.on_hold`：订阅被暂停（在计划变更收费失败时收到）
+- `payment.succeeded`：剩余欠款的付款成功（在更新支付方式后）
+- `subscription.active`：在成功付款后重新激活订阅
+
+**最佳实践**：
+- 在计划变更收费失败时立即通知客户
+- 提供有关如何更新支付方式的清晰说明
+- 监控 Webhook 事件以跟踪重新激活状态
+- 考虑为临时付款失败实施自动重试逻辑
+
+<Card title="更新支付方式 API 参考" icon="code" href="/api-reference/subscriptions/update-payment-method">
+查看更新支付方式和重新激活订阅的完整 API 文档。
+</Card>
+</Accordion>
+</AccordionGroup>
+
+## 测试您的实现
+
+按照以下步骤彻底测试您的订阅计划变更实现：
+
+<Steps>
+<Step title="设置测试环境">
+- 使用测试 API 密钥和测试产品
+- 创建具有不同计划类型的测试订阅
+- 配置测试 Webhook 端点
+- 设置监控和日志记录
+</Step>
+
+<Step title="测试不同的按比例计费模式">
+- 测试 `prorated_immediately` 与各种计费周期位置
+- 测试 `difference_immediately` 的升级和降级
+- 测试 `full_immediately` 以重置计费周期
+- 验证信用计算是否正确
+</Step>
+
+<Step title="测试 Webhook 处理">
+- 验证所有相关的 Webhook 事件是否已接收
+- 测试 Webhook 签名验证
+- 优雅地处理重复的 Webhook 事件
+- 测试 Webhook 处理失败场景
+</Step>
+
+<Step title="测试错误场景">
+- 测试无效的订阅 ID
+- 测试过期的支付方式
+- 测试网络故障和超时
+- 测试资金不足
+</Step>
+
+<Step title="在生产中监控">
+- 设置失败计划变更的警报
+- 监控 Webhook 处理时间
+- 跟踪计划变更成功率
+- 查看客户支持票据以获取计划变更问题
+</Step>
+</Steps>
+
+## 错误处理
+
+优雅地处理实现中的常见 API 错误：
+
+### HTTP 状态代码
+
+<AccordionGroup>
+<Accordion title="200 OK">
+计划变更请求已成功处理。订阅正在更新，付款处理已开始。
+</Accordion>
+
+<Accordion title="400 Bad Request">
+无效的请求参数。检查所有必需字段是否已提供并正确格式化。
+</Accordion>
+
+<Accordion title="401 Unauthorized">
+无效或缺失的 API 密钥。验证您的 `DODO_PAYMENTS_API_KEY` 是否正确并具有适当的权限。
+</Accordion>
+
+<Accordion title="404 Not Found">
+未找到订阅 ID 或该 ID 不属于您的账户。
+</Accordion>
+
+<Accordion title="422 Unprocessable Entity">
+无法更改订阅（例如，已取消、产品不可用等）。
+</Accordion>
+
+<Accordion title="500 Internal Server Error">
+发生服务器错误。稍后重试请求。
+</Accordion>
+</AccordionGroup>
+
+### 错误响应格式
+
+```json
+{
+  "error": {
+    "code": "subscription_not_found",
+    "message": "The subscription with ID 'sub_123' was not found",
+    "details": {
+      "subscription_id": "sub_123"
+    }
+  }
+}
+```
+
+## 下一步
+
+- 查看 <a href="/api-reference/subscriptions/change-plan">更改计划 API</a>
+- 探索 <a href="/features/customer-credit">客户信用</a>
+- 实施 `subscription.on_hold` 的警报
+- 查看我们的 <a href="/developer-resources/webhooks">Webhook 集成指南</a>

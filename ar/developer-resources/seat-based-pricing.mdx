@@ -1,0 +1,478 @@
+---
+title: تسعير قائم على المقاعد مع إضافات وروابط دفع
+description: تعلم كيفية إنشاء إضافات لتسعير قائم على المقاعد وتوليد روابط دفع مع
+  كميات إضافات مخصصة باستخدام Dodo Payments
+icon: users
+---
+
+في هذا الدليل، ستتعلم كيفية تنفيذ تسعير قائم على المقاعد باستخدام إضافات Dodo Payments. سنقوم بإنشاء منتج اشتراك مع إضافات لمقاعد إضافية وسنوضح لك كيفية توليد روابط دفع مع كميات إضافات مخصصة.
+
+<Note>
+يوفر هذا الدليل كود تنفيذ نموذجي لتطبيق Node.js/Express. يمكنك تعديل هذا الكود ليتناسب مع إطار العمل الخاص بك (Next.js، React، Vue، إلخ) وتخصيص واجهة المستخدم وفقًا لاحتياجات تطبيقك.
+</Note>
+
+بنهاية هذا الدليل، ستعرف كيفية:
+- إنشاء منتجات اشتراك مع تسعير قائم على المقاعد
+- إعداد إضافات لمقاعد إضافية
+- توليد روابط دفع مع كميات إضافات مخصصة
+- التعامل مع جلسات الدفع مع عدد مقاعد ديناميكي
+
+## ما الذي نبنيه
+
+لنقم بإنشاء نموذج تسعير قائم على المقاعد:
+
+- **الخطة الأساسية**: 49 دولارًا شهريًا لما يصل إلى 5 أعضاء في الفريق
+- **إضافة مقعد**: 2 دولار شهريًا لكل مقعد إضافي
+- **روابط الدفع**: دفع ديناميكي مع كميات مقاعد مخصصة
+
+<Info>
+قبل أن نبدأ، تأكد من أن لديك:
+- حساب Dodo Payments
+- معرفة أساسية بـ TypeScript/Node.js
+</Info>
+
+## الخطوة 1: إنشاء إضافة المقعد الخاصة بك
+
+الآن نحتاج إلى إنشاء إضافة تمثل المقاعد الإضافية. ستُرفق هذه الإضافة باشتراكنا الأساسي وتسمح للعملاء بشراء مقاعد إضافية.
+
+<Frame>
+  <img src="/images/cookbooks/seat-based/seat-based-addons-creation.png" alt="إنشاء منتج الاشتراك الأساسي" />
+</Frame>
+
+<Tip>
+**ما الذي نبنيه**: إضافة تكلف 2 دولار شهريًا لكل مقعد ويمكن إضافتها إلى أي اشتراك أساسي.
+</Tip>
+
+<Steps>
+<Step title="انتقل إلى الإضافات">
+1. في لوحة تحكم Dodo Payments الخاصة بك، ابق في قسم **المنتجات**
+2. انقر على علامة التبويب **الإضافات**
+3. انقر **إنشاء إضافة**
+
+سيفتح هذا نموذج إنشاء الإضافة.
+</Step>
+
+<Step title="أدخل تفاصيل الإضافة">
+املأ هذه القيم لإضافة المقعد الخاصة بنا:
+
+**اسم الإضافة**: `Additional Team Seat`
+
+**الوصف**: `Add extra team members to your workspace with full access to all features`
+
+**السعر**: أدخل → `2.00`
+
+**العملة**: يجب أن تتطابق مع عملة الاشتراك الأساسي الخاص بك
+
+**فئة الضريبة**: اختر الفئة المناسبة لمنتجك.
+
+</Step>
+
+<Step title="احفظ الإضافة الخاصة بك">
+1. راجع جميع إعداداتك:
+   - الاسم: مقعد فريق إضافي
+   - السعر: 2.00 دولار شهريًا
+2. انقر **إنشاء إضافة**
+
+<Check>
+**تم إنشاء الإضافة!** إضافة المقعد الخاصة بك متاحة الآن للإرفاق بالاشتراكات.
+</Check>
+</Step>
+</Steps>
+
+## الخطوة 2: إنشاء منتج الاشتراك الأساسي الخاص بك
+
+سنبدأ بإنشاء منتج اشتراك أساسي يتضمن 5 أعضاء في الفريق. سيكون هذا هو الأساس لنموذج التسعير القائم على المقاعد لدينا.
+
+<Frame>
+  <img src="/images/cookbooks/seat-based/seat-based-subscription.png" alt="إنشاء منتج الاشتراك الأساسي" />
+</Frame>
+
+<Steps>
+<Step title="انتقل إلى المنتجات">
+1. قم بتسجيل الدخول إلى لوحة تحكم Dodo Payments الخاصة بك
+2. انقر على **المنتجات** في الشريط الجانبي الأيسر
+3. انقر على زر **إنشاء منتج**
+4. اختر **اشتراك** كنوع المنتج
+
+يجب أن ترى نموذجًا حيث سنقوم بتكوين اشتراكنا الأساسي.
+</Step>
+
+<Step title="املأ تفاصيل الاشتراك">
+الآن سندخل التفاصيل المحددة لخطة الأساس لدينا:
+
+**اسم المنتج**: `Motion`
+
+**الوصف**: `Where your team's documentation lives.`
+
+**السعر المتكرر**: أدخل → `49.00`
+
+**دورة الفوترة**: اختر → `Monthly`
+
+**العملة**: اختر عملتك المفضلة (مثل `USD`)
+
+</Step>
+
+</Steps>
+
+## الخطوة 3: ربط الإضافة بالاشتراك
+
+الآن نحتاج إلى ربط إضافة المقعد الخاصة بنا بالاشتراك الأساسي حتى يتمكن العملاء من شراء مقاعد إضافية أثناء الدفع.
+
+<Steps>
+
+<Step title="إرفاق إضافة المقعد">
+
+<Frame>
+  <img src="/images/cookbooks/seat-based/seat-based-addons.png" alt="إرفاق الإضافة بالاشتراك" />
+</Frame>
+
+1. قم بالتمرير لأسفل إلى قسم **الإضافات**
+2. انقر **إضافة إضافات**
+3. من القائمة المنسدلة، اختر إضافة المقعد الخاصة بك
+4. تأكد من أنها تظهر في تكوين اشتراكك
+
+</Step>
+
+<Step title="احفظ تغييرات الاشتراك">
+1. راجع إعداد اشتراكك الكامل:
+   - الخطة الأساسية: 49 دولارًا شهريًا لـ 5 مقاعد
+   - الإضافة: 2 دولار شهريًا لكل مقعد إضافي
+   - فترة تجريبية مجانية: 14 يومًا
+2. انقر **احفظ التغييرات**
+
+<Check>
+**تم تكوين التسعير القائم على المقاعد!** يمكن للعملاء الآن شراء خطتك الأساسية وإضافة مقاعد إضافية حسب الحاجة.
+</Check>
+</Step>
+</Steps>
+
+## الخطوة 4: توليد روابط الدفع مع كميات إضافات مخصصة
+
+الآن دعنا ننشئ تطبيق Express.js يقوم بتوليد روابط دفع مع كميات إضافات مخصصة. هنا تأتي القوة الحقيقية للتسعير القائم على المقاعد - يمكنك إنشاء جلسات دفع ديناميكية مع أي عدد من المقاعد الإضافية.
+
+<Steps>
+<Step title="إعداد مشروعك">
+قم بإنشاء مشروع Node.js جديد وتثبيت التبعيات المطلوبة:
+
+```bash
+mkdir seat-based-pricing
+cd seat-based-pricing
+npm init -y
+npm install dodopayments express dotenv
+npm install -D @types/node @types/express typescript ts-node
+```
+
+قم بإنشاء ملف `tsconfig.json`:
+
+```json
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "commonjs",
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true
+  }
+}
+```
+
+</Step>
+
+<Step title="إنشاء ملف البيئة الخاص بك">
+قم بإنشاء ملف `.env` مع مفتاح API الخاص بك من Dodo Payments:
+
+```bash
+DODO_PAYMENTS_API_KEY=your_actual_dodo_api_key_here
+```
+
+<Warning>
+لا تقم أبداً بإدخال مفتاح API الخاص بك في التحكم في الإصدارات. أضف `.env` إلى ملف `.gitignore` الخاص بك.
+</Warning>
+</Step>
+
+<Step title="تنفيذ إنشاء جلسة الدفع">
+قم بإنشاء ملف `src/server.ts` مع الكود التالي:
+
+<CodeGroup>
+
+```typescript server.ts expandable
+// Add this new endpoint for dynamic seat quantities
+import 'dotenv/config';
+import DodoPayments from 'dodopayments';
+import express, { Request, Response } from 'express';
+
+const app = express();
+
+// Initialize the Dodo Payments client
+const client = new DodoPayments({
+  bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'test_mode'
+});
+
+async function createCheckoutSession(seatCount: number) {
+  try {
+    const session = await client.checkoutSessions.create({
+      // Products to sell - use IDs from your Dodo Payments dashboard
+      product_cart: [
+        {
+          product_id: 'pdt_7Rl9OWT2Mz4wwUTKz74iZ', // Replace with your actual product ID
+          quantity: 1,
+          addons: [
+            {
+              addon_id: 'adn_eKQbNakKrivDpaxmI8wKI', // Replace with your actual addon ID
+              quantity: seatCount
+            }
+          ]
+        }
+      ],
+      
+      // Pre-fill customer information to reduce friction
+      customer: {
+        email: 'steve@example.com',
+        name: 'Steve Irwin',
+      },
+      // Where to redirect after successful payment
+      return_url: 'https://example.com/checkout/success',
+    });
+
+    // Redirect your customer to this URL to complete payment
+    console.log('Checkout URL:', session.checkout_url);
+    console.log('Session ID:', session.session_id);
+    
+    return session;
+    
+  } catch (error) {
+    console.error('Failed to create checkout session:', error);
+    throw error;
+  }
+}
+
+// Example usage in an Express.js route
+app.post('/create-checkout/:seatCount', async (req: Request, res: Response) => {
+  try {
+    const seatCount = parseInt(req.params.seatCount);
+    const session = await createCheckoutSession(seatCount);
+    res.json({ checkout_url: session.checkout_url });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to create checkout session' });
+  }
+});
+
+// Add this line after your other middleware
+app.use(express.static('public'));
+
+// Add this route to serve the demo page
+app.get('/', (req, res) => {
+  res.sendFile(__dirname + '/../public/index.html');
+});
+
+app.listen(3000, () => {
+  console.log('Server is running on port 3000');
+});
+```
+
+</CodeGroup>
+
+</Step>
+
+<Step title="إضافة واجهة ويب بسيطة">
+قم بإنشاء ملف `public/index.html` للاختبار السهل:
+
+<CodeGroup>
+
+```html index.html expandable
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Seat-Based Pricing Demo</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; }
+        .form-group { margin: 20px 0; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; }
+        button { background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        .result { margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <h1>Seat-Based Pricing Demo</h1>
+    <p>Generate checkout links with custom seat quantities:</p>
+    
+    <div class="form-group">
+        <label for="seatCount">Number of Additional Seats:</label>
+        <input type="number" id="seatCount" value="3" min="0" max="50">
+    </div>
+    
+    <button onclick="createCheckout()">Generate Checkout Link</button>
+    
+    <div id="result" class="result" style="display: none;">
+        <h3>Checkout Link Generated!</h3>
+        <p><strong>Seat Count:</strong> <span id="seatCountDisplay"></span></p>
+        <p><strong>Total Cost:</strong> $<span id="totalCost"></span>/month</p>
+        <p><strong>Checkout URL:</strong></p>
+        <a id="checkoutUrl" href="#" target="_blank">Click here to checkout</a>
+    </div>
+
+    <script>
+        async function createCheckout() {
+            const seatCount = document.getElementById('seatCount').value;
+            
+            try {
+                const response = await fetch(`/create-checkout/${seatCount}`, {
+                    method: 'POST'
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    document.getElementById('seatCountDisplay').textContent = seatCount;
+                    document.getElementById('totalCost').textContent = data.total_cost;
+                    document.getElementById('checkoutUrl').href = data.checkout_url;
+                    document.getElementById('result').style.display = 'block';
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            } catch (error) {
+                alert('Error creating checkout session');
+            }
+        }
+    </script>
+</body>
+</html>
+```
+
+</CodeGroup>
+
+<Check>
+**تم إنشاء واجهة الويب!** لديك الآن واجهة بسيطة لاختبار كميات المقاعد المختلفة.
+</Check>
+</Step>
+
+<Step title="خدمة الملفات الثابتة">
+أضف هذا إلى `src/server.ts` لخدمة ملف HTML:
+
+```typescript
+// Add this line after your other middleware
+app.use(express.static('public'));
+
+// Add this route to serve the demo page
+app.get('/', (req, res) => {
+  res.sendFile(__dirname + '/../public/index.html');
+});
+```
+
+<Check>
+**تم تكوين الملفات الثابتة!** قم بزيارة `http://localhost:3000` لرؤية واجهة العرض التجريبية الخاصة بك.
+</Check>
+</Step>
+</Steps>
+
+## الخطوة 5: اختبار تنفيذك
+
+دعنا نختبر تنفيذ التسعير القائم على المقاعد لدينا للتأكد من أن كل شيء يعمل بشكل صحيح.
+
+<Steps>
+<Step title="ابدأ خادمك">
+1. تأكد من أن لديك ملف `.env` الخاص بك مع مفتاح API الصحيح
+2. قم بتحديث معرفات المنتج والإضافة في الكود الخاص بك بالقيم الفعلية من لوحة تحكم Dodo Payments الخاصة بك
+3. ابدأ خادمك:
+
+```bash
+npm run dev
+```
+
+<Check>
+يجب أن يبدأ خادمك بنجاح ويظهر "الخادم يعمل على http://localhost:3000"
+</Check>
+</Step>
+
+<Step title="اختبر واجهة الويب">
+
+<Frame>
+  <img src="/images/cookbooks/seat-based/seat-based-billing-ui.png" alt="إنشاء منتج الاشتراك الأساسي" />
+</Frame>
+
+1. افتح متصفحك وانتقل إلى `http://localhost:3000`
+2. يجب أن ترى واجهة عرض تسعير المقاعد
+3. جرب كميات مقاعد مختلفة (0، 3، 10، إلخ)
+4. انقر على "توليد رابط الدفع" لكل كمية
+5. تحقق من أن روابط الدفع تم توليدها بشكل صحيح
+
+</Step>
+
+<Step title="اختبر جلسة الدفع">
+1. توليد رابط دفع مع 3 مقاعد إضافية
+2. انقر على رابط الدفع لفتح دفع Dodo Payments
+3. تحقق من أن الدفع يظهر:
+   - الخطة الأساسية: 49 دولارًا شهريًا
+   - المقاعد الإضافية: 3 × 2 دولار = 6 دولارات شهريًا
+4. أكمل عملية الشراء التجريبية
+
+<Check>
+يجب أن يعرض الدفع تفاصيل التسعير الصحيحة ويسمح لك بإكمال الشراء.
+</Check>
+</Step>
+
+<Step title="استمع إلى الويب هوكس وقم بتحديث قاعدة البيانات الخاصة بك">
+للحفاظ على قاعدة بياناتك متزامنة مع تغييرات الاشتراك والمقاعد، تحتاج إلى الاستماع إلى أحداث الويب هوك من Dodo Payments. تقوم الويب هوكس بإخطار الخلفية لديك عندما يكمل العميل الدفع، أو يحدث اشتراكه، أو يغير عدد المقاعد.
+
+اتبع دليل الويب هوكس الرسمي من Dodo Payments للحصول على تعليمات خطوة بخطوة حول إعداد نقاط نهاية الويب هوك ومعالجة الأحداث:
+
+<Card title="وثائق الويب هوكس من Dodo Payments" icon="bell" href="/developer-resources/webhooks">
+تعلم كيفية تلقي ومعالجة أحداث الويب هوك بشكل آمن لإدارة الاشتراكات والمقاعد.
+</Card>
+
+</Step>
+
+</Steps>
+
+## استكشاف الأخطاء وإصلاحها
+
+المشاكل الشائعة وحلولها:
+
+<AccordionGroup>
+<Accordion title="فشل إنشاء الدفع">
+**الأسباب المحتملة:**
+- معرف المنتج أو معرف الإضافة غير صالح
+- مفتاح API ليس لديه الأذونات الكافية
+- الإضافة غير مرتبطة بشكل صحيح بالاشتراك
+- مشاكل في الاتصال بالشبكة
+
+**الحلول:**
+1. تحقق من أن معرفات المنتج والإضافة موجودة في لوحة تحكم Dodo Payments الخاصة بك
+2. تحقق من أن الإضافة مرتبطة بشكل صحيح بالاشتراك
+3. تأكد من أن مفتاح API لديه أذونات إنشاء جلسات الدفع
+4. اختبر الاتصال بالـ API باستخدام طلب GET بسيط
+</Accordion>
+
+</AccordionGroup>
+
+## تهانينا! لقد نفذت تسعير قائم على المقاعد
+
+لقد أنشأت بنجاح نظام تسعير قائم على المقاعد باستخدام Dodo Payments! إليك ما أنجزته:
+
+<CardGroup cols={2}>
+<Card title="الاشتراك الأساسي">
+تم إنشاء منتج اشتراك مع 5 مقاعد مشمولة بسعر 49 دولارًا شهريًا
+</Card>
+
+<Card title="إضافات المقاعد">
+تم تكوين إضافات لمقاعد إضافية بسعر 2 دولار شهريًا لكل مقعد
+</Card>
+
+<Card title="الدفع">
+تم بناء واجهة برمجة التطبيقات التي تولد جلسات الدفع مع كميات مقاعد مخصصة
+</Card>
+
+<Card title="واجهة الويب">
+تم إنشاء واجهة ويب بسيطة لاختبار كميات المقاعد المختلفة
+</Card>
+</CardGroup>
+
+<Info>
+هذا المثال يوضح فقط تنفيذًا بسيطًا لتسعير قائم على المقاعد. للاستخدام في الإنتاج، يجب عليك إضافة معالجة أخطاء قوية، والتحقق من الهوية، والتحقق من البيانات، وتدابير الأمان، وتكييف المنطق ليتناسب مع متطلبات تطبيقك.
+</Info>

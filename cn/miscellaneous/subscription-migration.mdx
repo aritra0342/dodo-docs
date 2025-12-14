@@ -1,0 +1,279 @@
+---
+sidebarTitle: 订阅迁移
+title: 迁移到 Dodo Payments 的订阅
+description: 了解如何将您现有的订阅者和支付方式从当前支付处理器迁移到 Dodo Payments。
+icon: file-import
+---
+
+## 什么是订阅迁移？
+
+订阅迁移将您现有的订阅者从旧的支付处理器转移到 Dodo Payments，为您提供所有客户数据的单一真实来源。如果不进行迁移，您迄今为止获得的客户将保留在旧系统中，只有新客户会在 Dodo Payments 中可见。
+
+迁移过程确保您的客户获得无缝的账单体验——他们无需重新输入支付信息，也不会经历任何订阅中断。
+
+<Warning>
+目前，我们仅支持 **卡片令牌** 的迁移。由于这些提供商施加的令牌化限制，Apple Pay、Google Pay 和其他钱包支付方式无法在支付处理器之间转移。
+</Warning>
+
+## 迁移过程概述
+
+订阅迁移过程由三个关键部分组成：
+
+1. **支付方式转移** — 从您当前的处理器安全转移敏感卡数据
+2. **订阅者数据转移** — 导出客户详细信息、订阅计划和账单时间表
+3. **导入和验证** — 在 Dodo Payments 中统一支付方式和订阅者数据
+
+<Note>
+要开始订阅迁移，请联系 [支持团队](mailto:support@dodopayments.com)。他们将为您连接一位专门的解决方案工程师，指导您完成整个过程。
+</Note>
+
+## 要求
+
+在启动迁移之前，请确保您满足以下要求：
+
+<AccordionGroup>
+<Accordion title="PCI DSS 合规性验证">
+Dodo Payments 是 PCI DSS 1 级合规的。为了满足合规义务，我们只能从另一个 PCI DSS 1 级合规的支付处理器接收卡数据。
+
+您当前的处理器必须提供：
+- 他们当前的 PCI 合规性证明（AOC），或他们在 Visa 全球服务提供商注册表上的列表
+- 确认他们支持安全的卡数据导出
+
+查看我们的 [合规性证明 (AOC)](/assets/dodo-payments-pci-dss-aoc.pdf)，以便与您当前的处理器共享。
+</Accordion>
+
+<Accordion title="Dodo Payments 集成">
+完成您的 Dodo Payments 集成，并确保所有新客户在开始迁移之前都被引导到 Dodo Payments 结账。这可以防止过渡期间的数据不一致。
+</Accordion>
+
+<Accordion title="数据访问授权">
+确保您拥有请求从当前处理器导出数据所需的授权。这通常需要：
+- 账户所有者验证
+- 对敏感数据访问的书面授权
+- 完成您处理器的安全验证步骤
+</Accordion>
+</AccordionGroup>
+
+## 逐步迁移指南
+
+<Steps>
+<Step title="请求从当前处理器导出支付方式">
+联系您当前支付处理器的支持团队，并正式请求完整导出您的客户卡片令牌。
+
+您需要：
+- 提供身份和授权的验证
+- 请求他们使用 Dodo Payments 的 PGP 公钥加密导出（如下所示）
+- 请他们将加密文件直接传输到我们的安全 SFTP 服务器
+
+<Info>
+安全传输是通过 SFTP 从服务器直接到服务器进行的。您的解决方案工程师将提供 SFTP 凭据以与您当前的处理器共享。
+</Info>
+
+平均而言，此过程大约需要 **2 周**，尽管时间因您当前处理器的政策和响应时间而异。
+</Step>
+
+<Step title="准备订阅者数据导出">
+在支付方式转移进行时，从您的旧系统导出订阅者数据。您的解决方案工程师将提供 CSV 模板并指导您填写所需字段。
+
+### 所需的订阅者数据
+
+| 字段 | 描述 |
+|-------|-------------|
+| `customer_id` | 您的内部客户标识符 |
+| `email` | 客户的电子邮件地址 |
+| `name` | 客户的全名 |
+| `country` | 两位字母国家代码（ISO 3166-1 alpha-2） |
+| `currency` | 三位字母货币代码（ISO 4217） |
+| `payment_amount` | 以最小货币单位表示的订阅金额 |
+| `payment_interval` | 账单频率（每月、每年等） |
+| `next_billing_date` | 下一个计划的账单日期（ISO 8601） |
+| `card_token` | 来自您当前处理器的唯一令牌 |
+
+<Warning>
+`card_token` 字段至关重要——它用于在导入期间将订阅者记录与其支付方式匹配。确保此字段与支付方式导出中的令牌完全匹配。
+</Warning>
+
+### 示例数据格式
+
+```json
+{
+  "customers": [
+    {
+      "customer_id": "cus_abc123",
+      "email": "jane.doe@example.com",
+      "name": "Jane Doe",
+      "country": "US",
+      "currency": "USD",
+      "payment_amount": 2999,
+      "payment_interval": "monthly",
+      "next_billing_date": "2025-01-15T00:00:00Z",
+      "card_token": "tok_xyz789",
+      "metadata": {
+        "plan": "pro",
+        "signup_source": "website"
+      }
+    }
+  ]
+}
+```
+
+</Step>
+
+<Step title="验证和测试">
+在导入日期之前，我们的团队将：
+
+- 验证支付方式数据的文件完整性和加密
+- 验证您的订阅者 CSV 格式是否正确
+- 在我们的沙盒环境中进行测试导入
+- 识别并解决任何数据映射问题
+
+<Check>
+您将收到一份验证报告，确认一切准备就绪以进行生产导入。
+</Check>
+</Step>
+
+<Step title="生产导入">
+在约定的导入日期，我们的工程团队将：
+
+1. 将支付方式数据导入我们的 PCI 合规卡库
+2. 导入您的订阅者数据
+3. 使用卡片令牌将订阅者与其支付方式匹配
+4. 激活所有迁移的订阅
+
+<Info>
+典型的处理时间为 **2-3 个工作日**，具体取决于订阅者的数量。
+</Info>
+</Step>
+
+<Step title="迁移后验证">
+导入完成后，您将收到：
+
+- 一份全面的迁移报告
+- 一份将您旧的订阅 ID 映射到新的 Dodo Payments ID 的 CSV
+- 在您的 Dodo Payments 仪表板中访问所有迁移的客户
+
+我们建议：
+- 在您的仪表板中验证一部分迁移的订阅
+- 在沙盒模式下测试一些订阅续订
+- 使用新 ID 更新您的内部数据库引用
+- 在第一个账单周期内进行并行监控
+</Step>
+</Steps>
+
+## 可迁移的数据
+
+在订阅迁移过程中可以转移以下数据：
+
+| 数据类型 | 支持 | 备注 |
+|-----------|-----------|-------|
+| 信用/借记卡号 | ✅ | 通过 PGP 加密 |
+| 卡片到期日期 | ✅ | |
+| 持卡人姓名 | ✅ | |
+| 账单地址 | ✅ | |
+| 客户电子邮件地址 | ✅ | |
+| 客户元数据 | ✅ | 自定义键值对 |
+| 订阅详细信息 | ✅ | 计划、金额、间隔 |
+| Apple Pay 令牌 | ❌ | 无法转移 |
+| Google Pay 令牌 | ❌ | 无法转移 |
+| 其他钱包令牌 | ❌ | 无法转移 |
+| 支付历史 | ❌ | 从您当前处理器导出 |
+
+<Note>
+支付历史和交易记录无法迁移。我们建议在完成过渡之前从您当前的处理器导出此数据以备记录。
+</Note>
+
+## PGP 加密
+
+为了在传输敏感卡数据时最大限度地提高安全性，所有文件 **必须** 使用我们的 PGP 公钥进行加密。这提供了超越传输级加密的额外保护层。
+
+与您当前的支付处理器共享此密钥以加密卡数据导出：
+
+<Accordion title="Dodo Payments PGP 公钥">
+
+```
+-----BEGIN PGP PUBLIC KEY BLOCK-----
+
+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
+1OSDhXaPYtJnVApUzaCrC5PJCXU=
+=nHcw
+-----END PGP PUBLIC KEY BLOCK-----
+
+```
+
+</Accordion>
+
+## 时间预期
+
+| 阶段 | 持续时间 |
+|-------|----------|
+| 初始设置和规划 | 1-2 天 |
+| 支付方式转移 | ~2 周 |
+| 订阅者数据准备 | 3-5 天（并行） |
+| 验证和测试 | 2-3 天 |
+| 生产导入 | 2-3 个工作日 |
+| 迁移后验证 | 1-2 天 |
+
+<Tip>
+整个迁移通常需要 **3-4 周** 从开始到完成。在支付方式转移进行时开始准备您的订阅者数据有助于缩短整体时间表。
+</Tip>
+
+## 开始
+
+准备将您的订阅迁移到 Dodo Payments 吗？请联系团队以开始该过程：
+
+<CardGroup cols={2}>
+<Card title="联系支持" icon="envelope" href="mailto:support@dodopayments.com">
+联系以开始您的迁移并与解决方案工程师联系。
+</Card>
+
+<Card title="API 文档" icon="code" href="/api-reference">
+探索我们的 API 以了解 Dodo Payments 中的订阅如何工作。
+</Card>
+</CardGroup>

@@ -1,0 +1,302 @@
+---
+title: DataFast
+description: Gán doanh thu cho các kênh tiếp thị với phân tích DataFast. Theo
+  dõi các nguồn lưu lượng truy cập nào tạo ra khách hàng trả tiền và tối ưu hóa
+  sự phát triển của bạn.
+icon: chart-bar
+---
+
+## Giới thiệu
+
+DataFast là một công cụ phân tích ưu tiên doanh thu giúp bạn khám phá các kênh tiếp thị nào tạo ra khách hàng trả tiền. Bằng cách tích hợp Dodo Payments với DataFast, bạn có thể gán doanh thu cho các nguồn lưu lượng truy cập của mình, xác định các phân khúc khách hàng có giá trị cao và đưa ra quyết định dựa trên dữ liệu để phát triển doanh nghiệp của bạn.
+
+<Info>
+Tích hợp này yêu cầu Khóa API DataFast của bạn, mà bạn có thể lấy từ [bảng điều khiển DataFast](https://datafa.st/).
+</Info>
+
+## Cách hoạt động
+
+DataFast theo dõi khách truy cập thông qua một ID khách truy cập duy nhất được lưu trữ trong cookie. Để gán doanh thu cho các kênh tiếp thị, bạn cần:
+
+1. **Bắt ID khách truy cập của DataFast** từ cookie `datafast_visitor_id` khi tạo phiên thanh toán
+2. **Lưu ID khách truy cập** trong siêu dữ liệu thanh toán của bạn
+3. **Gửi dữ liệu thanh toán đến DataFast** khi thanh toán thành công bằng cách sử dụng API Thanh toán của họ
+
+Điều này cho phép DataFast khớp các khoản thanh toán thành công với nguồn lưu lượng truy cập ban đầu, mang lại cho bạn sự gán doanh thu hoàn chỉnh.
+
+## Bắt đầu
+
+<Steps>
+<Step title="Cài đặt Script DataFast">
+  Đầu tiên, cài đặt script theo dõi DataFast trên trang web của bạn. Điều này tạo ra cookie `datafast_visitor_id` theo dõi khách truy cập của bạn.
+  
+  Truy cập [tài liệu DataFast](https://datafa.st/docs) để biết hướng dẫn cài đặt cụ thể cho nền tảng của bạn.
+</Step>
+
+<Step title="Lấy Khóa API của bạn">
+  Đăng nhập vào [bảng điều khiển DataFast](https://datafa.st/) và điều hướng đến cài đặt trang web của bạn để lấy khóa API của bạn.
+  
+  <Warning>
+  Giữ khóa API của bạn an toàn và không bao giờ tiết lộ nó trong mã phía khách hàng.
+  </Warning>
+</Step>
+
+<Step title="Bắt ID khách truy cập trong Thanh toán">
+  Khi tạo một phiên thanh toán, hãy bắt ID khách truy cập DataFast từ cookie và thêm nó vào siêu dữ liệu thanh toán của bạn.
+</Step>
+
+<Step title="Gửi Dữ liệu Thanh toán qua Webhook">
+  Cấu hình một webhook để gửi dữ liệu thanh toán đến API Thanh toán của DataFast khi thanh toán thành công.
+</Step>
+
+<Step title="Xong!">
+  🎉 Dữ liệu doanh thu sẽ xuất hiện trong bảng điều khiển DataFast của bạn với sự gán hoàn chỉnh cho các kênh tiếp thị.
+</Step>
+</Steps>
+
+## Hướng dẫn triển khai
+
+### Bước 1: Thêm ID khách truy cập vào Siêu dữ liệu Thanh toán
+
+Khi tạo một phiên thanh toán, hãy bắt ID khách truy cập DataFast từ cookie và bao gồm nó trong siêu dữ liệu thanh toán của bạn.
+
+<CodeGroup>
+
+```typescript Next.js
+import { cookies } from 'next/headers';
+import { dodopayments } from '@/lib/dodopayments';
+
+export async function createCheckout(productId: string) {
+  // Capture DataFast visitor ID from cookie
+  const datafastVisitorId = cookies().get('datafast_visitor_id')?.value;
+
+  const payment = await dodopayments.payments.create({
+    product_id: productId,
+    // ... other payment configuration
+    metadata: {
+      datafast_visitor_id: datafastVisitorId, // Store visitor ID in metadata
+    },
+  });
+
+  return payment;
+}
+```
+
+```javascript Express.js
+const express = require('express');
+const router = express.Router();
+
+router.post('/create-checkout', async (req, res) => {
+  // Capture DataFast visitor ID from cookie
+  const datafastVisitorId = req.cookies?.datafast_visitor_id;
+
+  const payment = await dodopayments.payments.create({
+    product_id: req.body.productId,
+    // ... other payment configuration
+    metadata: {
+      datafast_visitor_id: datafastVisitorId, // Store visitor ID in metadata
+    },
+  });
+
+  res.json({ payment });
+});
+```
+
+```javascript Other Frameworks
+// Capture DataFast visitor ID from cookie
+const datafastVisitorId = getCookie('datafast_visitor_id'); // Use your framework's cookie method
+
+const payment = await dodopayments.payments.create({
+  product_id: productId,
+  // ... other payment configuration
+  metadata: {
+    datafast_visitor_id: datafastVisitorId, // Store visitor ID in metadata
+  },
+});
+```
+
+</CodeGroup>
+
+### Bước 2: Gửi Dữ liệu Thanh toán đến DataFast
+
+Cấu hình một điểm cuối webhook để gửi dữ liệu thanh toán đến API Thanh toán của DataFast khi thanh toán thành công.
+
+<Steps>
+<Step title="Mở phần Webhook">
+  Trong bảng điều khiển Dodo Payments của bạn, điều hướng đến <b>Webhooks → + Thêm Điểm cuối</b> và mở rộng menu thả xuống tích hợp.
+  <Frame>
+    <img src="/images/integrations/datafast/add.png" alt="Thêm Điểm cuối và menu thả xuống tích hợp" />
+  </Frame>
+</Step>
+
+<Step title="Chọn DataFast">
+  Chọn thẻ tích hợp <b>DataFast</b>.
+</Step>
+
+<Step title="Nhập Khóa API">
+  Cung cấp Khóa API DataFast của bạn trong trường cấu hình.
+  <Frame>
+    <img src="/images/integrations/datafast/api-key.png" alt="Thêm Khóa API" />
+  </Frame>
+</Step>
+
+<Step title="Cấu hình Chuyển đổi">
+  Chỉnh sửa mã chuyển đổi để định dạng dữ liệu thanh toán cho API Thanh toán của DataFast.
+</Step>
+
+<Step title="Kiểm tra & Tạo">
+  Kiểm tra với các payload mẫu và nhấp <b>Tạo</b> để kích hoạt tích hợp.
+</Step>
+</Steps>
+
+## Ví dụ Mã Chuyển đổi
+
+### Gán Doanh thu Cơ bản
+
+```javascript basic_payment.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const payment = webhook.payload.data;
+    
+    // Only send to DataFast if visitor ID exists in metadata
+    if (payment.metadata?.datafast_visitor_id) {
+      webhook.url = "https://datafa.st/api/v1/payments";
+      webhook.payload = {
+        amount: payment.total_amount / 100, // Convert from cents to dollars
+        currency: payment.currency,
+        transaction_id: payment.payment_id,
+        datafast_visitor_id: payment.metadata.datafast_visitor_id,
+      };
+    } else {
+      // Skip if no visitor ID (prevents unnecessary API calls)
+      return null;
+    }
+  }
+  return webhook;
+}
+```
+
+### Xử lý Tiền tệ Không có Số thập phân
+
+Một số tiền tệ (như JPY) không sử dụng số thập phân. Điều chỉnh phép tính số tiền cho phù hợp:
+
+```javascript zero_decimal.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const payment = webhook.payload.data;
+    
+    if (payment.metadata?.datafast_visitor_id) {
+      // Zero decimal currencies: JPY, KRW, CLP, etc.
+      const zeroDecimalCurrencies = ['JPY', 'KRW', 'CLP', 'VND', 'UGX', 'MGA'];
+      const isZeroDecimal = zeroDecimalCurrencies.includes(payment.currency);
+      
+      webhook.url = "https://datafa.st/api/v1/payments";
+      webhook.payload = {
+        amount: isZeroDecimal 
+          ? payment.total_amount // Use amount as-is for zero decimal currencies
+          : payment.total_amount / 100, // Convert from cents for other currencies
+        currency: payment.currency,
+        transaction_id: payment.payment_id,
+        datafast_visitor_id: payment.metadata.datafast_visitor_id,
+      };
+    } else {
+      return null;
+    }
+  }
+  return webhook;
+}
+```
+
+### Thanh toán Đăng ký
+
+Đối với các khoản thanh toán đăng ký định kỳ, bạn có thể theo dõi từng khoản thanh toán:
+
+```javascript subscription_payment.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const payment = webhook.payload.data;
+    
+    // Check if this is a subscription payment
+    const isSubscription = payment.subscription_id !== null;
+    
+    if (payment.metadata?.datafast_visitor_id) {
+      webhook.url = "https://datafa.st/api/v1/payments";
+      webhook.payload = {
+        amount: payment.total_amount / 100,
+        currency: payment.currency,
+        transaction_id: payment.payment_id,
+        datafast_visitor_id: payment.metadata.datafast_visitor_id,
+        // Optional: Add subscription context
+        ...(isSubscription && {
+          subscription_id: payment.subscription_id,
+        }),
+      };
+    } else {
+      return null;
+    }
+  }
+  return webhook;
+}
+```
+
+## Thực hành Tốt nhất
+
+<Tip>
+**Bắt ID khách truy cập sớm**: Lưu ID khách truy cập DataFast càng sớm càng tốt trong quy trình thanh toán của bạn để đảm bảo gán chính xác, ngay cả khi người dùng điều hướng đi và quay lại sau.
+</Tip>
+
+- **Luôn bao gồm ID khách truy cập trong siêu dữ liệu**: Nếu không có ID khách truy cập, DataFast không thể gán doanh thu cho các kênh tiếp thị
+- **Xử lý tiền tệ không có số thập phân**: Một số tiền tệ (JPY, KRW, v.v.) không sử dụng số thập phân—điều chỉnh phép tính số tiền của bạn cho phù hợp
+- **Kiểm tra với các khoản thanh toán mẫu**: Xác minh rằng tích hợp hoạt động chính xác trước khi đưa vào hoạt động
+- **Theo dõi bảng điều khiển DataFast của bạn**: Kiểm tra rằng các khoản thanh toán xuất hiện chính xác với sự gán đúng
+- **Sử dụng thử nghiệm webhook**: API Thanh toán của DataFast là idempotent, vì vậy việc thử nghiệm là an toàn nếu một webhook thất bại
+
+## Khắc phục sự cố
+
+<AccordionGroup>
+<Accordion title="Các khoản thanh toán không xuất hiện trong DataFast">
+- Xác minh rằng Khóa API DataFast của bạn là chính xác và đang hoạt động
+- Kiểm tra rằng `datafast_visitor_id` đang được bắt và lưu trữ trong siêu dữ liệu thanh toán
+- Đảm bảo rằng mã chuyển đổi webhook đang định dạng đúng payload
+- Xác minh rằng webhook đang kích hoạt trên các sự kiện `payment.succeeded`
+- Kiểm tra bảng điều khiển DataFast để tìm bất kỳ thông báo lỗi hoặc nhật ký API nào
+</Accordion>
+
+<Accordion title="Gán doanh thu không hoạt động">
+- Xác nhận rằng script theo dõi DataFast đã được cài đặt và hoạt động trên trang web của bạn
+- Xác minh rằng cookie `datafast_visitor_id` đang được thiết lập đúng cách
+- Kiểm tra rằng các ID khách truy cập khớp nhau giữa việc tạo thanh toán và hoàn tất thanh toán
+- Đảm bảo bạn đang bắt ID khách truy cập trước khi tạo phiên thanh toán
+- Xem xét [tài liệu API Thanh toán của DataFast](https://datafa.st/docs/payments-api) để biết thêm hướng dẫn
+</Accordion>
+
+<Accordion title="Lỗi chuyển đổi">
+- Xác thực cấu trúc JSON khớp với định dạng API Thanh toán của DataFast
+- Kiểm tra rằng tất cả các trường bắt buộc (`amount`, `currency`, `transaction_id`, `datafast_visitor_id`) đều có mặt
+- Đảm bảo số tiền được chuyển đổi đúng cách (chia cho 100 cho hầu hết các tiền tệ, ngoại trừ tiền tệ không có số thập phân)
+- Xác minh rằng URL điểm cuối API là chính xác: `https://datafa.st/api/v1/payments`
+- Kiểm tra mã chuyển đổi với các payload webhook mẫu
+</Accordion>
+
+<Accordion title="Vấn đề chuyển đổi tiền tệ">
+- Đối với các tiền tệ không có số thập phân (JPY, KRW, CLP, VND, UGX, MGA), gửi số tiền như vậy mà không chia cho 100
+- Đối với tất cả các tiền tệ khác, chia số tiền cho 100 để chuyển đổi từ xu sang đơn vị cơ bản
+- Kiểm tra lại mã tiền tệ khớp với định dạng ISO 4217 (ví dụ: "USD", "EUR", "JPY")
+</Accordion>
+</AccordionGroup>
+
+## Tài nguyên bổ sung
+
+<CardGroup cols={2}>
+<Card title="Tài liệu DataFast" icon="book" href="https://datafa.st/docs/payments-api">
+  Tìm hiểu thêm về API Thanh toán của DataFast và các tính năng gán doanh thu.
+</Card>
+
+<Card title="Bảng điều khiển DataFast" icon="chart-bar" href="https://datafa.st/">
+  Truy cập bảng điều khiển DataFast của bạn để xem phân tích doanh thu và dữ liệu gán.
+</Card>
+</CardGroup>
+
+<Info>
+Cần giúp đỡ? Liên hệ với hỗ trợ Dodo Payments tại [support@dodopayments.com](mailto:support@dodopayments.com) để được hỗ trợ về tích hợp.
+</Info>

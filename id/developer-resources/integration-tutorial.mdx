@@ -1,0 +1,162 @@
+---
+title: Tutorial Integrasi Kode
+description: Tutorial ini menunjukkan cara mengintegrasikan Dodo Payments ke
+  dalam aplikasi Next.js menggunakan SDK Node.js untuk Produk Sekali Bayar dan
+  Langganan. Ini memanfaatkan Dodo Next.js Minimal Boilerplate dan mencakup
+  langkah-langkah penting untuk memulai dengan efisien.
+icon: code-compare
+---
+
+## Prasyarat
+
+Sebelum Anda mulai, pastikan Anda telah:
+
+- [Membuat akun Dodo Payments](/quickstart)
+- [Mendapatkan kunci API Anda](/api-reference/introduction#authentication)
+- Pengetahuan dasar tentang Next.js dan React
+- Node.js terinstal (v14 atau lebih tinggi)
+
+## Pengaturan Boilerplate
+
+Klon boilerplate Next.js kami untuk memulai dengan cepat:
+
+```bash
+git clone https://github.com/dodopayments/dodo-nextjs-minimal-boilerplate
+cd dodo-nextjs-minimal-boilerplate
+npm install
+```
+
+<Note>
+Boilerplate ini mencakup semua dependensi yang diperlukan dan pengaturan dasar untuk integrasi Dodo Payments.
+</Note>
+
+## Opsi Integrasi
+
+Pilih jalur integrasi Anda:
+
+<CardGroup cols={2}>
+  <Card title="Pembayaran Sekali Bayar" icon="credit-card" href="#one-time-payment-product-integration">
+    Proses pembayaran tunggal
+  </Card>
+  <Card title="Langganan" icon="repeat" href="#subscription-payment-product-integration">
+    Tangani pembayaran berulang
+  </Card>
+</CardGroup>
+
+## Integrasi Produk Pembayaran Sekali Bayar
+
+Pelajari cara mengimplementasikan pembayaran sekali bayar dalam aplikasi Anda:
+
+<iframe 
+    className="w-full aspect-video rounded-md" 
+    src="https://www.youtube.com/embed/3igzmVkVDbY"
+    title="Integrasi Pembayaran Sekali Bayar | Dodo Payments"
+    frameBorder="0"
+    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+    allowFullScreen
+></iframe>
+
+### Langkah Kunci
+
+<Steps>
+  1. [Inisialisasi SDK](/developer-resources/dodo-payments-sdks#initialization)
+  2. [Buat produk](/api-reference/products/post-products)
+  3. [Hasilkan tautan pembayaran](/api-reference/payments/post-payments)
+  4. [Tangani webhook](/developer-resources/webhooks/intents/payment)
+</Steps>
+
+## Integrasi Produk Pembayaran Langganan
+
+Pelajari cara mengimplementasikan pembayaran langganan:
+
+<iframe 
+    className="w-full aspect-video rounded-md" 
+    src="https://www.youtube.com/embed/rj62ral2rek"
+    title="Integrasi Langganan | Dodo Payments"
+    frameBorder="0"
+    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+    allowFullScreen
+></iframe>
+
+### Langkah Kunci
+
+<Steps>
+  1. [Inisialisasi SDK](/developer-resources/dodo-payments-sdks#initialization)
+  2. [Buat produk langganan](/api-reference/products/post-products)
+  3. [Buat langganan](/api-reference/subscriptions/post-subscriptions)
+  4. [Tangani webhook langganan](/developer-resources/webhooks/intents/subscription)
+</Steps>
+
+## Integrasi Webhook
+
+Siapkan webhook untuk menangani peristiwa asinkron:
+
+```typescript
+import { verifyWebhookSignature } from '@dodopayments/node';
+
+export default async function handler(req, res) {
+  const signature = req.headers['dodo-signature'];
+  const payload = req.body;
+  
+  try {
+    verifyWebhookSignature({
+      payload,
+      signature,
+      secret: process.env.WEBHOOK_SECRET
+    });
+    
+    // Handle webhook event
+    switch (payload.type) {
+      case 'payment.succeeded':
+        // Handle successful payment
+        break;
+      case 'subscription.created':
+        // Handle new subscription
+        break;
+      // ... handle other events
+    }
+    
+    res.status(200).json({ received: true });
+  } catch (err) {
+    res.status(400).json({ error: 'Invalid signature' });
+  }
+}
+```
+
+## Pengujian
+
+Sebelum go live:
+
+1. Gunakan [kunci API uji](/miscellaneous/test-mode-vs-live-mode)
+2. Uji dengan [nomor kartu uji](/miscellaneous/testing-process)
+3. Verifikasi penanganan webhook
+4. Uji skenario kesalahan
+
+## Masalah Umum dalam Integrasi
+
+- [Menangani pembayaran yang gagal](/api-reference/technical-faqs#failed-payments)
+- [Timeout webhook](/api-reference/technical-faqs#webhook-timeouts)
+- [Kesalahan otentikasi](/api-reference/technical-faqs#authentication-errors)
+
+## Langkah Selanjutnya
+
+<CardGroup cols={2}>
+  <Card title="Referensi API" icon="code" href="/api-reference/payments/get-payments">
+    Jelajahi semua endpoint yang tersedia
+  </Card>
+  <Card title="SDKs" icon="box" href="/developer-resources/dodo-payments-sdks">
+    Lihat dokumentasi SDK
+  </Card>
+  <Card title="Webhook" icon="bell" href="/developer-resources/webhooks/intents/webhook-events-guide">
+    Pelajari tentang peristiwa webhook
+  </Card>
+  <Card title="Pengujian" icon="vial" href="/miscellaneous/testing-process">
+    Uji integrasi Anda
+  </Card>
+</CardGroup>
+
+## Butuh Bantuan?
+
+- Bergabunglah dengan [Komunitas Pengembang](https://community.dodopayments.com)
+- Periksa [FAQ Teknis](/api-reference/technical-faqs)
+- Hubungi [Dukungan Pengembang](/miscellaneous/help-support)

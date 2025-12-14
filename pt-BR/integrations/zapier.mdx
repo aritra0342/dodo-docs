@@ -1,0 +1,179 @@
+---
+title: Zapier
+description: Conecte os pagamentos Dodo a mais de 5000 aplicativos através de
+  webhooks do Zapier para possibilidades de automação ilimitadas.
+icon: bolt
+---
+
+## Introdução
+
+Conecte os pagamentos Dodo a milhares de aplicativos e serviços através do Zapier. Automatize fluxos de trabalho acionando Zaps quando eventos de pagamento ocorrerem, desde o envio de e-mails até a atualização de planilhas, criação de tarefas e muito mais.
+
+<Info>
+Esta integração requer uma URL de webhook do Zapier da sua configuração de Zap.
+</Info>
+
+## Começando
+
+<Steps>
+<Step title="Abra a Seção de Webhook">
+  No seu painel de pagamentos Dodo, navegue até <b>Webhooks → + Adicionar Endpoint</b> e expanda o menu suspenso de integrações.
+  <Frame>
+    <img src="/images/integrations/zapier.png" alt="Adicionar Endpoint e menu suspenso de integrações" />
+  </Frame>
+</Step>
+
+<Step title="Selecione Zapier">
+  Escolha o cartão de integração <b>Zapier</b>.
+</Step>
+
+<Step title="Crie um Zap no Zapier">
+  No Zapier, crie um novo Zap com "Webhooks by Zapier" como o gatilho. Copie a URL do webhook.
+</Step>
+
+<Step title="Cole a URL do Webhook">
+  Cole a URL do webhook do Zapier na configuração do endpoint.
+</Step>
+
+<Step title="Configure a Transformação">
+  Edite o código de transformação para formatar os dados para o seu fluxo de trabalho do Zapier.
+</Step>
+
+<Step title="Teste e Crie">
+  Teste com cargas úteis de exemplo e clique em <b>Criar</b> para ativar a integração.
+</Step>
+
+<Step title="Pronto!">
+  🎉 Eventos de pagamento agora acionarão seus fluxos de trabalho do Zapier automaticamente.
+</Step>
+</Steps>
+
+## Exemplos de Código de Transformação
+
+### Carga Útil Básica do Webhook
+
+```javascript basic_webhook.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.payload = {
+      event_type: webhook.eventType,
+      payment_id: p.payment_id,
+      amount: (p.total_amount / 100).toFixed(2),
+      currency: p.currency || "USD",
+      customer_email: p.customer.email,
+      customer_name: p.customer.name,
+      payment_method: p.payment_method || "unknown",
+      timestamp: webhook.payload.timestamp
+    };
+  }
+  return webhook;
+}
+```
+
+### Manipulador de Eventos de Assinatura
+
+```javascript subscription_webhook.js icon="js" expandable
+function handler(webhook) {
+  const s = webhook.payload.data;
+  switch (webhook.eventType) {
+    case "subscription.active":
+      webhook.payload = {
+        event_type: "subscription_started",
+        subscription_id: s.subscription_id,
+        customer_email: s.customer.email,
+        customer_name: s.customer.name,
+        product_id: s.product_id,
+        amount: (s.recurring_pre_tax_amount / 100).toFixed(2),
+        frequency: s.payment_frequency_interval,
+        next_billing: s.next_billing_date,
+        timestamp: webhook.payload.timestamp
+      };
+      break;
+    case "subscription.cancelled":
+      webhook.payload = {
+        event_type: "subscription_cancelled",
+        subscription_id: s.subscription_id,
+        customer_email: s.customer.email,
+        cancelled_at: s.cancelled_at,
+        cancel_at_next_billing: s.cancel_at_next_billing_date,
+        timestamp: webhook.payload.timestamp
+      };
+      break;
+  }
+  return webhook;
+}
+```
+
+### Manipulador de Alertas de Disputa
+
+```javascript dispute_webhook.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType.startsWith("dispute.")) {
+    const d = webhook.payload.data;
+    webhook.payload = {
+      event_type: webhook.eventType,
+      dispute_id: d.dispute_id,
+      payment_id: d.payment_id,
+      amount: (d.amount / 100).toFixed(2),
+      status: d.dispute_status,
+      stage: d.dispute_stage,
+      remarks: d.remarks || "",
+      urgent: webhook.eventType === "dispute.opened",
+      timestamp: webhook.payload.timestamp
+    };
+  }
+  return webhook;
+}
+```
+
+## Casos de Uso Populares do Zapier
+
+<AccordionGroup>
+<Accordion title="Notificações por E-mail">
+- Enviar e-mails do Gmail/Outlook para confirmações de pagamento
+- Criar sequências de e-mail no Mailchimp/ConvertKit
+- Enviar notificações no Slack/Discord
+- Criar registros no Google Sheets
+</Accordion>
+
+<Accordion title="Atualizações de CRM">
+- Adicionar contatos ao HubSpot/Salesforce
+- Criar negócios no Pipedrive/Close
+- Atualizar registros de clientes no Airtable
+- Registrar atividades no Monday.com
+</Accordion>
+
+<Accordion title="Gerenciamento de Tarefas">
+- Criar tarefas no Asana/Trello
+- Adicionar itens de afazeres no Notion
+- Criar eventos de calendário
+- Enviar notificações SMS via Twilio
+</Accordion>
+</AccordionGroup>
+
+## Dicas
+
+- Mantenha a estrutura da carga útil simples para fácil análise pelo Zapier
+- Use nomes de campo consistentes em todos os eventos
+- Inclua timestamps para o tempo de fluxo de trabalho
+- Teste seu Zap com dados de exemplo antes de entrar em produção
+- Use os filtros embutidos do Zapier para lógica condicional
+
+## Solução de Problemas
+
+<AccordionGroup>
+<Accordion title="Zap não acionando">
+- Verifique se a URL do webhook está correta e ativa
+- Confira se o Zap está ativado no Zapier
+- Assegure-se de que a estrutura da carga útil corresponda às expectativas do Zapier
+- Teste a entrega do webhook no painel do Zapier
+</Accordion>
+
+<Accordion title="Dados não mapeando corretamente">
+- Verifique os nomes dos campos nos passos de ação do Zapier
+- Verifique se os tipos de dados correspondem aos formatos esperados
+- Use o recurso de teste do Zapier para depurar o mapeamento
+- Assegure-se de que o código de transformação retorne JSON válido
+</Accordion>
+</AccordionGroup>

@@ -1,0 +1,248 @@
+---
+title: CLI
+description: واجهة سطر الأوامر للتفاعل مع واجهة برمجة تطبيقات مدفوعات دودي من جهازك
+icon: terminal
+---
+
+## التثبيت
+
+### تثبيت Go
+
+```bash
+go install github.com/dodopayments/dodopayments-cli/cmd/dodopayments@latest
+```
+
+### من المصدر
+
+```bash
+git clone https://github.com/dodopayments/dodopayments-cli.git
+cd dodopayments-cli
+go install ./cmd/dodopayments
+```
+
+## البداية السريعة
+
+قم بتعيين مفتاح API الخاص بك:
+
+```bash
+export DODO_PAYMENTS_API_KEY=your_api_key_here
+```
+
+هيكل الأمر الأساسي:
+
+```bash
+dodopayments [resource] [command] [flags]
+```
+
+إنشاء جلسة دفع:
+
+```bash
+dodopayments checkout-sessions create \
+  --product-cart.product_id prod_123 \
+  --product-cart.quantity 1 \
+  --return-url https://yourdomain.com/return
+```
+
+## الأعلام العالمية
+
+| العلم | الوصف |
+|------|-------------|
+| `--format` | تنسيق الإخراج: `auto`, `json`, `yaml`, `pretty`, `explore` |
+| `--transform` | تصفية الاستجابة باستخدام بناء جملة gjson |
+| `--debug` | تمكين تسجيل مفصل |
+| `--version`, `-v` | عرض إصدار CLI |
+
+## الأوامر الشائعة
+
+### المدفوعات
+
+```bash
+# List payments
+dodopayments payments list --limit 20 --format json
+
+# Retrieve payment
+dodopayments payments retrieve pay_123
+
+# Get line items
+dodopayments payments line-items pay_123
+```
+
+### العملاء
+
+```bash
+# Create customer
+dodopayments customers create \
+  --email customer@example.com \
+  --name "John Doe"
+
+# List customers
+dodopayments customers list
+
+# Update customer
+dodopayments customers update cus_123 --name "Jane Doe"
+```
+
+### الاشتراكات
+
+```bash
+# Create subscription
+dodopayments subscriptions create \
+  --customer-id cus_123 \
+  --product-id prod_456
+
+# List subscriptions
+dodopayments subscriptions list
+
+# Get usage history
+dodopayments subscriptions usage-history sub_123
+```
+
+### المنتجات
+
+```bash
+# Create product
+dodopayments products create \
+  --name "Premium Plan" \
+  --price.amount 2999 \
+  --price.currency USD
+
+# List products
+dodopayments products list
+```
+
+## الفوترة بناءً على الاستخدام
+
+### استيعاب الأحداث
+
+```bash
+dodopayments usage-events ingest \
+  --events.event_id api_call_12345 \
+  --events.customer_id cus_abc123 \
+  --events.event_name api_request \
+  --events.timestamp 2024-01-15T10:30:00Z \
+  --events.metadata.endpoint /api/v1/users
+```
+
+### إدارة العدادات
+
+```bash
+# Create meter
+dodopayments meters create \
+  --name "API Requests" \
+  --event-name api_request \
+  --aggregation count
+
+# List meters
+dodopayments meters list
+```
+
+## تنسيقات الإخراج
+
+### JSON (للسكربتات)
+
+```bash
+dodopayments payments list --format json | jq '.data[] | {id, amount}'
+```
+
+### جميل (للقراءة)
+
+```bash
+dodopayments payments retrieve pay_123 --format pretty
+```
+
+### استكشاف تفاعلي
+
+```bash
+dodopayments payments list --format explore
+```
+
+### تحويل باستخدام gjson
+
+```bash
+# Extract all payment IDs
+dodopayments payments list --transform "data.#.id"
+
+# Filter and extract
+dodopayments payments list --transform "data.#(amount>5000)#.id"
+```
+
+<Tip>
+استخدم `--format json` مع `jq` لمعالجة بيانات قوية في سكربتات الشل.
+</Tip>
+
+## مثال على السكربت
+
+```bash
+#!/bin/bash
+
+# Export all payments to CSV
+dodopayments payments list --format json | \
+  jq -r '.data[] | [.id, .amount, .currency, .status] | @csv' > payments.csv
+
+# Create customers from file
+while IFS=',' read -r email name; do
+  dodopayments customers create \
+    --email "$email" \
+    --name "$name" \
+    --format json
+done < customers.csv
+```
+
+## إكمال الشل
+
+تمكين الإكمال التلقائي:
+
+```bash
+# Bash
+eval "$(dodopayments completion bash)"
+
+# Zsh
+eval "$(dodopayments completion zsh)"
+
+# Fish
+dodopayments completion fish | source
+```
+
+## الموارد المتاحة
+
+تقدم CLI أوامر لـ 24 فئة من الموارد:
+
+- `checkout-sessions` - إدارة جلسات الدفع
+- `payments` - عمليات الدفع
+- `subscriptions` - الفوترة المتكررة
+- `customers` - حسابات العملاء
+- `products` - كتالوج المنتجات
+- `licenses` - ترخيص البرمجيات
+- `refunds` - استرداد المدفوعات
+- `disputes` - نزاعات الدفع
+- `webhooks` - أحداث الويب هوك
+- `meters` - عدادات الاستخدام
+- `usage-events` - تتبع الاستخدام
+- `discounts` - رموز الخصم
+- `payouts` - مدفوعات البائع
+- `brands` - إدارة متعددة العلامات التجارية
+- بالإضافة إلى 10 موارد إضافية
+
+<Info>
+استخدم `dodopayments --help` لرؤية جميع الموارد المتاحة و `dodopayments [resource] --help` لأوامر محددة بالموارد.
+</Info>
+
+## الموارد
+
+<CardGroup cols={2}>
+<Card title="مستودع GitHub" icon="github" href="https://github.com/dodopayments/dodopayments-cli">
+  عرض الشيفرة المصدرية والإصدارات
+</Card>
+
+<Card title="مرجع API" icon="book" href="/api-reference/introduction">
+  الوثائق الكاملة لواجهة برمجة التطبيقات
+</Card>
+</CardGroup>
+
+## الدعم
+
+تحتاج إلى مساعدة بشأن CLI؟
+
+- **Discord**: انضم إلى [خادم المجتمع](https://discord.gg/bYqAp4ayYh)
+- **البريد الإلكتروني**: اتصل بنا على support@dodopayments.com
+- **GitHub**: افتح مشكلة على [المستودع](https://github.com/dodopayments/dodopayments-cli)

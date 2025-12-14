@@ -1,0 +1,167 @@
+---
+title: SendGrid
+description: Gửi email giao dịch dựa trên các sự kiện Dodo Payments bằng cách sử
+  dụng API Gửi Mail của SendGrid.
+icon: inbox
+---
+
+## Giới thiệu
+
+Tự động gửi email giao dịch cho xác nhận thanh toán, cập nhật đăng ký và thông báo quan trọng bằng cách sử dụng SendGrid. Kích hoạt email cá nhân hóa dựa trên các sự kiện thanh toán với nội dung động và mẫu chuyên nghiệp.
+
+<Info>
+Tích hợp này yêu cầu một API Key của SendGrid với quyền Gửi Mail.
+</Info>
+
+## Bắt đầu
+
+<Steps>
+<Step title="Mở phần Webhook">
+  Trong bảng điều khiển Dodo Payments của bạn, điều hướng đến <b>Webhooks → + Thêm Điểm cuối</b> và mở rộng menu thả xuống tích hợp.
+  <Frame>
+    <img src="/images/integrations/sendgrid.png" alt="Thêm Điểm cuối và menu thả xuống tích hợp" />
+  </Frame>
+</Step>
+
+<Step title="Chọn SendGrid">
+  Chọn thẻ tích hợp <b>SendGrid</b>.
+</Step>
+
+<Step title="Nhập API Key">
+  Cung cấp API Key của SendGrid trong cấu hình.
+</Step>
+
+<Step title="Cấu hình Biến đổi">
+  Chỉnh sửa mã biến đổi để định dạng email cho API Gửi Mail của SendGrid.
+</Step>
+
+<Step title="Kiểm tra & Tạo">
+  Kiểm tra với các payload mẫu và nhấp vào <b>Tạo</b> để kích hoạt việc gửi email.
+</Step>
+
+<Step title="Xong!">
+  🎉 Các sự kiện thanh toán bây giờ sẽ tự động kích hoạt email giao dịch qua SendGrid.
+</Step>
+</Steps>
+
+## Ví dụ Mã Biến đổi
+
+### Email Xác nhận Thanh toán
+
+```javascript payment_confirmation.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.url = "https://api.sendgrid.com/v3/mail/send";
+    webhook.payload = {
+      personalizations: [
+        {
+          to: [{ email: p.customer.email }],
+          dynamic_template_data: {
+            customer_name: p.customer.name,
+            payment_amount: (p.total_amount / 100).toFixed(2),
+            payment_id: p.payment_id,
+            payment_date: new Date(webhook.payload.timestamp).toLocaleDateString(),
+            currency: p.currency || "USD"
+          }
+        }
+      ],
+      from: {
+        email: "payments@yourdomain.com",
+        name: "Your Company"
+      },
+      template_id: "d-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    };
+  }
+  return webhook;
+}
+```
+
+### Email Chào mừng Đăng ký
+
+```javascript subscription_welcome.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "subscription.active") {
+    const s = webhook.payload.data;
+    webhook.url = "https://api.sendgrid.com/v3/mail/send";
+    webhook.payload = {
+      personalizations: [
+        {
+          to: [{ email: s.customer.email }],
+          dynamic_template_data: {
+            customer_name: s.customer.name,
+            subscription_id: s.subscription_id,
+            product_name: s.product_id,
+            amount: (s.recurring_pre_tax_amount / 100).toFixed(2),
+            frequency: s.payment_frequency_interval,
+            next_billing: new Date(s.next_billing_date).toLocaleDateString()
+          }
+        }
+      ],
+      from: {
+        email: "welcome@yourdomain.com",
+        name: "Your Company"
+      },
+      template_id: "d-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    };
+  }
+  return webhook;
+}
+```
+
+### Thông báo Thất bại Thanh toán
+
+```javascript payment_failure.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.failed") {
+    const p = webhook.payload.data;
+    webhook.url = "https://api.sendgrid.com/v3/mail/send";
+    webhook.payload = {
+      personalizations: [
+        {
+          to: [{ email: p.customer.email }],
+          dynamic_template_data: {
+            customer_name: p.customer.name,
+            payment_amount: (p.total_amount / 100).toFixed(2),
+            error_message: p.error_message || "Payment processing failed",
+            payment_id: p.payment_id,
+            retry_link: `https://yourdomain.com/retry-payment/${p.payment_id}`
+          }
+        }
+      ],
+      from: {
+        email: "support@yourdomain.com",
+        name: "Your Company Support"
+      },
+      template_id: "d-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    };
+  }
+  return webhook;
+}
+```
+
+## Mẹo
+
+- Sử dụng mẫu động của SendGrid cho nội dung cá nhân hóa
+- Bao gồm dữ liệu thanh toán liên quan trong các biến mẫu
+- Đặt địa chỉ gửi và tên người gửi phù hợp
+- Sử dụng ID mẫu để định dạng email nhất quán
+- Bao gồm liên kết hủy đăng ký để tuân thủ
+
+## Khắc phục sự cố
+
+<AccordionGroup>
+<Accordion title="Email không được gửi">
+- Xác minh API Key có quyền Gửi Mail
+- Kiểm tra rằng ID mẫu là hợp lệ và đang hoạt động
+- Đảm bảo địa chỉ email người nhận là hợp lệ
+- Xem xét giới hạn và hạn ngạch gửi của SendGrid
+</Accordion>
+
+<Accordion title="Lỗi biến đổi">
+- Xác thực cấu trúc JSON khớp với định dạng API của SendGrid
+- Kiểm tra rằng tất cả các trường bắt buộc đều có mặt
+- Đảm bảo các biến dữ liệu mẫu được định dạng đúng cách
+- Xác minh rằng các địa chỉ email gửi đã được xác minh trong SendGrid
+</Accordion>
+</AccordionGroup>

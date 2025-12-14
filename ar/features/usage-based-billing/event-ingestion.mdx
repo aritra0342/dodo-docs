@@ -1,0 +1,206 @@
+---
+sidebarTitle: استيعاب الأحداث
+title: استيعاب الأحداث
+description: إرسال أحداث الاستخدام من تطبيقك لتتبع استهلاك العملاء وتمكين الفوترة.
+icon: bolt
+---
+
+الأحداث هي أساس الفوترة المعتمدة على الاستخدام. أرسل الأحداث عند حدوث إجراءات قابلة للفوترة، وتجمع العدادات هذه الأحداث في رسوم.
+
+<Card title="مرجع API - استيعاب الأحداث" icon="code" href="/api-reference/usage-events/ingest-events">
+وثائق API كاملة مع أمثلة وأكواد استجابة.
+</Card>
+
+## هيكل الحدث
+
+<Accordion title="الحقول المطلوبة">
+<ParamField body="event_id" type="string" required>
+معرف فريد. استخدم UUIDs أو اجمع بين معرف العميل + الطابع الزمني + الإجراء.
+</ParamField>
+
+<ParamField body="customer_id" type="string" required>
+معرف عميل Dodo Payments. يجب أن يكون عميلًا موجودًا صالحًا.
+</ParamField>
+
+<ParamField body="event_name" type="string" required>
+نوع الحدث الذي يتطابق مع اسم حدث العداد الخاص بك (حساس لحالة الأحرف). أمثلة: `api.call`, `image.generated`
+</ParamField>
+</Accordion>
+
+<Accordion title="الحقول الاختيارية">
+
+<ParamField body="timestamp" type="string">
+طابع زمني ISO 8601. الافتراضي هو وقت الخادم إذا تم إغفاله. قم بتضمينه لفوترة دقيقة مع الأحداث المتأخرة/الدفعات.
+</ParamField>
+
+<ParamField body="metadata" type="object">
+خصائص إضافية للتجميع والتصفية:
+- القيم الرقمية: `bytes`, `tokens`, `duration_ms`
+- الفلاتر: `endpoint`, `method`, `quality`
+
+```javascript
+metadata: {
+  endpoint: "/v1/orders",
+  method: "POST",
+  tokens: 1024
+}
+```
+
+</ParamField>
+</Accordion>
+
+## إرسال الأحداث
+
+<CodeGroup>
+
+```javascript Single Event
+await fetch('https://test.dodopayments.com/events/ingest', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${process.env.DODO_API_KEY}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    events: [{
+      event_id: "api_call_1234",
+      customer_id: "cus_abc123",
+      event_name: "api.call",
+      metadata: { endpoint: "/v1/orders" }
+    }]
+  })
+});
+```
+
+```javascript Batch Events
+await fetch('https://test.dodopayments.com/events/ingest', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${process.env.DODO_API_KEY}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    events: [
+      { event_id: "call_1", customer_id: "cus_abc", event_name: "api.call" },
+      { event_id: "call_2", customer_id: "cus_abc", event_name: "api.call" },
+      { event_id: "call_3", customer_id: "cus_abc", event_name: "api.call" }
+    ]
+  })
+});
+```
+
+```python Python
+import requests
+
+requests.post(
+    'https://test.dodopayments.com/events/ingest',
+    headers={'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'},
+    json={'events': [{'event_id': 'call_1', 'customer_id': 'cus_abc', 'event_name': 'api.call'}]}
+)
+```
+
+```curl cURL
+curl -X POST 'https://test.dodopayments.com/events/ingest' \
+  -H 'Authorization: Bearer YOUR_API_KEY' \
+  -H 'Content-Type: application/json' \
+  -d '{"events": [{"event_id": "call_1", "customer_id": "cus_abc", "event_name": "api.call"}]}'
+```
+
+</CodeGroup>
+
+<Tip>
+اجمع حتى 100 حدث لكل طلب لتحسين الأداء.
+</Tip>
+
+## مخططات الاستيعاب
+
+أنماط الأحداث الجاهزة للحالات الشائعة. ابدأ بمخطط مثبت بدلاً من البناء من الصفر.
+
+<CardGroup cols={2}>
+<Card title="مخطط LLM" icon="brain-circuit" href="/developer-resources/ingestion-blueprints/llm">
+تتبع استخدام رموز الذكاء الاصطناعي عبر OpenAI وAnthropic وGroq وGemini والمزيد.
+</Card>
+
+<Card title="مخطط بوابة API" icon="cloud" href="/developer-resources/ingestion-blueprints/api-gateway">
+قياس طلبات API مع دعم تصفية النقاط وحدود المعدل.
+</Card>
+
+<Card title="مخطط تخزين الكائنات" icon="box-archive" href="/developer-resources/ingestion-blueprints/object-storage">
+تتبع تحميلات الملفات واستهلاك التخزين لخدمات التخزين السحابية.
+</Card>
+
+<Card title="مخطط البث" icon="tower-broadcast" href="/developer-resources/ingestion-blueprints/stream">
+قياس عرض النطاق الترددي للبث للفيديو والصوت والبيانات في الوقت الحقيقي.
+</Card>
+
+<Card title="مخطط نطاق الوقت" icon="clock" href="/developer-resources/ingestion-blueprints/time-range">
+الفوترة حسب الوقت المنقضي لوظائف بدون خادم وحالات الحوسبة.
+</Card>
+
+<Card title="عرض جميع المخططات" icon="copy" href="/features/usage-based-billing/ingestion-blueprints">
+اطلع على جميع المخططات المتاحة مع أدلة تنفيذ مفصلة.
+</Card>
+</CardGroup>
+
+## أفضل الممارسات
+
+<AccordionGroup>
+<Accordion title="استخدم معرفات أحداث فريدة">
+استخدم معرفات حتمية لمنع التكرار: `${customerId}_${action}_${timestamp}`
+</Accordion>
+
+<Accordion title="تنفيذ إعادة المحاولة">
+أعد المحاولة عند حدوث أخطاء 5xx مع زيادة زمن الانتظار. لا تعيد المحاولة عند حدوث أخطاء 4xx.
+</Accordion>
+
+<Accordion title="تضمين الطوابع الزمنية">
+تجاهل للأحداث في الوقت الحقيقي. قم بتضمينها للأحداث المتأخرة/الدفعات للدقة.
+</Accordion>
+
+<Accordion title="مراقبة التسليم">
+تتبع معدلات النجاح وقم بتجميع الأحداث الفاشلة لإعادة المحاولة.
+</Accordion>
+</AccordionGroup>
+
+## استكشاف الأخطاء وإصلاحها
+
+<AccordionGroup>
+<Accordion title="الأحداث لا تظهر">
+- يجب أن يتطابق اسم الحدث تمامًا مع العداد (حساس لحالة الأحرف)
+- يجب أن يكون معرف العميل موجودًا
+- تحقق من أن فلاتر العداد لا تستبعد الأحداث
+- تحقق من أن الطوابع الزمنية حديثة
+</Accordion>
+
+<Accordion title="أخطاء المصادقة (401)">
+تحقق من أن مفتاح API صحيح واستخدم التنسيق: `Bearer YOUR_API_KEY`
+</Accordion>
+
+<Accordion title="أخطاء التحقق (400)">
+تأكد من وجود جميع الحقول المطلوبة: `event_id`, `customer_id`, `event_name`
+</Accordion>
+
+<Accordion title="البيانات الوصفية لا تتجمع">
+- يجب أن تتطابق مفاتيح البيانات الوصفية مع "الخاصية الزائدة" للعداد تمامًا
+- استخدم الأرقام، وليس السلاسل: `tokens: 150` وليس `tokens: "150"`
+</Accordion>
+</AccordionGroup>
+
+## الخطوات التالية
+
+<CardGroup cols={2}>
+<Card title="إنشاء العدادات" icon="sliders" href="/features/usage-based-billing/meters">
+حدد كيفية تجميع أحداثك في كميات قابلة للفوترة مع الفلاتر ووظائف التجميع.
+</Card>
+
+<Card title="مخططات الاستيعاب" icon="copy" href="/features/usage-based-billing/ingestion-blueprints">
+استخدم المخططات الجاهزة للحالات الشائعة مثل تتبع LLM، وبوابات API، والتخزين.
+</Card>
+
+<Card title="الدليل الكامل" icon="code" href="/developer-resources/usage-based-billing-build-ai-image-generator">
+قم ببناء مولد صور AI كامل مع فوترة معتمدة على الاستخدام من الصفر.
+</Card>
+
+<Card title="مرجع API" icon="terminal" href="/api-reference/usage-events/ingest-events">
+وثائق API كاملة مع جميع المعلمات، أكواد الاستجابة، واختبار تفاعلي.
+</Card>
+</CardGroup>

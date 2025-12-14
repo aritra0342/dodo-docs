@@ -1,0 +1,334 @@
+---
+title: TypeScript
+description: 타입 안전성과 현대적인 async/await 지원을 통해 TypeScript 및 Node.js 애플리케이션에 Dodo
+  Payments를 통합하세요.
+icon: js
+---
+
+TypeScript SDK는 TypeScript 및 JavaScript 애플리케이션을 위한 Dodo Payments REST API에 대한 편리한 서버 측 액세스를 제공합니다. 포괄적인 타입 정의, 오류 처리, 재시도, 타임아웃 및 원활한 결제 처리를 위한 자동 페이지 매김 기능을 갖추고 있습니다.
+
+## 설치
+
+선호하는 패키지 관리자를 사용하여 SDK를 설치하세요:
+<CodeGroup>
+
+```bash npm
+npm install dodopayments
+```
+
+```bash yarn
+yarn add dodopayments
+```
+
+```bash pnpm
+pnpm add dodopayments
+```
+
+</CodeGroup>
+
+## 빠른 시작
+
+API 키로 클라이언트를 초기화하고 결제 처리를 시작하세요:
+
+```javascript
+import DodoPayments from 'dodopayments';
+
+const client = new DodoPayments({
+  bearerToken: process.env['DODO_PAYMENTS_API_KEY'], // This is the default and can be omitted
+  environment: 'test_mode', // defaults to 'live_mode'
+});
+
+const checkoutSessionResponse = await client.checkoutSessions.create({
+  product_cart: [{ product_id: 'product_id', quantity: 1 }],
+});
+
+console.log(checkoutSessionResponse.session_id);
+```
+
+<Warning>
+API 키는 항상 환경 변수를 사용하여 안전하게 저장하세요. 버전 관리에 커밋하거나 클라이언트 측 코드에 노출하지 마세요.
+</Warning>
+
+## 주요 기능
+
+<CardGroup cols={2}>
+<Card title="TypeScript 우선" icon="shield-check">
+  모든 API 엔드포인트에 대한 포괄적인 타입 정의를 갖춘 완전한 TypeScript 지원
+</Card>
+
+<Card title="자동 페이지 매김" icon="arrows-rotate">
+  목록 응답에 대한 자동 페이지 매김으로 대규모 데이터 세트를 쉽게 처리
+</Card>
+
+<Card title="오류 처리" icon="triangle-exclamation">
+  다양한 실패 시나리오에 대한 자세한 메시지를 포함한 내장 오류 유형
+</Card>
+
+<Card title="스마트 재시도" icon="repeat">
+  일시적인 오류에 대한 지수 백오프가 있는 구성 가능한 자동 재시도
+</Card>
+</CardGroup>
+
+## 구성
+
+### 환경 변수
+
+안전한 구성을 위해 환경 변수를 설정하세요:
+
+```bash .env
+DODO_PAYMENTS_API_KEY=your_api_key_here
+```
+
+### 타임아웃 구성
+
+요청 타임아웃을 전역적으로 또는 요청별로 구성하세요:
+
+```typescript
+// Configure default timeout for all requests (default is 1 minute)
+const client = new DodoPayments({
+  timeout: 20 * 1000, // 20 seconds
+});
+
+// Override per-request
+await client.checkoutSessions.create(
+  { product_cart: [{ product_id: 'product_id', quantity: 0 }] },
+  { timeout: 5 * 1000 }
+);
+```
+
+### 재시도 구성
+
+자동 재시도 동작을 구성하세요:
+
+```javascript
+// Configure default for all requests (default is 2 retries)
+const client = new DodoPayments({
+  maxRetries: 0, // disable retries
+});
+
+// Override per-request
+await client.checkoutSessions.create(
+  { product_cart: [{ product_id: 'product_id', quantity: 0 }] },
+  { maxRetries: 5 }
+);
+```
+
+<Tip>
+SDK는 네트워크 오류 또는 서버 문제(5xx 응답)로 인해 실패한 요청을 지수 백오프와 함께 자동으로 재시도합니다.
+</Tip>
+
+## 일반 작업
+
+### 체크아웃 세션 생성
+
+결제 정보를 수집하기 위한 체크아웃 세션을 생성하세요:
+
+```typescript
+const session = await client.checkoutSessions.create({
+  product_cart: [
+    {
+      product_id: 'prod_123',
+      quantity: 1
+    }
+  ],
+  return_url: 'https://yourdomain.com/return'
+});
+
+console.log('Redirect to:', session.url);
+```
+
+### 고객 관리
+
+고객 정보를 생성하고 검색하세요:
+
+```typescript
+// Create a customer
+const customer = await client.customers.create({
+  email: 'customer@example.com',
+  name: 'John Doe',
+  metadata: {
+    user_id: '12345'
+  }
+});
+
+// Retrieve customer
+const retrieved = await client.customers.retrieve('cus_123');
+console.log(`Customer: ${retrieved.name} (${retrieved.email})`);
+```
+
+### 구독 처리
+
+정기 구독을 생성하고 관리하세요:
+
+```typescript
+// Create a subscription
+const subscription = await client.subscriptions.create({
+  customer_id: 'cus_123',
+  product_id: 'prod_456',
+  price_id: 'price_789'
+});
+
+// Retrieve subscription usage history
+const usageHistory = await client.subscriptions.retrieveUsageHistory('sub_123', {
+  start_date: '2024-01-01T00:00:00Z',
+  end_date: '2024-03-31T23:59:59Z'
+});
+```
+
+## 사용 기반 청구
+
+### 사용 이벤트 수집
+
+사용 기반 청구를 위한 사용자 정의 이벤트를 추적하세요:
+
+```typescript
+await client.usageEvents.ingest({
+  events: [
+    {
+      event_id: 'api_call_12345',
+      customer_id: 'cus_abc123',
+      event_name: 'api_request',
+      timestamp: '2024-01-15T10:30:00Z',
+      metadata: {
+        endpoint: '/api/v1/users',
+        method: 'GET',
+        tokens_used: '150'
+      }
+    }
+  ]
+});
+```
+
+<Info>
+이벤트는 아이덴포턴시를 위해 고유한 `event_id` 값을 가져야 합니다. 동일한 요청 내에서 중복된 ID는 거부되며, 기존 ID로 후속 요청은 무시됩니다.
+</Info>
+
+### 사용 이벤트 검색
+
+사용 이벤트에 대한 자세한 정보를 가져오세요:
+
+```typescript
+// Get a specific event
+const event = await client.usageEvents.retrieve('api_call_12345');
+
+// List events with filtering
+const events = await client.usageEvents.list({
+  customer_id: 'cus_abc123',
+  event_name: 'api_request',
+  start: '2024-01-14T10:30:00Z',
+  end: '2024-01-15T10:30:00Z'
+});
+```
+
+## 프록시 구성
+
+다양한 런타임에 대한 프록시 설정을 구성하세요:
+
+### Node.js (undici 사용)
+
+```typescript
+import DodoPayments from 'dodopayments';
+import * as undici from 'undici';
+
+const proxyAgent = new undici.ProxyAgent('http://localhost:8888');
+const client = new DodoPayments({
+  fetchOptions: {
+    dispatcher: proxyAgent,
+  },
+});
+```
+
+### Bun
+
+```typescript
+import DodoPayments from 'dodopayments';
+
+const client = new DodoPayments({
+  fetchOptions: {
+    proxy: 'http://localhost:8888',
+  },
+});
+```
+
+### Deno
+
+```typescript
+import DodoPayments from 'npm:dodopayments';
+
+const httpClient = Deno.createHttpClient({ proxy: { url: 'http://localhost:8888' } });
+const client = new DodoPayments({
+  fetchOptions: {
+    client: httpClient,
+  },
+});
+```
+
+## 로깅
+
+환경 변수 또는 클라이언트 옵션을 사용하여 로그 세부 수준을 제어하세요:
+
+```typescript
+// Via client option
+const client = new DodoPayments({
+  logLevel: 'debug', // Show all log messages
+});
+```
+
+```bash
+# Via environment variable
+export DODO_PAYMENTS_LOG=debug
+```
+
+**사용 가능한 로그 수준:**
+- `'debug'` - 디버그 메시지, 정보, 경고 및 오류 표시
+- `'info'` - 정보 메시지, 경고 및 오류 표시  
+- `'warn'` - 경고 및 오류 표시 (기본값)
+- `'error'` - 오류만 표시
+- `'off'` - 모든 로깅 비활성화
+
+<Warning>
+디버그 수준에서는 모든 HTTP 요청 및 응답이 로그에 기록되며, 헤더와 본문이 포함됩니다. 일부 인증 헤더는 수정되지만, 본문 내의 민감한 데이터는 여전히 표시될 수 있습니다.
+</Warning>
+
+## Node.js SDK에서의 마이그레이션
+
+레거시 Node.js SDK에서 업그레이드하는 경우, TypeScript SDK는 향상된 타입 안전성과 기능을 제공합니다:
+
+<Card
+  title="마이그레이션 가이드 보기"
+  icon="arrow-right"
+  href="https://github.com/dodopayments/dodopayments-typescript/blob/main/MIGRATION.md">
+  Node.js SDK에서 TypeScript SDK로 마이그레이션하는 방법을 알아보세요
+</Card>
+
+## 리소스
+
+<CardGroup cols={2}>
+<Card title="GitHub 리포지토리" icon="github" href="https://github.com/dodopayments/dodopayments-typescript">
+  소스 코드를 보고 기여하세요
+</Card>
+
+<Card title="API 참조" icon="book" href="/api-reference/introduction">
+  전체 API 문서
+</Card>
+
+<Card title="Discord 커뮤니티" icon="discord" href="https://discord.gg/bYqAp4ayYh">
+  도움을 받고 개발자와 연결하세요
+</Card>
+
+<Card title="문제 보고" icon="bug" href="https://github.com/dodopayments/dodopayments-typescript/issues">
+  버그를 보고하거나 기능을 요청하세요
+</Card>
+</CardGroup>
+
+## 지원
+
+TypeScript SDK에 대한 도움이 필요하신가요?
+
+- **Discord**: 실시간 지원을 위해 [커뮤니티 서버](https://discord.gg/bYqAp4ayYh)에 참여하세요
+- **이메일**: support@dodopayments.com으로 문의하세요  
+- **GitHub**: [리포지토리](https://github.com/dodopayments/dodopayments-typescript)에 문제를 열어주세요
+
+## 기여
+
+기여를 환영합니다! 시작하려면 [기여 가이드라인](https://github.com/dodopayments/dodopayments-typescript/blob/main/CONTRIBUTING.md)을 확인하세요.

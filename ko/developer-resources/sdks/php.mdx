@@ -1,0 +1,398 @@
+---
+title: PHP
+description: Dodo Payments를 PHP 애플리케이션에 통합하는 현대적이고 PSR-4 호환 SDK
+icon: php
+tag: BETA
+---
+
+PHP SDK는 Dodo Payments를 PHP 애플리케이션에 통합하는 강력하고 유연한 방법을 제공합니다. PSR-4 자동 로딩을 따르는 현대 PHP 표준에 따라 구축되었으며, 광범위한 테스트 커버리지와 상세한 문서를 제공합니다.
+
+<Note>
+Dodo Payments PHP API 라이브러리는 현재 **베타** 상태입니다. 여러분이 실험해 보시기를 기대합니다! [문제 제기하기](https://github.com/dodopayments/dodopayments-php/issues)를 통해 제안, 버그 보고 또는 기능 요청을 공유해 주세요.
+</Note>
+
+## 설치
+
+Composer를 사용하여 SDK를 설치하세요:
+
+```bash
+composer require "dodopayments/client:^3.5.0"
+```
+
+<Info>
+SDK는 PHP 8.1.0 이상과 의존성 관리를 위한 Composer가 필요합니다.
+</Info>
+
+## 빠른 시작
+
+클라이언트를 초기화하고 체크아웃 세션을 생성하세요:
+
+```php
+<?php
+
+use Dodopayments\Client;
+
+$client = new Client(
+  bearerToken: getenv("DODO_PAYMENTS_API_KEY") ?: "My Bearer Token",
+  environment: "test_mode",
+);
+
+$checkoutSessionResponse = $client->checkoutSessions->create(
+  productCart: [["productID" => "product_id", "quantity" => 1]]
+);
+
+var_dump($checkoutSessionResponse->session_id);
+```
+
+<Warning>
+API 키를 환경 변수로 안전하게 저장하세요. 코드베이스에 노출하거나 버전 관리에 커밋하지 마세요.
+</Warning>
+
+## 핵심 기능
+
+<CardGroup cols={2}>
+<Card title="PSR-4 호환" icon="check">
+  현대 PHP 개발을 위한 PHP 표준 권장 사항을 따릅니다.
+</Card>
+
+<Card title="현대 PHP" icon="php">
+  타입 선언 및 엄격한 타입을 갖춘 PHP 8.1+용으로 구축되었습니다.
+</Card>
+
+<Card title="광범위한 테스트" icon="vial">
+  신뢰성과 안정성을 위한 포괄적인 테스트 커버리지
+</Card>
+
+<Card title="예외 처리" icon="shield-check">
+  다양한 오류 시나리오에 대한 명확한 예외 유형
+</Card>
+</CardGroup>
+
+## 값 객체
+
+SDK는 선택적 인수를 지정하기 위해 명명된 매개변수를 사용합니다. 정적 `with` 생성자를 사용하여 값 객체를 초기화할 수 있습니다:
+
+```php
+<?php
+
+use Dodopayments\Customers\AttachExistingCustomer;
+
+// Recommended: Use static 'with' constructor with named parameters
+$customer = AttachExistingCustomer::with(customerID: "customer_id");
+```
+
+빌더도 대안 패턴으로 사용할 수 있습니다:
+
+```php
+<?php
+
+use Dodopayments\Customers\AttachExistingCustomer;
+
+// Alternative: Use builder pattern
+$customer = (new AttachExistingCustomer)->withCustomerID("customer_id");
+```
+
+## 구성
+
+### 재시도 구성
+
+특정 오류는 기본적으로 2회 자동으로 재시도되며 짧은 지수 백오프가 적용됩니다. 다음 오류가 자동 재시도를 유발합니다:
+
+- 연결 오류 (네트워크 연결 문제)
+- 408 요청 시간 초과
+- 409 충돌
+- 429 속도 제한
+- 500 이상 내부 오류
+- 시간 초과
+
+전역 또는 요청별로 재시도 동작을 구성하세요:
+
+```php
+<?php
+
+use Dodopayments\Client;
+use Dodopayments\RequestOptions;
+
+// Configure default for all requests (disable retries)
+$client = new Client(maxRetries: 0);
+
+// Or, configure per-request
+$result = $client->checkoutSessions->create(
+  productCart: [["productID" => "product_id", "quantity" => 1]],
+  requestOptions: RequestOptions::with(maxRetries: 5),
+);
+```
+
+## 일반 작업
+
+### 체크아웃 세션 생성
+
+체크아웃 세션을 생성하세요:
+
+```php
+$session = $client->checkoutSessions->create(
+  productCart: [
+    ["productID" => "prod_123", "quantity" => 1]
+  ],
+  returnUrl: "https://yourdomain.com/return"
+);
+
+header('Location: ' . $session->url);
+```
+
+### 고객 관리
+
+고객 정보를 생성하고 검색하세요:
+
+```php
+// Create a customer
+$customer = $client->customers->create(
+  email: "customer@example.com",
+  name: "John Doe",
+  metadata: [
+    "user_id" => "12345"
+  ]
+);
+
+// Retrieve customer
+$customer = $client->customers->retrieve("cus_123");
+echo "Customer: {$customer->name} ({$customer->email})";
+```
+
+### 구독 처리
+
+정기 구독을 생성하고 관리하세요:
+
+```php
+// Create a subscription
+$subscription = $client->subscriptions->create(
+  customerID: "cus_123",
+  productID: "prod_456",
+  priceID: "price_789"
+);
+
+// Cancel subscription
+$client->subscriptions->cancel($subscription->id);
+```
+
+## 페이지네이션
+
+페이지가 매겨진 목록 응답을 처리하세요:
+
+```php
+$page = $client->payments->list();
+
+var_dump($page);
+
+// Fetch items from the current page
+foreach ($page->getItems() as $item) {
+  var_dump($item->brand_id);
+}
+
+// Auto-paginate: fetch items from all pages
+foreach ($page->pagingEachItem() as $item) {
+  var_dump($item->brand_id);
+}
+```
+
+## 오류 처리
+
+라이브러리가 API에 연결할 수 없거나 비성공 상태 코드(4xx 또는 5xx)를 수신하면 `APIException`의 하위 클래스가 발생합니다:
+
+```php
+<?php
+
+use Dodopayments\Core\Exceptions\APIConnectionException;
+use Dodopayments\Core\Exceptions\RateLimitException;
+use Dodopayments\Core\Exceptions\APIStatusException;
+
+try {
+  $checkoutSessionResponse = $client->checkoutSessions->create(
+    productCart: [["productID" => "product_id", "quantity" => 1]]
+  );
+} catch (APIConnectionException $e) {
+  echo "The server could not be reached", PHP_EOL;
+  var_dump($e->getPrevious());
+} catch (RateLimitException $_) {
+  echo "A 429 status code was received; we should back off a bit.", PHP_EOL;
+} catch (APIStatusException $e) {
+  echo "Another non-200-range status code was received", PHP_EOL;
+  echo $e->getMessage();
+}
+```
+
+### 오류 유형
+
+| 원인            | 오류 유형                   |
+| ---------------- | ---------------------------- |
+| HTTP 400         | `BadRequestException`        |
+| HTTP 401         | `AuthenticationException`    |
+| HTTP 403         | `PermissionDeniedException`  |
+| HTTP 404         | `NotFoundException`          |
+| HTTP 409         | `ConflictException`          |
+| HTTP 422         | `UnprocessableEntityException` |
+| HTTP 429         | `RateLimitException`         |
+| HTTP >= 500      | `InternalServerException`    |
+| 기타 HTTP 오류 | `APIStatusException`         |
+| 시간 초과          | `APITimeoutException`        |
+| 네트워크 오류    | `APIConnectionException`     |
+
+<Tip>
+항상 API 호출을 try-catch 블록으로 감싸서 잠재적인 오류를 우아하게 처리하고 사용자에게 의미 있는 피드백을 제공하세요.
+</Tip>
+
+## 고급 사용법
+
+### 문서화되지 않은 엔드포인트
+
+문서화되지 않은 엔드포인트에 요청하세요:
+
+```php
+<?php
+
+$response = $client->request(
+  method: "post",
+  path: '/undocumented/endpoint',
+  query: ['dog' => 'woof'],
+  headers: ['useful-header' => 'interesting-value'],
+  body: ['hello' => 'world']
+);
+```
+
+### 문서화되지 않은 매개변수
+
+문서화되지 않은 매개변수를 모든 엔드포인트에 보내거나 문서화되지 않은 응답 속성을 읽으세요:
+
+```php
+<?php
+
+use Dodopayments\RequestOptions;
+
+$checkoutSessionResponse = $client->checkoutSessions->create(
+  productCart: [["productID" => "product_id", "quantity" => 1]],
+  requestOptions: RequestOptions::with(
+    extraQueryParams: ["my_query_parameter" => "value"],
+    extraBodyParams: ["my_body_parameter" => "value"],
+    extraHeaders: ["my-header" => "value"],
+  ),
+);
+```
+
+<Note>
+동일한 이름의 `extra*` 매개변수는 문서화된 매개변수를 덮어씁니다.
+</Note>
+
+## 프레임워크 통합
+
+### Laravel
+
+Laravel 애플리케이션을 위한 서비스를 생성하세요:
+
+```php
+<?php
+
+namespace App\Services;
+
+use Dodopayments\Client;
+
+class PaymentService
+{
+    protected $client;
+
+    public function __construct()
+    {
+        $this->client = new Client(
+            bearerToken: config('services.dodo.api_key')
+        );
+    }
+
+    public function createCheckout(array $items)
+    {
+        return $this->client->checkoutSessions->create(
+            productCart: $items,
+            returnUrl: route('checkout.return')
+        );
+    }
+}
+```
+
+`config/services.php`에 구성을 추가하세요:
+
+```php
+'dodo' => [
+    'api_key' => env('DODO_API_KEY'),
+    'environment' => env('DODO_ENVIRONMENT', 'sandbox')
+],
+```
+
+### Symfony
+
+Symfony에서 서비스를 생성하세요:
+
+```php
+<?php
+
+namespace App\Service;
+
+use Dodopayments\Client;
+
+class DodoPaymentService
+{
+    private Client $client;
+
+    public function __construct(string $apiKey)
+    {
+        $this->client = new Client(bearerToken: $apiKey);
+    }
+
+    public function createPayment(int $amount, string $currency, string $customerId): object
+    {
+        return $this->client->payments->create(
+            amount: $amount,
+            currency: $currency,
+            customerID: $customerId
+        );
+    }
+}
+```
+
+`config/services.yaml`에 등록하세요:
+
+```yaml
+services:
+    App\Service\DodoPaymentService:
+        arguments:
+            $apiKey: '%env(DODO_API_KEY)%'
+```
+
+## 리소스
+
+<CardGroup cols={2}>
+<Card title="GitHub 리포지토리" icon="github" href="https://github.com/dodopayments/dodopayments-php">
+  소스 코드를 보고 기여하세요
+</Card>
+
+<Card title="API 참조" icon="book" href="/api-reference/introduction">
+  전체 API 문서
+</Card>
+
+<Card title="Discord 커뮤니티" icon="discord" href="https://discord.gg/bYqAp4ayYh">
+  도움을 받고 개발자와 연결하세요
+</Card>
+
+<Card title="문제 보고" icon="bug" href="https://github.com/dodopayments/dodopayments-php/issues">
+  버그를 보고하거나 기능을 요청하세요
+</Card>
+</CardGroup>
+
+## 지원
+
+PHP SDK에 대한 도움이 필요하신가요?
+
+- **Discord**: 실시간 지원을 위해 [커뮤니티 서버](https://discord.gg/bYqAp4ayYh)에 참여하세요
+- **이메일**: support@dodopayments.com으로 문의하세요
+- **GitHub**: [리포지토리](https://github.com/dodopayments/dodopayments-php)에서 문제를 제기하세요
+
+## 기여
+
+기여를 환영합니다! 시작하려면 [기여 가이드라인](https://github.com/dodopayments/dodopayments-php/blob/main/CONTRIBUTING.md)을 확인하세요.

@@ -1,0 +1,439 @@
+---
+title: Hướng dẫn tích hợp thanh toán một lần
+description: Hướng dẫn này sẽ giúp bạn tích hợp API Dodo Payments vào trang web của bạn.
+icon: code-merge
+---
+
+## Điều kiện tiên quyết
+
+Để tích hợp API Dodo Payments, bạn cần:
+- Một tài khoản thương nhân Dodo Payments
+- Thông tin xác thực API (khóa API và khóa bí mật webhook) từ bảng điều khiển
+
+## Thiết lập bảng điều khiển
+
+1. Điều hướng đến [Bảng điều khiển Dodo Payments](https://app.dodopayments.com/)
+
+2. Tạo một sản phẩm (thanh toán một lần hoặc đăng ký)
+
+4. Tạo khóa API của bạn:
+   - Đi tới Developer > API
+   - [Hướng dẫn chi tiết](/api-reference/introduction#api-key-generation)
+   - Sao chép khóa API trong biến môi trường có tên DODO_PAYMENTS_API_KEY
+
+5. Cấu hình webhooks:
+   - Đi tới Developer > Webhooks
+   - Tạo một URL webhook cho thông báo thanh toán
+   - Sao chép khóa bí mật webhook trong biến môi trường
+
+## Tích hợp
+
+### Liên kết thanh toán
+
+Chọn con đường tích hợp phù hợp với trường hợp sử dụng của bạn:
+- **Phiên thanh toán (được khuyến nghị)**: Tốt nhất cho hầu hết các tích hợp. Tạo một phiên trên máy chủ của bạn và chuyển hướng khách hàng đến một trang thanh toán an toàn, được lưu trữ.
+- **Thanh toán chồng (nhúng)**: Sử dụng khi bạn cần trải nghiệm trong trang nhúng thanh toán được lưu trữ trên trang web của bạn.
+- **Liên kết thanh toán tĩnh**: URL có thể chia sẻ ngay lập tức không cần mã cho việc thu thập thanh toán nhanh chóng.
+- **Liên kết thanh toán động**: Liên kết được tạo lập trình. Tuy nhiên, các phiên thanh toán được khuyến nghị và cung cấp nhiều tính linh hoạt hơn.
+
+#### 1. Phiên thanh toán
+
+Sử dụng các phiên thanh toán để tạo trải nghiệm thanh toán an toàn, được lưu trữ cho các khoản thanh toán một lần hoặc đăng ký. Bạn tạo một phiên trên máy chủ của mình, sau đó chuyển hướng khách hàng đến `checkout_url`.
+
+<Info>
+Các phiên thanh toán có hiệu lực trong 24 giờ theo mặc định. Nếu bạn truyền <code>confirm=true</code>, các phiên có hiệu lực trong 15 phút và tất cả các trường cần thiết phải được cung cấp.
+</Info>
+
+<Steps>
+<Step title="Tạo một phiên thanh toán">
+  Chọn SDK ưa thích của bạn hoặc gọi API REST.
+
+  <Tabs>
+  <Tab title="Node.js SDK">
+
+  ```javascript
+  import DodoPayments from 'dodopayments';
+
+  const client = new DodoPayments({
+    bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+    environment: 'test_mode', // defaults to 'live_mode'
+  });
+
+  const session = await client.checkoutSessions.create({
+    product_cart: [{ product_id: 'prod_123', quantity: 1 }],
+    customer: { email: 'customer@example.com', name: 'John Doe' },
+    return_url: 'https://yourapp.com/checkout/success',
+  });
+  ```
+
+  </Tab>
+
+  <Tab title="Python SDK">
+
+  ```python
+  import os
+  from dodopayments import DodoPayments
+
+  client = DodoPayments(
+      bearer_token=os.environ.get("DODO_PAYMENTS_API_KEY"),
+      environment="test_mode",  # defaults to "live_mode"
+  )
+
+  session = client.checkout_sessions.create(
+      product_cart=[{"product_id": "prod_123", "quantity": 1}],
+      customer={"email": "customer@example.com", "name": "John Doe"},
+      return_url="https://yourapp.com/checkout/success",
+  )
+  ```
+
+  </Tab>
+
+  <Tab title="REST API">
+
+  ```javascript
+  const response = await fetch('https://test.dodopayments.com/checkouts', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${process.env.DODO_PAYMENTS_API_KEY}`,
+    },
+    body: JSON.stringify({
+      product_cart: [{ product_id: 'prod_123', quantity: 1 }],
+      customer: { email: 'customer@example.com', name: 'John Doe' },
+      return_url: 'https://yourapp.com/checkout/success',
+    }),
+  });
+  const session = await response.json();
+  ```
+
+  </Tab>
+  </Tabs>
+</Step>
+
+<Step title="Chuyển hướng khách hàng đến thanh toán">
+  Sau khi tạo phiên, chuyển hướng đến `checkout_url` để bắt đầu quy trình lưu trữ.
+
+  ```javascript
+  // Example in a browser context
+  window.location.href = session.checkout_url;
+  ```
+
+</Step>
+</Steps>
+
+<Tip>
+Ưu tiên các phiên thanh toán cho cách nhanh nhất và đáng tin cậy nhất để bắt đầu nhận thanh toán. Để tùy chỉnh nâng cao, xem hướng dẫn đầy đủ về <a href="/developer-resources/checkout-session">Các phiên thanh toán</a> và <a href="/api-reference/checkout-sessions/create">Tài liệu API</a>.
+</Tip>
+
+#### 2. Thanh toán chồng
+
+Để có trải nghiệm thanh toán trong trang liền mạch, hãy khám phá tích hợp [Thanh toán chồng](/developer-resources/overlay-checkout) của chúng tôi cho phép khách hàng hoàn tất thanh toán mà không rời khỏi trang web của bạn.
+
+#### 3. Liên kết thanh toán tĩnh
+
+Liên kết thanh toán tĩnh cho phép bạn nhanh chóng chấp nhận thanh toán bằng cách chia sẻ một URL đơn giản. Bạn có thể tùy chỉnh trải nghiệm thanh toán bằng cách truyền các tham số truy vấn để tự động điền thông tin khách hàng, kiểm soát các trường biểu mẫu và thêm siêu dữ liệu tùy chỉnh.
+
+<Steps>
+<Step title="Xây dựng liên kết thanh toán của bạn">
+  Bắt đầu với URL cơ bản và thêm ID sản phẩm của bạn:
+
+  ```text
+  https://checkout.dodopayments.com/buy/{productid}
+  ```
+
+</Step>
+<Step title="Thêm các tham số chính">
+  Bao gồm các tham số truy vấn thiết yếu:
+  - <ParamField query="quantity" type="integer" default="1">Số lượng hàng hóa để mua.</ParamField>
+  - <ParamField query="redirect_url" type="string" required>URL để chuyển hướng sau khi hoàn tất thanh toán.</ParamField>
+  <Note>
+  URL chuyển hướng sẽ bao gồm chi tiết thanh toán dưới dạng tham số truy vấn, ví dụ:<br/>
+  <code>https://example.com/?payment_id=pay_ts2ySpzg07phGeBZqePbH&status=succeeded</code>
+  </Note>
+</Step>
+<Step title="Tự động điền thông tin khách hàng (tùy chọn)">
+  Thêm các trường khách hàng hoặc thanh toán dưới dạng tham số truy vấn để đơn giản hóa quy trình thanh toán.
+  <AccordionGroup>
+    <Accordion title="Các trường khách hàng được hỗ trợ">
+      - <ParamField query="fullName" type="string">Họ và tên của khách hàng (bỏ qua nếu firstName hoặc lastName được cung cấp).</ParamField>
+      - <ParamField query="firstName" type="string">Tên của khách hàng.</ParamField>
+      - <ParamField query="lastName" type="string">Họ của khách hàng.</ParamField>
+      - <ParamField query="email" type="string">Địa chỉ email của khách hàng.</ParamField>
+      - <ParamField query="country" type="string">Quốc gia của khách hàng.</ParamField>
+      - <ParamField query="addressLine" type="string">Địa chỉ đường phố.</ParamField>
+      - <ParamField query="city" type="string">Thành phố.</ParamField>
+      - <ParamField query="state" type="string">Tiểu bang hoặc tỉnh.</ParamField>
+      - <ParamField query="zipCode" type="string">Mã bưu điện/ZIP.</ParamField>
+      - <ParamField query="showDiscounts" type="boolean">true hoặc false</ParamField>
+    </Accordion>
+  </AccordionGroup>
+</Step>
+<Step title="Kiểm soát các trường biểu mẫu (tùy chọn)">
+  <Info>
+  Bạn có thể vô hiệu hóa các trường cụ thể để làm cho chúng chỉ đọc cho khách hàng. Điều này hữu ích khi bạn đã có thông tin của khách hàng (ví dụ: người dùng đã đăng nhập).
+  </Info>
+  Để vô hiệu hóa một trường, cung cấp giá trị của nó và đặt cờ <code>disable...</code> tương ứng thành <code>true</code>:
+  <CodeGroup>
+
+  ```text Example
+  &email=alice@example.com&disableEmail=true
+  ```
+
+  </CodeGroup>
+  <Tabs>
+    <Tab title="Bảng cờ vô hiệu hóa">
+      | Trường         | Cờ vô hiệu hóa         | Tham số bắt buộc |
+      |---------------|---------------------|-------------------|
+      | Họ và tên     | `disableFullName`   | `fullName`        |
+      | Tên           | `disableFirstName`  | `firstName`       |
+      | Họ            | `disableLastName`   | `lastName`        |
+      | Email         | `disableEmail`      | `email`           |
+      | Quốc gia      | `disableCountry`    | `country`         |
+      | Địa chỉ đường  | `disableAddressLine`| `addressLine`     |
+      | Thành phố     | `disableCity`       | `city`            |
+      | Tiểu bang      | `disableState`      | `state`           |
+      | Mã bưu điện    | `disableZipCode`    | `zipCode`         |
+    </Tab>
+  </Tabs>
+  <Tip>
+  Việc vô hiệu hóa các trường giúp ngăn chặn những thay đổi không mong muốn và đảm bảo tính nhất quán của dữ liệu.
+  </Tip>
+  <Note>
+  Đặt <code>showDiscounts=false</code> sẽ vô hiệu hóa và ẩn phần giảm giá trong biểu mẫu thanh toán. Sử dụng điều này nếu bạn muốn ngăn khách hàng nhập mã giảm giá hoặc mã khuyến mãi trong quá trình thanh toán.
+  </Note>
+
+</Step>
+<Step title="Thêm các điều khiển nâng cao (tùy chọn)">
+  - <ParamField query="paymentCurrency" type="string">Chỉ định loại tiền tệ thanh toán. Mặc định là loại tiền tệ của quốc gia thanh toán.</ParamField>
+  - <ParamField query="showCurrencySelector" type="boolean" default="true">Hiện hoặc ẩn trình chọn tiền tệ.</ParamField>
+  - <ParamField query="paymentAmount" type="integer">Số tiền tính bằng xu (chỉ cho giá Pay What You Want).</ParamField>
+  - <ParamField query="metadata_*" type="string">Các trường siêu dữ liệu tùy chỉnh (ví dụ: <code>metadata_orderId=123</code>).</ParamField>
+</Step>
+<Step title="Chia sẻ liên kết">
+  Gửi liên kết thanh toán đã hoàn thành đến khách hàng của bạn. Khi họ truy cập, tất cả các tham số truy vấn sẽ được thu thập và lưu trữ với một ID phiên. URL sau đó sẽ được đơn giản hóa để chỉ bao gồm tham số phiên (ví dụ: <code>?session=sess_1a2b3c4d</code>). Thông tin đã lưu trữ sẽ tồn tại qua các lần làm mới trang và có thể truy cập trong suốt quá trình thanh toán.
+  <Check>
+  Trải nghiệm thanh toán của khách hàng giờ đây đã được đơn giản hóa và cá nhân hóa dựa trên các tham số của bạn.
+  </Check>
+</Step>
+</Steps>
+
+#### 4. Liên kết thanh toán động
+<Tip>
+Ưu tiên các phiên thanh toán cho hầu hết các trường hợp sử dụng, chúng cung cấp nhiều tính linh hoạt và kiểm soát hơn.
+</Tip>
+
+Được tạo thông qua cuộc gọi API hoặc SDK của chúng tôi với thông tin khách hàng. Đây là một ví dụ:
+
+Có hai API để tạo liên kết thanh toán động:
+
+- API Liên kết thanh toán một lần [Tài liệu API](/api-reference/payments/post-payments)
+- API Liên kết thanh toán đăng ký [Tài liệu API](/api-reference/subscriptions/post-subscriptions)
+
+Hướng dẫn dưới đây là cho việc tạo liên kết thanh toán một lần.
+
+Để biết hướng dẫn chi tiết về việc tích hợp đăng ký, hãy tham khảo [Hướng dẫn tích hợp đăng ký](/developer-resources/subscription-integration-guide).
+
+<Info>Đảm bảo bạn đang truyền `payment_link = true` để nhận liên kết thanh toán </Info>
+
+<Tabs>
+  
+  <Tab title="Node.js SDK">
+
+    ```javascript
+    import DodoPayments from 'dodopayments';
+
+const client = new DodoPayments({
+  bearerToken: process.env['DODO_PAYMENTS_API_KEY'], // This is the default and can be omitted
+  environment: 'test_mode', // defaults to 'live_mode'
+});
+
+async function main() {
+  const payment = await client.payments.create({
+    payment_link: true,
+    billing: { city: 'city', country: 'AF', state: 'state', street: 'street', zipcode: 0 },
+    customer: { email: 'email@email.com', name: 'name' },
+    product_cart: [{ product_id: 'product_id', quantity: 0 }],
+  });
+
+  console.log(payment.payment_id);
+}
+
+main();
+    ```
+
+    
+  </Tab>
+  <Tab title="Python SDK">
+
+    ```python
+    import os
+from dodopayments import DodoPayments
+
+client = DodoPayments(
+    bearer_token=os.environ.get("DODO_PAYMENTS_API_KEY"),  # This is the default and can be omitted (if using same name `DODO_PAYMENTS_API_KEY`)
+    environment="test_mode",  # defaults to "live_mode"
+)
+payment = client.payments.create(
+    payment_link=True,
+    billing={
+        "city": "city",
+        "country": "AF",
+        "state": "state",
+        "street": "street",
+        "zipcode": 0,
+    },
+    customer={
+        "email": "email@email.com",
+        "name": "name",
+    },
+    product_cart=[{
+        "product_id": "product_id",
+        "quantity": 0,
+    }],
+)
+print(payment.payment_link)
+    ```
+
+  </Tab>
+  <Tab title="Go SDK">
+
+    ```go
+    package main
+
+import (
+  "context"
+  "fmt"
+
+  "github.com/dodopayments/dodopayments-go"
+  "github.com/dodopayments/dodopayments-go/option"
+)
+
+func main() {
+  client := dodopayments.NewClient(
+    option.WithBearerToken("My Bearer Token"), // defaults to os.LookupEnv("DODO_PAYMENTS_API_KEY")
+  )
+  payment, err := client.Payments.New(context.TODO(), dodopayments.PaymentNewParams{
+    PaymentLink: dodopayments.F(true),
+    Billing: dodopayments.F(dodopayments.PaymentNewParamsBilling{
+      City: dodopayments.F("city"),
+      Country: dodopayments.F(dodopayments.CountryCodeAf),
+      State: dodopayments.F("state"),
+      Street: dodopayments.F("street"),
+      Zipcode: dodopayments.F(int64(0)),
+    }),
+    Customer: dodopayments.F(dodopayments.PaymentNewParamsCustomer{
+      Email: dodopayments.F("email"),
+      Name: dodopayments.F("name"),
+    }),
+    ProductCart: dodopayments.F([]dodopayments.PaymentNewParamsProductCart{dodopayments.PaymentNewParamsProductCart{
+      ProductID: dodopayments.F("product_id"),
+      Quantity: dodopayments.F(int64(0)),
+    }}),
+  })
+  if err != nil {
+    panic(err.Error())
+  }
+  fmt.Printf("%+v\n", payment.PaymentLink)
+}
+
+    ```
+
+    </Tab>
+<Tab title="Tài liệu API">
+
+    ```javascript
+import { NextRequest, NextResponse } from "next/server";      
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { formData, cartItems } = paymentRequestSchema.parse(body);
+
+    const response = await fetch(`${process.env.NEXT_PUBLIC_DODO_TEST_API}/payments`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${process.env.DODO_API_KEY}`, // Replace with your API secret key generated from the Dodo Payments Dashboard
+      },
+      body: JSON.stringify({
+        billing: {
+          city: formData.city,
+          country: formData.country,
+          state: formData.state,
+          street: formData.addressLine,
+          zipcode: parseInt(formData.zipCode),
+        },
+        customer: {
+          email: formData.email,
+          name: `${formData.firstName} ${formData.lastName}`,
+          phone_number: formData.phoneNumber || undefined,
+        },
+        payment_link: true,
+        product_cart: cartItems.map((id) => ({
+          product_id: id,
+          quantity: 1,
+        })),
+        return_url: process.env.NEXT_PUBLIC_RETURN_URL,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => null);
+      return NextResponse.json(
+        { error: "Payment link creation failed", details: errorData },
+        { status: response.status }
+      );
+    }
+
+    const data = await response.json();
+    return NextResponse.json({ paymentLink: data.payment_link });
+  } catch (err) {
+    console.error("Payment error:", err);
+    return NextResponse.json(
+      {
+        error: err instanceof Error ? err.message : "An unknown error occurred",
+      },
+      { status: 500 }
+    );
+  }
+}
+```
+
+  </Tab>
+</Tabs>
+
+<Info>Sau khi tạo liên kết thanh toán, hãy chuyển hướng khách hàng của bạn để hoàn tất thanh toán.</Info>
+
+### Triển khai Webhooks
+
+Thiết lập một điểm cuối API để nhận thông báo thanh toán. Đây là một ví dụ sử dụng Next.js:
+
+```javascript
+import { Webhook } from "standardwebhooks";
+import { headers } from "next/headers";
+import { WebhookPayload } from "@/types/api-types";
+
+const webhook = new Webhook(process.env.DODO_WEBHOOK_KEY!); // Replace with your secret key generated from the Dodo Payments Dashboard
+
+export async function POST(request: Request) {
+  const headersList = headers();
+  const rawBody = await request.text();
+
+  const webhookHeaders = {
+    "webhook-id": headersList.get("webhook-id") || "",
+    "webhook-signature": headersList.get("webhook-signature") || "",
+    "webhook-timestamp": headersList.get("webhook-timestamp") || "",
+  };
+
+  await webhook.verify(rawBody, webhookHeaders);
+  const payload = JSON.parse(rawBody) as WebhookPayload;
+  
+  // Process the payload according to your business logic
+}
+```
+
+Triển khai webhook của chúng tôi tuân theo tiêu chuẩn [Standard Webhooks](https://standardwebhooks.com/). Để biết định nghĩa loại webhook, hãy tham khảo [Hướng dẫn sự kiện Webhook](/developer-resources/webhooks/intents/webhook-events-guide).
+
+Bạn có thể tham khảo dự án này với triển khai demo trên [GitHub](https://github.com/dodopayments/dodo-checkout-demo) sử dụng Next.js và TypeScript.
+
+Bạn có thể xem triển khai trực tiếp [tại đây](https://atlas.dodopayments.com/).

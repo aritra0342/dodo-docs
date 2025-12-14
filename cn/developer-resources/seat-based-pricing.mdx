@@ -1,0 +1,477 @@
+---
+title: 基于座位的定价与附加组件和支付链接
+description: 学习如何为基于座位的定价创建附加组件，并使用自定义附加组件数量生成支付链接，使用 Dodo Payments
+icon: users
+---
+
+在本教程中，您将学习如何使用 Dodo Payments 附加组件实现基于座位的定价。我们将创建一个带有附加组件的订阅产品，以便增加额外的座位，并向您展示如何生成带有自定义附加组件数量的支付链接。
+
+<Note>
+本教程提供了 Node.js/Express 应用程序的示例实现代码。您可以根据您的特定框架（Next.js、React、Vue 等）修改此代码，并根据您的应用程序需求自定义用户界面。
+</Note>
+
+到本教程结束时，您将知道如何：
+- 创建基于座位的订阅产品
+- 设置额外座位的附加组件
+- 生成带有自定义附加组件数量的支付链接
+- 处理具有动态座位数量的结账会话
+
+## 我们要构建的内容
+
+让我们创建一个基于座位的定价模型：
+
+- **基础计划**：每月 $49，最多 5 名团队成员
+- **座位附加组件**：每个额外座位每月 $2
+- **支付链接**：动态结账，带有自定义座位数量
+
+<Info>
+在我们开始之前，请确保您拥有：
+- 一个 Dodo Payments 账户
+- 对 TypeScript/Node.js 的基本了解
+</Info>
+
+## 第 1 步：创建您的座位附加组件
+
+现在我们需要创建一个表示额外座位的附加组件。此附加组件将附加到我们的基础订阅上，并允许客户购买额外的座位。
+
+<Frame>
+  <img src="/images/cookbooks/seat-based/seat-based-addons-creation.png" alt="创建基础订阅产品" />
+</Frame>
+
+<Tip>
+**我们要构建的内容**：一个每个座位每月 $2 的附加组件，可以添加到任何基础订阅中。
+</Tip>
+
+<Steps>
+<Step title="导航到附加组件">
+1. 在您的 Dodo Payments 仪表板中，停留在 **产品** 部分
+2. 点击 **附加组件** 标签
+3. 点击 **创建附加组件**
+
+这将打开附加组件创建表单。
+</Step>
+
+<Step title="输入附加组件详细信息">
+填写我们座位附加组件的以下值：
+
+**附加组件名称**：`Additional Team Seat`
+
+**描述**：`Add extra team members to your workspace with full access to all features`
+
+**价格**：输入 → `2.00`
+
+**货币**：必须与您的基础订阅货币匹配
+
+**税务类别**：选择适合您产品的类别。
+
+</Step>
+
+<Step title="保存您的附加组件">
+1. 检查您的所有设置：
+   - 名称：额外团队座位
+   - 价格：每月 $2.00
+2. 点击 **创建附加组件**
+
+<Check>
+**附加组件已创建！** 您的座位附加组件现在可以附加到订阅中。
+</Check>
+</Step>
+</Steps>
+
+## 第 2 步：创建您的基础订阅产品
+
+我们将首先创建一个包含 5 名团队成员的基础订阅产品。这将是我们基于座位的定价模型的基础。
+
+<Frame>
+  <img src="/images/cookbooks/seat-based/seat-based-subscription.png" alt="创建基础订阅产品" />
+</Frame>
+
+<Steps>
+<Step title="导航到产品">
+1. 登录到您的 Dodo Payments 仪表板
+2. 在左侧边栏中点击 **产品**
+3. 点击 **创建产品** 按钮
+4. 选择 **订阅** 作为产品类型
+
+您应该会看到一个表单，我们将在其中配置我们的基础订阅。
+</Step>
+
+<Step title="填写订阅详细信息">
+现在我们将输入基础计划的具体细节：
+
+**产品名称**：`Motion`
+
+**描述**：`Where your team's documentation lives.`
+
+**定期价格**：输入 → `49.00`
+
+**计费周期**：选择 → `Monthly`
+
+**货币**：选择您首选的货币（例如，`USD`）
+
+</Step>
+
+</Steps>
+
+## 第 3 步：将附加组件连接到订阅
+
+现在我们需要将我们的座位附加组件与基础订阅关联，以便客户在结账时可以购买额外的座位。
+
+<Steps>
+
+<Step title="附加座位附加组件">
+
+<Frame>
+  <img src="/images/cookbooks/seat-based/seat-based-addons.png" alt="将附加组件附加到订阅" />
+</Frame>
+
+1. 向下滚动到 **附加组件** 部分
+2. 点击 **添加附加组件**
+3. 从下拉菜单中选择您的座位附加组件
+4. 确认它出现在您的订阅配置中
+
+</Step>
+
+<Step title="保存订阅更改">
+1. 检查您的完整订阅设置：
+   - 基础计划：每月 $49，5 个座位
+   - 附加组件：每个额外座位每月 $2
+   - 免费试用：14 天
+2. 点击 **保存更改**
+
+<Check>
+**基于座位的定价已配置！** 客户现在可以购买您的基础计划并根据需要添加额外座位。
+</Check>
+</Step>
+</Steps>
+
+## 第 4 步：生成带有自定义附加组件数量的支付链接
+
+现在让我们创建一个 Express.js 应用程序，生成带有自定义附加组件数量的支付链接。这就是基于座位的定价的真正力量所在 - 您可以动态创建具有任意数量额外座位的结账会话。
+
+<Steps>
+<Step title="设置您的项目">
+创建一个新的 Node.js 项目并安装所需的依赖项：
+
+```bash
+mkdir seat-based-pricing
+cd seat-based-pricing
+npm init -y
+npm install dodopayments express dotenv
+npm install -D @types/node @types/express typescript ts-node
+```
+
+创建一个 `tsconfig.json` 文件：
+
+```json
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "commonjs",
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true
+  }
+}
+```
+
+</Step>
+
+<Step title="创建您的环境文件">
+创建一个 `.env` 文件，包含您的 Dodo Payments API 密钥：
+
+```bash
+DODO_PAYMENTS_API_KEY=your_actual_dodo_api_key_here
+```
+
+<Warning>
+切勿将您的 API 密钥提交到版本控制中。将 `.env` 添加到您的 `.gitignore` 文件中。
+</Warning>
+</Step>
+
+<Step title="实现结账会话创建">
+创建一个 `src/server.ts` 文件，包含以下代码：
+
+<CodeGroup>
+
+```typescript server.ts expandable
+// Add this new endpoint for dynamic seat quantities
+import 'dotenv/config';
+import DodoPayments from 'dodopayments';
+import express, { Request, Response } from 'express';
+
+const app = express();
+
+// Initialize the Dodo Payments client
+const client = new DodoPayments({
+  bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'test_mode'
+});
+
+async function createCheckoutSession(seatCount: number) {
+  try {
+    const session = await client.checkoutSessions.create({
+      // Products to sell - use IDs from your Dodo Payments dashboard
+      product_cart: [
+        {
+          product_id: 'pdt_7Rl9OWT2Mz4wwUTKz74iZ', // Replace with your actual product ID
+          quantity: 1,
+          addons: [
+            {
+              addon_id: 'adn_eKQbNakKrivDpaxmI8wKI', // Replace with your actual addon ID
+              quantity: seatCount
+            }
+          ]
+        }
+      ],
+      
+      // Pre-fill customer information to reduce friction
+      customer: {
+        email: 'steve@example.com',
+        name: 'Steve Irwin',
+      },
+      // Where to redirect after successful payment
+      return_url: 'https://example.com/checkout/success',
+    });
+
+    // Redirect your customer to this URL to complete payment
+    console.log('Checkout URL:', session.checkout_url);
+    console.log('Session ID:', session.session_id);
+    
+    return session;
+    
+  } catch (error) {
+    console.error('Failed to create checkout session:', error);
+    throw error;
+  }
+}
+
+// Example usage in an Express.js route
+app.post('/create-checkout/:seatCount', async (req: Request, res: Response) => {
+  try {
+    const seatCount = parseInt(req.params.seatCount);
+    const session = await createCheckoutSession(seatCount);
+    res.json({ checkout_url: session.checkout_url });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to create checkout session' });
+  }
+});
+
+// Add this line after your other middleware
+app.use(express.static('public'));
+
+// Add this route to serve the demo page
+app.get('/', (req, res) => {
+  res.sendFile(__dirname + '/../public/index.html');
+});
+
+app.listen(3000, () => {
+  console.log('Server is running on port 3000');
+});
+```
+
+</CodeGroup>
+
+</Step>
+
+<Step title="添加简单的网页界面">
+创建一个 `public/index.html` 文件以便于测试：
+
+<CodeGroup>
+
+```html index.html expandable
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Seat-Based Pricing Demo</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; }
+        .form-group { margin: 20px 0; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; }
+        button { background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        .result { margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <h1>Seat-Based Pricing Demo</h1>
+    <p>Generate checkout links with custom seat quantities:</p>
+    
+    <div class="form-group">
+        <label for="seatCount">Number of Additional Seats:</label>
+        <input type="number" id="seatCount" value="3" min="0" max="50">
+    </div>
+    
+    <button onclick="createCheckout()">Generate Checkout Link</button>
+    
+    <div id="result" class="result" style="display: none;">
+        <h3>Checkout Link Generated!</h3>
+        <p><strong>Seat Count:</strong> <span id="seatCountDisplay"></span></p>
+        <p><strong>Total Cost:</strong> $<span id="totalCost"></span>/month</p>
+        <p><strong>Checkout URL:</strong></p>
+        <a id="checkoutUrl" href="#" target="_blank">Click here to checkout</a>
+    </div>
+
+    <script>
+        async function createCheckout() {
+            const seatCount = document.getElementById('seatCount').value;
+            
+            try {
+                const response = await fetch(`/create-checkout/${seatCount}`, {
+                    method: 'POST'
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    document.getElementById('seatCountDisplay').textContent = seatCount;
+                    document.getElementById('totalCost').textContent = data.total_cost;
+                    document.getElementById('checkoutUrl').href = data.checkout_url;
+                    document.getElementById('result').style.display = 'block';
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            } catch (error) {
+                alert('Error creating checkout session');
+            }
+        }
+    </script>
+</body>
+</html>
+```
+
+</CodeGroup>
+
+<Check>
+**网页界面已创建！** 您现在有一个简单的用户界面来测试不同的座位数量。
+</Check>
+</Step>
+
+<Step title="提供静态文件">
+将此添加到您的 `src/server.ts` 以提供 HTML 文件：
+
+```typescript
+// Add this line after your other middleware
+app.use(express.static('public'));
+
+// Add this route to serve the demo page
+app.get('/', (req, res) => {
+  res.sendFile(__dirname + '/../public/index.html');
+});
+```
+
+<Check>
+**静态文件已配置！** 访问 `http://localhost:3000` 以查看您的演示界面。
+</Check>
+</Step>
+</Steps>
+
+## 第 5 步：测试您的实现
+
+让我们测试我们的基于座位的定价实现，以确保一切正常工作。
+
+<Steps>
+<Step title="启动您的服务器">
+1. 确保您有正确 API 密钥的 `.env` 文件
+2. 用您 Dodo Payments 仪表板中的实际值更新代码中的产品和附加组件 ID
+3. 启动您的服务器：
+
+```bash
+npm run dev
+```
+
+<Check>
+您的服务器应成功启动并显示 "服务器运行在 http://localhost:3000"
+</Check>
+</Step>
+
+<Step title="测试网页界面">
+
+<Frame>
+  <img src="/images/cookbooks/seat-based/seat-based-billing-ui.png" alt="创建基础订阅产品" />
+</Frame>
+
+1. 打开您的浏览器并访问 `http://localhost:3000`
+2. 您应该会看到基于座位的定价演示界面
+3. 尝试不同的座位数量（0、3、10 等）
+4. 点击每个数量的 "生成结账链接"
+5. 验证结账 URL 是否正确生成
+
+</Step>
+
+<Step title="测试结账会话">
+1. 生成一个带有 3 个额外座位的结账链接
+2. 点击结账 URL 打开 Dodo Payments 结账
+3. 验证结账显示：
+   - 基础计划：每月 $49
+   - 额外座位：3 × 2 美元 = 每月 $6
+4. 完成测试购买
+
+<Check>
+结账应显示正确的价格细目，并允许您完成购买。
+</Check>
+</Step>
+
+<Step title="监听 Webhook 并更新您的数据库">
+为了使您的数据库与订阅和座位更改保持同步，您需要监听来自 Dodo Payments 的 webhook 事件。Webhook 会在客户完成结账、更新其订阅或更改座位数量时通知您的后端。
+
+请遵循官方 Dodo Payments webhook 指南，获取设置 webhook 端点和处理事件的逐步说明：
+
+<Card title="Dodo Payments Webhooks 文档" icon="bell" href="/developer-resources/webhooks">
+了解如何安全接收和处理订阅和座位管理的 webhook 事件。
+</Card>
+
+</Step>
+
+</Steps>
+
+## 故障排除
+
+常见问题及其解决方案：
+
+<AccordionGroup>
+<Accordion title="结账创建失败">
+**可能的原因：**
+- 无效的产品 ID 或附加组件 ID
+- API 密钥没有足够的权限
+- 附加组件未正确关联到订阅
+- 网络连接问题
+
+**解决方案：**
+1. 验证产品和附加组件 ID 是否存在于您的 Dodo Payments 仪表板中
+2. 检查附加组件是否正确附加到订阅
+3. 确保 API 密钥具有创建结账会话的权限
+4. 使用简单的 GET 请求测试 API 连接性
+</Accordion>
+
+</AccordionGroup>
+
+## 恭喜！您已实现基于座位的定价
+
+您已成功创建了一个基于座位的定价系统，使用 Dodo Payments！以下是您完成的内容：
+
+<CardGroup cols={2}>
+<Card title="基础订阅">
+创建了一个每月 $49 的订阅产品，包含 5 个座位
+</Card>
+
+<Card title="座位附加组件">
+配置了每个座位每月 $2 的额外座位附加组件
+</Card>
+
+<Card title="结账">
+构建了一个生成带有自定义座位数量的结账会话的 API
+</Card>
+
+<Card title="网页界面">
+创建了一个简单的网页界面，用于测试不同的座位数量
+</Card>
+</CardGroup>
+
+<Info>
+此示例仅演示了基于座位的定价的最小实现。对于生产使用，您应添加强大的错误处理、身份验证、数据验证、安全措施，并根据您的应用程序需求调整逻辑。
+</Info>

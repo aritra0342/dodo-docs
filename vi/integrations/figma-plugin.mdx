@@ -1,0 +1,169 @@
+---
+sidebarTitle: Figma Plugin
+title: Figma Plugin Boilerplate
+description: Xây dựng các plugin Figma với xác thực và kích hoạt khóa bản quyền
+  Dodo Payments
+icon: figma
+---
+
+Đây là một ví dụ về cách triển khai và mẫu thiết kế như một điểm khởi đầu cho các nhà phát triển plugin Figma muốn tích hợp API khóa bản quyền Dodo Payments để cấp quyền truy cập cho các plugin của họ. Mẫu này thể hiện đầy đủ chức năng xác thực và kích hoạt khóa bản quyền, cung cấp mọi thứ bạn cần để tạo ra các plugin Figma cao cấp với tính năng cấp phép tích hợp sẵn.
+
+## Tính năng
+
+- **Xác thực khóa bản quyền**: Xác thực khóa bản quyền với API Dodo Payments
+- **Kích hoạt khóa bản quyền**: Kích hoạt khóa bản quyền với xác định người dùng
+- **Hỗ trợ môi trường**: Có thể cấu hình cho cả môi trường thử nghiệm và môi trường thực  
+- **Proxy CORS**: Sử dụng proxy Cloudflare Worker để xử lý các hạn chế CORS
+- **Hỗ trợ TypeScript**: Triển khai hoàn toàn có kiểu với xử lý lỗi đúng cách
+
+## Bắt đầu
+
+<Steps>
+<Step title="Tạo Plugin Cơ Bản">
+Tạo dự án plugin Figma của riêng bạn bằng cách sử dụng [hướng dẫn nhanh về plugin của Figma](https://www.figma.com/plugin-docs/plugin-quickstart-guide/). Điều này sẽ tạo ra một khung với một `manifest.json` file.
+
+<Tip>
+Bước này chỉ để có một tên và ID duy nhất cho plugin của bạn. Bạn có thể bỏ qua các tệp được tạo ra sau khi cam kết ID và tên vào kho git của bạn trong bước tiếp theo.
+</Tip>
+</Step>
+
+<Step title="Nhân Bản Triển Khai Ví Dụ">
+Nhân bản [kho dodopayments-figma](https://github.com/dodopayments/dodopayments-figma) và cập nhật `manifest.json` với tên và ID từ thư mục plugin được tạo của bạn.
+
+```bash
+git clone https://github.com/dodopayments/dodopayments-figma.git
+cd dodopayments-figma
+```
+
+Ví dụ này phục vụ như điểm khởi đầu của bạn cho việc tích hợp.
+
+<Tip>
+Bạn cần thay đổi URL nguồn từ xa thành kho của riêng bạn để kiểm soát phiên bản.
+</Tip>
+</Step>
+
+<Step title="Cài Đặt Phụ Thuộc">
+Chạy lệnh sau trong thư mục gốc của dự án bạn:
+
+```bash
+npm install
+```
+
+</Step>
+
+<Step title="Cấu Hình Môi Trường">
+Đặt `API_MODE` trong `src/ui/api.ts`:
+
+```typescript
+const API_MODE = "test_mode"; // for development
+// const API_MODE = "live_mode"; // for production
+```
+
+<Warning>
+Luôn sử dụng `test_mode` trong quá trình phát triển để tránh xử lý các khoản thanh toán thực.
+</Warning>
+</Step>
+
+<Step title="Tùy Chỉnh Các Thành Phần">
+Tùy chỉnh các thành phần của plugin để phù hợp với nhu cầu của bạn:
+
+- Cập nhật `Authenticated.tsx` để cung cấp chức năng cho người dùng có khóa bản quyền hợp lệ
+- Tùy chỉnh `LicenseKeyInput.tsx` để phù hợp với sở thích thiết kế của bạn
+
+<Note>
+Thành phần `Authenticated.tsx` là nơi bạn sẽ thêm các tính năng cao cấp của plugin yêu cầu một khóa bản quyền hợp lệ.
+</Note>
+</Step>
+</Steps>
+
+## Cấu Hình
+
+<Steps>
+<Step title="Cấu Hình Truy Cập Mạng">
+Plugin cần truy cập mạng để giao tiếp với proxy CORS. Thêm điều sau vào `manifest.json`:
+
+```json
+{
+  "networkAccess": {
+    "allowedDomains": ["https://dodo-payments-proxy.aagarwal9782.workers.dev"]
+  }
+}
+```
+
+Điều này cho phép plugin xác thực và kích hoạt các khóa bản quyền bằng cách sử dụng API Dodo Payments.
+
+<Info>
+Proxy CORS là cần thiết vì API Dodo Payments hiện không cho phép các cuộc gọi API từ các ứng dụng dựa trên trình duyệt.
+</Info>
+</Step>
+
+<Step title="Cấu Hình Chế Độ API">
+Trong `src/ui/api.ts`, cấu hình chế độ API:
+
+```typescript
+const API_MODE = "test_mode"; // or "live_mode"
+```
+
+<Tip>
+Chuyển sang `live_mode` chỉ khi bạn đã sẵn sàng cho sản xuất và đã thử nghiệm kỹ lưỡng trong chế độ thử nghiệm.
+</Tip>
+</Step>
+</Steps>
+
+## Phát Triển
+
+<Steps>
+<Step title="Nhập Plugin">
+Nhập plugin vào Figma bằng cách sử dụng "Nhập Manifest" từ ứng dụng Figma trên máy tính.
+
+<Note>
+Bạn sẽ cần cài đặt ứng dụng Figma trên máy tính để phát triển và thử nghiệm các plugin cục bộ.
+</Note>
+</Step>
+
+<Step title="Bắt Đầu Máy Chủ Phát Triển">
+
+```bash
+npm run dev
+```
+
+Điều này khởi động máy chủ phát triển với việc theo dõi tệp để tự động tái xây dựng.
+
+<Check>
+Plugin của bạn sẽ tự động tái xây dựng khi bạn thực hiện thay đổi đối với mã nguồn.
+</Check>
+</Step>
+</Steps>
+
+## Lệnh Xây Dựng
+
+| Lệnh | Mô tả |
+|---------|-------------|
+| `npm run build` | Xây dựng plugin cho sản xuất |
+| `npm run dev` | Bắt đầu máy chủ phát triển với việc theo dõi tệp |
+| `npm run lint` | Kiểm tra kiểu mã và lỗi |
+| `npm run format` | Định dạng mã với Prettier |
+
+## Tích Hợp Khóa Bản Quyền
+
+Triển khai ví dụ bao gồm xác thực và kích hoạt khóa bản quyền hoàn chỉnh mà bạn có thể tùy chỉnh cho plugin của mình:
+
+1. **Nhập liệu của người dùng**: Người dùng nhập khóa bản quyền của họ trong giao diện plugin
+2. **Xác thực**: Plugin xác thực khóa với API Dodo Payments
+3. **Kích hoạt**: Các khóa hợp lệ được kích hoạt với xác định người dùng
+4. **Kiểm soát truy cập**: Chức năng của plugin được mở khóa cho những người sở hữu khóa bản quyền hợp lệ
+
+## Xuất Bản
+
+Khi plugin của bạn đã sẵn sàng:
+
+1. Xây dựng cho sản xuất: `npm run build`
+2. Thử nghiệm kỹ lưỡng trong cả chế độ thử nghiệm và chế độ thực
+3. Làm theo [hướng dẫn xuất bản plugin của Figma](https://www.figma.com/plugin-docs/publishing-plugins/)
+4. Gửi để xem xét qua Cộng đồng Figma
+
+## Kho Lưu Trữ
+
+Triển khai ví dụ hoàn chỉnh có sẵn tại: [github.com/dodopayments/dodopayments-figma](https://github.com/dodopayments/dodopayments-figma)
+
+Sử dụng điều này như điểm khởi đầu của bạn để xây dựng plugin Figma cao cấp của riêng bạn với tích hợp khóa bản quyền Dodo Payments.

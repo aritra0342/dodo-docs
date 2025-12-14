@@ -1,0 +1,119 @@
+---
+title: Stream Blueprint
+description: Theo dõi mức tiêu thụ dữ liệu streaming cho video, âm thanh, phát
+  trực tiếp và thanh toán dữ liệu thời gian thực.
+icon: tower-broadcast
+---
+
+## Trường Hợp Sử Dụng
+
+Khám phá các kịch bản phổ biến được hỗ trợ bởi Stream Blueprint:
+
+<CardGroup cols={2}>
+<Card title="Nền Tảng Video" icon="video">
+Tính phí khách hàng dựa trên mức tiêu thụ băng thông video và chất lượng streaming.
+</Card>
+<Card title="Phát Nhạc Trực Tuyến" icon="music">
+Theo dõi mức sử dụng âm thanh streaming theo người dùng cho các cấp độ đăng ký.
+</Card>
+<Card title="Sự Kiện Trực Tiếp" icon="signal-stream">
+Giám sát mức tiêu thụ live stream và tính phí dựa trên mức sử dụng băng thông.
+</Card>
+<Card title="Dữ Liệu Thời Gian Thực" icon="wave-pulse">
+Theo dõi việc truyền dữ liệu thời gian thực cho các ứng dụng IoT và telemetry.
+</Card>
+</CardGroup>
+
+<Info>
+Hoàn hảo cho các nền tảng streaming video/âm thanh, dịch vụ phát trực tiếp và các ứng dụng dữ liệu thời gian thực.
+</Info>
+
+## Bắt Đầu Nhanh
+
+Theo dõi số byte streaming mà khách hàng của bạn đã tiêu thụ:
+
+<Steps>
+<Step title="Cài Đặt SDK">
+
+```bash
+npm install @dodopayments/ingestion-blueprints
+```
+
+</Step>
+
+<Step title="Lấy API Keys Của Bạn">
+- **Dodo Payments API Key**: Lấy từ [Bảng Điều Khiển Dodo Payments](https://app.dodopayments.com/developer/api-keys)
+</Step>
+
+<Step title="Tạo Một Đồng Hồ">
+Tạo một đồng hồ trong [Bảng Điều Khiển Dodo Payments](https://app.dodopayments.com/):
+- **Tên Sự Kiện**: `stream_consumption` (hoặc tên bạn chọn)
+- **Loại Tập Hợp**: `sum` để theo dõi tổng số byte đã streaming
+- **Trên Tài Sản**: `bytes` để tính phí dựa trên mức sử dụng băng thông
+</Step>
+
+<Step title="Theo Dõi Mức Sử Dụng Stream">
+<CodeGroup>
+
+```javascript Video Streaming
+import { Ingestion, trackStreamBytes } from '@dodopayments/ingestion-blueprints';
+
+const ingestion = new Ingestion({
+  apiKey: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'test_mode',
+  eventName: 'stream_consumption'
+});
+
+// Track video stream consumption
+await trackStreamBytes(ingestion, {
+  customerId: 'customer_123',
+  bytes: 10485760, // 10MB
+  metadata: {
+    stream_type: 'video',
+  }
+});
+```
+
+</CodeGroup>
+</Step>
+</Steps>
+
+## Cấu Hình
+
+### Cấu Hình Nhập Dữ Liệu
+
+<ParamField path="apiKey" type="string" required>
+API key Dodo Payments của bạn từ bảng điều khiển.
+</ParamField>
+
+<ParamField path="environment" type="string" required>
+Chế độ môi trường: `test_mode` hoặc `live_mode`.
+</ParamField>
+
+<ParamField path="eventName" type="string" required>
+Tên sự kiện phù hợp với cấu hình đồng hồ của bạn.
+</ParamField>
+
+### Tùy Chọn Theo Dõi Số Byte Stream
+
+<ParamField path="customerId" type="string" required>
+ID khách hàng để ghi nhận thanh toán.
+</ParamField>
+
+<ParamField path="bytes" type="number">
+Số byte đã tiêu thụ trong stream. Bắt buộc cho việc tính phí dựa trên băng thông.
+</ParamField>
+
+<ParamField path="metadata" type="object">
+Dữ liệu tùy chọn về stream như loại stream, chất lượng, sessionId, v.v.
+</ParamField>
+
+## Thực Hành Tốt Nhất
+
+<Tip>
+**Theo Dõi Theo Khối**: Đối với các stream dài, theo dõi mức tiêu thụ theo khối thay vì chờ đợi toàn bộ stream hoàn thành.
+</Tip>
+
+<Warning>
+**Đếm Byte Chính Xác**: Đảm bảo số byte bao gồm tất cả overhead (tiêu đề, overhead giao thức) nếu tính phí cho tổng băng thông.
+</Warning>

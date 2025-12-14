@@ -1,0 +1,400 @@
+---
+title: C#
+description: دمج مدفوعات دودي في تطبيقات .NET الخاصة بك مع دعم حديث لـ async/await
+icon: c
+tag: BETA
+---
+
+يوفر SDK C# وصولاً مريحًا إلى واجهة برمجة تطبيقات REST الخاصة بمدفوعات دودي من التطبيقات المكتوبة بلغة C#. يتميز بواجهة برمجة تطبيقات تعتمد على async Task مع نوع قوي وهو حاليًا في مرحلة البيتا.
+
+<Info>
+SDK C# حاليًا في مرحلة البيتا. نحن نعمل بنشاط على تحسينات ونرحب بملاحظاتك.
+</Info>
+
+## التثبيت
+
+قم بتثبيت SDK باستخدام .NET CLI:
+
+```bash
+dotnet add package DodoPayments.Client
+```
+
+<Info>
+يتطلب SDK .NET 8.0 أو أعلى. يعمل مع ASP.NET Core وتطبيقات Console وأنواع مشاريع .NET الأخرى.
+</Info>
+
+## البداية السريعة
+
+قم بتهيئة العميل وإنشاء جلسة دفع:
+
+```csharp
+using System;
+using DodoPayments.Client;
+using DodoPayments.Client.Models.CheckoutSessions;
+
+// Configured using the DODO_PAYMENTS_API_KEY and DODO_PAYMENTS_BASE_URL environment variables
+DodoPaymentsClient client = new();
+
+CheckoutSessionCreateParams parameters = new()
+{
+    ProductCart =
+    [
+        new()
+        {
+            ProductID = "product_id",
+            Quantity = 1,
+        },
+    ],
+};
+
+var checkoutSessionResponse = await client.CheckoutSessions.Create(parameters);
+
+Console.WriteLine(checkoutSessionResponse.SessionId);
+```
+
+<Warning>
+قم دائمًا بتخزين مفاتيح API الخاصة بك بشكل آمن باستخدام متغيرات البيئة أو أسرار المستخدم أو Azure Key Vault. لا تقم بتشفيرها في شفرتك المصدرية أو الالتزام بها في التحكم في الإصدارات.
+</Warning>
+
+## الميزات الأساسية
+
+<CardGroup cols={2}>
+<Card title="Async/Await" icon="bolt">
+  واجهة برمجة تطبيقات كاملة تعتمد على async Task للعمليات غير المحجوزة
+</Card>
+
+<Card title="Strong Typing" icon="shield-check">
+  أمان نوع شامل مع أنواع مرجعية قابلة للتعطيل
+</Card>
+
+<Card title="Dependency Injection" icon="layer-group">
+  دعم من الدرجة الأولى لحقن الاعتماديات في .NET
+</Card>
+
+<Card title="Configuration" icon="gear">
+  تكوين بسيط عبر متغيرات البيئة أو appsettings.json
+</Card>
+</CardGroup>
+
+## التكوين
+
+### متغيرات البيئة
+
+قم بتكوين باستخدام متغيرات البيئة:
+
+```bash .env
+DODO_PAYMENTS_API_KEY=your_api_key_here
+```
+
+```csharp
+// Automatically reads from environment variables
+DodoPaymentsClient client = new();
+```
+
+### التكوين اليدوي
+
+قم بالتكوين يدويًا باستخدام رمز الحامل:
+
+```csharp
+DodoPaymentsClient client = new() { BearerToken = "My Bearer Token" };
+```
+
+## العمليات الشائعة
+
+### إنشاء جلسة دفع
+
+قم بإنشاء جلسة دفع:
+
+```csharp
+var parameters = new CheckoutSessionCreateParams
+{
+    ProductCart =
+    [
+        new()
+        {
+            ProductID = "prod_123",
+            Quantity = 1
+        }
+    ],
+    ReturnUrl = "https://yourdomain.com/return"
+};
+
+var session = await client.CheckoutSessions.Create(parameters);
+Console.WriteLine($"Checkout URL: {session.Url}");
+```
+
+### إدارة العملاء
+
+قم بإنشاء واسترجاع معلومات العملاء:
+
+```csharp
+// Create a customer
+var createParams = new CustomerCreateParams
+{
+    Email = "customer@example.com",
+    Name = "John Doe",
+    Metadata = new Dictionary<string, string>
+    {
+        { "user_id", "12345" }
+    }
+};
+
+var customer = await client.Customers.Create(createParams);
+
+// Retrieve customer
+var retrieved = await client.Customers.Retrieve("cus_123");
+Console.WriteLine($"Customer: {retrieved.Name} ({retrieved.Email})");
+```
+
+### التعامل مع الاشتراكات
+
+قم بإنشاء وإدارة الاشتراكات المتكررة:
+
+```csharp
+// Create a subscription
+var subscriptionParams = new SubscriptionCreateParams
+{
+    CustomerID = "cus_123",
+    ProductID = "prod_456",
+    PriceID = "price_789"
+};
+
+var subscription = await client.Subscriptions.Create(subscriptionParams);
+
+// Cancel subscription
+await client.Subscriptions.Cancel(subscription.Id);
+```
+
+## تكامل ASP.NET Core
+
+### تسجيل الخدمة
+
+قم بتسجيل العميل في `Program.cs`:
+
+```csharp Program.cs
+using DodoPayments.Client;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// Register DodoPayments client
+builder.Services.AddSingleton<DodoPaymentsClient>(sp =>
+{
+    var configuration = sp.GetRequiredService<IConfiguration>();
+    return new DodoPaymentsClient
+    {
+        BearerToken = configuration["DodoPayments:ApiKey"]
+    };
+});
+
+builder.Services.AddControllers();
+
+var app = builder.Build();
+app.MapControllers();
+app.Run();
+```
+
+### التكوين
+
+أضف التكوين في `appsettings.json`:
+
+```json appsettings.json
+{
+  "DodoPayments": {
+    "ApiKey": "your_api_key_here"
+  }
+}
+```
+
+### وحدة التحكم API
+
+قم بإنشاء وحدة تحكم باستخدام حقن الاعتماديات:
+
+```csharp
+using Microsoft.AspNetCore.Mvc;
+using DodoPayments.Client;
+using DodoPayments.Client.Models.CheckoutSessions;
+
+[ApiController]
+[Route("api/[controller]")]
+public class PaymentsController : ControllerBase
+{
+    private readonly DodoPaymentsClient _client;
+    private readonly ILogger<PaymentsController> _logger;
+
+    public PaymentsController(DodoPaymentsClient client, ILogger<PaymentsController> logger)
+    {
+        _client = client;
+        _logger = logger;
+    }
+
+    [HttpPost("checkout")]
+    public async Task<IActionResult> CreateCheckout([FromBody] CheckoutRequest request)
+    {
+        try
+        {
+            var parameters = new CheckoutSessionCreateParams
+            {
+                ProductCart = request.Items,
+                ReturnUrl = Url.Action("Return", "Checkout", null, Request.Scheme)
+            };
+
+            var session = await _client.CheckoutSessions.Create(parameters);
+
+            return Ok(new { checkoutUrl = session.Url });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to create checkout");
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+}
+
+public record CheckoutRequest(List<ProductCartItem> Items);
+```
+
+### نمط طبقة الخدمة
+
+قم بإنشاء خدمة للمنطق التجاري:
+
+```csharp
+public interface IPaymentService
+{
+    Task<CheckoutSessionResponse> CreateCheckoutAsync(List<ProductCartItem> items);
+    Task<PaymentResponse> ProcessPaymentAsync(decimal amount, string currency, string customerId);
+}
+
+public class PaymentService : IPaymentService
+{
+    private readonly DodoPaymentsClient _client;
+    private readonly ILogger<PaymentService> _logger;
+
+    public PaymentService(DodoPaymentsClient client, ILogger<PaymentService> logger)
+    {
+        _client = client;
+        _logger = logger;
+    }
+
+    public async Task<CheckoutSessionResponse> CreateCheckoutAsync(List<ProductCartItem> items)
+    {
+        var parameters = new CheckoutSessionCreateParams
+        {
+            ProductCart = items,
+            ReturnUrl = "https://yourdomain.com/return"
+        };
+
+        return await _client.CheckoutSessions.Create(parameters);
+    }
+
+    public async Task<PaymentResponse> ProcessPaymentAsync(
+        decimal amount,
+        string currency,
+        string customerId)
+    {
+        try
+        {
+            var parameters = new PaymentCreateParams
+            {
+                Amount = (long)(amount * 100), // Convert to cents
+                Currency = currency,
+                CustomerID = customerId
+            };
+
+            return await _client.Payments.Create(parameters);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to process payment");
+            throw;
+        }
+    }
+}
+```
+
+## أسرار المستخدم (التطوير)
+
+للتطوير، استخدم أسرار المستخدم لتخزين مفاتيح API:
+
+```bash
+dotnet user-secrets init
+dotnet user-secrets set "DodoPayments:ApiKey" "your_api_key_here"
+```
+
+## الاختبار
+
+مثال على اختبار وحدة باستخدام xUnit:
+
+```csharp
+using Xunit;
+using DodoPayments.Client;
+using DodoPayments.Client.Models.CheckoutSessions;
+
+public class PaymentServiceTests
+{
+    private readonly DodoPaymentsClient _client;
+
+    public PaymentServiceTests()
+    {
+        _client = new DodoPaymentsClient
+        {
+            BearerToken = "test_key"
+        };
+    }
+
+    [Fact]
+    public async Task CreateCheckout_ShouldReturnSession()
+    {
+        // Arrange
+        var parameters = new CheckoutSessionCreateParams
+        {
+            ProductCart =
+            [
+                new()
+                {
+                    ProductID = "prod_test",
+                    Quantity = 1
+                }
+            ]
+        };
+
+        // Act
+        var session = await _client.CheckoutSessions.Create(parameters);
+
+        // Assert
+        Assert.NotNull(session);
+        Assert.NotNull(session.SessionId);
+    }
+}
+```
+
+## الموارد
+
+<CardGroup cols={2}>
+<Card title="مستودع GitHub" icon="github" href="https://github.com/dodopayments/dodopayments-csharp">
+  عرض الشفرة المصدرية والمساهمة
+</Card>
+
+<Card title="مرجع API" icon="book" href="/api-reference/introduction">
+  وثائق API الكاملة
+</Card>
+
+<Card title="مجتمع Discord" icon="discord" href="https://discord.gg/bYqAp4ayYh">
+  احصل على المساعدة وتواصل مع المطورين
+</Card>
+
+<Card title="الإبلاغ عن المشكلات" icon="bug" href="https://github.com/dodopayments/dodopayments-csharp/issues">
+  الإبلاغ عن الأخطاء أو طلب الميزات
+</Card>
+</CardGroup>
+
+## الدعم
+
+هل تحتاج إلى مساعدة بشأن SDK C#؟
+
+- **Discord**: انضم إلى [خادم المجتمع](https://discord.gg/bYqAp4ayYh) للحصول على دعم في الوقت الفعلي
+- **البريد الإلكتروني**: اتصل بنا على support@dodopayments.com
+- **GitHub**: افتح مشكلة في [المستودع](https://github.com/dodopayments/dodopayments-csharp)
+
+## المساهمة
+
+نظرًا لأن SDK في مرحلة البيتا، فإن ملاحظاتك ومساهماتك ذات قيمة خاصة! تحقق من [إرشادات المساهمة](https://github.com/dodopayments/dodopayments-csharp/blob/main/CONTRIBUTING.md) للبدء.

@@ -1,0 +1,817 @@
+---
+title: Panduan Upgrade & Downgrade Langganan
+description: Pelajari cara mengubah rencana langganan pelanggan, menangani
+  proration, dan memproses webhook dengan andal.
+icon: arrows-rotate
+---
+
+<CardGroup cols={2}>
+<Card title="Referensi API Ubah Rencana" icon="code" href="/api-reference/subscriptions/change-plan">
+  Akses dokumentasi API lengkap untuk mengubah rencana langganan dan menguji permintaan perubahan rencana secara interaktif.
+</Card>
+
+<Card title="Pratinjau API Perubahan Rencana" icon="eye" href="/api-reference/subscriptions/preview-change-plan">
+  Pratinjau jumlah biaya yang tepat sebelum berkomitmen pada perubahan rencana.
+</Card>
+
+<Card title="Panduan Integrasi Langganan" icon="book" href="/developer-resources/subscription-integration-guide">
+  Pelajari cara membuat dan mengelola langganan dari awal dengan panduan integrasi kami yang komprehensif.
+</Card>
+</CardGroup>
+
+## Apa itu upgrade atau downgrade langganan?
+
+Mengubah rencana memungkinkan Anda memindahkan pelanggan antara tingkat atau kuantitas langganan. Gunakan ini untuk:
+- Menyesuaikan harga dengan penggunaan atau fitur
+- Beralih dari bulanan ke tahunan (atau sebaliknya)
+- Menyesuaikan kuantitas untuk produk berbasis kursi
+
+<Info>
+Perubahan rencana dapat memicu biaya segera tergantung pada mode proration yang Anda pilih.
+</Info>
+
+## Kapan menggunakan perubahan rencana
+
+- Upgrade ketika pelanggan membutuhkan lebih banyak fitur, penggunaan, atau kursi
+- Downgrade ketika penggunaan menurun
+- Memigrasi pengguna ke produk atau harga baru tanpa membatalkan langganan mereka
+
+## Prasyarat
+
+Sebelum menerapkan perubahan rencana langganan, pastikan Anda memiliki:
+
+- Akun pedagang Dodo Payments dengan produk langganan aktif
+- Kredensial API (kunci API dan kunci rahasia webhook) dari dasbor
+- Langganan aktif yang ada untuk dimodifikasi
+- Titik akhir webhook yang dikonfigurasi untuk menangani peristiwa langganan
+
+<Info>
+Untuk instruksi pengaturan yang lebih rinci, lihat [Panduan Integrasi](/developer-resources/integration-guide#dashboard-setup).
+</Info>
+
+## Panduan Implementasi Langkah-demi-Langkah
+
+Ikuti panduan komprehensif ini untuk menerapkan perubahan rencana langganan di aplikasi Anda:
+
+<Steps>
+<Step title="Pahami Persyaratan Perubahan Rencana">
+Sebelum menerapkan, tentukan:
+- Produk langganan mana yang dapat diubah ke yang lain
+- Mode proration mana yang sesuai dengan model bisnis Anda
+- Cara menangani perubahan rencana yang gagal dengan baik
+- Peristiwa webhook mana yang harus dilacak untuk manajemen status
+
+<Tip>
+Uji perubahan rencana secara menyeluruh dalam mode uji sebelum menerapkannya di produksi.
+</Tip>
+</Step>
+
+<Step title="Pilih Strategi Proration Anda">
+Pilih pendekatan penagihan yang sesuai dengan kebutuhan bisnis Anda:
+
+<Tabs>
+<Tab title="prorated_immediately">
+Terbaik untuk: aplikasi SaaS yang ingin mengenakan biaya secara adil untuk waktu yang tidak terpakai
+- Menghitung jumlah prorata yang tepat berdasarkan waktu siklus yang tersisa
+- Mengenakan biaya jumlah prorata berdasarkan waktu yang tidak terpakai yang tersisa dalam siklus
+- Memberikan penagihan yang transparan kepada pelanggan
+</Tab>
+
+<Tab title="difference_immediately">
+Terbaik untuk: skenario upgrade/downgrade yang jelas
+- Upgrade: Kenakan biaya selisih segera (misalnya, $30→$80 = biaya $50)
+- Downgrade: Kredit nilai yang tersisa untuk pembaruan di masa mendatang
+- Menyederhanakan logika penagihan dan komunikasi dengan pelanggan
+</Tab>
+
+<Tab title="full_immediately">
+Terbaik untuk: Ketika Anda ingin mengatur ulang siklus penagihan
+- Mengenakan biaya penuh untuk rencana baru segera
+- Mengabaikan waktu yang tersisa dari rencana lama
+- Berguna untuk transisi tahunan ke bulanan
+</Tab>
+</Tabs>
+</Step>
+
+<Step title="Terapkan API Ubah Rencana">
+Gunakan API Ubah Rencana untuk memodifikasi detail langganan:
+
+<ParamField path="subscription_id" type="string" required>
+ID langganan aktif yang akan dimodifikasi.
+</ParamField>
+
+<ParamField path="product_id" type="string" required>
+ID produk baru untuk mengubah langganan.
+</ParamField>
+
+<ParamField path="quantity" type="integer" default="1">
+Jumlah unit untuk rencana baru (untuk produk berbasis kursi).
+</ParamField>
+
+<ParamField path="proration_billing_mode" type="string" required>
+Cara menangani penagihan segera: `prorated_immediately`, `full_immediately`, atau `difference_immediately`.
+</ParamField>
+
+<ParamField path="addons" type="array">
+Addon opsional untuk rencana baru. Meninggalkan ini kosong akan menghapus addon yang ada.
+</ParamField>
+</Step>
+
+<Step title="Tangani Peristiwa Webhook">
+Siapkan penanganan webhook untuk melacak hasil perubahan rencana:
+
+- `subscription.active`: Perubahan rencana berhasil, langganan diperbarui
+- `subscription.plan_changed`: Rencana langganan diubah (upgrade/downgrade/pembaruan addon)
+- `subscription.on_hold`: Biaya perubahan rencana gagal, langganan ditangguhkan
+- `payment.succeeded`: Biaya segera untuk perubahan rencana berhasil
+- `payment.failed`: Biaya segera gagal
+
+<Warning>
+Selalu verifikasi tanda tangan webhook dan terapkan pemrosesan peristiwa idempotent.
+</Warning>
+</Step>
+
+<Step title="Perbarui Status Aplikasi Anda">
+Berdasarkan peristiwa webhook, perbarui aplikasi Anda:
+- Berikan/ambil fitur berdasarkan rencana baru
+- Perbarui dasbor pelanggan dengan detail rencana baru
+- Kirim email konfirmasi tentang perubahan rencana
+- Catat perubahan penagihan untuk tujuan audit
+</Step>
+
+<Step title="Uji dan Pantau">
+Uji implementasi Anda secara menyeluruh:
+- Uji semua mode proration dengan berbagai skenario
+- Verifikasi penanganan webhook berfungsi dengan benar
+- Pantau tingkat keberhasilan perubahan rencana
+- Siapkan peringatan untuk perubahan rencana yang gagal
+
+<Check>
+Implementasi perubahan rencana langganan Anda sekarang siap untuk digunakan di produksi.
+</Check>
+</Step>
+</Steps>
+
+## Pratinjau Perubahan Rencana
+
+Sebelum berkomitmen pada perubahan rencana, gunakan API Pratinjau untuk menunjukkan kepada pelanggan persis berapa biaya yang akan mereka bayar:
+
+<Tabs>
+<Tab title="Node.js SDK">
+
+```javascript
+const preview = await client.subscriptions.previewChangePlan('sub_123', {
+  product_id: 'prod_pro',
+  quantity: 1,
+  proration_billing_mode: 'prorated_immediately'
+});
+
+// Show customer the charge before confirming
+console.log('Immediate charge:', preview.immediate_charge.summary);
+console.log('New plan details:', preview.new_plan);
+```
+
+</Tab>
+
+<Tab title="Python SDK">
+
+```python
+preview = client.subscriptions.preview_change_plan(
+    subscription_id="sub_123",
+    product_id="prod_pro",
+    quantity=1,
+    proration_billing_mode="prorated_immediately"
+)
+
+# Show customer the charge before confirming
+print("Immediate charge:", preview.immediate_charge.summary)
+print("New plan details:", preview.new_plan)
+```
+
+</Tab>
+</Tabs>
+
+<Tip>
+Gunakan API pratinjau untuk membangun dialog konfirmasi yang menunjukkan kepada pelanggan jumlah pasti yang akan mereka bayar sebelum mereka mengonfirmasi perubahan rencana.
+</Tip>
+
+## API Ubah Rencana
+
+Gunakan API Ubah Rencana untuk memodifikasi produk, kuantitas, dan perilaku proration untuk langganan aktif.
+
+### Contoh mulai cepat
+
+<Tabs>
+  <Tab title="Node.js SDK">
+
+    ```javascript
+    import DodoPayments from 'dodopayments';
+
+    const client = new DodoPayments({
+      bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+      environment: 'test_mode', // defaults to 'live_mode'
+    });
+
+    async function changePlan() {
+      const result = await client.subscriptions.changePlan('sub_123', {
+        product_id: 'prod_new',
+        quantity: 3,
+        proration_billing_mode: 'prorated_immediately',
+      });
+      console.log(result.status, result.invoice_id, result.payment_id);
+    }
+
+    changePlan();
+    ```
+
+  </Tab>
+  <Tab title="Python SDK">
+
+    ```python
+    import os
+    from dodopayments import DodoPayments
+
+    client = DodoPayments(
+        bearer_token=os.environ.get("DODO_PAYMENTS_API_KEY"),
+        environment="test_mode",  # defaults to "live_mode"
+    )
+
+    result = client.subscriptions.change_plan(
+        subscription_id="sub_123",
+        product_id="prod_new",
+        quantity=3,
+        proration_billing_mode="prorated_immediately",
+    )
+    print(result.status, result.get("invoice_id"), result.get("payment_id"))
+    ```
+
+  </Tab>
+  <Tab title="Go SDK">
+
+    ```go
+    package main
+
+    import (
+      "context"
+      "fmt"
+      "github.com/dodopayments/dodopayments-go"
+      "github.com/dodopayments/dodopayments-go/option"
+    )
+
+    func main() {
+      client := dodopayments.NewClient(option.WithBearerToken("YOUR_TOKEN"))
+      res, err := client.Subscriptions.ChangePlan(context.TODO(), dodopayments.SubscriptionChangePlanParams{
+        SubscriptionID: dodopayments.F("sub_123"),
+        ProductID:             dodopayments.F("prod_new"),
+        Quantity:              dodopayments.F(int64(3)),
+        ProrationBillingMode:  dodopayments.F(dodopayments.SubscriptionChangePlanParamsProrationBillingModeProratedImmediately),
+      })
+      if err != nil { panic(err) }
+      fmt.Println(res.Status, res.InvoiceID, res.PaymentID)
+    }
+    ```
+
+  </Tab>
+  <Tab title="HTTP">
+
+    ```bash
+    curl -X POST "$DODO_API_BASE/subscriptions/sub_123/change-plan" \
+      -H "Authorization: Bearer $DODO_PAYMENTS_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "product_id": "prod_new",
+        "quantity": 3,
+        "proration_billing_mode": "prorated_immediately"
+      }'
+    ```
+
+  </Tab>
+</Tabs>
+
+```json Success
+{
+  "status": "processing",
+  "subscription_id": "sub_123",
+  "invoice_id": "inv_789",
+  "payment_id": "pay_456",
+  "proration_billing_mode": "prorated_immediately"
+}
+```
+
+<Note>
+Bidang seperti <code>invoice_id</code> dan <code>payment_id</code> hanya dikembalikan ketika biaya segera dan/atau faktur dibuat selama perubahan rencana. Selalu bergantung pada peristiwa webhook (misalnya, <code>payment.succeeded</code>, <code>subscription.plan_changed</code>) untuk mengonfirmasi hasil.
+</Note>
+
+<Warning>
+Jika biaya segera gagal, langganan mungkin berpindah ke `subscription.on_hold` hingga pembayaran berhasil.
+</Warning>
+
+## Mengelola Addons
+
+Saat mengubah rencana langganan, Anda juga dapat memodifikasi addons:
+
+```javascript
+// Add addons to the new plan
+await client.subscriptions.changePlan('sub_123', {
+  product_id: 'prod_new',
+  quantity: 1,
+  proration_billing_mode: 'difference_immediately',
+  addons: [
+    { addon_id: 'addon_123', quantity: 2 }
+  ]
+});
+
+// Remove all existing addons
+await client.subscriptions.changePlan('sub_123', {
+  product_id: 'prod_new',
+  quantity: 1,
+  proration_billing_mode: 'difference_immediately',
+  addons: [] // Empty array removes all existing addons
+});
+```
+
+<Info>
+Addons termasuk dalam perhitungan proration dan akan dikenakan biaya sesuai dengan mode proration yang dipilih.
+</Info>
+
+## Mode Proration
+
+Pilih cara menagih pelanggan saat mengubah rencana:
+
+#### `prorated_immediately`
+- Mengenakan biaya untuk selisih parsial dalam siklus saat ini
+- Jika dalam masa percobaan, mengenakan biaya segera dan beralih ke rencana baru sekarang
+- Downgrade: dapat menghasilkan kredit prorata yang diterapkan pada pembaruan di masa mendatang
+
+#### `full_immediately`
+- Mengenakan biaya penuh untuk rencana baru segera
+- Mengabaikan waktu yang tersisa dari rencana lama
+
+<Info>
+Kredit yang dibuat oleh downgrade menggunakan <code>difference_immediately</code> bersifat spesifik langganan dan berbeda dari <a href="/features/customer-credit">Kredit Pelanggan</a>. Mereka secara otomatis diterapkan pada pembaruan di masa mendatang dari langganan yang sama dan tidak dapat dipindahkan antar langganan.
+</Info>
+
+#### `difference_immediately`
+- Upgrade: segera kenakan biaya selisih harga antara rencana lama dan baru
+- Downgrade: tambahkan nilai yang tersisa sebagai kredit internal ke langganan dan terapkan secara otomatis pada pembaruan
+
+### Skenario Contoh
+
+<AccordionGroup>
+  <Accordion title="Upgrade: Basic ($30) → Pro ($80) dengan difference_immediately">
+
+    ```javascript
+    await client.subscriptions.changePlan('sub_123', {
+      product_id: 'prod_pro',
+      quantity: 1,
+      proration_billing_mode: 'difference_immediately'
+    })
+    // Immediate charge: $50
+    ```
+
+  </Accordion>
+  <Accordion title="Downgrade: Plus ($50) → Starter ($20) dengan difference_immediately">
+
+    ```javascript
+    await client.subscriptions.changePlan('sub_123', {
+      product_id: 'prod_starter',
+      quantity: 1,
+      proration_billing_mode: 'difference_immediately'
+    })
+    // Credit added: $30 (auto-applied to future renewals for this subscription)
+    ```
+
+  </Accordion>
+  <Accordion title="Upgrade di tengah siklus dengan prorated_immediately">
+
+    ```javascript
+    await client.subscriptions.changePlan('sub_123', {
+      product_id: 'prod_new',
+      quantity: 1,
+      proration_billing_mode: 'prorated_immediately'
+    })
+    // Immediate prorated charge based on remaining days in cycle
+    ```
+
+  </Accordion>
+  <Accordion title="Reset penagihan dengan full_immediately">
+
+    ```javascript
+    await client.subscriptions.changePlan('sub_123', {
+      product_id: 'prod_new',
+      quantity: 1,
+      proration_billing_mode: 'full_immediately'
+    })
+    // Immediate full charge for new plan; no credits calculated
+    ```
+
+  </Accordion>
+</AccordionGroup>
+
+<Tip>
+Pilih `prorated_immediately` untuk akuntansi waktu yang adil; pilih `full_immediately` untuk memulai ulang penagihan; gunakan `difference_immediately` untuk upgrade sederhana dan kredit otomatis pada downgrade.
+</Tip>
+
+## Menangani webhook
+
+Lacak status langganan melalui webhook untuk mengonfirmasi perubahan rencana dan pembayaran.
+
+### Jenis peristiwa yang harus ditangani
+- `subscription.active`: langganan diaktifkan
+- `subscription.plan_changed`: rencana langganan diubah (upgrade/downgrade/perubahan addon)
+- `subscription.on_hold`: biaya gagal, langganan ditangguhkan
+- `subscription.renewed`: pembaruan berhasil
+- `payment.succeeded`: pembayaran untuk perubahan rencana atau pembaruan berhasil
+- `payment.failed`: pembayaran gagal
+
+<Info>
+Kami merekomendasikan untuk menggerakkan logika bisnis dari peristiwa langganan dan menggunakan peristiwa pembayaran untuk konfirmasi dan rekonsiliasi.
+</Info>
+
+### Verifikasi tanda tangan dan tangani niat
+
+<Tabs>
+  <Tab title="Next.js Route Handler">
+
+    ```javascript
+    import { NextRequest, NextResponse } from 'next/server';
+    
+    export async function POST(req) {
+      const webhookId = req.headers.get('webhook-id');
+      const webhookSignature = req.headers.get('webhook-signature');
+      const webhookTimestamp = req.headers.get('webhook-timestamp');
+      const secret = process.env.DODO_WEBHOOK_SECRET;
+    
+      const payload = await req.text();
+      // verifySignature is a placeholder – in production, use a Standard Webhooks library
+      const { valid, event } = await verifySignature(
+        payload,
+        { id: webhookId, signature: webhookSignature, timestamp: webhookTimestamp },
+        secret
+      );
+      if (!valid) return NextResponse.json({ error: 'Invalid signature' }, { status: 400 });
+    
+      switch (event.type) {
+        case 'subscription.active':
+          // mark subscription active in your DB
+          break;
+        case 'subscription.plan_changed':
+          // refresh entitlements and reflect the new plan in your UI
+          break;
+        case 'subscription.on_hold':
+          // notify user to update payment method
+          break;
+        case 'subscription.renewed':
+          // extend access window
+          break;
+        case 'payment.succeeded':
+          // reconcile payment for plan change
+          break;
+        case 'payment.failed':
+          // log and alert
+          break;
+        default:
+          // ignore unknown events
+          break;
+      }
+    
+      return NextResponse.json({ received: true });
+    }
+    ```
+
+  </Tab>
+  <Tab title="Express.js">
+
+    ```javascript
+    import express from 'express';
+    
+    const app = express();
+    app.post('/webhooks/dodo', express.raw({ type: 'application/json' }), async (req, res) => {
+      const webhookId = req.header('webhook-id');
+      const webhookSignature = req.header('webhook-signature');
+      const webhookTimestamp = req.header('webhook-timestamp');
+      const secret = process.env.DODO_WEBHOOK_SECRET;
+      const payload = req.body.toString('utf8');
+    
+      const { valid, event } = await verifySignature(
+        payload,
+        { id: webhookId, signature: webhookSignature, timestamp: webhookTimestamp },
+        secret
+      );
+      if (!valid) return res.status(400).send('Invalid signature');
+    
+      // handle events like above
+      res.json({ received: true });
+    });
+    
+    app.listen(3000);
+    ```
+
+  </Tab>
+</Tabs>
+
+<Note>
+Untuk skema payload yang lebih rinci, lihat <a href="/developer-resources/webhooks/intents/subscription">Payload webhook langganan</a> dan <a href="/developer-resources/webhooks/intents/payment">Payload webhook pembayaran</a>.
+</Note>
+
+## Praktik Terbaik
+
+Ikuti rekomendasi ini untuk perubahan rencana langganan yang andal:
+
+### Strategi Perubahan Rencana
+- **Uji secara menyeluruh**: Selalu uji perubahan rencana dalam mode uji sebelum produksi
+- **Pilih proration dengan hati-hati**: Pilih mode proration yang sesuai dengan model bisnis Anda
+- **Tangani kegagalan dengan baik**: Terapkan penanganan kesalahan yang tepat dan logika pengulangan
+- **Pantau tingkat keberhasilan**: Lacak tingkat keberhasilan/kegagalan perubahan rencana dan selidiki masalah
+
+### Implementasi Webhook
+- **Verifikasi tanda tangan**: Selalu validasi tanda tangan webhook untuk memastikan keaslian
+- **Terapkan idempotensi**: Tangani peristiwa webhook duplikat dengan baik
+- **Proses secara asinkron**: Jangan memblokir respons webhook dengan operasi berat
+- **Catat semuanya**: Pertahankan log yang rinci untuk tujuan debugging dan audit
+
+### Pengalaman Pengguna
+- **Komunikasikan dengan jelas**: Informasikan pelanggan tentang perubahan penagihan dan waktu
+- **Berikan konfirmasi**: Kirim email konfirmasi untuk perubahan rencana yang berhasil
+- **Tangani kasus tepi**: Pertimbangkan periode percobaan, proration, dan pembayaran yang gagal
+- **Perbarui UI segera**: Refleksikan perubahan rencana dalam antarmuka aplikasi Anda
+
+## Masalah Umum dan Solusi
+
+Atasi masalah umum yang dihadapi selama perubahan rencana langganan:
+
+<AccordionGroup>
+<Accordion title="Biaya dibuat tetapi langganan tidak diperbarui">
+**Gejala**: Panggilan API berhasil tetapi langganan tetap pada rencana lama
+
+**Penyebab umum**:
+- Pemrosesan webhook gagal atau tertunda
+- Status aplikasi tidak diperbarui setelah menerima webhook
+- Masalah transaksi basis data selama pembaruan status
+
+**Solusi**:
+- Terapkan penanganan webhook yang kuat dengan logika pengulangan
+- Gunakan operasi idempotent untuk pembaruan status
+- Tambahkan pemantauan untuk mendeteksi dan memberi tahu tentang peristiwa webhook yang terlewat
+- Verifikasi titik akhir webhook dapat diakses dan merespons dengan benar
+</Accordion>
+
+<Accordion title="Kredit tidak diterapkan setelah downgrade">
+**Gejala**: Pelanggan melakukan downgrade tetapi tidak melihat saldo kredit
+
+**Penyebab umum**:
+- Harapan mode proration: downgrade mengkredit selisih harga penuh rencana dengan `difference_immediately`, sementara `prorated_immediately` membuat kredit prorata berdasarkan waktu yang tersisa dalam siklus
+- Kredit bersifat spesifik langganan dan tidak dapat dipindahkan antar langganan
+- Saldo kredit tidak terlihat di dasbor pelanggan
+
+**Solusi**:
+- Gunakan `difference_immediately` untuk downgrade ketika Anda ingin kredit otomatis
+- Jelaskan kepada pelanggan bahwa kredit diterapkan pada pembaruan di masa mendatang dari langganan yang sama
+- Terapkan portal pelanggan untuk menunjukkan saldo kredit
+- Periksa pratinjau faktur berikutnya untuk melihat kredit yang diterapkan
+</Accordion>
+
+<Accordion title="Verifikasi tanda tangan webhook gagal">
+**Gejala**: Peristiwa webhook ditolak karena tanda tangan tidak valid
+
+**Penyebab umum**:
+- Kunci rahasia webhook yang salah
+- Badan permintaan mentah dimodifikasi sebelum verifikasi tanda tangan
+- Algoritma verifikasi tanda tangan yang salah
+
+**Solusi**:
+- Verifikasi Anda menggunakan `DODO_WEBHOOK_SECRET` yang benar dari dasbor
+- Baca badan permintaan mentah sebelum middleware parsing JSON apa pun
+- Gunakan pustaka verifikasi webhook standar untuk platform Anda
+- Uji verifikasi tanda tangan webhook di lingkungan pengembangan
+</Accordion>
+
+<Accordion title="Perubahan rencana gagal dengan kesalahan 422">
+**Gejala**: API mengembalikan kesalahan 422 Unprocessable Entity
+
+**Penyebab umum**:
+- ID langganan atau ID produk tidak valid
+- Langganan tidak dalam status aktif
+- Parameter yang diperlukan hilang
+- Produk tidak tersedia untuk perubahan rencana
+
+**Solusi**:
+- Verifikasi langganan ada dan aktif
+- Periksa ID produk valid dan tersedia
+- Pastikan semua parameter yang diperlukan disediakan
+- Tinjau dokumentasi API untuk persyaratan parameter
+</Accordion>
+
+<Accordion title="Biaya segera gagal selama perubahan rencana">
+**Gejala**: Perubahan rencana dimulai tetapi biaya segera gagal
+
+**Penyebab umum**:
+- Dana tidak mencukupi pada metode pembayaran pelanggan
+- Metode pembayaran kedaluwarsa atau tidak valid
+- Bank menolak transaksi
+- Deteksi penipuan memblokir biaya
+
+**Solusi**:
+- Tangani peristiwa webhook `payment.failed` dengan tepat
+- Beri tahu pelanggan untuk memperbarui metode pembayaran
+- Terapkan logika pengulangan untuk kegagalan sementara
+- Pertimbangkan untuk mengizinkan perubahan rencana dengan biaya segera yang gagal
+</Accordion>
+
+<Accordion title="Langganan ditangguhkan setelah perubahan rencana">
+**Gejala**: Biaya perubahan rencana gagal dan langganan berpindah ke status `on_hold`
+
+**Apa yang terjadi**:
+Ketika biaya perubahan rencana gagal, langganan secara otomatis ditempatkan dalam status `on_hold`. Langganan tidak akan diperbarui secara otomatis hingga metode pembayaran diperbarui.
+
+**Solusi**: Perbarui metode pembayaran untuk mengaktifkan kembali langganan
+
+Untuk mengaktifkan kembali langganan dari status `on_hold` setelah perubahan rencana yang gagal:
+
+1. **Perbarui metode pembayaran** menggunakan API Perbarui Metode Pembayaran
+2. **Pembuatan biaya otomatis**: API secara otomatis membuat biaya untuk tunggakan yang tersisa
+3. **Pembuatan faktur**: Faktur dibuat untuk biaya tersebut
+4. **Pemrosesan pembayaran**: Pembayaran diproses menggunakan metode pembayaran baru
+5. **Reaktivasi**: Setelah pembayaran berhasil, langganan diaktifkan kembali ke status `active`
+
+<CodeGroup>
+
+```javascript Node.js
+// Reactivate subscription from on_hold after failed plan change
+async function reactivateAfterFailedPlanChange(subscriptionId) {
+  // Update payment method - automatically creates charge for remaining dues
+  const response = await client.subscriptions.updatePaymentMethod(subscriptionId, {
+    type: 'new',
+    return_url: 'https://example.com/return'
+  });
+  
+  if (response.payment_id) {
+    console.log('Charge created for remaining dues:', response.payment_id);
+    console.log('Payment link:', response.payment_link);
+    
+    // Redirect customer to payment_link to complete payment
+    // Monitor webhooks for:
+    // 1. payment.succeeded - charge succeeded
+    // 2. subscription.active - subscription reactivated
+  }
+  
+  return response;
+}
+
+// Or use existing payment method if available
+async function reactivateWithExistingPaymentMethod(subscriptionId, paymentMethodId) {
+  const response = await client.subscriptions.updatePaymentMethod(subscriptionId, {
+    type: 'existing',
+    payment_method_id: paymentMethodId
+  });
+  
+  // Monitor webhooks for payment.succeeded and subscription.active
+  return response;
+}
+```
+
+```python Python
+# Reactivate subscription from on_hold after failed plan change
+def reactivate_after_failed_plan_change(subscription_id):
+    # Update payment method - automatically creates charge for remaining dues
+    response = client.subscriptions.update_payment_method(
+        subscription_id=subscription_id,
+        type="new",
+        return_url="https://example.com/return"
+    )
+    
+    if response.payment_id:
+        print("Charge created for remaining dues:", response.payment_id)
+        print("Payment link:", response.payment_link)
+        
+        # Redirect customer to payment_link to complete payment
+        # Monitor webhooks for:
+        # 1. payment.succeeded - charge succeeded
+        # 2. subscription.active - subscription reactivated
+    
+    return response
+
+# Or use existing payment method if available
+def reactivate_with_existing_payment_method(subscription_id, payment_method_id):
+    response = client.subscriptions.update_payment_method(
+        subscription_id=subscription_id,
+        type="existing",
+        payment_method_id=payment_method_id
+    )
+    
+    # Monitor webhooks for payment.succeeded and subscription.active
+    return response
+```
+
+</CodeGroup>
+
+**Peristiwa webhook yang harus dipantau**:
+- `subscription.on_hold`: Langganan ditempatkan pada hold (diperoleh ketika biaya perubahan rencana gagal)
+- `payment.succeeded`: Pembayaran untuk tunggakan yang tersisa berhasil (setelah memperbarui metode pembayaran)
+- `subscription.active`: Langganan diaktifkan kembali setelah pembayaran berhasil
+
+**Praktik terbaik**:
+- Segera beri tahu pelanggan ketika biaya perubahan rencana gagal
+- Berikan instruksi yang jelas tentang cara memperbarui metode pembayaran mereka
+- Pantau peristiwa webhook untuk melacak status reaktivasi
+- Pertimbangkan untuk menerapkan logika pengulangan otomatis untuk kegagalan pembayaran sementara
+
+<Card title="Referensi API Perbarui Metode Pembayaran" icon="code" href="/api-reference/subscriptions/update-payment-method">
+Lihat dokumentasi API lengkap untuk memperbarui metode pembayaran dan mengaktifkan kembali langganan.
+</Card>
+</Accordion>
+</AccordionGroup>
+
+## Menguji Implementasi Anda
+
+Ikuti langkah-langkah ini untuk menguji implementasi perubahan rencana langganan Anda secara menyeluruh:
+
+<Steps>
+<Step title="Siapkan lingkungan uji">
+- Gunakan kunci API uji dan produk uji
+- Buat langganan uji dengan berbagai jenis rencana
+- Konfigurasi titik akhir webhook uji
+- Siapkan pemantauan dan pencatatan
+</Step>
+
+<Step title="Uji berbagai mode proration">
+- Uji `prorated_immediately` dengan berbagai posisi siklus penagihan
+- Uji `difference_immediately` untuk upgrade dan downgrade
+- Uji `full_immediately` untuk mengatur ulang siklus penagihan
+- Verifikasi perhitungan kredit sudah benar
+</Step>
+
+<Step title="Uji penanganan webhook">
+- Verifikasi semua peristiwa webhook yang relevan diterima
+- Uji verifikasi tanda tangan webhook
+- Tangani peristiwa webhook duplikat dengan baik
+- Uji skenario kegagalan pemrosesan webhook
+</Step>
+
+<Step title="Uji skenario kesalahan">
+- Uji dengan ID langganan yang tidak valid
+- Uji dengan metode pembayaran yang kedaluwarsa
+- Uji kegagalan jaringan dan timeout
+- Uji dengan dana yang tidak mencukupi
+</Step>
+
+<Step title="Pantau di produksi">
+- Siapkan peringatan untuk perubahan rencana yang gagal
+- Pantau waktu pemrosesan webhook
+- Lacak tingkat keberhasilan perubahan rencana
+- Tinjau tiket dukungan pelanggan untuk masalah perubahan rencana
+</Step>
+</Steps>
+
+## Penanganan Kesalahan
+
+Tangani kesalahan API umum dengan baik dalam implementasi Anda:
+
+### Kode Status HTTP
+
+<AccordionGroup>
+<Accordion title="200 OK">
+Permintaan perubahan rencana diproses dengan sukses. Langganan sedang diperbarui dan pemrosesan pembayaran telah dimulai.
+</Accordion>
+
+<Accordion title="400 Bad Request">
+Parameter permintaan tidak valid. Periksa bahwa semua bidang yang diperlukan disediakan dan diformat dengan benar.
+</Accordion>
+
+<Accordion title="401 Unauthorized">
+Kunci API tidak valid atau hilang. Verifikasi bahwa `DODO_PAYMENTS_API_KEY` Anda benar dan memiliki izin yang tepat.
+</Accordion>
+
+<Accordion title="404 Not Found">
+ID langganan tidak ditemukan atau tidak milik akun Anda.
+</Accordion>
+
+<Accordion title="422 Unprocessable Entity">
+Langganan tidak dapat diubah (misalnya, sudah dibatalkan, produk tidak tersedia, dll.).
+</Accordion>
+
+<Accordion title="500 Internal Server Error">
+Terjadi kesalahan server. Coba ulang permintaan setelah jeda singkat.
+</Accordion>
+</AccordionGroup>
+
+### Format Respons Kesalahan
+
+```json
+{
+  "error": {
+    "code": "subscription_not_found",
+    "message": "The subscription with ID 'sub_123' was not found",
+    "details": {
+      "subscription_id": "sub_123"
+    }
+  }
+}
+```
+
+## Langkah Selanjutnya
+
+- Tinjau <a href="/api-reference/subscriptions/change-plan">API Ubah Rencana</a>
+- Jelajahi <a href="/features/customer-credit">Kredit Pelanggan</a>
+- Terapkan peringatan untuk `subscription.on_hold`
+- Lihat <a href="/developer-resources/webhooks">Panduan Integrasi Webhook</a>

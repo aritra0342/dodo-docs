@@ -1,0 +1,266 @@
+---
+sidebarTitle: Supabase
+title: Supabase Boilerplate
+description: Gunakan starter langganan resmi Next.js + Supabase + Dodo Payments
+  untuk mengirim langganan dengan cepat. Termasuk otentikasi, skema database,
+  penangan webhook, dan UI harga.
+icon: database
+---
+
+<CardGroup cols={2}>
+<Card title="Repositori GitHub" icon="github" href="https://github.com/dodopayments/dodo-supabase-subscription-starter">
+    Minimal Next.js + Supabase + Dodo Payments boilerplate langganan
+</Card>
+<Card title="Demo Langsung" icon="rocket" href="https://dodopayments-supabase-nextjs.vercel.app">
+    Jelajahi demo yang dideploy
+</Card>
+</CardGroup>
+
+## Ikhtisar
+
+Sebuah boilerplate siap produksi untuk langganan menggunakan Next.js 15, React 19, Supabase, Drizzle ORM, dan Dodo Payments. Ini dilengkapi dengan Google OAuth, checkout langganan, penanganan webhook, skema database, dan dasbor dasar.
+
+<Info>
+Jika Anda hanya membutuhkan penangan rute untuk aplikasi yang sudah ada, lihat adaptor khusus: <a href="/developer-resources/nextjs-adaptor">Next.js Adaptor</a> dan <a href="/developer-resources/express-adaptor">Express Adaptor</a>.
+</Info>
+
+## Prasyarat
+
+- Node.js 18+ (atau Bun 1.0+)
+- Proyek Supabase (URL, Kunci Anon, Kunci peran layanan, URL Database)
+- Akun Dodo Payments (Kunci API, rahasia Webhook)
+- Klien Google Cloud OAuth (ID Klien dan Rahasia)
+
+## Memulai dengan Cepat
+
+<Steps>
+<Step title="Klon dan instal">
+
+```bash
+git clone https://github.com/dodopayments/dodo-supabase-subscription-starter.git
+cd dodo-supabase-subscription-starter
+# choose one
+bun install
+# or
+npm install
+# or
+pnpm install
+```
+
+</Step>
+
+<Step title="Buat proyek Supabase">
+Buat proyek Supabase dan salin:
+- NEXT_PUBLIC_SUPABASE_URL
+- NEXT_PUBLIC_SUPABASE_ANON_KEY
+- SUPABASE_SERVICE_ROLE_KEY
+- DATABASE_URL (String koneksi)
+</Step>
+
+<Step title="Konfigurasi Google OAuth">
+Atur URI pengalihan ke: `https://[your-project-ref].supabase.co/auth/v1/callback` di Google Cloud, lalu aktifkan penyedia Google di Supabase Auth menggunakan ID Klien dan Rahasia Anda.
+</Step>
+
+<Step title="Konfigurasi Dodo Payments">
+Hasilkan kunci API dan rahasia Webhook dari dasbor Dodo. Atur lingkungan ke `test_mode` saat mengembangkan.
+</Step>
+
+<Step title="Buat .env.local">
+
+```env
+# Supabase
+NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role
+
+# Database
+DATABASE_URL=postgresql://postgres:[password]@db.[project-ref].supabase.co:5432/postgres
+
+# Dodo Payments
+DODO_PAYMENTS_API_KEY=your-dodo-api-key
+DODO_WEBHOOK_SECRET=your-webhook-secret
+DODO_PAYMENTS_ENVIRONMENT=test_mode
+```
+
+<Warning>
+Jangan pernah mengkomit rahasia. Gunakan variabel lingkungan di lingkungan deployment.
+</Warning>
+</Step>
+
+<Step title="Provision skema database">
+
+```bash
+bun run db:push
+# or
+npm run db:push
+# or
+pnpm run db:push
+```
+
+<Check>
+Tabel yang dibuat: `users`, `subscriptions`, `payments`.
+</Check>
+</Step>
+
+<Step title="Deploy fungsi webhook">
+
+```bash
+# login (one-time)
+bunx supabase login
+# or
+npx supabase login
+
+# deploy the edge function
+bun run deploy:webhook --project-ref [your-project-ref]
+# or
+npm run deploy:webhook -- --project-ref [your-project-ref]
+# or
+pnpm run deploy:webhook --project-ref [your-project-ref]
+```
+
+```bash cURL
+curl -X POST \
+  'https://[your-project-ref].supabase.co/functions/v1/dodo-webhook' \
+  -H 'Content-Type: application/json' \
+  -H 'Dodo-Signature: <signature>' \
+  -d '{"type":"payment.succeeded","data":{}}'
+```
+
+</Step>
+
+<Step title="Tambahkan webhook di Dodo Payments">
+Atur URL endpoint ke:
+
+```text
+https://[your-project-ref].supabase.co/functions/v1/dodo-webhook
+```
+
+Pilih peristiwa pembayaran dan langganan.
+</Step>
+
+<Step title="Buat produk dan fitur">
+Di dasbor Dodo → Produk → Buat Produk. Opsional tambahkan metadata:
+
+```json
+{
+  "features": ["Feature 1", "Feature 2", "Feature 3"]
+}
+```
+
+UI harga membaca array ini `features` dan merendernya secara dinamis.
+</Step>
+
+<Step title="Jalankan server dev">
+
+```bash
+bun run dev
+# or
+npm run dev
+# or
+pnpm run dev
+```
+
+Buka http://localhost:3000.
+</Step>
+</Steps>
+
+## Apa yang disertakan
+
+- Autentikasi melalui Supabase (Google OAuth dikonfigurasi)
+- Checkout langganan melalui Dodo Payments
+- Fungsi Edge Supabase untuk webhook (`dodo-webhook`)
+- Skema dan migrasi Drizzle ORM
+- Dasbor dengan faktur, status langganan, dan fitur rencana
+
+<Tip>
+Simpan `DODO_PAYMENTS_ENVIRONMENT` sebagai `test_mode` sampai Anda menyelesaikan pengujian end-to-end.
+</Tip>
+
+## File dan jalur kunci
+
+<Tabs>
+<Tab title="Fungsi Edge">
+
+```text
+supabase/functions/dodo-webhook/
+  index.ts            # webhook handler verifying signatures
+  deno.json           # permissions
+```
+
+</Tab>
+<Tab title="Rute Next.js">
+
+```text
+app/(marketing)/*     # landing + pricing UI
+app/(dashboard)/*     # protected pages
+app/api/*             # server actions & helpers
+```
+
+</Tab>
+<Tab title="Database (Drizzle)">
+
+```text
+lib/db/schema.ts      # users, subscriptions, payments
+lib/db/index.ts       # client
+```
+
+</Tab>
+</Tabs>
+
+## Variabel lingkungan
+
+<AccordionGroup>
+<Accordion title="Supabase">
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+DATABASE_URL=
+```
+
+</Accordion>
+<Accordion title="Dodo Payments">
+
+```env
+DODO_PAYMENTS_API_KEY=
+DODO_WEBHOOK_SECRET=
+DODO_PAYMENTS_ENVIRONMENT=test_mode|live_mode
+```
+
+</Accordion>
+<Accordion title="Google OAuth">
+
+```env
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+```
+
+</Accordion>
+</AccordionGroup>
+
+## Verifikasi dan pemecahan masalah
+
+<AccordionGroup>
+<Accordion title="Tanda tangan webhook tidak valid (401)">
+- Pastikan `DODO_WEBHOOK_SECRET` cocok dengan nilai dari dasbor Dodo
+- Konfirmasi Anda telah mendepoy fungsi `dodo-webhook` terbaru
+- Verifikasi nama header benar di fungsi Anda (Dodo-Signature)
+</Accordion>
+<Accordion title="Push database gagal">
+- Periksa sintaks `DATABASE_URL` dan egress jaringan Supabase
+- Tunggu ~2–3 menit setelah pembuatan proyek sebelum push pertama
+</Accordion>
+<Accordion title="Ketidaksesuaian pengalihan OAuth">
+- URI pengalihan harus `https://[ref].supabase.co/auth/v1/callback`
+- Pastikan sama di Google Cloud dan penyedia Supabase Auth
+</Accordion>
+</AccordionGroup>
+
+<Check>
+Anda sekarang memiliki kerangka kerja SaaS langganan yang berfungsi dengan Supabase dan Dodo Payments.
+</Check>
+
+<Info>
+Repositori asli dan langkah-langkah rinci: <a href="https://github.com/dodopayments/dodo-supabase-subscription-starter">dodo-supabase-subscription-starter</a>.
+</Info>

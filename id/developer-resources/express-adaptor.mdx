@@ -1,0 +1,573 @@
+---
+title: Adaptor Express
+description: Pelajari cara mengintegrasikan Dodo Payments dengan proyek Express
+  App Router Anda menggunakan Adaptor Express kami. Mencakup checkout, portal
+  pelanggan, webhook, dan pengaturan lingkungan yang aman.
+icon: code-merge
+---
+
+<CardGroup cols={2}>
+<Card title="Pengelola Checkout" icon="cart-shopping" href="#checkout-route-handler">
+    Integrasikan checkout Dodo Payments ke dalam aplikasi Express Anda.
+</Card>
+<Card title="Portal Pelanggan" icon="user" href="#customer-portal-route-handler">
+    Izinkan pelanggan untuk mengelola langganan dan detail.
+</Card>
+<Card title="Webhook" icon="bell" href="#webhook-route-handler">
+    Terima dan proses acara webhook Dodo Payments.
+</Card>
+</CardGroup>
+
+## Instalasi
+
+<Steps>
+<Step title="Instal paket">
+Jalankan perintah berikut di root proyek Anda:
+
+```bash
+npm install @dodopayments/express
+```
+
+</Step>
+<Step title="Atur variabel lingkungan">
+Buat file <code>.env</code> di root proyek Anda:
+
+```env expandable
+DODO_PAYMENTS_API_KEY=your-api-key
+DODO_PAYMENTS_WEBHOOK_KEY=your-webhook-secret
+DODO_PAYMENTS_ENVIRONMENT="test_mode" or "live_mode"
+DODO_PAYMENTS_RETURN_URL=your-return-url
+```
+
+<Warning>
+Jangan pernah mengkomit file <code>.env</code> atau rahasia Anda ke kontrol versi.
+</Warning>
+</Step>
+</Steps>
+
+## Contoh Pengelola Rute
+
+<Tabs>
+<Tab title="Pengelola Checkout">
+  <Info>
+  Gunakan pengelola ini untuk mengintegrasikan checkout Dodo Payments ke dalam aplikasi Express Anda. Mendukung alur pembayaran statis (GET), dinamis (POST), dan sesi (POST).
+  </Info>
+  <CodeGroup>
+
+    ```typescript Express Route Handler expandable
+    import { checkoutHandler } from '@dodopayments/express';
+
+    app.get('/api/checkout', checkoutHandler({
+        bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+        returnUrl: process.env.DODO_PAYMENTS_RETURN_URL,
+        environment: process.env.DODO_PAYMENTS_ENVIRONMENT,
+        type: "static"
+    }))
+
+    app.post('/api/checkout', checkoutHandler({
+        bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+        returnUrl: process.env.DODO_PAYMENTS_RETURN_URL,
+        environment: process.env.DODO_PAYMENTS_ENVIRONMENT,
+        type: "dynamic"
+    }))
+
+    app.post('/api/checkout', checkoutHandler({
+        bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+        returnUrl: process.env.DODO_PAYMENTS_RETURN_URL,
+        environment: process.env.DODO_PAYMENTS_ENVIRONMENT,
+        type: "session"
+    }))
+    ```
+
+  </CodeGroup>
+  <CodeGroup>
+
+  ```curl Static Checkout Curl example expandable
+  curl --request GET \
+  --url 'https://example.com/api/checkout?productId=pdt_fqJhl7pxKWiLhwQR042rh' \
+  --header 'User-Agent: insomnia/11.2.0' \
+  --cookie mode=test
+  ```
+
+  </CodeGroup>
+  <CodeGroup>
+
+  ```curl Dynamic Checkout Curl example expandable
+  curl --request POST \
+  --url https://example.com/api/checkout \
+  --header 'Content-Type: application/json' \
+  --header 'User-Agent: insomnia/11.2.0' \
+  --cookie mode=test \
+  --data '{
+  "billing": {
+    "city": "Texas",
+    "country": "US",
+    "state": "Texas",
+    "street": "56, hhh",
+    "zipcode": "560000"
+  },
+  "customer": {
+    "email": "test@example.com",
+		"name": "test"
+  },
+  "metadata": {},
+  "payment_link": true,
+	"product_id": "pdt_QMDuvLkbVzCRWRQjLNcs",
+	"quantity": 1,
+	"billing_currency": "USD",
+	"discount_code": "IKHZ23M9GQ",
+    "return_url": "https://example.com",
+	"trial_period_days": 10
+}'
+  ```
+
+  </CodeGroup>
+  <CodeGroup>
+
+  ```curl Checkout Session Curl example expandable
+  curl --request POST \
+  --url https://example.com/api/checkout \
+  --header 'Content-Type: application/json' \
+  --header 'User-Agent: insomnia/11.2.0' \
+  --cookie mode=test \
+  --data '{
+  "product_cart": [
+    {
+      "product_id": "pdt_QMDuvLkbVzCRWRQjLNcs",
+      "quantity": 1
+    }
+  ],
+  "customer": {
+    "email": "test@example.com",
+    "name": "test"
+  },
+  "return_url": "https://example.com/success"
+}'
+  ```
+
+  </CodeGroup>
+
+</Tab>
+<Tab title="Pengelola Portal Pelanggan">
+  <Info>
+  Gunakan pengelola ini untuk memungkinkan pelanggan mengelola langganan dan detail mereka melalui portal pelanggan Dodo Payments.
+  </Info>
+  <CodeGroup>
+
+    ```typescript Express Route Handler expandable
+    import { CustomerPortal } from "@dodopayments/express";
+
+    app.get('/api/customer-portal', CustomerPortal({
+        bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+        environment: process.env.DODO_PAYMENTS_ENVIRONMENT,
+    }))
+    ```
+
+  </CodeGroup>
+  <CodeGroup>
+
+  ```curl Customer Portal Curl example expandable
+  curl --request GET \
+  --url 'https://example.com/api/customer-portal?customer_id=cus_9VuW4K7O3GHwasENg31m&send_email=true' \
+  --header 'User-Agent: insomnia/11.2.0' \
+  --cookie mode=test
+  ```
+
+  </CodeGroup>
+</Tab>
+<Tab title="Pengelola Webhook">
+  <Info>
+  Gunakan pengelola ini untuk menerima dan memproses acara webhook Dodo Payments dengan aman di aplikasi Express Anda.
+  </Info>
+  <CodeGroup> 
+
+    ```typescript Express Route Handler expandable
+    import { Webhooks } from "@dodopayments/express";
+
+    app.post('/api/webhook',Webhooks({
+        webhookKey: process.env.DODO_PAYMENTS_WEBHOOK_KEY,
+        onPayload: async (payload) => {
+            // handle the payload
+        },
+        // ... other event handlers for granular control
+    }))
+    ```
+
+  </CodeGroup>
+</Tab>
+</Tabs>
+
+## Pengelola Rute Checkout
+
+<Info>
+Dodo Payments mendukung tiga jenis alur pembayaran untuk mengintegrasikan pembayaran ke dalam situs web Anda, adaptor ini mendukung semua jenis alur pembayaran.
+</Info>
+
+- **Tautan Pembayaran Statis:** URL yang dapat dibagikan secara instan untuk pengumpulan pembayaran cepat tanpa kode.
+- **Tautan Pembayaran Dinamis:** Menghasilkan tautan pembayaran secara programatis dengan detail kustom menggunakan API atau SDK.
+- **Sesi Checkout:** Membuat pengalaman checkout yang aman dan dapat disesuaikan dengan keranjang produk dan detail pelanggan yang telah dikonfigurasi sebelumnya.
+
+<AccordionGroup>
+<Accordion title="Checkout Statis (GET)">
+
+### Parameter Kuery yang Didukung 
+<ParamField query="productId" type="string" required>
+Identifikasi produk (misalnya, <code>?productId=pdt_nZuwz45WAs64n3l07zpQR</code>).
+</ParamField>
+<ParamField query="quantity" type="integer">
+Jumlah produk.
+</ParamField>
+<ParamField query="fullName" type="string">
+Nama lengkap pelanggan.
+</ParamField>
+<ParamField query="firstName" type="string">
+Nama depan pelanggan.
+</ParamField>
+<ParamField query="lastName" type="string">
+Nama belakang pelanggan.
+</ParamField>
+<ParamField query="email" type="string">
+Alamat email pelanggan.
+</ParamField>
+<ParamField query="country" type="string">
+Negara pelanggan.
+</ParamField>
+<ParamField query="addressLine" type="string">
+Baris alamat pelanggan.
+</ParamField>
+<ParamField query="city" type="string">
+Kota pelanggan.
+</ParamField>
+<ParamField query="state" type="string">
+Provinsi/negara bagian pelanggan.
+</ParamField>
+<ParamField query="zipCode" type="string">
+Kode pos/paspor pelanggan.
+</ParamField>
+<ParamField query="disableFullName" type="boolean">
+Nonaktifkan kolom nama lengkap.
+</ParamField>
+<ParamField query="disableFirstName" type="boolean">
+Nonaktifkan kolom nama depan.
+</ParamField>
+<ParamField query="disableLastName" type="boolean">
+Nonaktifkan kolom nama belakang.
+</ParamField>
+<ParamField query="disableEmail" type="boolean">
+Nonaktifkan kolom email.
+</ParamField>
+<ParamField query="disableCountry" type="boolean">
+Nonaktifkan kolom negara.
+</ParamField>
+<ParamField query="disableAddressLine" type="boolean">
+Nonaktifkan kolom baris alamat.
+</ParamField>
+<ParamField query="disableCity" type="boolean">
+Nonaktifkan kolom kota.
+</ParamField>
+<ParamField query="disableState" type="boolean">
+Nonaktifkan kolom provinsi.
+</ParamField>
+<ParamField query="disableZipCode" type="boolean">
+Nonaktifkan kolom kode pos.
+</ParamField>
+<ParamField query="paymentCurrency" type="string">
+Tentukan mata uang pembayaran (misalnya, <code>USD</code>).
+</ParamField>
+<ParamField query="showCurrencySelector" type="boolean">
+Tampilkan pemilih mata uang.
+</ParamField>
+<ParamField query="paymentAmount" type="integer">
+Tentukan jumlah pembayaran (misalnya, <code>1000</code> untuk $10.00).
+</ParamField>
+<ParamField query="showDiscounts" type="boolean">
+Tampilkan kolom diskon.
+</ParamField>
+<ParamField query="metadata_*" type="string">
+Parameter kuery apa pun yang dimulai dengan <code>metadata_</code> akan diteruskan sebagai metadata.
+</ParamField>
+
+<Warning>
+Jika <code>productId</code> hilang, pengelola mengembalikan respons 400. Parameter kuery yang tidak valid juga menghasilkan respons 400.
+</Warning>
+
+### Format Respons
+Checkout statis mengembalikan respons JSON dengan URL checkout:
+
+```json
+{
+  "checkout_url": "https://checkout.dodopayments.com/..."
+}
+```
+
+</Accordion>
+<Accordion title="Checkout Dinamis (POST)">
+- Kirim parameter sebagai body JSON dalam permintaan POST.
+- Mendukung pembayaran satu kali dan berulang.
+- Untuk daftar lengkap bidang body POST yang didukung, lihat:
+  - [Body permintaan untuk Produk Pembayaran Satu Kali](https://docs.dodopayments.com/api-reference/payments/post-payments)
+  - [Body permintaan untuk Produk Langganan](https://docs.dodopayments.com/api-reference/subscriptions/post-subscriptions)
+
+### Format Respons
+Checkout dinamis mengembalikan respons JSON dengan URL checkout:
+
+```json
+{
+  "checkout_url": "https://checkout.dodopayments.com/..."
+}
+```
+
+</Accordion>
+<Accordion title="Sesi Checkout (POST)">
+Sesi checkout menyediakan pengalaman checkout yang lebih aman dan dihosting yang menangani alur pembayaran lengkap untuk pembelian satu kali dan langganan dengan kontrol kustomisasi penuh.
+
+Lihat [Panduan Integrasi Sesi Checkout](https://docs.dodopayments.com/developer-resources/checkout-session) untuk detail lebih lanjut dan daftar lengkap bidang yang didukung.
+
+### Format Respons
+Sesi checkout mengembalikan respons JSON dengan URL checkout:
+
+```json
+{
+  "checkout_url": "https://checkout.dodopayments.com/session/..."
+}
+```
+
+</Accordion>
+</AccordionGroup>
+
+## Pengelola Rute Portal Pelanggan
+
+Pengelola Rute Portal Pelanggan memungkinkan Anda untuk mengintegrasikan portal pelanggan Dodo Payments ke dalam aplikasi Express Anda dengan mulus.
+
+### Parameter Kuery
+<ParamField query="customer_id" type="string" required>
+ID pelanggan untuk sesi portal (misalnya, <code>?customer_id=cus_123</code>).
+</ParamField>
+<ParamField query="send_email" type="boolean">
+Jika diatur ke <code>true</code>, mengirim email kepada pelanggan dengan tautan portal.
+</ParamField>
+
+<Warning>
+Mengembalikan 400 jika <code>customer_id</code> hilang.
+</Warning>
+
+## Pengelola Rute Webhook
+
+- **Metode:** Hanya permintaan POST yang didukung. Metode lain mengembalikan 405.
+- **Verifikasi Tanda Tangan:** Memverifikasi tanda tangan webhook menggunakan <code>webhookKey</code>. Mengembalikan 401 jika verifikasi gagal.
+- **Validasi Payload:** Divalidasi dengan Zod. Mengembalikan 400 untuk payload yang tidak valid.
+- **Penanganan Kesalahan:**
+  - 401: Tanda tangan tidak valid
+  - 400: Payload tidak valid
+  - 500: Kesalahan internal selama verifikasi
+- **Rute Acara:** Memanggil pengelola acara yang sesuai berdasarkan jenis payload.
+
+### Pengelola Acara Webhook yang Didukung
+<CodeGroup>
+
+```typescript Typescript expandable
+onPayload?: (payload: WebhookPayload) => Promise<void>;
+onPaymentSucceeded?: (payload: WebhookPayload) => Promise<void>;
+onPaymentFailed?: (payload: WebhookPayload) => Promise<void>;
+onPaymentProcessing?: (payload: WebhookPayload) => Promise<void>;
+onPaymentCancelled?: (payload: WebhookPayload) => Promise<void>;
+onRefundSucceeded?: (payload: WebhookPayload) => Promise<void>;
+onRefundFailed?: (payload: WebhookPayload) => Promise<void>;
+onDisputeOpened?: (payload: WebhookPayload) => Promise<void>;
+onDisputeExpired?: (payload: WebhookPayload) => Promise<void>;
+onDisputeAccepted?: (payload: WebhookPayload) => Promise<void>;
+onDisputeCancelled?: (payload: WebhookPayload) => Promise<void>;
+onDisputeChallenged?: (payload: WebhookPayload) => Promise<void>;
+onDisputeWon?: (payload: WebhookPayload) => Promise<void>;
+onDisputeLost?: (payload: WebhookPayload) => Promise<void>;
+onSubscriptionActive?: (payload: WebhookPayload) => Promise<void>;
+onSubscriptionOnHold?: (payload: WebhookPayload) => Promise<void>;
+onSubscriptionRenewed?: (payload: WebhookPayload) => Promise<void>;
+onSubscriptionPlanChanged?: (payload: WebhookPayload) => Promise<void>;
+onSubscriptionCancelled?: (payload: WebhookPayload) => Promise<void>;
+onSubscriptionFailed?: (payload: WebhookPayload) => Promise<void>;
+onSubscriptionExpired?: (payload: WebhookPayload) => Promise<void>;
+onLicenseKeyCreated?: (payload: WebhookPayload) => Promise<void>;
+```
+
+</CodeGroup>
+
+---
+
+## Prompt untuk LLM
+
+```
+Anda adalah asisten pengembang Express.js yang ahli. Tugas Anda adalah membimbing pengguna melalui integrasi adaptor @dodopayments/express ke dalam proyek Express.js yang ada.
+
+Adaptor @dodopayments/express menyediakan pengelola rute untuk Checkout Dodo Payments, Portal Pelanggan, dan fungsionalitas Webhook, dirancang untuk terhubung langsung ke aplikasi Express.
+
+Pertama, instal paket yang diperlukan. Gunakan manajer paket yang sesuai untuk proyek pengguna (npm, yarn, atau bun):
+
+npm install @dodopayments/express
+
+---
+
+Berikut adalah cara Anda harus menyusun respons Anda:
+
+1. Tanyakan kepada pengguna fungsi mana yang ingin mereka integrasikan.
+
+"Bagian mana dari adaptor @dodopayments/express yang ingin Anda integrasikan ke dalam proyek Anda? Anda dapat memilih satu atau lebih dari yang berikut:
+
+- Pengelola Rute Checkout (untuk menangani checkout produk)
+- Pengelola Rute Portal Pelanggan (untuk mengelola langganan/detail pelanggan)
+- Pengelola Rute Webhook (untuk menerima acara webhook Dodo Payments)
+- Semua (integrasikan ketiga-tiganya)"
+
+---
+
+2. Berdasarkan pilihan pengguna, berikan langkah-langkah integrasi yang rinci untuk setiap fungsionalitas yang dipilih.
+
+---
+
+**Jika Pengelola Rute Checkout dipilih:**
+
+**Tujuan**: Pengelola ini mengelola berbagai jenis alur checkout. Semua jenis checkout (statis, dinamis, dan sesi) mengembalikan respons JSON dengan URL checkout untuk penanganan programatis.
+
+**Integrasi**:
+Buat rute di aplikasi Express Anda untuk checkout statis (GET), dinamis (POST), dan sesi checkout (POST).
+
+import { checkoutHandler } from '@dodopayments/express';
+
+app.get('/api/checkout', checkoutHandler({
+  bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+  returnUrl: process.env.DODO_PAYMENTS_RETURN_URL,
+  environment: process.env.DODO_PAYMENTS_ENVIRONMENT,
+  type: "static"
+}));
+
+app.post('/api/checkout', checkoutHandler({
+  bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+  returnUrl: process.env.DODO_PAYMENTS_RETURN_URL,
+  environment: process.env.DODO_PAYMENTS_ENVIRONMENT,
+  type: "dynamic"
+}));
+
+// Untuk sesi checkout
+app.post('/api/checkout', checkoutHandler({
+  bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+  returnUrl: process.env.DODO_PAYMENTS_RETURN_URL,
+  environment: process.env.DODO_PAYMENTS_ENVIRONMENT,
+  type: "session"
+}));
+
+Opsi Konfigurasi:
+
+    bearerToken: Kunci API Dodo Payments Anda (disarankan untuk disimpan dalam variabel lingkungan DODO_PAYMENTS_API_KEY).
+
+    returnUrl (opsional): URL untuk mengarahkan pengguna setelah checkout berhasil.
+
+    environment: "test_mode" atau "live_mode"
+
+    type: "static" (GET), "dynamic" (POST), atau "session" (POST)
+
+GET (checkout statis) mengharapkan parameter kuery:
+
+    productId (wajib)
+
+    quantity, bidang pelanggan (fullName, email, dll.), dan metadata (metadata_*) adalah opsional.
+
+    Mengembalikan: {"checkout_url": "https://checkout.dodopayments.com/..."}
+
+POST (checkout dinamis) mengharapkan body JSON dengan detail pembayaran (satu kali atau langganan). Rujuk dokumen untuk skema POST lengkap:
+
+    Pembayaran satu kali: https://docs.dodopayments.com/api-reference/payments/post-payments
+
+    Langganan: https://docs.dodopayments.com/api-reference/subscriptions/post-subscriptions
+
+    Mengembalikan: {"checkout_url": "https://checkout.dodopayments.com/..."}
+
+POST (sesi checkout) - (Disarankan) Pengalaman checkout yang lebih dapat disesuaikan. Mengembalikan JSON dengan checkout_url: Parameter dikirim sebagai body JSON. Mendukung pembayaran satu kali dan berulang. Mengembalikan: {"checkout_url": "https://checkout.dodopayments.com/session/..."}. Untuk daftar lengkap bidang yang didukung, lihat:
+
+  Panduan Integrasi Sesi Checkout: https://docs.dodopayments.com/developer-resources/checkout-session
+
+Jika Pengelola Rute Portal Pelanggan dipilih:
+
+Tujuan: Rute ini memungkinkan pelanggan untuk mengelola langganan mereka melalui portal Dodo Payments.
+
+Integrasi:
+
+import { CustomerPortal } from "@dodopayments/express";
+
+app.get('/api/customer-portal', CustomerPortal({
+  bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+  environment: process.env.DODO_PAYMENTS_ENVIRONMENT,
+}));
+
+Parameter Kuery:
+
+    customer_id (wajib): misalnya, ?customer_id=cus_123
+
+    send_email (opsional): jika true, pelanggan akan dikirim email tautan portal
+
+Mengembalikan 400 jika customer_id hilang.
+
+Jika Pengelola Rute Webhook dipilih:
+
+Tujuan: Memproses acara webhook yang masuk dari Dodo Payments untuk memicu acara di aplikasi Anda.
+
+Integrasi:
+
+import { Webhooks } from "@dodopayments/express";
+
+app.post('/api/webhook', Webhooks({
+  webhookKey: process.env.DODO_PAYMENTS_WEBHOOK_KEY,
+  onPayload: async (payload) => {
+    // Tangani payload umum
+  },
+  // Anda juga dapat memberikan pengelola yang lebih terperinci untuk setiap jenis acara di bawah
+}));
+
+Fitur:
+
+    Hanya metode POST yang diizinkan — yang lain mengembalikan 405
+
+    Verifikasi tanda tangan dilakukan menggunakan webhookKey. Mengembalikan 401 jika tidak valid.
+
+    Validasi payload berbasis Zod. Mengembalikan 400 jika skema tidak valid.
+
+    Semua pengelola adalah fungsi async.
+
+Pengelola Acara Webhook yang Didukung:
+
+Anda dapat meneruskan salah satu pengelola berikut:
+
+    onPayload
+
+    onPaymentSucceeded
+
+    onPaymentFailed
+
+    onPaymentProcessing
+
+    onPaymentCancelled
+
+    onRefundSucceeded
+
+    onRefundFailed
+
+    onDisputeOpened, onDisputeExpired, onDisputeAccepted, onDisputeCancelled, onDisputeChallenged, onDisputeWon, onDisputeLost
+
+    onSubscriptionActive, onSubscriptionOnHold, onSubscriptionRenewed, onSubscriptionPlanChanged, onSubscriptionCancelled, onSubscriptionFailed, onSubscriptionExpired
+
+    onLicenseKeyCreated
+
+Pengaturan Variabel Lingkungan:
+
+Pastikan untuk mendefinisikan variabel lingkungan ini di proyek Anda:
+
+DODO_PAYMENTS_API_KEY=your-api-key
+DODO_PAYMENTS_WEBHOOK_KEY=your-webhook-secret
+DODO_PAYMENTS_ENVIRONMENT="test_mode" atau "live_mode"
+DODO_PAYMENTS_RETURN_URL=your-return-url
+
+Gunakan ini di dalam kode Anda sebagai:
+
+process.env.DODO_PAYMENTS_API_KEY
+process.env.DODO_PAYMENTS_WEBHOOK_SECRET
+
+Catatan Keamanan: JANGAN mengkomit rahasia ke kontrol versi. Gunakan file .env secara lokal dan manajer rahasia di lingkungan penyebaran (misalnya, AWS, Vercel, Heroku, dll.).

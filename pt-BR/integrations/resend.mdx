@@ -1,0 +1,164 @@
+---
+title: Resend
+description: Envie e-mails transacionais através do Resend com base nos eventos
+  de pagamentos do Dodo com alta entregabilidade.
+icon: envelope
+---
+
+## Introdução
+
+Envie e-mails transacionais profissionais automaticamente quando eventos de pagamento ocorrerem. Entregue confirmações de pagamento, atualizações de assinatura e notificações importantes com a infraestrutura de e-mail confiável do Resend e excelentes taxas de entregabilidade.
+
+<Info>
+Esta integração requer sua Chave de API do Resend para autenticação.
+</Info>
+
+## Começando
+
+<Steps>
+<Step title="Abra a Seção de Webhook">
+  No seu painel do Dodo Payments, navegue até <b>Webhooks → + Adicionar Endpoint</b> e expanda o dropdown de integrações.
+  <Frame>
+    <img src="/images/integrations/resend.png" alt="Adicionar Endpoint e dropdown de integrações" />
+  </Frame>
+</Step>
+
+<Step title="Selecione Resend">
+  Escolha o cartão de integração <b>Resend</b>.
+</Step>
+
+<Step title="Insira a Chave da API">
+  Forneça sua Chave de API do Resend na configuração.
+</Step>
+
+<Step title="Configure a Transformação">
+  Edite o código de transformação para formatar e-mails para a API do Resend.
+</Step>
+
+<Step title="Teste e Crie">
+  Teste com cargas úteis de exemplo e clique em <b>Criar</b> para ativar o envio de e-mails.
+</Step>
+
+<Step title="Pronto!">
+  🎉 Eventos de pagamento agora dispararão automaticamente e-mails transacionais via Resend.
+</Step>
+</Steps>
+
+## Exemplos de Código de Transformação
+
+### E-mail de Confirmação de Pagamento
+
+```javascript payment_confirmation.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.url = "https://api.resend.com/emails";
+    webhook.payload = {
+      from: "payments@yourdomain.com",
+      to: [p.customer.email],
+      subject: "Payment Confirmation - $" + (p.total_amount / 100).toFixed(2),
+      html: `
+        <h2>Payment Successful!</h2>
+        <p>Hi ${p.customer.name},</p>
+        <p>Your payment of $${(p.total_amount / 100).toFixed(2)} has been processed successfully.</p>
+        <ul>
+          <li><strong>Payment ID:</strong> ${p.payment_id}</li>
+          <li><strong>Amount:</strong> $${(p.total_amount / 100).toFixed(2)}</li>
+          <li><strong>Date:</strong> ${new Date(webhook.payload.timestamp).toLocaleDateString()}</li>
+          <li><strong>Method:</strong> ${p.payment_method || "Unknown"}</li>
+        </ul>
+        <p>Thank you for your business!</p>
+      `,
+      text: `Payment Successful! Your payment of $${(p.total_amount / 100).toFixed(2)} has been processed. Payment ID: ${p.payment_id}`
+    };
+  }
+  return webhook;
+}
+```
+
+### E-mail de Boas-Vindas de Assinatura
+
+```javascript subscription_welcome.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "subscription.active") {
+    const s = webhook.payload.data;
+    webhook.url = "https://api.resend.com/emails";
+    webhook.payload = {
+      from: "welcome@yourdomain.com",
+      to: [s.customer.email],
+      subject: "Welcome to Your Subscription!",
+      html: `
+        <h2>Welcome to Your Subscription!</h2>
+        <p>Hi ${s.customer.name},</p>
+        <p>Your subscription has been activated successfully.</p>
+        <ul>
+          <li><strong>Subscription ID:</strong> ${s.subscription_id}</li>
+          <li><strong>Product:</strong> ${s.product_id}</li>
+          <li><strong>Amount:</strong> $${(s.recurring_pre_tax_amount / 100).toFixed(2)}/${s.payment_frequency_interval}</li>
+          <li><strong>Next Billing:</strong> ${new Date(s.next_billing_date).toLocaleDateString()}</li>
+        </ul>
+        <p>You can manage your subscription anytime from your account dashboard.</p>
+      `,
+      text: `Welcome! Your subscription is now active. Amount: $${(s.recurring_pre_tax_amount / 100).toFixed(2)}/${s.payment_frequency_interval}`
+    };
+  }
+  return webhook;
+}
+```
+
+### Notificação de Falha de Pagamento
+
+```javascript payment_failure.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.failed") {
+    const p = webhook.payload.data;
+    webhook.url = "https://api.resend.com/emails";
+    webhook.payload = {
+      from: "support@yourdomain.com",
+      to: [p.customer.email],
+      subject: "Payment Failed - Action Required",
+      html: `
+        <h2>Payment Failed</h2>
+        <p>Hi ${p.customer.name},</p>
+        <p>We were unable to process your payment of $${(p.total_amount / 100).toFixed(2)}.</p>
+        <ul>
+          <li><strong>Payment ID:</strong> ${p.payment_id}</li>
+          <li><strong>Amount:</strong> $${(p.total_amount / 100).toFixed(2)}</li>
+          <li><strong>Error:</strong> ${p.error_message || "Payment processing failed"}</li>
+        </ul>
+        <p>Please update your payment method or contact support for assistance.</p>
+        <a href="https://yourdomain.com/update-payment">Update Payment Method</a>
+      `,
+      text: `Payment Failed: We couldn't process your $${(p.total_amount / 100).toFixed(2)} payment. Please update your payment method.`
+    };
+  }
+  return webhook;
+}
+```
+
+## Dicas
+
+- Use domínios de remetente verificados para melhor entregabilidade
+- Inclua versões em HTML e texto dos e-mails
+- Personalize o conteúdo com dados do cliente
+- Use linhas de assunto claras e orientadas para ação
+- Inclua links de cancelamento para conformidade
+- Teste os modelos de e-mail antes de entrar ao vivo
+
+## Solução de Problemas
+
+<AccordionGroup>
+<Accordion title="E-mails não estão sendo enviados">
+- Verifique se a Chave da API está correta e ativa
+- Confira se o domínio do remetente está verificado no Resend
+- Assegure-se de que os endereços de e-mail dos destinatários são válidos
+- Revise os limites e cotas de envio do Resend
+</Accordion>
+
+<Accordion title="Erros de transformação">
+- Valide se a estrutura JSON corresponde ao formato da API do Resend
+- Verifique se todos os campos obrigatórios estão presentes
+- Assegure-se de que o conteúdo HTML está formatado corretamente
+- Verifique se o endereço de e-mail do remetente está verificado
+</Accordion>
+</AccordionGroup>

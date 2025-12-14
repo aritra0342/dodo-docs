@@ -1,0 +1,280 @@
+---
+sidebarTitle: Migração de Assinaturas
+title: Migração de Assinaturas para Dodo Payments
+description: Aprenda como migrar seus assinantes e métodos de pagamento
+  existentes do seu processador de pagamentos atual para o Dodo Payments.
+icon: file-import
+---
+
+## O que é uma migração de assinaturas?
+
+Uma migração de assinaturas transfere seus assinantes existentes do seu processador de pagamentos legado para o Dodo Payments, fornecendo uma única fonte de verdade para todos os seus dados de clientes. Sem uma migração, os clientes que você adquiriu até agora permanecem em seu sistema legado, e apenas novos clientes seriam visíveis no Dodo Payments.
+
+O processo de migração garante uma experiência de cobrança contínua para seus clientes—eles não precisarão reentrar seus dados de pagamento ou experimentar qualquer interrupção em suas assinaturas.
+
+<Warning>
+Atualmente, só suportamos migração para **tokens de cartão**. Apple Pay, Google Pay e outros métodos de pagamento de carteira não podem ser transferidos entre processadores de pagamento devido a restrições de tokenização impostas por esses provedores.
+</Warning>
+
+## Visão geral do processo de migração
+
+O processo de migração de assinaturas consiste em três partes principais:
+
+1. **Transferência de método de pagamento** — Transferência segura de dados sensíveis do cartão do seu processador atual
+2. **Transferência de dados do assinante** — Exportação de detalhes do cliente, planos de assinatura e cronogramas de cobrança
+3. **Importação e validação** — Unificação de métodos de pagamento e dados de assinantes no Dodo Payments
+
+<Note>
+Para iniciar uma migração de assinaturas, entre em contato com nossa [equipe de suporte](mailto:support@dodopayments.com). Eles o conectarão a um Engenheiro de Soluções dedicado que o guiará por todo o processo.
+</Note>
+
+## Requisitos
+
+Antes de iniciar uma migração, certifique-se de atender aos seguintes requisitos:
+
+<AccordionGroup>
+<Accordion title="Verificação de conformidade PCI DSS">
+O Dodo Payments é compatível com PCI DSS Nível 1. Para atender às obrigações de conformidade, só podemos receber dados de cartão de outro processador de pagamento compatível com PCI DSS Nível 1.
+
+Seu processador atual deve fornecer:
+- Sua atual Declaração de Conformidade PCI (AOC), ou sua listagem no Registro Global de Provedores de Serviços da Visa
+- Confirmação de que eles suportam exportações seguras de dados de cartão
+
+Veja nossa [Declaração de Conformidade (AOC)](/assets/dodo-payments-pci-dss-aoc.pdf) para compartilhar com seu processador atual.
+</Accordion>
+
+<Accordion title="Integração com Dodo Payments">
+Complete sua integração com o Dodo Payments e certifique-se de que todos os novos clientes estão sendo direcionados para o checkout do Dodo Payments antes de iniciar a migração. Isso evita inconsistências de dados durante o período de transição.
+</Accordion>
+
+<Accordion title="Autorização de acesso a dados">
+Certifique-se de ter a autorização necessária para solicitar uma exportação de dados do seu processador atual. Isso geralmente requer:
+- Verificação do proprietário da conta
+- Autorização por escrito para acesso a dados sensíveis
+- Conclusão das etapas de verificação de segurança do seu processador
+</Accordion>
+</AccordionGroup>
+
+## Guia de migração passo a passo
+
+<Steps>
+<Step title="Solicitar exportação de método de pagamento do seu processador atual">
+Entre em contato com a equipe de suporte do seu processador de pagamento atual e envie uma solicitação formal para uma exportação completa de seus tokens de cartão de cliente.
+
+Você precisará:
+- Fornecer verificação de sua identidade e autorização
+- Solicitar que eles criptografem a exportação usando a chave pública PGP do Dodo Payments (fornecida abaixo)
+- Pedir que eles transfiram o arquivo criptografado diretamente para nosso servidor SFTP seguro
+
+<Info>
+Transferências seguras são feitas diretamente de servidor para servidor via SFTP. Seu Engenheiro de Soluções fornecerá as credenciais SFTP para compartilhar com seu processador atual.
+</Info>
+
+Em média, esse processo leva cerca de **2 semanas**, embora o tempo varie dependendo das políticas e tempos de resposta do seu processador atual.
+</Step>
+
+<Step title="Preparar exportação de dados do assinante">
+Enquanto a transferência do método de pagamento está em andamento, exporte seus dados de assinante do seu sistema legado. Seu Engenheiro de Soluções fornecerá um modelo CSV e o guiará pelos campos necessários.
+
+### Dados de assinante necessários
+
+| Campo | Descrição |
+|-------|-------------|
+| `customer_id` | Seu identificador interno de cliente |
+| `email` | Endereço de e-mail do cliente |
+| `name` | Nome completo do cliente |
+| `country` | Código do país de duas letras (ISO 3166-1 alpha-2) |
+| `currency` | Código de moeda de três letras (ISO 4217) |
+| `payment_amount` | Valor da assinatura na menor unidade de moeda |
+| `payment_interval` | Frequência de cobrança (mensal, anual, etc.) |
+| `next_billing_date` | Próxima data de cobrança agendada (ISO 8601) |
+| `card_token` | Token único do seu processador atual |
+
+<Warning>
+O campo `card_token` é crítico—ele é usado para corresponder os registros de assinantes com seus métodos de pagamento durante a importação. Certifique-se de que isso corresponda exatamente ao token na exportação do método de pagamento.
+</Warning>
+
+### Formato de dados de exemplo
+
+```json
+{
+  "customers": [
+    {
+      "customer_id": "cus_abc123",
+      "email": "jane.doe@example.com",
+      "name": "Jane Doe",
+      "country": "US",
+      "currency": "USD",
+      "payment_amount": 2999,
+      "payment_interval": "monthly",
+      "next_billing_date": "2025-01-15T00:00:00Z",
+      "card_token": "tok_xyz789",
+      "metadata": {
+        "plan": "pro",
+        "signup_source": "website"
+      }
+    }
+  ]
+}
+```
+
+</Step>
+
+<Step title="Validação e teste">
+Antes da data de importação, nossa equipe irá:
+
+- Verificar a integridade do arquivo e a criptografia dos dados do método de pagamento
+- Validar seu CSV de assinantes para formatação correta
+- Executar uma importação de teste em nosso ambiente sandbox
+- Identificar e resolver quaisquer problemas de mapeamento de dados
+
+<Check>
+Você receberá um relatório de validação confirmando que tudo está pronto para a importação em produção.
+</Check>
+</Step>
+
+<Step title="Importação em produção">
+Na data de importação acordada, nossa equipe de engenharia irá:
+
+1. Importar os dados do método de pagamento em nosso Cofre de Cartões compatível com PCI
+2. Importar seus dados de assinantes
+3. Corresponder assinantes aos seus métodos de pagamento usando os tokens de cartão
+4. Ativar todas as assinaturas migradas
+
+<Info>
+O tempo de processamento típico é de **2-3 dias úteis** para migrações padrão, dependendo do volume de assinantes.
+</Info>
+</Step>
+
+<Step title="Verificação pós-migração">
+Após a conclusão da importação, você receberá:
+
+- Um relatório abrangente de migração
+- Um CSV mapeando seus antigos IDs de assinatura para novos IDs do Dodo Payments
+- Acesso a todos os clientes migrados em seu painel do Dodo Payments
+
+Recomendamos:
+- Verificar uma amostra de assinaturas migradas em seu painel
+- Testar algumas renovações de assinatura em modo sandbox
+- Atualizar suas referências de banco de dados interno com os novos IDs
+- Executar monitoramento paralelo para o primeiro ciclo de cobrança
+</Step>
+</Steps>
+
+## Dados migráveis
+
+Os seguintes dados podem ser transferidos durante uma migração de assinaturas:
+
+| Tipo de dado | Suportado | Notas |
+|-----------|-----------|-------|
+| Números de cartões de crédito/débito | ✅ | Criptografados via PGP |
+| Datas de validade do cartão | ✅ | |
+| Nomes dos titulares dos cartões | ✅ | |
+| Endereços de cobrança | ✅ | |
+| Endereços de e-mail dos clientes | ✅ | |
+| Metadados dos clientes | ✅ | Pares chave-valor personalizados |
+| Detalhes da assinatura | ✅ | Plano, valor, intervalo |
+| Tokens do Apple Pay | ❌ | Não podem ser transferidos |
+| Tokens do Google Pay | ❌ | Não podem ser transferidos |
+| Outros tokens de carteira | ❌ | Não podem ser transferidos |
+| Histórico de pagamentos | ❌ | Exportar do seu processador atual |
+
+<Note>
+O histórico de pagamentos e os registros de transações não podem ser migrados. Recomendamos exportar esses dados do seu processador atual para seus registros antes de concluir a transição.
+</Note>
+
+## Criptografia PGP
+
+Para máxima segurança ao transferir dados sensíveis do cartão, todos os arquivos **devem** ser criptografados usando nossa chave pública PGP. Isso fornece uma camada adicional de proteção além da criptografia em nível de transporte.
+
+Compartilhe esta chave com seu processador de pagamento atual para criptografar a exportação dos dados do cartão:
+
+<Accordion title="Chave Pública PGP do Dodo Payments">
+
+```
+-----BEGIN PGP PUBLIC KEY BLOCK-----
+
+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
+1OSDhXaPYtJnVApUzaCrC5PJCXU=
+=nHcw
+-----END PGP PUBLIC KEY BLOCK-----
+
+```
+
+</Accordion>
+
+## Expectativas de cronograma
+
+| Fase | Duração |
+|-------|----------|
+| Configuração inicial e planejamento | 1-2 dias |
+| Transferência de método de pagamento | ~2 semanas |
+| Preparação de dados do assinante | 3-5 dias (paralelo) |
+| Validação e teste | 2-3 dias |
+| Importação em produção | 2-3 dias úteis |
+| Verificação pós-migração | 1-2 dias |
+
+<Tip>
+A migração total geralmente leva **3-4 semanas** do início ao fim. Começar a preparação dos dados dos assinantes enquanto a transferência do método de pagamento está em andamento ajuda a minimizar o cronograma geral.
+</Tip>
+
+## Comece
+
+Pronto para migrar suas assinaturas para o Dodo Payments? Entre em contato com nossa equipe para iniciar o processo:
+
+<CardGroup cols={2}>
+<Card title="Contactar Suporte" icon="envelope" href="mailto:support@dodopayments.com">
+Entre em contato para iniciar sua migração e se conectar com um Engenheiro de Soluções.
+</Card>
+
+<Card title="Documentação da API" icon="code" href="/api-reference">
+Explore nossa API para entender como as assinaturas funcionam no Dodo Payments.
+</Card>
+</CardGroup>

@@ -1,0 +1,248 @@
+---
+title: CLI
+description: 터미널에서 Dodo Payments API와 상호작용하기 위한 명령줄 인터페이스
+icon: terminal
+---
+
+## 설치
+
+### Go 설치
+
+```bash
+go install github.com/dodopayments/dodopayments-cli/cmd/dodopayments@latest
+```
+
+### 소스에서
+
+```bash
+git clone https://github.com/dodopayments/dodopayments-cli.git
+cd dodopayments-cli
+go install ./cmd/dodopayments
+```
+
+## 빠른 시작
+
+API 키를 설정하세요:
+
+```bash
+export DODO_PAYMENTS_API_KEY=your_api_key_here
+```
+
+기본 명령 구조:
+
+```bash
+dodopayments [resource] [command] [flags]
+```
+
+체크아웃 세션 생성:
+
+```bash
+dodopayments checkout-sessions create \
+  --product-cart.product_id prod_123 \
+  --product-cart.quantity 1 \
+  --return-url https://yourdomain.com/return
+```
+
+## 전역 플래그
+
+| 플래그 | 설명 |
+|------|-------------|
+| `--format` | 출력 형식: `auto`, `json`, `yaml`, `pretty`, `explore` |
+| `--transform` | gjson 구문을 사용하여 응답 필터링 |
+| `--debug` | 자세한 로깅 활성화 |
+| `--version`, `-v` | CLI 버전 표시 |
+
+## 일반 명령어
+
+### 결제
+
+```bash
+# List payments
+dodopayments payments list --limit 20 --format json
+
+# Retrieve payment
+dodopayments payments retrieve pay_123
+
+# Get line items
+dodopayments payments line-items pay_123
+```
+
+### 고객
+
+```bash
+# Create customer
+dodopayments customers create \
+  --email customer@example.com \
+  --name "John Doe"
+
+# List customers
+dodopayments customers list
+
+# Update customer
+dodopayments customers update cus_123 --name "Jane Doe"
+```
+
+### 구독
+
+```bash
+# Create subscription
+dodopayments subscriptions create \
+  --customer-id cus_123 \
+  --product-id prod_456
+
+# List subscriptions
+dodopayments subscriptions list
+
+# Get usage history
+dodopayments subscriptions usage-history sub_123
+```
+
+### 제품
+
+```bash
+# Create product
+dodopayments products create \
+  --name "Premium Plan" \
+  --price.amount 2999 \
+  --price.currency USD
+
+# List products
+dodopayments products list
+```
+
+## 사용 기반 청구
+
+### 이벤트 수집
+
+```bash
+dodopayments usage-events ingest \
+  --events.event_id api_call_12345 \
+  --events.customer_id cus_abc123 \
+  --events.event_name api_request \
+  --events.timestamp 2024-01-15T10:30:00Z \
+  --events.metadata.endpoint /api/v1/users
+```
+
+### 미터 관리
+
+```bash
+# Create meter
+dodopayments meters create \
+  --name "API Requests" \
+  --event-name api_request \
+  --aggregation count
+
+# List meters
+dodopayments meters list
+```
+
+## 출력 형식
+
+### JSON (스크립팅용)
+
+```bash
+dodopayments payments list --format json | jq '.data[] | {id, amount}'
+```
+
+### 예쁘게 (읽기용)
+
+```bash
+dodopayments payments retrieve pay_123 --format pretty
+```
+
+### 대화형 탐색
+
+```bash
+dodopayments payments list --format explore
+```
+
+### gjson으로 변환
+
+```bash
+# Extract all payment IDs
+dodopayments payments list --transform "data.#.id"
+
+# Filter and extract
+dodopayments payments list --transform "data.#(amount>5000)#.id"
+```
+
+<Tip>
+강력한 데이터 처리를 위해 `--format json`를 `jq`와 함께 사용하세요.
+</Tip>
+
+## 스크립팅 예제
+
+```bash
+#!/bin/bash
+
+# Export all payments to CSV
+dodopayments payments list --format json | \
+  jq -r '.data[] | [.id, .amount, .currency, .status] | @csv' > payments.csv
+
+# Create customers from file
+while IFS=',' read -r email name; do
+  dodopayments customers create \
+    --email "$email" \
+    --name "$name" \
+    --format json
+done < customers.csv
+```
+
+## 셸 자동 완성
+
+자동 완성 활성화:
+
+```bash
+# Bash
+eval "$(dodopayments completion bash)"
+
+# Zsh
+eval "$(dodopayments completion zsh)"
+
+# Fish
+dodopayments completion fish | source
+```
+
+## 사용 가능한 리소스
+
+CLI는 24개의 리소스 카테고리에 대한 명령을 제공합니다:
+
+- `checkout-sessions` - 체크아웃 세션 관리
+- `payments` - 결제 작업
+- `subscriptions` - 반복 청구
+- `customers` - 고객 계정
+- `products` - 제품 카탈로그
+- `licenses` - 소프트웨어 라이센스
+- `refunds` - 결제 환불
+- `disputes` - 결제 분쟁
+- `webhooks` - 이벤트 웹훅
+- `meters` - 사용 미터
+- `usage-events` - 사용 추적
+- `discounts` - 할인 코드
+- `payouts` - 판매자 지급
+- `brands` - 다중 브랜드 관리
+- 추가 10개의 리소스
+
+<Info>
+`dodopayments --help`를 사용하여 모든 사용 가능한 리소스를 확인하고 `dodopayments [resource] --help`를 사용하여 리소스별 명령을 확인하세요.
+</Info>
+
+## 리소스
+
+<CardGroup cols={2}>
+<Card title="GitHub 리포지토리" icon="github" href="https://github.com/dodopayments/dodopayments-cli">
+  소스 코드 및 릴리스 보기
+</Card>
+
+<Card title="API 참조" icon="book" href="/api-reference/introduction">
+  전체 API 문서
+</Card>
+</CardGroup>
+
+## 지원
+
+CLI에 대한 도움이 필요하신가요?
+
+- **Discord**: [커뮤니티 서버](https://discord.gg/bYqAp4ayYh)에 참여하세요
+- **이메일**: support@dodopayments.com으로 문의하세요
+- **GitHub**: [리포지토리](https://github.com/dodopayments/dodopayments-cli)에서 이슈를 열어주세요

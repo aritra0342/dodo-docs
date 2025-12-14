@@ -1,0 +1,119 @@
+---
+title: Blueprint Streaming
+description: Lacak konsumsi data streaming untuk video, audio, siaran langsung,
+  dan penagihan transfer data waktu nyata.
+icon: tower-broadcast
+---
+
+## Kasus Penggunaan
+
+Jelajahi skenario umum yang didukung oleh Blueprint Streaming:
+
+<CardGroup cols={2}>
+<Card title="Platform Video" icon="video">
+Tagih pelanggan berdasarkan konsumsi bandwidth video dan kualitas streaming.
+</Card>
+<Card title="Streaming Musik" icon="music">
+Lacak penggunaan streaming audio per pengguna untuk tingkat langganan.
+</Card>
+<Card title="Acara Langsung" icon="signal-stream">
+Pantau konsumsi siaran langsung dan tagih berdasarkan penggunaan bandwidth.
+</Card>
+<Card title="Data Waktu Nyata" icon="wave-pulse">
+Lacak transfer data waktu nyata untuk aplikasi IoT dan telemetri.
+</Card>
+</CardGroup>
+
+<Info>
+Sempurna untuk platform streaming video/audio, layanan streaming langsung, dan aplikasi data waktu nyata.
+</Info>
+
+## Memulai dengan Cepat
+
+Lacak byte streaming yang dikonsumsi oleh pelanggan Anda:
+
+<Steps>
+<Step title="Instal SDK">
+
+```bash
+npm install @dodopayments/ingestion-blueprints
+```
+
+</Step>
+
+<Step title="Dapatkan Kunci API Anda">
+- **Kunci API Dodo Payments**: Dapatkan dari [Dasbor Dodo Payments](https://app.dodopayments.com/developer/api-keys)
+</Step>
+
+<Step title="Buat Meter">
+Buat meter di [Dasbor Dodo Payments](https://app.dodopayments.com/):
+- **Nama Acara**: `stream_consumption` (atau nama yang Anda pilih)
+- **Tipe Agregasi**: `sum` untuk melacak total byte yang di-streaming
+- **Properti Over**: `bytes` untuk menagih berdasarkan penggunaan bandwidth
+</Step>
+
+<Step title="Lacak Penggunaan Stream">
+<CodeGroup>
+
+```javascript Video Streaming
+import { Ingestion, trackStreamBytes } from '@dodopayments/ingestion-blueprints';
+
+const ingestion = new Ingestion({
+  apiKey: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'test_mode',
+  eventName: 'stream_consumption'
+});
+
+// Track video stream consumption
+await trackStreamBytes(ingestion, {
+  customerId: 'customer_123',
+  bytes: 10485760, // 10MB
+  metadata: {
+    stream_type: 'video',
+  }
+});
+```
+
+</CodeGroup>
+</Step>
+</Steps>
+
+## Konfigurasi
+
+### Konfigurasi Ingesti
+
+<ParamField path="apiKey" type="string" required>
+Kunci API Dodo Payments Anda dari dasbor.
+</ParamField>
+
+<ParamField path="environment" type="string" required>
+Mode lingkungan: `test_mode` atau `live_mode`.
+</ParamField>
+
+<ParamField path="eventName" type="string" required>
+Nama acara yang sesuai dengan konfigurasi meter Anda.
+</ParamField>
+
+### Opsi Lacak Byte Stream
+
+<ParamField path="customerId" type="string" required>
+ID pelanggan untuk atribusi penagihan.
+</ParamField>
+
+<ParamField path="bytes" type="number">
+Jumlah byte yang dikonsumsi dalam stream. Diperlukan untuk penagihan berbasis bandwidth.
+</ParamField>
+
+<ParamField path="metadata" type="object">
+Metadata opsional tentang stream seperti tipe stream, kualitas, sessionId, dll.
+</ParamField>
+
+## Praktik Terbaik
+
+<Tip>
+**Lacak per Chunk**: Untuk stream yang panjang, lacak konsumsi dalam chunk daripada menunggu seluruh stream selesai.
+</Tip>
+
+<Warning>
+**Penghitungan Byte yang Akurat**: Pastikan penghitungan byte mencakup semua overhead (header, overhead protokol) jika menagih untuk total bandwidth.
+</Warning>

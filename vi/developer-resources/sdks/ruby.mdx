@@ -1,0 +1,425 @@
+---
+title: Ruby
+description: Tích hợp Dodo Payments vào các ứng dụng Ruby của bạn với một SDK tự
+  nhiên cho Ruby
+icon: gem
+---
+
+SDK Ruby cung cấp một cách đơn giản và trực quan để tích hợp Dodo Payments vào các ứng dụng Ruby của bạn. Nó tuân theo các quy ước và thực tiễn tốt nhất của Ruby, cung cấp xử lý lỗi toàn diện, phân trang và hỗ trợ middleware.
+
+## Cài đặt
+
+Thêm gem vào Gemfile của bạn:
+
+```ruby Gemfile
+gem "dodopayments", "~> 1.61.5"
+```
+
+<Tip>
+Luôn sử dụng phiên bản SDK mới nhất để truy cập các tính năng Dodo Payments mới nhất. Chạy `bundle update dodopayments` thường xuyên để cập nhật.
+</Tip>
+
+Sau đó chạy:
+
+```bash
+bundle install
+```
+
+<Info>
+SDK hỗ trợ Ruby 3.2.0 và các phiên bản sau, với các kiểu dữ liệu toàn diện, xử lý lỗi và cơ chế thử lại.
+</Info>
+
+## Khởi động nhanh
+
+Khởi tạo client và tạo một phiên giao dịch thanh toán:
+
+```ruby
+require "bundler/setup"
+require "dodopayments"
+
+dodo_payments = Dodopayments::Client.new(
+  bearer_token: ENV["DODO_PAYMENTS_API_KEY"], # This is the default and can be omitted
+  environment: "test_mode" # defaults to "live_mode"
+)
+
+checkout_session_response = dodo_payments.checkout_sessions.create(
+  product_cart: [{product_id: "product_id", quantity: 1}]
+)
+
+puts(checkout_session_response.session_id)
+```
+
+<Warning>
+Lưu trữ các khóa API của bạn một cách an toàn bằng cách sử dụng các biến môi trường. Không bao giờ cam kết chúng vào hệ thống kiểm soát phiên bản hoặc tiết lộ chúng trong mã của bạn.
+</Warning>
+
+## Tính năng chính
+
+<CardGroup cols={2}>
+<Card title="Quy ước Ruby" icon="gem">
+  Tuân theo các quy ước đặt tên và mẫu idiomatic của Ruby
+</Card>
+
+<Card title="Cú pháp thanh lịch" icon="code">
+  API sạch, dễ đọc mà cảm thấy tự nhiên với các nhà phát triển Ruby
+</Card>
+
+<Card title="Tự động phân trang" icon="arrows-rotate">
+  Các bộ lặp phân trang tự động tích hợp cho các phản hồi danh sách
+</Card>
+
+<Card title="An toàn kiểu" icon="shield-check">
+  Các kiểu Sorbet tùy chọn để tăng cường an toàn kiểu
+</Card>
+</CardGroup>
+
+## Cấu hình
+
+### Cấu hình thời gian chờ
+
+Cấu hình thời gian chờ yêu cầu:
+
+```ruby
+# Configure default for all requests (default is 60 seconds)
+dodo_payments = Dodopayments::Client.new(
+  timeout: nil # disable timeout
+)
+
+# Or, configure per-request
+dodo_payments.checkout_sessions.create(
+  product_cart: [{product_id: "product_id", quantity: 0}],
+  request_options: {timeout: 5}
+)
+```
+
+### Cấu hình thử lại
+
+Cấu hình hành vi thử lại tự động:
+
+```ruby
+# Configure default for all requests (default is 2)
+dodo_payments = Dodopayments::Client.new(
+  max_retries: 0 # disable retries
+)
+
+# Or, configure per-request
+dodo_payments.checkout_sessions.create(
+  product_cart: [{product_id: "product_id", quantity: 0}],
+  request_options: {max_retries: 5}
+)
+```
+
+## Các thao tác phổ biến
+
+### Tạo một phiên giao dịch thanh toán
+
+Tạo một phiên giao dịch thanh toán:
+
+```ruby
+session = dodo_payments.checkout_sessions.create(
+  product_cart: [
+    {
+      product_id: "prod_123",
+      quantity: 1
+    }
+  ],
+  return_url: "https://yourdomain.com/return"
+)
+
+# Redirect to checkout
+redirect_to session.url
+```
+
+### Quản lý khách hàng
+
+Tạo và truy xuất thông tin khách hàng:
+
+```ruby
+# Create a customer
+customer = dodo_payments.customers.create(
+  email: "customer@example.com",
+  name: "John Doe",
+  metadata: {
+    user_id: "12345"
+  }
+)
+
+# Retrieve customer
+customer = dodo_payments.customers.retrieve("cus_123")
+puts "Customer: #{customer.name} (#{customer.email})"
+```
+
+### Xử lý đăng ký
+
+Tạo và quản lý các đăng ký định kỳ:
+
+```ruby
+# Create a subscription
+subscription = dodo_payments.subscriptions.create(
+  customer_id: "cus_123",
+  product_id: "prod_456",
+  price_id: "price_789"
+)
+
+# Update subscription
+updated = dodo_payments.subscriptions.update(
+  subscription.id,
+  metadata: { plan_type: "premium" }
+)
+
+# Cancel subscription
+dodo_payments.subscriptions.cancel(subscription.id)
+```
+
+## Phân trang
+
+### Tự động phân trang
+
+Tự động lặp qua tất cả các trang:
+
+```ruby
+page = dodo_payments.payments.list
+
+# Fetch single item from page
+payment = page.items[0]
+puts(payment.brand_id)
+
+# Automatically fetches more pages as needed
+page.auto_paging_each do |payment|
+  puts(payment.brand_id)
+end
+```
+
+### Phân trang thủ công
+
+Để kiểm soát nhiều hơn về phân trang:
+
+```ruby
+page = dodo_payments.payments.list
+
+if page.next_page?
+  new_page = page.next_page
+  puts(new_page.items[0].brand_id)
+end
+```
+
+## Xử lý lỗi
+
+Xử lý các lỗi API Dodo Payments khác nhau:
+
+```ruby
+begin
+  checkout_session = dodo_payments.checkout_sessions.create(
+    product_cart: [{product_id: "product_id", quantity: 0}]
+  )
+rescue Dodopayments::Errors::APIConnectionError => e
+  puts("The server could not be reached")
+  puts(e.cause)  # an underlying Exception, likely raised within `net/http`
+rescue Dodopayments::Errors::RateLimitError => e
+  puts("A 429 status code was received; we should back off a bit.")
+rescue Dodopayments::Errors::APIStatusError => e
+  puts("Another non-200-range status code was received")
+  puts(e.status)
+end
+```
+
+<Tip>
+Triển khai logic thử lại với thời gian chờ tăng dần cho các lỗi giới hạn tỷ lệ để đảm bảo ứng dụng của bạn xử lý các tình huống khối lượng cao một cách suôn sẻ.
+</Tip>
+
+## An toàn kiểu với Sorbet
+
+Sử dụng Sorbet cho các tham số yêu cầu an toàn kiểu:
+
+```ruby
+# Type-safe using Sorbet RBI definitions
+dodo_payments.checkout_sessions.create(
+  product_cart: [
+    Dodopayments::CheckoutSessionRequest::ProductCart.new(
+      product_id: "product_id",
+      quantity: 0
+    )
+  ]
+)
+
+# Hashes work, but are not typesafe
+dodo_payments.checkout_sessions.create(
+  product_cart: [{product_id: "product_id", quantity: 0}]
+)
+
+# You can also splat a full Params class
+params = Dodopayments::CheckoutSessionCreateParams.new(
+  product_cart: [
+    Dodopayments::CheckoutSessionRequest::ProductCart.new(
+      product_id: "product_id",
+      quantity: 0
+    )
+  ]
+)
+dodo_payments.checkout_sessions.create(**params)
+```
+
+## Sử dụng nâng cao
+
+### Các điểm cuối không tài liệu
+
+Thực hiện các yêu cầu đến các điểm cuối không tài liệu:
+
+```ruby
+response = dodo_payments.request(
+  method: :post,
+  path: '/undocumented/endpoint',
+  query: {"dog": "woof"},
+  headers: {"useful-header": "interesting-value"},
+  body: {"hello": "world"}
+)
+```
+
+### Các tham số không tài liệu
+
+Gửi các tham số không tài liệu:
+
+```ruby
+checkout_session_response = dodo_payments.checkout_sessions.create(
+  product_cart: [{product_id: "product_id", quantity: 0}],
+  request_options: {
+    extra_query: {my_query_parameter: value},
+    extra_body: {my_body_parameter: value},
+    extra_headers: {"my-header": value}
+  }
+)
+
+# Access undocumented response properties
+puts(checkout_session_response[:my_undocumented_property])
+```
+
+## Tích hợp Rails
+
+### Tạo một trình khởi tạo
+
+Tạo `config/initializers/dodo_payments.rb`:
+
+```ruby
+require "dodopayments"
+
+DODO_CLIENT = Dodopayments::Client.new(
+  bearer_token: Rails.application.credentials.dodo_api_key,
+  environment: Rails.env.production? ? "live_mode" : "test_mode"
+)
+```
+
+### Mẫu đối tượng dịch vụ
+
+Tạo một dịch vụ thanh toán:
+
+```ruby
+# app/services/payment_service.rb
+class PaymentService
+  def initialize
+    @client = DODO_CLIENT
+  end
+
+  def create_checkout(items)
+    @client.checkout_sessions.create(
+      product_cart: items,
+      return_url: Rails.application.routes.url_helpers.checkout_return_url
+    )
+  end
+
+  def process_payment(amount:, currency:, customer_id:)
+    @client.payments.create(
+      amount: amount,
+      currency: currency,
+      customer_id: customer_id
+    )
+  end
+end
+```
+
+### Tích hợp Controller
+
+Sử dụng trong các controller Rails của bạn:
+
+```ruby
+# app/controllers/checkouts_controller.rb
+class CheckoutsController < ApplicationController
+  def create
+    service = PaymentService.new
+    session = service.create_checkout(checkout_params[:items])
+    
+    redirect_to session.url, allow_other_host: true
+  rescue Dodopayments::Errors::APIError => e
+    flash[:error] = "Payment error: #{e.message}"
+    redirect_to cart_path
+  end
+
+  private
+
+  def checkout_params
+    params.require(:checkout).permit(items: [:product_id, :quantity])
+  end
+end
+```
+
+## Tích hợp Sinatra
+
+Sử dụng với các ứng dụng Sinatra:
+
+```ruby
+require "sinatra"
+require "dodopayments"
+
+configure do
+  set :dodo_client, Dodopayments::Client.new(
+    bearer_token: ENV["DODO_API_KEY"]
+  )
+end
+
+post "/create-checkout" do
+  content_type :json
+  
+  begin
+    session = settings.dodo_client.checkout_sessions.create(
+      product_cart: JSON.parse(request.body.read)["items"],
+      return_url: "#{request.base_url}/return"
+    )
+    
+    { checkout_url: session.url }.to_json
+  rescue Dodopayments::Errors::APIError => e
+    status 400
+    { error: e.message }.to_json
+  end
+end
+```
+
+## Tài nguyên
+
+<CardGroup cols={2}>
+<Card title="Kho lưu trữ GitHub" icon="github" href="https://github.com/dodopayments/dodopayments-ruby">
+  Xem mã nguồn và đóng góp
+</Card>
+
+<Card title="Tài liệu API" icon="book" href="/api-reference/introduction">
+  Tài liệu API đầy đủ
+</Card>
+
+<Card title="Cộng đồng Discord" icon="discord" href="https://discord.gg/bYqAp4ayYh">
+  Nhận trợ giúp và kết nối với các nhà phát triển
+</Card>
+
+<Card title="Báo cáo sự cố" icon="bug" href="https://github.com/dodopayments/dodopayments-ruby/issues">
+  Báo cáo lỗi hoặc yêu cầu tính năng
+</Card>
+</CardGroup>
+
+## Hỗ trợ
+
+Cần trợ giúp với SDK Ruby?
+
+- **Discord**: Tham gia [máy chủ cộng đồng](https://discord.gg/bYqAp4ayYh) của chúng tôi để được hỗ trợ theo thời gian thực
+- **Email**: Liên hệ với chúng tôi tại support@dodopayments.com
+- **GitHub**: Mở một vấn đề trên [kho lưu trữ](https://github.com/dodopayments/dodopayments-ruby)
+
+## Đóng góp
+
+Chúng tôi hoan nghênh các đóng góp! Kiểm tra [hướng dẫn đóng góp](https://github.com/dodopayments/dodopayments-ruby/blob/main/CONTRIBUTING.md) để bắt đầu.

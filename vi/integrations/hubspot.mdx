@@ -1,0 +1,151 @@
+---
+title: HubSpot
+description: Tự động tạo và cập nhật liên hệ, công ty và giao dịch trong HubSpot
+  từ các sự kiện Dodo Payments.
+icon: hubspot
+---
+
+## Giới thiệu
+
+Đồng bộ dữ liệu thanh toán của bạn trực tiếp đến HubSpot CRM. Tạo liên hệ từ các khoản thanh toán thành công, theo dõi vòng đời đăng ký và xây dựng hồ sơ khách hàng toàn diện—tất cả đều được kích hoạt tự động bởi các sự kiện Dodo Payments.
+
+<Info>
+Tích hợp này yêu cầu quyền truy cập quản trị HubSpot để cấu hình các phạm vi OAuth và quyền API.
+</Info>
+
+## Bắt đầu
+
+<Steps>
+<Step title="Mở phần Webhook">
+  Trong bảng điều khiển Dodo Payments của bạn, đi đến <b>Webhooks → + Thêm Điểm cuối</b> và mở rộng danh sách thả xuống tích hợp.
+  <Frame>
+    <img src="/images/integrations/hubspot.png" alt="Thêm Điểm cuối và danh sách thả xuống tích hợp" />
+  </Frame>
+</Step>
+
+<Step title="Chọn HubSpot">
+  Chọn thẻ tích hợp <b>HubSpot</b>.
+</Step>
+
+<Step title="Kết nối HubSpot">
+  Nhấp vào <b>Kết nối với HubSpot</b> và ủy quyền các phạm vi OAuth cần thiết.
+</Step>
+
+<Step title="Cấu hình Biến đổi">
+  Chỉnh sửa mã biến đổi để ánh xạ dữ liệu thanh toán đến các đối tượng CRM của HubSpot.
+</Step>
+
+<Step title="Kiểm tra & Tạo">
+  Kiểm tra với các payload mẫu và nhấp vào <b>Tạo</b> để kích hoạt đồng bộ.
+</Step>
+
+<Step title="Xong!">
+  🎉 Các sự kiện thanh toán bây giờ sẽ tự động tạo/cập nhật hồ sơ trong CRM HubSpot của bạn.
+</Step>
+</Steps>
+
+## Ví dụ Mã Biến đổi
+
+### Tạo Liên hệ từ Thanh toán
+
+```javascript create_contact.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.url = "https://api.hubapi.com/crm/v3/objects/contacts";
+    webhook.payload = {
+      properties: {
+        email: p.customer.email,
+        firstname: p.customer.name.split(' ')[0] || '',
+        lastname: p.customer.name.split(' ').slice(1).join(' ') || '',
+        phone: p.customer.phone || '',
+        company: p.customer.company || '',
+        amount: (p.total_amount / 100).toString(),
+        payment_method: p.payment_method || '',
+        currency: p.currency || 'USD'
+      }
+    };
+  }
+  return webhook;
+}
+```
+
+### Cập nhật Liên hệ với Đăng ký
+
+```javascript update_contact.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "subscription.active") {
+    const s = webhook.payload.data;
+    webhook.url = `https://api.hubapi.com/crm/v3/objects/contacts/${s.customer.customer_id}`;
+    webhook.method = "PATCH";
+    webhook.payload = {
+      properties: {
+        subscription_status: "active",
+        subscription_amount: (s.recurring_pre_tax_amount / 100).toString(),
+        subscription_frequency: s.payment_frequency_interval,
+        next_billing_date: s.next_billing_date,
+        product_id: s.product_id
+      }
+    };
+  }
+  return webhook;
+}
+```
+
+### Tạo Giao dịch từ Thanh toán
+
+```javascript create_deal.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.url = "https://api.hubapi.com/crm/v3/objects/deals";
+    webhook.payload = {
+      properties: {
+        dealname: `Payment - ${p.customer.email}`,
+        amount: (p.total_amount / 100).toString(),
+        dealstage: "closedwon",
+        closedate: new Date().toISOString(),
+        hs_currency: p.currency || "USD"
+      },
+      associations: [
+        {
+          to: {
+            id: p.customer.customer_id
+          },
+          types: [
+            {
+              associationCategory: "HUBSPOT_DEFINED",
+              associationTypeId: 3
+            }
+          ]
+        }
+      ]
+    };
+  }
+  return webhook;
+}
+```
+
+## Mẹo
+
+- Sử dụng trình khám phá API của HubSpot để kiểm tra việc tạo đối tượng
+- Ánh xạ số tiền thanh toán đến các trường tiền tệ của HubSpot
+- Bao gồm ID khách hàng để đảm bảo liên kết chính xác
+- Đặt các giai đoạn giao dịch phù hợp dựa trên trạng thái thanh toán
+
+## Khắc phục sự cố
+
+<AccordionGroup>
+<Accordion title="Hồ sơ không được tạo trong HubSpot">
+- Xác minh rằng các phạm vi OAuth bao gồm quyền ghi
+- Kiểm tra rằng các thuộc tính cần thiết của HubSpot tồn tại
+- Đảm bảo email khách hàng hợp lệ và duy nhất
+- Xem xét giới hạn tỷ lệ API của HubSpot
+</Accordion>
+
+<Accordion title="Lỗi Biến đổi">
+- Xác thực cấu trúc JSON khớp với định dạng API của HubSpot
+- Kiểm tra rằng tất cả các thuộc tính cần thiết đều được bao gồm
+- Đảm bảo tên thuộc tính khớp chính xác với tên trường của HubSpot
+</Accordion>
+</AccordionGroup>

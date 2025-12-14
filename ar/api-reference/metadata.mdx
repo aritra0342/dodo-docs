@@ -1,0 +1,191 @@
+---
+title: دليل البيانات الوصفية
+description: تعلم كيفية استخدام البيانات الوصفية لتخزين معلومات إضافية حول
+  كائنات مدفوعات Dodo الخاصة بك
+icon: tags
+---
+
+## المقدمة
+
+تتيح لك البيانات الوصفية تخزين معلومات إضافية ومنظمة حول كائناتك في مدفوعات Dodo. يمكنك إرفاق البيانات الوصفية بمعظم كائنات مدفوعات Dodo، بما في ذلك المدفوعات والاشتراكات والمزيد.
+
+## نظرة عامة
+
+- يمكن أن تكون مفاتيح البيانات الوصفية بطول يصل إلى 40 حرفًا
+- يمكن أن تكون قيم البيانات الوصفية بطول يصل إلى 500 حرف
+- يمكنك أن تحتوي على ما يصل إلى 50 زوج مفتاح-قيمة من البيانات الوصفية لكل كائن
+- يجب أن تحتوي المفاتيح على أحرف أبجدية رقمية فقط، وشرطات، وشرطات سفلية
+- البيانات الوصفية ليست قابلة للبحث باستخدام واجهة برمجة التطبيقات الخاصة بنا ولكن يتم إرجاعها في استجابات واجهة برمجة التطبيقات وwebhooks
+
+## حالات الاستخدام
+
+تكون البيانات الوصفية مفيدة لـ:
+
+- تخزين معرفات أو مراجع خارجية
+- إضافة تعليقات داخلية
+- ربط كائنات مدفوعات Dodo بنظامك
+- تصنيف المعاملات
+- إضافة سمات مخصصة للتقارير
+
+## إضافة البيانات الوصفية
+
+يمكنك إضافة البيانات الوصفية عند إنشاء أو تحديث كائنات من خلال واجهة برمجة التطبيقات. بالنسبة للمنتجات، لديك أيضًا خيار إضافة البيانات الوصفية مباشرة من واجهة المستخدم في لوحة التحكم.
+
+### عبر واجهة برمجة التطبيقات
+
+```javascript
+// Adding metadata when creating a checkout session
+const checkoutSession = await client.checkoutSessions.create({
+    product_cart: [{ product_id: 'product_id', quantity: 1 }],
+    return_url: 'https://example.com/return',
+    metadata: {
+        order_id: 'ORD-123',
+        campaign_source: 'email',
+        customer_segment: 'premium'
+    }
+});
+
+// Adding metadata when creating a payment
+const payment = await client.payments.create({
+    billing: { city: 'city', country: 'AF', state: 'state', street: 'street', zipcode: 0 },
+    customer: { customer_id: 'customer_id' },
+    product_cart: [{ product_id: 'product_id', quantity: 0 }],
+    metadata:{order_id: 'ORD-123', customer_notes: 'Customer notes'}
+  });
+
+// Adding metadata when creating a product
+const product = await client.products.create({
+    name: 'Premium Software License',
+    price: 9900,
+    currency: 'USD',
+    metadata: {
+        category: 'software',
+        license_type: 'premium',
+        support_tier: 'priority'
+    }
+});
+
+// Adding metadata when creating a customer
+const customer = await client.customers.create({
+    email: 'customer@example.com',
+    name: 'John Doe',
+    metadata: {
+        crm_id: 'CRM-12345',
+        customer_segment: 'enterprise',
+        referral_source: 'website'
+    }
+});
+```
+
+### عبر واجهة المستخدم في لوحة التحكم (للمنتجات فقط)
+
+بالنسبة للمنتجات، يمكنك أيضًا إضافة البيانات الوصفية مباشرة من لوحة تحكم مدفوعات Dodo عند إنشاء أو تعديل منتج. تتيح لك قسم البيانات الوصفية إضافة أزواج مفتاح-قيمة مخصصة بسهولة دون كتابة كود.
+
+<Frame>
+<img src="/images/product-catalog/product-metadata-ui.png" alt="واجهة بيانات المنتج في لوحة تحكم مدفوعات Dodo" />
+</Frame>
+
+<Tip>
+استخدام واجهة المستخدم في لوحة التحكم للبيانات الوصفية للمنتجات مفيد بشكل خاص لأعضاء الفريق غير التقنيين الذين يحتاجون إلى إدارة معلومات المنتجات والفئات.
+</Tip>
+
+## استرجاع البيانات الوصفية
+
+تتضمن البيانات الوصفية في استجابات واجهة برمجة التطبيقات عند استرجاع الكائنات:
+
+```javascript
+// Retrieving checkout session metadata
+const checkoutSession = await client.checkoutSessions.retrieve('cs_123');
+console.log(checkoutSession.metadata.order_id); // 'ORD-123'
+
+// Retrieving payment metadata
+const payment = await client.payments.retrieve('pay_123');
+console.log(payment.metadata.order_id); // '6735'
+
+// Retrieving customer metadata
+const customer = await client.customers.retrieve('customer_123');
+console.log(customer.metadata.crm_id); // 'CRM-12345'
+
+// Retrieving refund metadata
+const refund = await client.refunds.retrieve('refund_123');
+console.log(refund.metadata.refund_reason); // 'customer_request'
+```
+
+## البحث والتصفية
+
+بينما لا يمكن البحث عن البيانات الوصفية مباشرة عبر واجهة برمجة التطبيقات الخاصة بنا، يمكنك:
+
+1. تخزين المعرفات المهمة في البيانات الوصفية
+2. استرجاع الكائنات باستخدام معرفاتها الأساسية
+3. تصفية النتائج في كود التطبيق الخاص بك
+
+```javascript
+// Example: Find a checkout session using metadata
+const checkoutSessions = await client.checkoutSessions.list({
+  limit: 100
+});
+
+const matchingSession = checkoutSessions.data.find(
+  session => session.metadata?.order_id === 'ORD-123'
+);
+
+// Example: Find a payment using your order ID
+const payments = await client.payments.list({
+  limit: 100
+});
+
+const matchingPayment = payments.data.find(
+  payment => payment.metadata.order_id === '6735'
+);
+```
+
+## أفضل الممارسات
+
+### يجب عليك:
+- استخدام تسميات متسقة لمفاتيح البيانات الوصفية
+- توثيق مخطط البيانات الوصفية داخليًا
+- الحفاظ على القيم قصيرة وذات معنى
+- استخدام البيانات الوصفية للبيانات الثابتة فقط
+- النظر في استخدام بادئات للأنظمة المختلفة (مثل `crm_id`، `inventory_sku`)
+
+### لا يجب عليك:
+- تخزين بيانات حساسة في البيانات الوصفية
+- استخدام البيانات الوصفية للقيم التي تتغير بشكل متكرر
+- الاعتماد على البيانات الوصفية للمنطق التجاري الحرج
+- تخزين معلومات مكررة متاحة في مكان آخر في الكائن
+- استخدام أحرف خاصة في مفاتيح البيانات الوصفية
+
+## الكائنات المدعومة
+
+تدعم البيانات الوصفية الكائنات التالية:
+
+| نوع الكائن | الدعم |
+|------------|---------|
+| المدفوعات | ✓ |
+| الاشتراكات | ✓ |
+| المنتجات | ✓ |
+| المبالغ المستردة | ✓ |
+| جلسات الدفع | ✓ |
+| العملاء | ✓ |
+
+## Webhooks والبيانات الوصفية
+
+تتضمن البيانات الوصفية في أحداث webhook، مما يسهل التعامل مع الإشعارات باستخدام بياناتك المخصصة:
+
+```javascript
+// Example webhook handler
+app.post('/webhook', (req, res) => {
+  const event = req.body;
+
+  if (event.type === 'payment.succeeded') {
+    const orderId = event.data.object.metadata.order_id;
+    // Process order using your internal order ID
+  }
+  
+  if (event.type === 'checkout.session.completed') {
+    const orderId = event.data.object.metadata.order_id;
+    const campaignSource = event.data.object.metadata.campaign_source;
+    // Handle checkout session completion with custom metadata
+  }
+});
+```

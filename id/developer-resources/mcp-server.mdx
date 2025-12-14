@@ -1,0 +1,622 @@
+---
+title: MCP Server
+description: Aktifkan asisten AI untuk berinteraksi dengan Dodo Payments API
+  melalui Model Context Protocol (MCP) untuk operasi pembayaran yang mulus,
+  manajemen langganan, dan interaksi pelanggan.
+icon: server
+---
+
+## Ikhtisar
+
+Model Context Protocol (MCP) adalah standar terbuka yang memungkinkan aplikasi AI untuk terhubung dengan aman ke sumber data dan API eksternal. Dodo Payments MCP Server menyediakan akses terstruktur ke infrastruktur pembayaran Anda bagi asisten AI seperti Claude, Cursor, dan klien lain yang kompatibel dengan MCP.
+
+### Kemampuan Utama
+
+- **Operasi Pembayaran**: Buat, ambil, dan kelola pembayaran dan pengembalian dana
+- **Manajemen Langganan**: Tangani penagihan berulang, peningkatan, dan pembatalan
+- **Administrasi Pelanggan**: Kelola data pelanggan dan akses portal
+- **Katalog Produk**: Buat dan perbarui produk, harga, dan diskon
+- **Manajemen Lisensi**: Aktifkan, validasi, dan kelola lisensi perangkat lunak
+- **Penagihan Berdasarkan Penggunaan**: Lacak dan tagih untuk penggunaan terukur
+
+## Instalasi
+
+Pilih metode instalasi yang paling sesuai dengan alur kerja Anda.
+
+### Remote MCP Server (Direkomendasikan)
+
+Akses server MCP yang dihosting tanpa pengaturan atau instalasi lokal. Ini adalah cara tercepat untuk memulai.
+
+<Frame>
+  <iframe 
+      className="w-full aspect-video rounded-md" 
+      src="https://www.youtube.com/embed/TxGgYxNmkT4"
+      title="Menggunakan Remote MCP Server Dodo Payment"
+      frameBorder="0"
+      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+      allowFullScreen
+  ></iframe>
+</Frame>
+
+<Steps>
+<Step title="Akses server jarak jauh">
+    Navigasikan ke [https://mcp.dodopayments.com](https://mcp.dodopayments.com) di browser Anda.
+</Step>
+
+<Step title="Konfigurasi klien MCP Anda">
+    Salin konfigurasi JSON yang disediakan untuk klien spesifik Anda. Untuk Cursor atau Claude Desktop, tambahkan ini ke pengaturan MCP Anda:
+    
+
+    ```json
+    {
+      "mcpServers": {
+        "dodopayments_api": {
+          "command": "npx",
+          "args": ["-y", "mcp-remote@latest", "https://mcp.dodopayments.com/sse"]
+        }
+      }
+    }
+    ```
+
+</Step>
+
+<Step title="Autentikasi dan konfigurasi">
+    Alur OAuth akan meminta Anda untuk:
+    - Masukkan kunci API Dodo Payments Anda
+    - Pilih lingkungan Anda (uji coba atau langsung)
+    - Pilih jenis klien MCP Anda
+    
+    <Warning>
+    Jaga keamanan kunci API Anda. Gunakan kunci mode uji selama pengembangan.
+    </Warning>
+</Step>
+
+<Step title="Selesaikan pengaturan">
+    Klik **Login dan Setujui** untuk mengotorisasi koneksi.
+    
+    <Check>
+    Setelah terhubung, asisten AI Anda dapat berinteraksi dengan Dodo Payments API atas nama Anda.
+    </Check>
+</Step>
+</Steps>
+
+### Paket NPM
+
+Instal dan jalankan server MCP secara lokal menggunakan NPM.
+
+<Tabs>
+<Tab title="NPX (Tanpa Instalasi)">
+
+```bash
+# Set your API key
+export DODO_PAYMENTS_API_KEY="dodo_test_..."
+
+# Run the latest version
+npx -y dodopayments-mcp@latest
+```
+
+</Tab>
+
+<Tab title="Konfigurasi Klien MCP">
+
+```json
+{
+  "mcpServers": {
+    "dodopayments_api": {
+      "command": "npx",
+      "args": ["-y", "dodopayments-mcp@latest"],
+      "env": {
+        "DODO_PAYMENTS_API_KEY": "dodo_test_..."
+      }
+    }
+  }
+}
+```
+
+</Tab>
+</Tabs>
+
+<Tip>
+Gunakan `@latest` untuk selalu menarik versi terbaru, atau pin ke versi tertentu seperti `@1.0.0` untuk stabilitas.
+</Tip>
+
+### Docker
+
+Jalankan server MCP dalam lingkungan terkontainer untuk penyebaran yang konsisten.
+
+<CodeGroup>
+
+```bash Docker
+# Pull the latest image
+docker pull ghcr.io/dodopayments/mcp:latest
+
+# Run the container
+docker run -e DODO_PAYMENTS_API_KEY="dodo_test_..." \
+  -p 3000:3000 \
+  ghcr.io/dodopayments/mcp:latest
+```
+
+```yaml Docker Compose
+services:
+  dodopayments-mcp:
+    image: ghcr.io/dodopayments/mcp:latest
+    environment:
+      - DODO_PAYMENTS_API_KEY=dodo_test_...
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+```
+
+</CodeGroup>
+
+<Note>
+Gambar Docker tersedia di [GitHub Container Registry](https://github.com/orgs/dodopayments/packages/container/package/mcp).
+</Note>
+
+## Konfigurasi Klien
+
+Konfigurasikan server Dodo Payments MCP di klien AI pilihan Anda.
+
+<Tabs>
+<Tab title="Cursor">
+Atur server Dodo Payments MCP di Cursor untuk mengaktifkan akses percakapan ke data pembayaran Anda.
+
+<Steps>
+<Step title="Buka pengaturan Cursor">
+    Navigasikan ke **Pengaturan Cursor** > **Fitur** > **Model Context Protocol** atau tekan `Cmd/Ctrl + Shift + P` dan cari "Pengaturan MCP".
+</Step>
+
+<Step title="Edit konfigurasi">
+    Klik **Edit Config** untuk membuka file `mcp_config.json`.
+</Step>
+
+<Step title="Tambahkan konfigurasi Dodo Payments">
+    Pilih salah satu konfigurasi berikut:
+    
+    **Remote Server (Direkomendasikan)**
+
+    ```json
+    {
+      "mcpServers": {
+        "dodopayments": {
+          "command": "npx",
+          "args": ["-y", "mcp-remote@latest", "https://mcp.dodopayments.com/sse"]
+        }
+      }
+    }
+    ```
+
+    
+    **Local NPX**
+
+    ```json
+    {
+      "mcpServers": {
+        "dodopayments": {
+          "command": "npx",
+          "args": ["-y", "dodopayments-mcp@latest"],
+          "env": {
+            "DODO_PAYMENTS_API_KEY": "dodo_test_..."
+          }
+        }
+      }
+    }
+    ```
+
+</Step>
+
+<Step title="Simpan dan restart">
+    Simpan file konfigurasi dan restart Cursor.
+    
+    <Check>
+    Verifikasi koneksi dengan menanyakan asisten AI tentang data Dodo Payments Anda.
+    </Check>
+</Step>
+</Steps>
+</Tab>
+
+<Tab title="Claude Desktop">
+Atur server Dodo Payments MCP di Claude Desktop untuk mengaktifkan akses percakapan ke data pembayaran Anda.
+<Steps>
+<Step title="Temukan file konfigurasi">
+    Temukan file konfigurasi Claude Desktop:
+    
+    - **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+    - **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+    - **Linux**: `~/.config/Claude/claude_desktop_config.json`
+</Step>
+
+<Step title="Edit konfigurasi">
+    Buka file di editor teks dan tambahkan konfigurasi Dodo Payments:
+    
+    **Remote Server (Direkomendasikan)**
+
+    ```json
+    {
+      "mcpServers": {
+        "dodopayments": {
+          "command": "npx",
+          "args": ["-y", "mcp-remote@latest", "https://mcp.dodopayments.com/sse"]
+        }
+      }
+    }
+    ```
+
+    
+    **Local NPX**
+
+    ```json
+    {
+      "mcpServers": {
+        "dodopayments": {
+          "command": "npx",
+          "args": ["-y", "dodopayments-mcp@latest"],
+          "env": {
+            "DODO_PAYMENTS_API_KEY": "dodo_test_..."
+          }
+        }
+      }
+    }
+    ```
+
+</Step>
+
+<Step title="Restart Claude Desktop">
+    Tutup dan buka kembali Claude Desktop agar perubahan berlaku.
+    
+    <Tip>
+    Cari ikon 🔌 di Claude Desktop untuk mengonfirmasi bahwa server MCP terhubung.
+    </Tip>
+</Step>
+</Steps>
+</Tab>
+
+<Tab title="Cline (VS Code)">
+Atur server Dodo Payments MCP di Cline (VS Code) untuk mengaktifkan akses percakapan ke data pembayaran Anda.
+<Steps>
+<Step title="Buka pengaturan Cline">
+    Temukan file konfigurasi Cline:
+    
+    - **macOS**: `~/Library/Application Support/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json`
+    - **Windows**: `%APPDATA%\Code\User\globalStorage\saoudrizwan.claude-dev\settings\cline_mcp_settings.json`
+    - **Linux**: `~/.config/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json`
+</Step>
+
+<Step title="Konfigurasi server MCP">
+    Tambahkan konfigurasi server Dodo Payments MCP:
+    
+
+    ```json
+    {
+      "mcpServers": {
+        "dodopayments": {
+          "command": "npx",
+          "args": ["-y", "dodopayments-mcp@latest"],
+          "env": {
+            "DODO_PAYMENTS_API_KEY": "dodo_test_..."
+          }
+        }
+      }
+    }
+    ```
+
+</Step>
+
+<Step title="Muat ulang VS Code">
+    Muat ulang jendela VS Code (`Cmd/Ctrl + Shift + P` > "Muat Ulang Jendela") untuk mengaktifkan koneksi server MCP.
+</Step>
+</Steps>
+</Tab>
+
+<Tab title="Zed">
+Atur server Dodo Payments MCP di Zed untuk mengaktifkan akses percakapan ke data pembayaran Anda.
+<Steps>
+<Step title="Buka pengaturan Zed">
+    Navigasikan ke **Pengaturan** > **Asisten** > **Model Context Protocol**.
+</Step>
+
+<Step title="Tambahkan konfigurasi server">
+    Tambahkan konfigurasi berikut:
+    
+
+    ```json
+    {
+      "mcpServers": {
+        "dodopayments": {
+          "command": "npx",
+          "args": ["-y", "dodopayments-mcp@latest"],
+          "env": {
+            "DODO_PAYMENTS_API_KEY": "dodo_test_..."
+          }
+        }
+      }
+    }
+    ```
+
+</Step>
+
+<Step title="Simpan dan verifikasi">
+    Simpan konfigurasi. Server MCP sekarang harus tersedia di asisten AI Zed.
+</Step>
+</Steps>
+</Tab>
+
+<Tab title="Klien Lain">
+Atur server Dodo Payments MCP di klien lain yang kompatibel dengan MCP untuk mengaktifkan akses percakapan ke data pembayaran Anda.
+
+**Remote Server (Direkomendasikan)**
+
+```json
+{
+  "mcpServers": {
+    "dodopayments": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote@latest", "https://mcp.dodopayments.com/sse"]
+    }
+  }
+}
+```
+
+**Local NPX**
+
+```json
+{
+  "mcpServers": {
+    "dodopayments": {
+      "command": "npx",
+      "args": ["-y", "dodopayments-mcp@latest"],
+      "env": {
+        "DODO_PAYMENTS_API_KEY": "dodo_test_..."
+      }
+    }
+  }
+}
+```
+
+<Info>
+Kunjungi [modelcontextprotocol.io/clients](https://modelcontextprotocol.io/clients) untuk daftar lengkap klien yang kompatibel dengan MCP dan metode konfigurasinya.
+</Info>
+</Tab>
+</Tabs>
+
+## Penyaringan Alat
+
+Kontrol operasi API mana yang diekspos ke asisten AI Anda untuk mengoptimalkan kinerja dan menjaga keamanan.
+
+### Filter berdasarkan jenis operasi
+
+Batasi akses ke operasi baca saja atau operasi tulis.
+
+```bash
+# Only expose read operations (GET requests)
+npx dodopayments-mcp --operation=read
+
+# Only expose write operations (POST, PUT, DELETE)
+npx dodopayments-mcp --operation=write
+```
+
+<Tip>
+Gunakan `--operation=read` selama pengembangan untuk mencegah modifikasi yang tidak disengaja pada data Anda.
+</Tip>
+
+### Filter berdasarkan sumber daya
+
+Batasi alat ke sumber daya API tertentu.
+
+```bash
+# Only expose payment-related tools
+npx dodopayments-mcp --resource=payments
+
+# Expose multiple resources
+npx dodopayments-mcp --resource=payments --resource=customers
+```
+
+### Sertakan atau kecualikan alat tertentu
+
+Sesuaikan alat individu mana yang tersedia.
+
+```bash
+# Include only specific tools
+npx dodopayments-mcp --tool=create_payments --tool=list_payments
+
+# Exclude specific tools
+npx dodopayments-mcp --no-tool=delete_products
+
+# List all available tools
+npx dodopayments-mcp --list
+```
+
+### Gabungkan filter
+
+Terapkan beberapa filter secara bersamaan untuk kontrol yang tepat.
+
+```bash
+# Only payment and subscription read operations
+npx dodopayments-mcp --operation=read --resource=payments --resource=subscriptions
+```
+
+## Penggunaan Lanjutan
+
+### Integrasi programatik
+
+Bangun server MCP kustom atau perluas yang sudah ada secara programatik.
+
+```javascript
+import { server, endpoints, init } from "dodopayments-mcp/server";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+
+// Initialize with all default endpoints
+init({ server, endpoints });
+
+// Start the server
+const transport = new StdioServerTransport();
+await server.connect(transport);
+```
+
+### Pengembangan alat kustom
+
+Perluas server MCP dengan alat dan logika bisnis Anda sendiri.
+
+```javascript
+import { server, init } from "dodopayments-mcp/server";
+import createPayments from "dodopayments-mcp/tools/payments/create-payments";
+import { zodToJsonSchema } from "zod-to-json-schema";
+import { z } from "zod";
+
+// Define a custom tool
+const customTool = {
+  tool: {
+    name: 'calculate_payment_total',
+    description: 'Calculate payment total with tax and fees',
+    inputSchema: zodToJsonSchema(
+      z.object({
+        amount: z.number().describe('Base amount in cents'),
+        tax_rate: z.number().describe('Tax rate as decimal'),
+      })
+    ),
+  },
+  handler: async (client, args) => {
+    const total = args.amount * (1 + args.tax_rate);
+    return {
+      content: [{
+        type: 'text',
+        text: JSON.stringify({ total, currency: 'usd' }),
+      }],
+    };
+  },
+};
+
+// Initialize with custom tools
+init({ 
+  server, 
+  endpoints: [createPayments, customTool] 
+});
+```
+
+## Praktik Terbaik Keamanan
+
+Lindungi kredensial API Anda dan jaga integrasi yang aman.
+
+<AccordionGroup>
+<Accordion title="Manajemen Kunci API">
+**Jangan pernah mengkomit kredensial ke kontrol versi**
+
+Simpan kunci API dalam variabel lingkungan atau sistem manajemen rahasia yang aman.
+
+```bash
+# Use environment variables
+export DODO_PAYMENTS_API_KEY="dodo_test_..."
+
+# Use a .env file (add to .gitignore)
+echo "DODO_PAYMENTS_API_KEY=dodo_test_..." > .env
+```
+
+**Putar kunci secara teratur**
+
+Buat kunci API baru secara berkala dan cabut yang lama melalui dasbor Dodo Payments Anda.
+
+**Gunakan kunci uji untuk pengembangan**
+
+Selalu gunakan kunci API mode uji selama pengembangan untuk menghindari mempengaruhi data produksi.
+</Accordion>
+
+<Accordion title="Kontrol Akses">
+**Terapkan penyaringan alat di produksi**
+
+Batasi operasi yang diekspos hanya pada apa yang dibutuhkan asisten AI Anda.
+
+```bash
+# Production: read-only access
+npx dodopayments-mcp --operation=read
+
+# Development: full access
+npx dodopayments-mcp
+```
+
+**Terapkan autentikasi untuk endpoint kustom**
+
+Validasi permintaan dan tegakkan otorisasi di pengendali alat kustom Anda.
+
+**Pantau penggunaan API**
+
+Lacak aktivitas server MCP melalui dasbor Dodo Payments Anda dan atur peringatan untuk pola yang tidak biasa.
+</Accordion>
+
+<Accordion title="Keamanan Jaringan">
+**Gunakan HTTPS untuk server jarak jauh**
+
+Selalu terapkan server MCP jarak jauh di belakang endpoint HTTPS.
+
+**Terapkan pembatasan laju**
+
+Lindungi dari penyalahgunaan dengan menerapkan batasan laju di tingkat server MCP dan API.
+
+**Batasi akses jaringan**
+
+Konfigurasikan aturan firewall untuk membatasi klien mana yang dapat terhubung ke server MCP Anda.
+</Accordion>
+</AccordionGroup>
+
+## Pemecahan Masalah
+
+<AccordionGroup>
+<Accordion title="Masalah Koneksi">
+**Verifikasi kunci API Anda**
+
+Pastikan kunci API Anda diatur dengan benar dan memiliki izin yang diperlukan.
+
+```bash
+# Test your API key
+curl -H "Authorization: Bearer dodo_test_..." \
+  https://api.dodopayments.com/payments
+```
+
+**Periksa koneksi jaringan Anda**
+
+Verifikasi Anda dapat mencapai endpoint API Dodo Payments.
+
+**Tinjau log klien**
+
+Aktifkan logging verbose di klien MCP Anda untuk mendiagnosis masalah koneksi.
+</Accordion>
+
+<Accordion title="Kesalahan Autentikasi">
+**Konfirmasi lingkungan kunci API**
+
+Pastikan Anda menggunakan kunci uji dengan endpoint uji dan kunci langsung dengan endpoint produksi.
+
+**Periksa izin kunci**
+
+Verifikasi kunci API Anda memiliki izin untuk operasi yang Anda coba lakukan.
+
+**Buat ulang kredensial**
+
+Jika masalah berlanjut, buat kunci API baru melalui dasbor Anda.
+</Accordion>
+
+<Accordion title="Kegagalan Eksekusi Alat">
+**Validasi parameter input**
+
+Pastikan asisten AI memberikan parameter yang diformat dengan benar untuk setiap alat.
+
+**Tinjau pesan kesalahan**
+
+Periksa respons kesalahan dari API untuk panduan spesifik tentang apa yang salah.
+
+**Uji langsung dengan API**
+
+Verifikasi operasi berfungsi saat memanggil Dodo Payments API secara langsung melalui curl atau Postman.
+</Accordion>
+</AccordionGroup>
+
+## Sumber Daya
+
+<CardGroup cols={2}>
+<Card title="Referensi API" icon="book" href="/api-reference/introduction">
+  Jelajahi dokumentasi lengkap Dodo Payments API
+</Card>
+
+<Card title="Protokol MCP" icon="link" href="https://modelcontextprotocol.io">
+  Pelajari lebih lanjut tentang standar Model Context Protocol
+</Card>
+</CardGroup>

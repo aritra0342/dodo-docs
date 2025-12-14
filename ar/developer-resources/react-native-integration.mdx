@@ -1,0 +1,444 @@
+---
+title: React Native
+tag: BETA
+description: دليل كامل لدمج Dodo Payments SDK في تطبيق React Native الخاص بك
+  لمعالجة المدفوعات بشكل آمن
+icon: mobile
+---
+
+# دمج SDK لـ React Native
+
+يمكنك من خلال Dodo Payments React Native SDK بناء تجارب دفع آمنة في تطبيقات Android و iOS الأصلية الخاصة بك. يوفر SDK مكونات واجهة مستخدم قابلة للتخصيص وشاشات لجمع تفاصيل الدفع.
+
+- 📦 قم بتثبيت SDK الخاص بنا من [NPM](https://www.npmjs.com/package/dodopayments-react-native-sdk)
+- 📚 عرض [مستودع العرض التوضيحي](https://github.com/dodopayments/dodopayments-react-native-demo) للحصول على أمثلة تنفيذ كاملة
+- 🎥 شاهد [فيديو العرض التوضيحي](https://youtu.be/eicctkqK04Y) لرؤية Dodo Payments SDK في العمل
+
+<Frame>
+  <iframe 
+      className="w-full aspect-video rounded-md" 
+      src="https://www.youtube.com/embed/eicctkqK04Y"
+      title="عرض SDK لـ React Native | Dodo Payments"
+      frameBorder="0"
+      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+      allowFullScreen
+  ></iframe>
+</Frame>
+
+## الميزات
+
+<CardGroup cols={1}>
+<Card title="أمان مبسط" icon="shield-check">
+    جمع بيانات الدفع الحساسة بشكل آمن مع الالتزام بمعايير PCI
+</Card>
+
+<Card title="طرق دفع متعددة" icon="credit-card">
+    قبول طرق دفع متنوعة [لزيادة الوصول العالمي](/features/payment-methods)
+</Card>
+
+<Card title="واجهة مستخدم أصلية" icon="mobile">
+    شاشات وعناصر أصلية لنظامي Android و iOS
+</Card>
+</CardGroup>
+
+<Note>
+حاليًا، لا يدعم SDK لـ React Native Apple Pay و Google Pay و Cash App و UPI. نحن نعمل بنشاط على إضافة دعم لهذه الطرق في الإصدارات المستقبلية.
+</Note>
+
+## التثبيت
+
+<Steps>
+<Step title="تثبيت SDK">
+    قم بتثبيت Dodo Payments SDK باستخدام مدير الحزم المفضل لديك:
+
+    <Tabs>
+    <Tab title="npm">
+
+        ```bash
+        npm install dodopayments-react-native-sdk
+        ```
+
+    </Tab>
+    <Tab title="yarn">
+
+        ```bash
+        yarn add dodopayments-react-native-sdk
+        ```
+
+    </Tab>
+    </Tabs>
+</Step>
+
+<Step title="إعداد خاص بالمنصة">
+    <Tabs>
+    <Tab title="iOS">
+        قم بتشغيل pod install في مجلد iOS الخاص بك:
+
+        ```bash
+        cd ios && pod install && npm run ios
+        ```
+
+    </Tab>
+    <Tab title="Android">
+        قم بتشغيل الأمر التالي:
+
+        ```bash
+        npm run android
+        ```
+
+    </Tab>
+    </Tabs>
+</Step>
+</Steps>
+
+## إعداد جانب العميل
+
+<Steps>
+
+<Step title="احصل على المفتاح القابل للنشر">
+    احصل على المفتاح القابل للنشر من لوحة معلومات Dodo Payments. (مختلف لكل من أوضاع الاختبار والعيش)
+    [https://app.dodopayments.com/developer/others](https://app.dodopayments.com/developer/others)
+</Step>
+
+<Step title="إعداد مزود الدفع">
+    قم بلف تطبيقك باستخدام `DodoPaymentProvider`:
+
+    ```tsx App.tsx
+    import React from 'react';
+    import { DodoPaymentProvider } from 'dodopayments-react-native-sdk';
+    import PaymentScreen from './PaymentScreen';
+
+    function App() {
+      return (
+        <DodoPaymentProvider publishableKey="YOUR_PUBLISHABLE_KEY">
+          <PaymentScreen />
+        </DodoPaymentProvider>
+      );
+    }
+
+    export default App;
+    ```
+
+    <Note>
+    ستحتاج إلى توليد مفاتيح API من لوحة معلومات Dodo Payments الخاصة بك. راجع [دليل توليد مفاتيح API](/api-reference/introduction#api-key-generation) للحصول على تعليمات مفصلة.
+    </Note>
+</Step>
+
+<Step title="إنشاء دالة مساعدة للدفع">
+    أنشئ دالة مساعدة لجلب معلمات الدفع من واجهة برمجة التطبيقات الخلفية الخاصة بك:
+
+    ```tsx utils/fetchPaymentParams.ts
+    const API_URL = 'YOUR_BACKEND_URL'; // Replace with your server URL
+
+    const fetchPaymentParams = async () => {
+      const response = await fetch(`${API_URL}/create-payment`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch payment parameters');
+      }
+      
+      return await response.json();
+    };
+
+    export default fetchPaymentParams;
+    ```
+
+    <Note>
+    تفترض هذه الدالة أن لديك نقطة نهاية واجهة برمجة التطبيقات الخلفية التي تنشئ نوايا الدفع وتعيد سر العميل. تأكد من أن واجهتك الخلفية مُعدة بشكل صحيح للتعامل مع إنشاء الدفع. راجع [دليل تكامل API](/developer-resources/integration-tutorial) للحصول على أمثلة إعداد الخلفية.
+    </Note>
+</Step>
+
+<Step title="تنفيذ شاشة الدفع">
+    أنشئ شاشة الدفع الخاصة بك باستخدام `useCheckout` hook. إليك تنفيذ كامل:
+
+    ```tsx PaymentScreen.tsx
+    import React from 'react';
+    import { View, Text, useColorScheme } from 'react-native';
+    import { useCheckout, type sessionParams } from 'dodopayments-react-native-sdk';
+    import fetchPaymentParams from './utils/fetchPaymentParams';
+
+    const PaymentScreen = () => {
+      const { initPaymentSession, presentPaymentSheet } = useCheckout();
+      const [error, setError] = React.useState('');
+      const [message, setMessage] = React.useState('');
+      const [loading, setLoading] = React.useState(false);
+      const [showSuccessScreen, setShowSuccessScreen] = React.useState(false);
+      const isDarkMode = useColorScheme() === 'dark';
+
+      const processPayment = async () => {
+        setLoading(true);
+        setMessage('');
+        setError('');
+
+        try {
+          // 1. Get payment parameters from your backend
+          const key = await fetchPaymentParams();
+          
+          // 2. Initialize payment session
+          const paymentSheetParamsResult = await initPaymentSession({
+            clientSecret: key.clientSecret,
+          });
+          
+          // 3. Configure and present payment sheet
+          const params: sessionParams = {
+            ...(paymentSheetParamsResult as sessionParams),
+            configuration: {
+              appearance: {
+                themes: isDarkMode ? 'dark' : 'light',
+                primaryButton: {
+                  colors: {
+                    light: {
+                      background: 'green',
+                      componentBorder: 'green',
+                      placeholderText: 'yellow',
+                    },
+                    dark: {
+                      background: 'green',
+                      componentBorder: 'green',
+                      placeholderText: 'yellow',
+                    },
+                  },
+                  shapes: {
+                    borderRadius: 30,
+                    borderWidth: 3,
+                  },
+                },
+              },
+              mode: 'test', // DEFAULTS TO TEST MODE
+            },
+          };
+
+          const paymentSheetResponse = await presentPaymentSheet(params);
+
+          // 4. Handle payment result
+          switch (paymentSheetResponse?.status) {
+            case 'cancelled':
+              setError('Payment cancelled by user.');
+              break;
+            case 'succeeded':
+              setMessage('');
+              setShowSuccessScreen(true);
+              break;
+            case 'failed':
+              setError('Payment failed : \n' + paymentSheetResponse?.message);
+              break;
+            default:
+              setError(paymentSheetResponse?.message);
+              setMessage('');
+          }
+        } catch (err) {
+          setError('Failed to process payment');
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      return (
+        <View>
+          <Button 
+            onPress={processPayment}
+            disabled={loading}
+            title={loading ? 'Processing...' : 'Pay Now'}
+          />
+          {error && <Text style={{ color: 'red' }}>{error}</Text>}
+          {message && <Text style={{ color: 'green' }}>{message}</Text>}
+          {showSuccessScreen && (
+            <PaymentSuccessScreen
+              amount={total}
+              onContinue={() => setShowSuccessScreen(false)}
+            />
+          )}
+        </View>
+      );
+    };
+
+    export default PaymentScreen;
+    ```
+
+    <Note>
+    للحصول على أمثلة كاملة مع التنسيق، ومعالجة الأخطاء، وخيارات التخصيص، تحقق من مستودعات العرض التوضيحي لدينا:
+    - [عرض تكامل أساسي](https://github.com/dodopayments/dodopayments-react-native-demo)
+    </Note>
+</Step>
+</Steps>
+
+## خيارات التكوين
+
+### معلمات الجلسة
+
+<ParamField path="clientSecret" type="string" required>
+سر العميل من نية الدفع الخاصة بك، التي تم الحصول عليها من واجهة برمجة التطبيقات للدفع لمرة واحدة أو الاشتراك.
+</ParamField>
+
+<ParamField path="mode" type="string" required>
+وضع جلسة الدفع (اختبار أو حي).
+</ParamField>
+
+<ParamField path="configuration.appearance" type="object">
+خيارات التخصيص لمظهر ورقة الدفع
+</ParamField>
+
+<ParamField path="configuration.appearance.themes" type="string">
+وضع السمة: `'light'` أو `'dark'`
+</ParamField>
+
+### تخصيص المظهر
+
+يمكنك تخصيص عملية الدفع الموحدة لـ React Native لتتناسب مع تصميم تطبيقك عن طريق تعديل الألوان، والخطوط، والمزيد من خلال معلمة المظهر عند استدعاء `initPaymentSession()`.
+
+#### تخصيص الألوان
+
+تحدد كل فئة لون لون واحد أو أكثر من المكونات في واجهة المستخدم. على سبيل المثال، `primary` يحدد لون زر الدفع.
+
+| فئة اللون | الاستخدام |
+|----------------|-------|
+| `primary` | اللون الأساسي لزر الدفع والعناصر المحددة |
+| `background` | لون خلفية صفحة الدفع |
+| `componentBackground` | لون خلفية المدخلات، والألسنة، والمكونات الأخرى |
+| `componentBorder` | لون الحدود الخارجية للمدخلات، والألسنة، والمكونات الأخرى |
+| `componentDivider` | لون الحدود الداخلية (الحدود المشتركة) للمكونات |
+| `primaryText` | لون نص الرأس |
+| `secondaryText` | لون نص التسمية لحقول الإدخال |
+| `componentText` | لون نص الإدخال (مثل رقم البطاقة، الرمز البريدي) |
+| `placeholderText` | لون نص العنصر النائب لحقول الإدخال |
+| `icon` | لون الرموز (مثل زر الإغلاق) |
+| `error` | لون رسائل الخطأ والإجراءات المدمرة |
+
+مثال على التكوين مع دعم للوضعين الفاتح والداكن:
+
+```tsx
+const appearance = {
+  colors: {
+    light: {
+      primary: '#F8F8F2',
+      background: '#ffffff',
+      componentBackground: '#E6DB74',
+      componentBorder: '#FD971F',
+      componentDivider: '#FD971F',
+      primaryText: '#F8F8F2',
+      secondaryText: '#75715E',
+      componentText: '#AE81FF',
+      placeholderText: '#E69F66',
+      icon: '#F92672',
+      error: '#FF0000',
+    },
+    dark: {
+      primary: '#00ff0099',
+      background: '#ff0000',
+      componentBackground: '#ff0080',
+      componentBorder: '#62ff08',
+      componentDivider: '#d6de00',
+      primaryText: '#5181fc',
+      secondaryText: '#ff7b00',
+      componentText: '#00ffff',
+      placeholderText: '#00ffff',
+      icon: '#f0f0f0',
+      error: '#0f0f0f',
+    },
+  },
+};
+```
+
+#### تخصيص الشكل
+
+يمكنك تخصيص نصف قطر الحدود، وعرض الحدود، والظل المستخدم في جميع أنحاء واجهة الدفع:
+
+```tsx
+const appearance = {
+  shapes: {
+    borderRadius: 10, // Border radius for input fields, tabs, and components
+    borderWidth: 1,   // Border width for components
+  },
+};
+```
+
+#### تخصيص مكونات محددة
+
+يمكنك تخصيص مكونات واجهة المستخدم المحددة مثل الزر الأساسي (زر الدفع). تأخذ هذه الإعدادات الأولوية على إعدادات المظهر العامة:
+
+```tsx
+const appearance = {
+  primaryButton: {
+    colors: {
+      background: '#000000',
+      text: '#ffffff',
+      border: '#ff00ff',
+    },
+    shapes: {
+      borderRadius: 10,
+      borderWidth: 1.5,
+    },
+  },
+};
+```
+
+لتطبيق هذه التخصيصات، قم بتضمينها في تكوين جلسة الدفع الخاصة بك:
+
+```tsx
+const params: sessionParams = {
+  ...paymentSheetParams,
+  configuration: {
+    appearance: {
+      themes: isDarkMode ? 'dark' : 'light',
+      ...appearance, // Include your custom appearance settings
+    },
+  },
+};
+```
+
+## معالجة الأخطاء
+
+تعامل مع حالات الدفع المختلفة في دالة الخروج الخاصة بك:
+
+```tsx
+const handlePaymentResult = (paymentSheetResponse) => {
+  switch (paymentSheetResponse?.status) {
+    case 'cancelled':
+      // User cancelled the payment
+      console.log('Payment cancelled by user');
+      break;
+    case 'succeeded':
+      // Payment completed successfully
+      console.log('Payment succeeded');
+      // Navigate to success screen or update UI
+      break;
+    case 'failed':
+      // Payment failed
+      console.log('Payment failed:', paymentSheetResponse?.message);
+      // Show error message to user
+      break;
+    default:
+      console.log('Unknown payment status:', paymentSheetResponse?.status);
+  }
+};
+```
+
+<AccordionGroup>
+<Accordion title="سيناريوهات الأخطاء الشائعة">
+- **مشاكل الاتصال بالشبكة**: تأكد من وجود اتصال إنترنت مستقر
+- **سر العميل غير صالح**: تحقق من أن الواجهة الخلفية تقوم بإنشاء نوايا دفع صالحة
+- **اعتماديات مفقودة**: قم بتثبيت جميع الاعتماديات المطلوبة
+- **إعداد خاص بالمنصة**: أكمل خطوات التكوين لنظامي iOS و Android
+- **أخطاء API**: تحقق من [مرجع رموز الأخطاء](/api-reference/error-codes) لمعالجة الأخطاء بالتفصيل
+</Accordion>
+
+<Accordion title="نصائح تصحيح الأخطاء">
+- قم بتمكين تسجيل الأخطاء في بيئة التطوير
+- تحقق من طلبات الشبكة إلى واجهتك الخلفية
+- تحقق من أن مفاتيح API مُعدة بشكل صحيح
+- اختبر على كل من منصتي iOS و Android
+- راجع [الأسئلة الشائعة التقنية](/api-reference/technical-faqs) لمشاكل شائعة
+- استخدم [وضع الاختبار مقابل وضع العيش](/miscellaneous/test-mode-vs-live-mode) بشكل مناسب
+</Accordion>
+</AccordionGroup>
+
+### طرق الدفع التجريبية
+
+<Tip>
+استخدم أرقام بطاقات الاختبار في بيئة التطوير للتحقق من تكامل الخاص بك دون معالجة مدفوعات حقيقية. تعرف على المزيد حول [عملية الاختبار](/miscellaneous/testing-process) والبيئات التجريبية المتاحة.
+</Tip>

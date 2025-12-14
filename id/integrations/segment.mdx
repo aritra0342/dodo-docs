@@ -1,0 +1,161 @@
+---
+title: Segment
+description: Kirim peristiwa Dodo Payments ke Segment untuk analitik dan
+  integrasi platform data pelanggan.
+icon: chart-line
+---
+
+## Pendahuluan
+
+Lacak peristiwa pembayaran di Segment untuk mendukung analitik, otomatisasi pemasaran, dan platform data pelanggan Anda. Kirim peristiwa pembayaran, langganan, dan siklus hidup pelanggan secara otomatis ke lebih dari 300 alat downstream.
+
+<Info>
+Integrasi ini memerlukan Segment Write Key dari workspace Segment Anda.
+</Info>
+
+## Memulai
+
+<Steps>
+<Step title="Buka Bagian Webhook">
+  Di dasbor Dodo Payments Anda, navigasikan ke <b>Webhooks → + Tambah Endpoint</b> dan perluas dropdown integrasi.
+  <Frame>
+    <img src="/images/integrations/segment.png" alt="Tambah Endpoint dan dropdown integrasi" />
+  </Frame>
+</Step>
+
+<Step title="Pilih Segment">
+  Pilih kartu integrasi <b>Segment</b>.
+</Step>
+
+<Step title="Masukkan Write Key">
+  Berikan Segment Write Key Anda dalam konfigurasi.
+</Step>
+
+<Step title="Konfigurasi Transformasi">
+  Edit kode transformasi untuk memformat peristiwa untuk Segment's Track API.
+</Step>
+
+<Step title="Uji & Buat">
+  Uji dengan payload contoh dan klik <b>Buat</b> untuk mengaktifkan sinkronisasi.
+</Step>
+
+<Step title="Selesai!">
+  🎉 Peristiwa pembayaran sekarang akan dilacak di Segment dan dikirim ke alat yang terhubung.
+</Step>
+</Steps>
+
+## Contoh Kode Transformasi
+
+### Lacak Peristiwa Pembayaran
+
+```javascript track_payments.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.url = "https://api.segment.io/v1/track";
+    webhook.payload = {
+      userId: p.customer.customer_id,
+      event: "Payment Completed",
+      properties: {
+        amount: (p.total_amount / 100).toFixed(2),
+        currency: p.currency || "USD",
+        payment_method: p.payment_method || "unknown",
+        payment_id: p.payment_id,
+        customer_email: p.customer.email,
+        customer_name: p.customer.name
+      },
+      timestamp: webhook.payload.timestamp
+    };
+  }
+  return webhook;
+}
+```
+
+### Lacak Siklus Hidup Langganan
+
+```javascript track_subscriptions.js icon="js" expandable
+function handler(webhook) {
+  const s = webhook.payload.data;
+  switch (webhook.eventType) {
+    case "subscription.active":
+      webhook.url = "https://api.segment.io/v1/track";
+      webhook.payload = {
+        userId: s.customer.customer_id,
+        event: "Subscription Started",
+        properties: {
+          subscription_id: s.subscription_id,
+          product_id: s.product_id,
+          amount: (s.recurring_pre_tax_amount / 100).toFixed(2),
+          frequency: s.payment_frequency_interval,
+          next_billing: s.next_billing_date,
+          customer_email: s.customer.email
+        },
+        timestamp: webhook.payload.timestamp
+      };
+      break;
+    case "subscription.cancelled":
+      webhook.url = "https://api.segment.io/v1/track";
+      webhook.payload = {
+        userId: s.customer.customer_id,
+        event: "Subscription Cancelled",
+        properties: {
+          subscription_id: s.subscription_id,
+          product_id: s.product_id,
+          cancelled_at: s.cancelled_at,
+          cancel_at_next_billing: s.cancel_at_next_billing_date,
+          customer_email: s.customer.email
+        },
+        timestamp: webhook.payload.timestamp
+      };
+      break;
+  }
+  return webhook;
+}
+```
+
+### Identifikasi Properti Pelanggan
+
+```javascript identify_customer.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.url = "https://api.segment.io/v1/identify";
+    webhook.payload = {
+      userId: p.customer.customer_id,
+      traits: {
+        email: p.customer.email,
+        name: p.customer.name,
+        total_spent: (p.total_amount / 100).toFixed(2),
+        payment_method: p.payment_method || "unknown",
+        last_payment_date: webhook.payload.timestamp,
+        customer_since: webhook.payload.timestamp
+      }
+    };
+  }
+  return webhook;
+}
+```
+
+## Tips
+
+- Gunakan nama peristiwa yang konsisten di seluruh integrasi Anda
+- Sertakan properti yang relevan untuk analitik dan segmentasi
+- Atur timestamp yang tepat untuk pelacakan peristiwa yang akurat
+- Gunakan ID pelanggan sebagai userId untuk identifikasi pengguna yang tepat
+
+## Pemecahan Masalah
+
+<AccordionGroup>
+<Accordion title="Peristiwa tidak muncul di Segment">
+- Verifikasi Write Key benar dan aktif
+- Periksa bahwa nama peristiwa mengikuti konvensi penamaan Segment
+- Pastikan userId diatur dengan benar untuk identifikasi pengguna
+- Tinjau batas laju API Segment
+</Accordion>
+
+<Accordion title="Kesalahan transformasi">
+- Validasi struktur JSON sesuai dengan format API Segment
+- Periksa bahwa semua field yang diperlukan ada
+- Pastikan nama peristiwa adalah string, bukan objek
+</Accordion>
+</AccordionGroup>

@@ -1,0 +1,750 @@
+---
+sidebarTitle: 개요
+title: 웹훅
+description: Dodo Payments에서 이벤트가 발생할 때 실시간 알림을 받습니다. 워크플로를 자동화하고 즉각적인 이벤트 전송으로
+  시스템을 동기화 상태로 유지하세요.
+icon: box
+---
+
+<Frame>
+  <img src="/images/cover-images/Webhooks.webp" alt="Webhook Cover Image"/>
+</Frame>
+
+웹훅은 Dodo Payments 계정에서 특정 이벤트가 발생할 때 실시간 알림을 제공합니다. 웹훅을 사용하여 워크플로를 자동화하고, 데이터베이스를 업데이트하며, 알림을 전송하고, 시스템을 동기화 상태로 유지하세요.
+
+<Info>
+우리의 웹훅 구현은 [Standard Webhooks](https://standardwebhooks.com/) 사양을 따르며, 업계 모범 사례 및 기존 웹훅 라이브러리와의 호환성을 보장합니다.
+</Info>
+
+## 주요 기능
+
+<CardGroup cols={2}>
+  <Card title="실시간 전송" icon="bolt">
+    이벤트 발생 시 즉각적인 알림 수신
+  </Card>
+  <Card title="기본적으로 보안" icon="shield-check">
+    HMAC SHA256 서명 검증 포함
+  </Card>
+  <Card title="자동 재시도" icon="rotate">
+    지수 백오프가 있는 내장 재시도 로직
+  </Card>
+  <Card title="이벤트 필터링" icon="filter">
+    필요한 이벤트에만 구독
+  </Card>
+</CardGroup>
+
+## 시작하기
+
+<Steps>
+<Step title="웹훅 설정 접근하기">
+    DodoPayments 대시보드로 이동하여 `Settings > Webhooks`로 이동합니다.
+</Step>
+
+<Step title="웹훅 엔드포인트 생성하기">
+    `Add Webhook`를 클릭하여 새 웹훅 엔드포인트를 생성합니다.
+    
+
+    <Frame>
+        <img src="/images/webhooks/create-endpoint.png" alt="Add Webhook" />
+    </Frame>
+</Step>
+
+<Step title="엔드포인트 URL 추가하기">
+    웹훅 이벤트를 수신할 URL을 입력합니다.
+    
+</Step>
+
+<Step title="수신할 이벤트 선택하기">
+    이벤트 목록에서 웹훅 엔드포인트가 수신해야 할 특정 이벤트를 선택합니다.
+    
+    <Tip>
+    선택된 이벤트만 웹훅을 트리거하여 불필요한 트래픽과 처리를 피할 수 있습니다.
+    </Tip>
+</Step>
+
+<Step title="비밀 키 가져오기">
+    설정 페이지에서 웹훅 `Secret Key`을 가져옵니다. 이 키를 사용하여 수신된 웹훅의 진위를 검증합니다.
+    
+    <Warning>
+    웹훅 비밀 키를 안전하게 보관하고 클라이언트 측 코드나 공개 저장소에 노출하지 마세요.
+    </Warning>
+</Step>
+
+<Step title="비밀 키 회전(선택 사항)">
+    필요 시 보안을 강화하기 위해 웹훅 비밀 키를 회전할 수 있습니다. 웹훅 설정에서 **비밀 키 회전** 버튼을 클릭하세요.
+    
+    <Warning>
+    비밀 키를 회전하면 **만료**되고 **새로운 키로 교체**됩니다. 이전 비밀 키는 다음 24시간 동안만 유효합니다. 이후에는 이전 비밀 키로 검증을 시도하면 실패합니다.
+    </Warning>
+    
+    <Info>
+    현재 비밀 키가 유출되었다고 의심되는 경우 주기적으로 또는 즉시 비밀 키 회전을 사용하세요.
+    </Info>
+</Step>
+</Steps>
+
+## 구독한 이벤트 구성하기
+
+각 웹훅 엔드포인트에 대해 수신할 특정 이벤트를 구성할 수 있습니다.
+
+### 이벤트 구성 접근하기
+
+<Steps>
+<Step title="웹훅 세부정보로 이동하기">
+    Dodo Payments 대시보드로 이동하여 `Settings > Webhooks`로 이동합니다.
+</Step>
+
+<Step title="엔드포인트 선택하기">
+    구성할 웹훅 엔드포인트를 클릭합니다.
+</Step>
+
+<Step title="이벤트 설정 열기">
+    웹훅 세부정보 페이지에서 "구독한 이벤트" 섹션을 확인할 수 있습니다. **편집** 버튼을 클릭하여 이벤트 구독을 수정합니다.
+</Step>
+</Steps>
+
+### 이벤트 구독 관리하기
+
+<Steps>
+<Step title="사용 가능한 이벤트 보기">
+    인터페이스는 계층 구조로 구성된 모든 사용 가능한 웹훅 이벤트를 표시합니다. 이벤트는 카테고리별로 그룹화되어 있습니다 (예: `dispute`, `payment`, `subscription`).
+</Step>
+
+<Step title="검색 및 필터링">
+    검색창을 사용하여 이벤트 이름이나 키워드를 입력하여 특정 이벤트를 빠르게 찾습니다.
+</Step>
+
+<Step title="이벤트 선택하기">
+    수신할 이벤트 옆의 체크박스를 선택합니다. 다음을 수행할 수 있습니다:
+    - 개별 하위 이벤트 선택 (예: `dispute.accepted`, `dispute.challenged`)
+    - 모든 관련 하위 이벤트를 수신하기 위해 부모 이벤트 선택
+    - 필요에 따라 특정 이벤트를 혼합하여 선택
+</Step>
+
+<Step title="이벤트 세부정보 검토하기">
+    각 이벤트 옆의 정보 아이콘(ⓘ)에 마우스를 올려 해당 이벤트가 트리거되는 시점에 대한 설명을 확인합니다.
+</Step>
+
+<Step title="구성 저장하기">
+    **저장**을 클릭하여 변경 사항을 적용하거나 **취소**를 클릭하여 수정을 버립니다.
+</Step>
+</Steps>
+
+<Warning>
+모든 이벤트의 선택을 해제하면 웹훅 엔드포인트는 알림을 수신하지 않습니다. 애플리케이션이 제대로 작동하는 데 필요한 이벤트는 최소한 선택해야 합니다.
+</Warning>
+
+## 웹훅 전송
+
+### 타임아웃
+
+웹훅은 연결 및 읽기 작업 모두에 대해 **15초 타임아웃 창**을 가집니다. 타임아웃을 피하기 위해 엔드포인트가 빠르게 응답하도록 하세요.
+
+<Tip>
+웹훅을 비동기적으로 처리하여 수신을 즉시 `200` 상태 코드로 확인한 후, 실제 처리는 백그라운드에서 수행하세요.
+</Tip>
+
+### 자동 재시도
+
+웹훅 전송이 실패하면 Dodo Payments는 시스템이 과부하되지 않도록 지수 백오프를 사용하여 자동으로 재시도합니다.
+
+| 시도 | 지연 | 설명 |
+|---------|------------------------------|-------------|
+| 1 | 즉시 | 첫 번째 재시도는 즉시 발생 |
+| 2 | 5초 | 두 번째 시도는 짧은 지연 후 |
+| 3 | 5분 | 세 번째 시도는 증가된 백오프와 함께 |
+| 4 | 30분 | 네 번째 시도는 계속된 백오프 |
+| 5 | 2시간 | 다섯 번째 시도는 연장된 지연과 함께 |
+| 6 | 5시간 | 여섯 번째 시도는 더 긴 지연과 함께 |
+| 7 | 10시간 | 일곱 번째 시도는 최대 지연과 함께 |
+| 8 | 10시간 | **최종 시도** - 실패한 경우 웹훅이 실패로 표시됨 |
+
+<Info>
+**웹훅 이벤트당 최대 8회 재시도**. 예를 들어, 웹훅이 성공하기 전에 세 번 실패하면 총 전송 시간은 첫 번째 시도부터 약 35분 5초가 됩니다.
+</Info>
+
+<Tip>
+Dodo Payments 대시보드를 사용하여 개별 메시지를 수동으로 재시도하거나 언제든지 모든 실패한 메시지를 일괄 복구하세요.
+</Tip>
+
+### 멱등성
+
+각 웹훅 이벤트에는 고유한 `webhook-id` 헤더가 포함되어 있습니다. 이 식별자를 사용하여 멱등성을 구현하고 중복 처리를 방지하세요.
+
+```javascript
+// Example: Storing webhook IDs to prevent duplicate processing
+const processedWebhooks = new Set();
+
+app.post('/webhook', (req, res) => {
+  const webhookId = req.headers['webhook-id'];
+  
+  if (processedWebhooks.has(webhookId)) {
+    return res.status(200).json({ received: true });
+  }
+  
+  processedWebhooks.add(webhookId);
+  // Process the webhook...
+});
+```
+
+<Warning>
+항상 멱등성 검사를 구현하세요. 재시도로 인해 동일한 이벤트를 여러 번 수신할 수 있습니다.
+</Warning>
+
+### 이벤트 순서
+
+웹훅 이벤트는 재시도 또는 네트워크 조건으로 인해 순서가 뒤바뀔 수 있습니다. 시스템이 어떤 순서로든 이벤트를 처리할 수 있도록 설계하세요.
+
+<Info>
+전송 시 **최신 페이로드**를 수신하게 되며, 웹훅 이벤트가 원래 발생한 시점과는 관계없이 수신됩니다.
+</Info>
+
+## 웹훅 보안
+
+웹훅의 보안을 보장하기 위해 항상 페이로드를 검증하고 HTTPS를 사용하세요.
+
+### 서명 검증
+
+각 웹훅 요청에는 `webhook-signature` 헤더가 포함되어 있으며, 이는 웹훅 페이로드와 타임스탬프의 HMAC SHA256 서명으로, 비밀 키로 서명됩니다.
+
+#### SDK 검증(권장)
+
+모든 공식 SDK에는 수신된 웹훅을 안전하게 검증하고 구문 분석하는 내장 도우미가 포함되어 있습니다. 두 가지 방법이 제공됩니다:
+
+* `unwrap()`: 웹훅 비밀 키를 사용하여 서명을 검증합니다.
+* `unsafe_unwrap()`: 검증 없이 페이로드를 구문 분석합니다.
+
+<Tip>
+  Dodo Payments 클라이언트를 초기화할 때 `DODO_PAYMENTS_WEBHOOK_KEY`를 통해 웹훅 비밀을 제공하세요.
+</Tip>
+
+<CodeGroup>
+
+```typescript TypeScript/Node.js
+import DodoPayments from 'dodopayments';
+import express from 'express';
+
+const app = express();
+app.use(express.raw({ type: 'application/json' }));
+
+const client = new DodoPayments({
+  bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+  environment: process.env.DODO_PAYMENTS_ENVIRONMENT,
+  webhookKey: process.env.DODO_PAYMENTS_WEBHOOK_KEY,
+});
+
+app.post('/webhook', async (req, res) => {
+  try {
+    const unwrapped = client.webhooks.unwrap(req.body.toString(), {
+      headers: {
+        'webhook-id': req.headers['webhook-id'] as string,
+        'webhook-signature': req.headers['webhook-signature'] as string,
+        'webhook-timestamp': req.headers['webhook-timestamp'] as string,
+      },
+    });
+    res.json({ received: true });
+  } catch (error) {
+    res.status(401).json({ error: 'Invalid signature' });
+  }
+});
+```
+
+```python Python
+from fastapi import FastAPI, Request, HTTPException
+from dodopayments import DodoPayments
+import os
+
+app = FastAPI()
+client = DodoPayments(
+    bearer_token=os.getenv("DODO_PAYMENTS_API_KEY"),
+    environment=os.getenv("DODO_PAYMENTS_ENVIRONMENT"),
+    webhook_key=os.getenv("DODO_PAYMENTS_WEBHOOK_KEY"),
+)
+
+@app.post("/webhook")
+async def handle_webhook(request: Request):
+    try:
+        unwrapped = client.webhooks.unwrap(
+            await request.body(),
+            headers={
+                "webhook-id": request.headers.get("webhook-id", ""),
+                "webhook-signature": request.headers.get("webhook-signature", ""),
+                "webhook-timestamp": request.headers.get("webhook-timestamp", ""),
+            },
+        )
+        return {"received": True}
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid signature")
+```
+
+```go Go
+import (
+	"context"
+	"io"
+	"net/http"
+	"os"
+	"github.com/dodopayments/dodopayments-go"
+	"github.com/dodopayments/dodopayments-go/option"
+)
+
+func webhookHandler(w http.ResponseWriter, r *http.Request) {
+	client := dodopayments.NewClient(
+		option.WithBearerToken(os.Getenv("DODO_PAYMENTS_API_KEY")),
+		option.WithEnvironment(os.Getenv("DODO_PAYMENTS_ENVIRONMENT")),
+		option.WithWebhookKey(os.Getenv("DODO_PAYMENTS_WEBHOOK_KEY")),
+	)
+	rawBody, _ := io.ReadAll(r.Body)
+	if _, err := client.Webhooks.Unwrap(context.Background(), rawBody, map[string]string{
+		"webhook-id":       r.Header.Get("webhook-id"),
+		"webhook-signature": r.Header.Get("webhook-signature"),
+		"webhook-timestamp": r.Header.Get("webhook-timestamp"),
+	}); err != nil {
+		http.Error(w, "Invalid signature", http.StatusUnauthorized)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+}
+```
+
+</CodeGroup>
+
+#### 수동 검증(대안)
+
+SDK를 사용하지 않는 경우, Standard Webhooks 사양에 따라 서명을 직접 검증할 수 있습니다:
+
+1. `webhook-id`, `webhook-timestamp`, 및 정확한 원시 문자열 `payload`를 점으로 구분하여 연결하여 서명된 메시지를 만듭니다 (`.`).
+2. 대시보드의 웹훅 비밀 키를 사용하여 해당 문자열의 HMAC SHA256을 계산합니다.
+3. 계산된 서명을 `webhook-signature` 헤더와 비교합니다. 일치하면 웹훅이 진짜입니다.
+
+<Info>
+  우리는 Standard Webhooks 사양을 따릅니다. 서명을 검증하기 위해 그들의 라이브러리를 사용할 수 있습니다: [https://github.com/standard-webhooks/standard-webhooks/tree/main/libraries](https://github.com/standard-webhooks/standard-webhooks/tree/main/libraries). 이벤트 페이로드 형식에 대한 내용은 [웹훅 페이로드](/developer-resources/webhooks/intents/payment)를 참조하세요.
+</Info>
+
+### 웹훅에 응답하기
+
+* 웹훅 핸들러는 이벤트 수신을 확인하기 위해 `2xx status code`를 반환해야 합니다.
+* 다른 응답은 실패로 간주되며, 웹훅이 재시도됩니다.
+
+### 모범 사례
+
+<AccordionGroup>
+<Accordion title="HTTPS 엔드포인트만 사용" icon="lock">
+  웹훅 엔드포인트에 대해 항상 HTTPS URL을 사용하세요. HTTP 엔드포인트는 중간자 공격에 취약하며 웹훅 데이터를 노출합니다.
+</Accordion>
+
+<Accordion title="즉시 응답" icon="bolt">
+  웹훅을 수신한 즉시 `200` 상태 코드를 반환하세요. 타임아웃을 피하기 위해 이벤트를 비동기적으로 처리하세요.
+  
+
+  ```javascript
+  app.post('/webhook', async (req, res) => {
+    // Acknowledge receipt immediately
+    res.status(200).json({ received: true });
+    
+    // Process asynchronously
+    processWebhookAsync(req.body).catch(console.error);
+  });
+  ```
+
+</Accordion>
+
+<Accordion title="중복 이벤트 처리" icon="rotate">
+  `webhook-id` 헤더를 사용하여 멱등성을 구현하여 동일한 이벤트를 부작용 없이 안전하게 여러 번 처리하세요.
+</Accordion>
+
+<Accordion title="웹훅 비밀 보호" icon="key">
+  환경 변수나 비밀 관리자를 사용하여 웹훅 비밀을 안전하게 저장하세요. 비밀을 버전 관리에 커밋하지 마세요.
+</Accordion>
+</AccordionGroup>
+
+## 웹훅 페이로드 구조
+
+웹훅 페이로드 구조를 이해하면 이벤트를 올바르게 구문 분석하고 처리하는 데 도움이 됩니다.
+
+### 요청 형식
+
+```http
+POST /your-webhook-url
+Content-Type: application/json
+```
+
+### 헤더
+
+<ParamField header="webhook-id" type="string" required>
+이 웹훅 이벤트의 고유 식별자입니다. 멱등성 검사를 위해 사용하세요.
+</ParamField>
+
+<ParamField header="webhook-signature" type="string" required>
+웹훅의 진위를 검증하기 위한 HMAC SHA256 서명입니다.
+</ParamField>
+
+<ParamField header="webhook-timestamp" type="string" required>
+웹훅이 전송된 Unix 타임스탬프(초 단위)입니다.
+</ParamField>
+
+### 요청 본문
+
+<ResponseField name="business_id" type="string" required>
+당신의 Dodo Payments 비즈니스 식별자입니다.
+</ResponseField>
+
+<ResponseField name="type" type="string" required>
+이 웹훅을 트리거한 이벤트 유형입니다 (예: `payment.succeeded`, `subscription.created`).
+</ResponseField>
+
+<ResponseField name="timestamp" type="string" required>
+이벤트가 발생한 시점의 ISO 8601 형식의 타임스탬프입니다.
+</ResponseField>
+
+<ResponseField name="data" type="object" required>
+이벤트에 대한 자세한 정보를 포함하는 이벤트 특정 페이로드입니다.
+
+<Expandable title="데이터 객체 속성">
+  <ResponseField name="payload_type" type="string">
+  리소스 유형: `Payment`, `Subscription`, `Refund`, `Dispute`, 또는 `LicenseKey`.
+  </ResponseField>
+  
+  추가 필드는 이벤트 유형에 따라 다릅니다. 전체 스키마는 이벤트 특정 문서를 참조하세요.
+</Expandable>
+</ResponseField>
+
+### 예제 페이로드
+
+```json
+{
+  "business_id": "string",
+  "type": "payment.succeeded | payment.failed |...",
+  "timestamp": "2024-01-01T12:00:00Z",
+  "data": {
+    "payload_type": "Payment | Subscription | Refund | Dispute | LicenseKey",
+    // ... event-specific fields (see below)
+  }
+}
+```
+
+<CardGroup cols={2}>
+  <Card title="이벤트 유형" icon="list" href="/developer-resources/webhooks/intents/webhook-events-guide">
+    사용 가능한 모든 웹훅 이벤트 유형 탐색
+  </Card>
+  <Card title="이벤트 페이로드" icon="code" href="/developer-resources/webhooks/intents/payment">
+    각 이벤트에 대한 자세한 페이로드 스키마 보기
+  </Card>
+</CardGroup>
+
+## 웹훅 테스트
+
+Dodo Payments 대시보드에서 웹훅 통합을 직접 테스트하여 엔드포인트가 올바르게 작동하는지 확인할 수 있습니다.
+
+<Frame>
+    <img src="/images/webhooks/endpoints.png" alt="Endpoint Details" />
+</Frame>
+
+### 테스트 인터페이스 접근하기
+
+<Steps>
+<Step title="웹훅으로 이동하기">
+    Dodo Payments 대시보드로 이동하여 `Settings > Webhooks`로 이동합니다.
+</Step>
+
+<Step title="엔드포인트 선택하기">
+    웹훅 엔드포인트를 클릭하여 세부정보 페이지에 접근합니다.
+</Step>
+
+<Step title="테스트 탭 열기">
+    **테스트** 탭을 클릭하여 웹훅 테스트 인터페이스에 접근합니다.
+</Step>
+</Steps>
+
+### 웹훅 테스트하기
+
+테스트 인터페이스는 웹훅 엔드포인트를 테스트하는 포괄적인 방법을 제공합니다:
+
+<Steps>
+<Step title="이벤트 유형 선택하기">
+    드롭다운 메뉴를 사용하여 테스트할 특정 이벤트 유형을 선택합니다 (예: `payment.succeeded`, `payment.failed` 등).
+    
+    <Info>
+    드롭다운에는 엔드포인트가 수신할 수 있는 모든 사용 가능한 웹훅 이벤트 유형이 포함되어 있습니다.
+    </Info>
+</Step>
+
+<Step title="스키마 및 예제 검토하기">
+    인터페이스는 선택한 이벤트 유형에 대한 **스키마**(데이터 구조)와 **예제**(샘플 페이로드)를 모두 표시합니다.
+</Step>
+
+<Step title="테스트 이벤트 전송하기">
+    **예제 전송** 버튼을 클릭하여 테스트 웹훅을 엔드포인트로 전송합니다.
+    
+    <Warning>
+    **중요**: 테스트 인터페이스를 통해 전송된 실패한 메시지는 재시도되지 않습니다. 이는 테스트 목적으로만 사용됩니다.
+    </Warning>
+</Step>
+</Steps>
+
+### 테스트 검증하기
+
+<Steps>
+<Step title="엔드포인트 확인하기">
+    웹훅 엔드포인트 로그를 모니터링하여 테스트 이벤트가 수신되었는지 확인합니다.
+</Step>
+
+<Step title="서명 검증하기">
+    테스트 페이로드로 서명 검증이 올바르게 작동하는지 확인합니다.
+</Step>
+
+<Step title="응답 테스트하기">
+    엔드포인트가 이벤트 수신을 확인하기 위해 `2xx` 상태 코드를 반환하는지 확인합니다.
+</Step>
+</Steps>
+
+### 구현 예제
+
+웹훅 검증 및 처리를 보여주는 완전한 Express.js 구현 예제입니다:
+
+<CodeGroup>
+
+```typescript Express.js Webhook Handler
+import { Webhook } from "standardwebhooks";
+import express from "express";
+
+const app = express();
+app.use(express.json());
+
+const webhook = new Webhook(process.env.DODO_WEBHOOK_SECRET);
+
+app.post('/webhook/dodo-payments', async (req, res) => {
+  try {
+    // Extract webhook headers
+    const webhookHeaders = {
+      "webhook-id": req.headers["webhook-id"] as string,
+      "webhook-signature": req.headers["webhook-signature"] as string,
+      "webhook-timestamp": req.headers["webhook-timestamp"] as string,
+    };
+
+    // Verify the webhook signature
+    const payload = JSON.stringify(req.body);
+    await webhook.verify(payload, webhookHeaders);
+    
+    // Acknowledge receipt immediately
+    res.status(200).json({ received: true });
+    
+    // Process webhook asynchronously
+    processWebhookAsync(req.body).catch(console.error);
+    
+  } catch (error) {
+    console.error('Webhook verification failed:', error);
+    res.status(400).json({ error: 'Invalid signature' });
+  }
+});
+
+async function processWebhookAsync(data: any) {
+  // Handle the webhook event based on type
+  switch (data.type) {
+    case 'payment.succeeded':
+      await handlePaymentSucceeded(data);
+      break;
+    case 'subscription.created':
+      await handleSubscriptionCreated(data);
+      break;
+    // Add more event handlers...
+  }
+}
+```
+
+```javascript Testing Webhooks Locally
+const { Webhook } = require("standardwebhooks");
+const axios = require("axios");
+const crypto = require("crypto");
+
+// Generate test webhook
+const timestamp = new Date();
+const webhookId = crypto.randomUUID();
+const payload = {
+  business_id: "biz_test123",
+  type: "payment.succeeded",
+  timestamp: timestamp.toISOString(),
+  data: {
+    payload_type: "Payment",
+    payment_id: "pay_test456",
+    amount: 2999
+  }
+};
+
+// Sign the payload
+const webhookSecret = process.env.DODO_WEBHOOK_SECRET;
+const webhookInstance = new Webhook(webhookSecret);
+const payloadString = JSON.stringify(payload);
+const signature = webhookInstance.sign(webhookId, timestamp, payloadString);
+
+// Send test webhook
+const response = await axios.post('http://localhost:3000/webhook/dodo-payments', payload, {
+  headers: {
+    "webhook-id": webhookId,
+    "webhook-timestamp": Math.floor(timestamp.getTime() / 1000),
+    "webhook-signature": signature,
+    "Content-Type": "application/json"
+  }
+});
+
+console.log("Test webhook sent successfully:", response.data);
+```
+
+</CodeGroup>
+
+<Tip>
+웹훅 핸들러를 철저히 테스트하여 프로덕션 이벤트를 처리하기 전에 대시보드 테스트 인터페이스를 사용하세요. 이는 문제를 조기에 식별하고 수정하는 데 도움이 됩니다.
+</Tip>
+
+## 고급 설정
+
+고급 설정 탭은 웹훅 엔드포인트 동작을 미세 조정하기 위한 추가 구성 옵션을 제공합니다.
+
+### 속도 제한(스로틀링)
+
+웹훅 이벤트가 엔드포인트에 전달되는 속도를 제어하여 시스템 과부하를 방지합니다.
+
+<Steps>
+<Step title="속도 제한 설정 접근하기">
+    **고급** 탭에서 "속도 제한(스로틀링)" 섹션을 찾습니다.
+</Step>
+
+<Step title="속도 제한 구성하기">
+    **편집** 버튼을 클릭하여 속도 제한 설정을 수정합니다.
+    
+    <Info>
+    기본적으로 웹훅은 "속도 제한 없음"이 적용되어 있으며, 이벤트는 발생하는 즉시 전달됩니다.
+    </Info>
+</Step>
+
+<Step title="제한 설정하기">
+    웹훅 전송 빈도를 제어하고 시스템 과부하를 방지하기 위해 원하는 속도 제한을 구성합니다.
+</Step>
+</Steps>
+
+<Tip>
+웹훅 핸들러가 이벤트를 처리하는 데 시간이 필요하거나 여러 이벤트를 함께 배치하고 싶을 때 속도 제한을 사용하세요.
+</Tip>
+
+### 사용자 정의 헤더
+
+모든 웹훅 요청에 사용자 정의 HTTP 헤더를 추가합니다. 이는 인증, 라우팅 또는 웹훅 요청에 메타데이터를 추가하는 데 유용합니다.
+
+<Steps>
+<Step title="사용자 정의 헤더 추가하기">
+    "사용자 정의 헤더" 섹션에서 사용자 정의 헤더의 **키**와 **값**을 입력합니다.
+</Step>
+
+<Step title="여러 헤더 추가하기">
+    필요에 따라 추가 사용자 정의 헤더를 추가하려면 **+** 버튼을 클릭합니다.
+</Step>
+
+<Step title="구성 저장하기">
+    모든 웹훅 요청에 사용자 정의 헤더가 포함됩니다.
+</Step>
+</Steps>
+
+### 변환
+
+변환 기능을 사용하면 웹훅의 페이로드를 수정하고 다른 URL로 리디렉션할 수 있습니다. 이 강력한 기능을 통해 다음을 수행할 수 있습니다:
+
+- 처리하기 전에 페이로드 구조 수정
+- 콘텐츠에 따라 웹훅을 다른 엔드포인트로 라우팅
+- 페이로드에서 필드 추가 또는 제거
+- 데이터 형식 변환
+
+<Steps>
+<Step title="변환 활성화하기">
+    **활성화** 스위치를 전환하여 변환 기능을 활성화합니다.
+</Step>
+
+<Step title="변환 구성하기">
+    **변환 편집**을 클릭하여 변환 규칙을 정의합니다.
+    
+    <Info>
+    JavaScript를 사용하여 웹훅 페이로드를 변환하고 다른 대상 URL을 지정할 수 있습니다.
+    </Info>
+</Step>
+
+<Step title="변환 테스트하기">
+    테스트 인터페이스를 사용하여 변환이 올바르게 작동하는지 확인합니다.
+</Step>
+</Steps>
+
+<Warning>
+변환은 웹훅 전송 성능에 상당한 영향을 미칠 수 있습니다. 철저히 테스트하고 변환 로직을 간단하고 효율적으로 유지하세요.
+</Warning>
+
+<Tip>
+변환은 특히 다음에 유용합니다:
+- 서로 다른 데이터 형식 간 변환
+- 특정 기준에 따라 이벤트 필터링
+- 페이로드에 계산된 필드 추가
+- 이벤트를 다른 마이크로서비스로 라우팅
+</Tip>
+
+## 웹훅 로그 모니터링
+
+로그 탭은 웹훅 전송 상태에 대한 포괄적인 가시성을 제공하여 웹훅 이벤트를 효과적으로 모니터링, 디버깅 및 관리할 수 있도록 합니다.
+
+<Frame>
+    <img src="/images/webhooks/logs.png" alt="Logs" />
+</Frame>
+
+## 활동 모니터링
+
+활동 탭은 시각적 분석을 통해 웹훅 전송 성능에 대한 실시간 통찰력을 제공합니다.
+
+<Frame>
+    <img src="/images/webhooks/activity.png" alt="Activity" />
+</Frame>
+
+## 이메일 알림
+
+웹훅 상태에 대한 자동 이메일 알림으로 정보를 유지하세요. 웹훅 전송이 실패하거나 엔드포인트가 응답하지 않기 시작하면 이메일 알림을 받아 문제를 신속하게 해결하고 통합을 원활하게 유지할 수 있습니다.
+
+<Frame>
+  <img src="/images/webhooks/alerting.png" alt="Webhook Alerting Settings showing email notifications configuration" />
+</Frame>
+
+### 이메일 알림 활성화하기
+
+<Steps>
+<Step title="알림 설정으로 이동하기">
+  Dodo Payments 대시보드로 이동하여 **대시보드 → 웹훅 → 알림**으로 이동합니다.
+</Step>
+
+<Step title="이메일 알림 활성화하기">
+  **이메일 알림**을 켜서 웹훅 전송 문제에 대한 알림을 받기 시작합니다.
+</Step>
+
+<Step title="이메일 주소 구성하기">
+  웹훅 알림을 받을 이메일 주소를 입력합니다. 특정 이벤트가 웹훅 설정에서 발생할 때 이 주소로 알림을 전송합니다. 예를 들어, 통합에 영향을 미칠 수 있는 전송 문제와 같은 경우입니다.
+</Step>
+</Steps>
+
+<Tip>
+이메일 알림을 활성화하여 웹훅 전송 문제를 조기에 발견하고 신뢰할 수 있는 통합을 유지하세요. 전송이 실패하거나 엔드포인트가 응답하지 않을 때 알림을 받게 됩니다.
+</Tip>
+
+## 클라우드 플랫폼에 배포하기
+
+웹훅 핸들러를 프로덕션에 배포할 준비가 되셨나요? 우리는 각 플랫폼에 대한 모범 사례와 함께 인기 있는 클라우드 제공업체에 웹훅을 배포하는 데 도움이 되는 플랫폼별 가이드를 제공합니다.
+
+<CardGroup cols={2}>
+  <Card title="Vercel" icon="triangle" href="/developer-resources/webhooks/examples/vercel-example">
+    서버리스 함수로 Vercel에 웹훅 배포
+  </Card>
+  <Card title="Cloudflare Workers" icon="cloud" href="/developer-resources/webhooks/examples/cloudflare-example">
+    Cloudflare의 엣지 네트워크에서 웹훅 실행
+  </Card>
+  <Card title="Supabase Edge Functions" icon="database" href="/developer-resources/webhooks/examples/supabase-example">
+    Supabase와 웹훅 통합
+  </Card>
+  <Card title="Netlify Functions" icon="circle-nodes" href="/developer-resources/webhooks/examples/netlify-example">
+    Netlify 서버리스 함수로 웹훅 배포
+  </Card>
+</CardGroup>
+
+<Info>
+각 플랫폼 가이드에는 환경 설정, 서명 검증 및 해당 제공업체에 특정한 배포 단계가 포함되어 있습니다.
+</Info>

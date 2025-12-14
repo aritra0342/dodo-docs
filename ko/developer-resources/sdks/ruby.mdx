@@ -1,0 +1,424 @@
+---
+title: 루비
+description: 우아한 Ruby-native SDK로 Ruby 애플리케이션에 Dodo Payments 통합하기
+icon: gem
+---
+
+루비 SDK는 Ruby 애플리케이션에 Dodo Payments를 통합하는 간단하고 직관적인 방법을 제공합니다. Ruby 관습과 모범 사례를 따르며, 포괄적인 오류 처리, 페이지 매김 및 미들웨어 지원을 제공합니다.
+
+## 설치
+
+Gemfile에 gem을 추가하세요:
+
+```ruby Gemfile
+gem "dodopayments", "~> 1.61.5"
+```
+
+<Tip>
+최신 Dodo Payments 기능에 접근하기 위해 항상 최신 SDK 버전을 사용하세요. `bundle update dodopayments`를 정기적으로 실행하여 최신 상태를 유지하세요.
+</Tip>
+
+그런 다음 실행하세요:
+
+```bash
+bundle install
+```
+
+<Info>
+SDK는 Ruby 3.2.0 및 이후 버전을 지원하며, 포괄적인 타입, 오류 처리 및 재시도 메커니즘을 제공합니다.
+</Info>
+
+## 빠른 시작
+
+클라이언트를 초기화하고 체크아웃 세션을 생성하세요:
+
+```ruby
+require "bundler/setup"
+require "dodopayments"
+
+dodo_payments = Dodopayments::Client.new(
+  bearer_token: ENV["DODO_PAYMENTS_API_KEY"], # This is the default and can be omitted
+  environment: "test_mode" # defaults to "live_mode"
+)
+
+checkout_session_response = dodo_payments.checkout_sessions.create(
+  product_cart: [{product_id: "product_id", quantity: 1}]
+)
+
+puts(checkout_session_response.session_id)
+```
+
+<Warning>
+API 키를 환경 변수를 사용하여 안전하게 저장하세요. 버전 관리에 커밋하거나 코드에 노출하지 마세요.
+</Warning>
+
+## 주요 기능
+
+<CardGroup cols={2}>
+<Card title="루비 관습" icon="gem">
+  Ruby 명명 관습과 관용적 패턴을 따릅니다.
+</Card>
+
+<Card title="우아한 구문" icon="code">
+  Ruby 개발자에게 자연스럽게 느껴지는 깔끔하고 읽기 쉬운 API
+</Card>
+
+<Card title="자동 페이지 매김" icon="arrows-rotate">
+  목록 응답을 위한 내장 자동 페이지 매김 반복자
+</Card>
+
+<Card title="타입 안전성" icon="shield-check">
+  향상된 타입 안전성을 위한 선택적 Sorbet 타입
+</Card>
+</CardGroup>
+
+## 구성
+
+### 타임아웃 구성
+
+요청 타임아웃을 구성하세요:
+
+```ruby
+# Configure default for all requests (default is 60 seconds)
+dodo_payments = Dodopayments::Client.new(
+  timeout: nil # disable timeout
+)
+
+# Or, configure per-request
+dodo_payments.checkout_sessions.create(
+  product_cart: [{product_id: "product_id", quantity: 0}],
+  request_options: {timeout: 5}
+)
+```
+
+### 재시도 구성
+
+자동 재시도 동작을 구성하세요:
+
+```ruby
+# Configure default for all requests (default is 2)
+dodo_payments = Dodopayments::Client.new(
+  max_retries: 0 # disable retries
+)
+
+# Or, configure per-request
+dodo_payments.checkout_sessions.create(
+  product_cart: [{product_id: "product_id", quantity: 0}],
+  request_options: {max_retries: 5}
+)
+```
+
+## 일반 작업
+
+### 체크아웃 세션 생성
+
+체크아웃 세션을 생성하세요:
+
+```ruby
+session = dodo_payments.checkout_sessions.create(
+  product_cart: [
+    {
+      product_id: "prod_123",
+      quantity: 1
+    }
+  ],
+  return_url: "https://yourdomain.com/return"
+)
+
+# Redirect to checkout
+redirect_to session.url
+```
+
+### 고객 관리
+
+고객 정보를 생성하고 검색하세요:
+
+```ruby
+# Create a customer
+customer = dodo_payments.customers.create(
+  email: "customer@example.com",
+  name: "John Doe",
+  metadata: {
+    user_id: "12345"
+  }
+)
+
+# Retrieve customer
+customer = dodo_payments.customers.retrieve("cus_123")
+puts "Customer: #{customer.name} (#{customer.email})"
+```
+
+### 구독 처리
+
+정기 구독을 생성하고 관리하세요:
+
+```ruby
+# Create a subscription
+subscription = dodo_payments.subscriptions.create(
+  customer_id: "cus_123",
+  product_id: "prod_456",
+  price_id: "price_789"
+)
+
+# Update subscription
+updated = dodo_payments.subscriptions.update(
+  subscription.id,
+  metadata: { plan_type: "premium" }
+)
+
+# Cancel subscription
+dodo_payments.subscriptions.cancel(subscription.id)
+```
+
+## 페이지 매김
+
+### 자동 페이지 매김
+
+모든 페이지를 자동으로 반복하세요:
+
+```ruby
+page = dodo_payments.payments.list
+
+# Fetch single item from page
+payment = page.items[0]
+puts(payment.brand_id)
+
+# Automatically fetches more pages as needed
+page.auto_paging_each do |payment|
+  puts(payment.brand_id)
+end
+```
+
+### 수동 페이지 매김
+
+페이지 매김에 대한 더 많은 제어를 위해:
+
+```ruby
+page = dodo_payments.payments.list
+
+if page.next_page?
+  new_page = page.next_page
+  puts(new_page.items[0].brand_id)
+end
+```
+
+## 오류 처리
+
+다양한 Dodo Payments API 오류를 처리하세요:
+
+```ruby
+begin
+  checkout_session = dodo_payments.checkout_sessions.create(
+    product_cart: [{product_id: "product_id", quantity: 0}]
+  )
+rescue Dodopayments::Errors::APIConnectionError => e
+  puts("The server could not be reached")
+  puts(e.cause)  # an underlying Exception, likely raised within `net/http`
+rescue Dodopayments::Errors::RateLimitError => e
+  puts("A 429 status code was received; we should back off a bit.")
+rescue Dodopayments::Errors::APIStatusError => e
+  puts("Another non-200-range status code was received")
+  puts(e.status)
+end
+```
+
+<Tip>
+비율 제한 오류에 대해 지수 백오프를 사용하여 재시도 로직을 구현하여 애플리케이션이 고부하 시나리오를 원활하게 처리하도록 하세요.
+</Tip>
+
+## Sorbet를 통한 타입 안전성
+
+타입 안전한 요청 매개변수를 위해 Sorbet를 사용하세요:
+
+```ruby
+# Type-safe using Sorbet RBI definitions
+dodo_payments.checkout_sessions.create(
+  product_cart: [
+    Dodopayments::CheckoutSessionRequest::ProductCart.new(
+      product_id: "product_id",
+      quantity: 0
+    )
+  ]
+)
+
+# Hashes work, but are not typesafe
+dodo_payments.checkout_sessions.create(
+  product_cart: [{product_id: "product_id", quantity: 0}]
+)
+
+# You can also splat a full Params class
+params = Dodopayments::CheckoutSessionCreateParams.new(
+  product_cart: [
+    Dodopayments::CheckoutSessionRequest::ProductCart.new(
+      product_id: "product_id",
+      quantity: 0
+    )
+  ]
+)
+dodo_payments.checkout_sessions.create(**params)
+```
+
+## 고급 사용법
+
+### 문서화되지 않은 엔드포인트
+
+문서화되지 않은 엔드포인트에 요청하세요:
+
+```ruby
+response = dodo_payments.request(
+  method: :post,
+  path: '/undocumented/endpoint',
+  query: {"dog": "woof"},
+  headers: {"useful-header": "interesting-value"},
+  body: {"hello": "world"}
+)
+```
+
+### 문서화되지 않은 매개변수
+
+문서화되지 않은 매개변수를 전송하세요:
+
+```ruby
+checkout_session_response = dodo_payments.checkout_sessions.create(
+  product_cart: [{product_id: "product_id", quantity: 0}],
+  request_options: {
+    extra_query: {my_query_parameter: value},
+    extra_body: {my_body_parameter: value},
+    extra_headers: {"my-header": value}
+  }
+)
+
+# Access undocumented response properties
+puts(checkout_session_response[:my_undocumented_property])
+```
+
+## Rails 통합
+
+### 초기화 파일 생성
+
+`config/initializers/dodo_payments.rb` 생성하세요:
+
+```ruby
+require "dodopayments"
+
+DODO_CLIENT = Dodopayments::Client.new(
+  bearer_token: Rails.application.credentials.dodo_api_key,
+  environment: Rails.env.production? ? "live_mode" : "test_mode"
+)
+```
+
+### 서비스 객체 패턴
+
+결제 서비스를 생성하세요:
+
+```ruby
+# app/services/payment_service.rb
+class PaymentService
+  def initialize
+    @client = DODO_CLIENT
+  end
+
+  def create_checkout(items)
+    @client.checkout_sessions.create(
+      product_cart: items,
+      return_url: Rails.application.routes.url_helpers.checkout_return_url
+    )
+  end
+
+  def process_payment(amount:, currency:, customer_id:)
+    @client.payments.create(
+      amount: amount,
+      currency: currency,
+      customer_id: customer_id
+    )
+  end
+end
+```
+
+### 컨트롤러 통합
+
+Rails 컨트롤러에서 사용하세요:
+
+```ruby
+# app/controllers/checkouts_controller.rb
+class CheckoutsController < ApplicationController
+  def create
+    service = PaymentService.new
+    session = service.create_checkout(checkout_params[:items])
+    
+    redirect_to session.url, allow_other_host: true
+  rescue Dodopayments::Errors::APIError => e
+    flash[:error] = "Payment error: #{e.message}"
+    redirect_to cart_path
+  end
+
+  private
+
+  def checkout_params
+    params.require(:checkout).permit(items: [:product_id, :quantity])
+  end
+end
+```
+
+## Sinatra 통합
+
+Sinatra 애플리케이션에서 사용하세요:
+
+```ruby
+require "sinatra"
+require "dodopayments"
+
+configure do
+  set :dodo_client, Dodopayments::Client.new(
+    bearer_token: ENV["DODO_API_KEY"]
+  )
+end
+
+post "/create-checkout" do
+  content_type :json
+  
+  begin
+    session = settings.dodo_client.checkout_sessions.create(
+      product_cart: JSON.parse(request.body.read)["items"],
+      return_url: "#{request.base_url}/return"
+    )
+    
+    { checkout_url: session.url }.to_json
+  rescue Dodopayments::Errors::APIError => e
+    status 400
+    { error: e.message }.to_json
+  end
+end
+```
+
+## 리소스
+
+<CardGroup cols={2}>
+<Card title="GitHub 리포지토리" icon="github" href="https://github.com/dodopayments/dodopayments-ruby">
+  소스 코드를 보고 기여하세요
+</Card>
+
+<Card title="API 참조" icon="book" href="/api-reference/introduction">
+  완전한 API 문서
+</Card>
+
+<Card title="Discord 커뮤니티" icon="discord" href="https://discord.gg/bYqAp4ayYh">
+  도움을 받고 개발자와 연결하세요
+</Card>
+
+<Card title="문제 보고" icon="bug" href="https://github.com/dodopayments/dodopayments-ruby/issues">
+  버그를 보고하거나 기능을 요청하세요
+</Card>
+</CardGroup>
+
+## 지원
+
+Ruby SDK에 도움이 필요하신가요?
+
+- **Discord**: 실시간 지원을 위해 [커뮤니티 서버](https://discord.gg/bYqAp4ayYh)에 참여하세요
+- **이메일**: support@dodopayments.com으로 문의하세요
+- **GitHub**: [리포지토리](https://github.com/dodopayments/dodopayments-ruby)에 문제를 열어주세요
+
+## 기여
+
+기여를 환영합니다! 시작하려면 [기여 가이드라인](https://github.com/dodopayments/dodopayments-ruby/blob/main/CONTRIBUTING.md)을 확인하세요.

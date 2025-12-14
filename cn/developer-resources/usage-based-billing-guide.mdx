@@ -1,0 +1,740 @@
+---
+title: 基于使用的计费集成指南
+description: 了解如何设置计量器并发送使用事件，以便与 Dodo Payments 实现准确的基于使用的计费。
+icon: arrow-trend-up
+---
+
+<CardGroup cols={2}>
+<Card title="API 参考 - 事件摄取" icon="code" href="/api-reference/usage-events/ingest-events">
+  访问完整的 API 文档，以便摄取使用事件并交互式测试事件摄取请求和响应。
+</Card>
+
+<Card title="API 参考 - 计量器创建" icon="code" href="/api-reference/meters/create-meter">
+  探索完整的 API 文档，以便创建计量器并交互式测试计量器创建请求和响应。
+</Card>
+</CardGroup>
+
+## 创建计量器
+
+计量器定义了如何聚合和测量您的使用事件以进行计费。
+
+在创建计量器之前，规划您的使用跟踪策略：
+- 确定您想要跟踪的使用事件
+- 确定事件应如何聚合（计数、求和等）
+- 定义特定用例的任何过滤要求
+
+### 步骤逐步创建计量器
+
+按照此综合指南设置您的使用计量器：
+
+<Steps>
+<Step title="配置基本信息">
+设置计量器的基本详细信息。
+
+<ParamField path="计量器名称" type="string" required>
+选择一个清晰、描述性的名称，以识别此计量器跟踪的内容。
+
+示例："Tokens", "API 调用", "存储使用", "计算小时"
+</ParamField>
+
+<ParamField path="描述" type="string">
+提供此计量器测量内容的详细说明。
+
+示例："计算客户发出的每个 POST /v1/orders 请求"
+</ParamField>
+
+<ParamField path="事件名称" type="string" required>
+指定将触发此计量器的事件标识符。
+
+示例："token", "api.call", "storage.usage", "compute.session"
+</ParamField>
+
+<Info>
+事件名称必须与您在使用事件中发送的内容完全匹配。事件名称区分大小写。
+</Info>
+</Step>
+
+<Step title="配置聚合设置">
+定义计量器如何从您的事件中计算使用情况。
+
+<ParamField path="聚合类型" type="string" required>
+选择事件应如何聚合：
+
+<Tabs>
+<Tab title="计数">
+简单地计算接收到的事件数量。
+
+用例：API 调用、页面浏览、文件上传
+
+计算：事件总数
+</Tab>
+
+<Tab title="求和">
+将事件中特定属性的值相加。
+
+用例：数据传输、存储消耗、处理时间
+
+计算：所有属性值的总和
+</Tab>
+
+<Tab title="最大值">
+记录计费期间特定属性的最高值。
+
+用例：峰值并发用户、最大存储使用、最高带宽
+
+计算：观察到的最大属性值
+</Tab>
+
+<Tab title="最后一次">
+使用特定属性的最新值。
+
+用例：当前计划级别、最新配置设置
+
+计算：最后记录的属性值
+</Tab>
+</Tabs>
+</ParamField>
+
+<ParamField path="聚合属性" type="string">
+要聚合的事件元数据中的属性名称。
+
+<Warning>
+在使用求和、最大值或最后一次聚合类型时，此字段是必需的。
+</Warning>
+</ParamField>
+
+<ParamField path="测量单位" type="string" required>
+定义在报告和计费中显示的单位标签。
+
+示例："calls", "GB", "hours", "tokens"
+</ParamField>
+</Step>
+
+<Step title="配置事件过滤（可选）">
+设置控制哪些事件包含在计量器中的标准。
+
+<Info>
+事件过滤允许您创建复杂的规则，以确定哪些事件对您的使用计算有贡献。这对于排除测试事件、按用户级别过滤或专注于特定操作非常有用。
+</Info>
+
+**启用事件过滤**
+
+切换 **启用事件过滤** 以激活条件事件处理。
+
+**选择过滤逻辑**
+
+选择如何评估多个条件：
+
+<Tabs>
+<Tab title="与逻辑">
+所有条件必须为真，事件才能被计数。当您需要事件同时满足多个严格标准时使用此选项。
+
+**示例：** 计数 API 调用，其中 `user_tier = "premium"` 和 `endpoint = "/api/v2/users"`
+</Tab>
+
+<Tab title="或逻辑">
+至少一个条件必须为真，事件才能被计数。当您想要包括满足任一多个条件的事件时使用此选项。
+
+**示例：** 计数事件，其中 `method = "POST"` 或 `method = "PUT"` 或 `method = "DELETE"`
+</Tab>
+</Tabs>
+
+**设置过滤条件**
+
+<Steps>
+<Step title="添加条件">
+单击 **添加条件** 创建新的过滤规则。
+</Step>
+
+<Step title="配置属性键">
+指定事件元数据中的属性名称。
+</Step>
+
+<Step title="选择比较器">
+从可用操作符中选择：
+- `equals` - 精确匹配
+- `not equals` - 排除过滤器
+- `greater than` - 数值比较  
+- `greater than or equals` - 数值比较（包含）
+- `less than` - 数值比较
+- `less than or equals` - 数值比较（包含）
+- `contains` - 字符串包含子字符串
+- `does not contain` - 字符串排除过滤器
+</Step>
+
+<Step title="设置比较值">
+设置比较的目标值。
+</Step>
+
+<Step title="添加组">
+使用 **添加组** 创建额外的条件组以实现复杂逻辑。
+</Step>
+</Steps>
+
+<Warning>
+过滤的属性必须包含在您的事件元数据中，以便条件正常工作。缺少所需属性的事件将被排除在计数之外。
+</Warning>
+</Step>
+
+<Step title="创建计量器">
+检查您的计量器配置，然后单击 **创建计量器**。
+
+<Check>
+您的计量器现在可以接收和聚合使用事件。
+</Check>
+
+</Step>
+</Steps>
+
+## 在产品中链接计量器
+
+创建计量器后，您需要将其链接到产品，以启用基于使用的计费。此过程将计量器的使用数据与客户计费的定价规则连接起来。
+
+将计量器链接到产品建立了使用跟踪与计费之间的连接：
+- 产品定义定价规则和计费行为
+- 计量器提供计费计算所需的使用数据
+- 可以将多个计量器链接到单个产品，以实现复杂的计费场景
+
+### 产品配置过程
+
+通过正确配置产品设置，将您的使用数据转化为可计费费用：
+
+<Steps>
+<Step title="选择基于使用的计费产品类型">
+导航到您的产品创建或编辑页面，并选择 **基于使用** 作为产品类型。
+
+</Step>
+
+<Step title="选择关联计量器">
+单击 **关联计量器** 以打开侧边的计量器选择面板。
+
+此面板允许您配置哪些计量器将跟踪此产品的使用情况。
+</Step>
+
+<Step title="添加您的计量器">
+在计量器选择面板中：
+
+1. 单击 **添加计量器** 查看可用计量器
+2. 从下拉列表中选择您创建的计量器
+3. 选定的计量器将出现在您的产品配置中
+
+</Step>
+
+<Step title="配置每单位价格">
+设置每个计量器跟踪的使用单位的定价。
+
+<ParamField path="每单位价格" type="number" required>
+定义每个计量器测量的单位的收费金额。
+
+**示例**：设置 `$0.50` 每单位意味着：
+- 消耗 1,000 单位 = 1,000 × $0.50 = 500.00 收费
+- 消耗 500 单位 = 500 × $0.50 = 250.00 收费
+- 消耗 100 单位 = 100 × $0.50 = 50.00 收费
+</ParamField>
+
+</Step>
+
+<Step title="设置免费阈值（可选）">
+配置计费开始前的免费使用配额。
+
+<ParamField path="免费阈值" type="number">
+客户在开始计费计算之前可以免费消耗的单位数量。
+
+**工作原理**：
+- 免费阈值：100 单位
+- 每单位价格：$0.50
+- 客户使用：250 单位
+- **计算**： (250 - 100) × $0.50 = **$75.00** 收费
+</ParamField>
+
+<Info>
+免费阈值非常适合免费增值模型、试用期或为客户提供包含在其计划中的基本配额。
+</Info>
+
+<Check>
+免费阈值适用于每个计费周期，为客户提供每月或根据您的计费计划的新配额。
+</Check>
+</Step>
+
+<Step title="保存配置">
+检查您的计量器和定价配置，然后单击 **保存更改** 以完成设置。
+
+<Check>
+您的产品现在已配置为基于使用的计费，并将根据客户的实际消耗自动收费。
+</Check>
+
+**接下来会发生什么**：
+- 发送到您的计量器的使用事件将被跟踪和聚合
+- 计费计算将自动应用您的定价规则
+- 客户将在每个计费周期根据实际消耗收费
+</Step>
+</Steps>
+
+<Note>
+请记住，您可以为每个产品添加最多 10 个计量器，从而实现跨多个维度（如 API 调用、存储、计算时间和自定义指标）的复杂使用跟踪。
+</Note>
+
+## 发送使用事件
+
+一旦您的计量器配置完成，您可以开始从应用程序发送使用事件以跟踪客户使用情况。
+
+### 事件结构
+
+每个使用事件必须包含以下必填字段：
+
+<ParamField body="event_id" type="string" required>
+此特定事件的唯一标识符。必须在所有事件中唯一。
+</ParamField>
+
+<ParamField body="customer_id" type="string" required>
+此使用应归属的 Dodo Payments 客户 ID。
+</ParamField>
+
+<ParamField body="event_name" type="string" required>
+与您的计量器配置匹配的事件名称。事件名称触发相应的计量器。
+</ParamField>
+
+<ParamField body="timestamp" type="string">
+事件发生时的 ISO 8601 时间戳。如果未提供，则默认为当前时间。
+</ParamField>
+
+<ParamField body="metadata" type="object">
+用于过滤和聚合的附加属性。包括您计量器的 "聚合属性" 或过滤条件中引用的任何值。
+</ParamField>
+
+### 使用事件 API 示例
+
+使用事件 API 将使用事件发送到您配置的计量器：
+
+<CodeGroup>
+
+```javascript Node.js
+const response = await fetch('https://test.dodopayments.com/events/ingest', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${process.env.DODO_API_KEY}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    events: [
+      {
+        event_id: "api_call_1234",
+        customer_id: "cus_atXa1lklCRRzMicTqfiw2", 
+        event_name: "api.call",
+        timestamp: new Date().toISOString(),
+        metadata: {
+          endpoint: "/v1/orders",
+          method: "POST",
+          response_size: 1024
+        }
+      }
+    ]
+  })
+});
+```
+
+```python Python
+import requests
+from datetime import datetime
+
+response = requests.post(
+    'https://test.dodopayments.com/events/ingest',
+    headers={
+        'Authorization': f'Bearer {api_key}',
+        'Content-Type': 'application/json'
+    },
+    json={
+        'events': [
+            {
+                'event_id': 'api_call_1234',
+                'customer_id': 'cus_atXa1lklCRRzMicTqfiw2',
+                'event_name': 'api.call',
+                'timestamp': datetime.now().isoformat(),
+                'metadata': {
+                    'endpoint': '/v1/orders',
+                    'method': 'POST',
+                    'response_size': 1024
+                }
+            }
+        ]
+    }
+)
+```
+
+```curl cURL
+curl -X POST 'https://test.dodopayments.com/events/ingest' \
+  -H 'Authorization: Bearer YOUR_API_KEY' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "events": [
+      {
+        "event_id": "api_call_1234",
+        "customer_id": "cus_atXa1lklCRRzMicTqfiw2",
+        "event_name": "api.call", 
+        "timestamp": "2024-01-15T10:30:00Z",
+        "metadata": {
+          "endpoint": "/v1/orders",
+          "method": "POST",
+          "response_size": 1024
+        }
+      }
+    ]
+  }'
+```
+
+</CodeGroup>
+
+## 基于使用的计费分析
+
+通过全面的分析仪表板监控和分析您的基于使用的计费数据。跟踪客户消费模式、计量器性能和计费趋势，以优化您的定价策略并了解使用行为。
+
+### 概述分析
+
+概述选项卡提供了您基于使用的计费性能的全面视图：
+
+#### 活动指标
+
+跟踪不同时间段的关键使用统计数据：
+
+<ParamField path="当前月份" type="metric">
+显示当前计费周期的使用活动，帮助您了解每月消费模式。
+</ParamField>
+
+<ParamField path="所有时间" type="metric">
+显示自您开始跟踪以来的累计使用统计数据，提供长期增长洞察。
+</ParamField>
+
+<Tip>
+使用时间段选择器比较不同月份的使用情况，并识别季节性趋势或增长模式。
+</Tip>
+
+#### 计量器数量图表
+
+<Frame>
+<img src="/images/guides/usage-based-billing/meter-quantities-chart.png" alt="计量器数量图表显示随时间变化的使用趋势，带有紫色渐变可视化" />
+</Frame>
+
+计量器数量图表可视化随时间变化的使用趋势，具有以下功能：
+
+- **时间序列可视化**：跟踪天、周或月的使用模式
+- **多个计量器支持**：同时查看来自不同计量器的数据
+- **趋势分析**：识别使用峰值、模式和增长轨迹
+
+<Info>
+图表会根据您的使用量和所选时间范围自动缩放，清晰显示小波动和重大使用变化。
+</Info>
+
+### 事件分析
+
+<Frame>
+<img src="/images/guides/usage-based-billing/events-table.png" alt="事件表显示事件名称、ID 和详细事件分析的分页控件" />
+</Frame>
+
+事件选项卡提供对单个使用事件的详细可见性：
+
+#### 事件信息显示
+
+事件表提供单个使用事件的清晰视图，具有以下列：
+
+- **事件名称**：生成使用事件的特定操作或触发器
+- **事件 ID**：每个事件实例的唯一标识符
+- **客户 ID**：与事件相关的客户
+- **时间戳**：事件发生的时间
+
+<Info>
+此视图允许您跟踪和监控客户基础中的单个使用事件，提供对计费计算和使用模式的透明度。
+</Info>
+
+### 客户分析
+
+客户选项卡提供客户使用数据的详细表格视图，包含以下信息：
+
+#### 可用数据列
+
+<ParamField path="客户电子邮件" type="string">
+用于识别的客户电子邮件地址。
+</ParamField>
+
+<ParamField path="订阅 ID" type="string">
+客户订阅的唯一标识符。
+</ParamField>
+
+<ParamField path="免费阈值" type="number">
+客户计划中包含的免费单位数量，在收费之前适用。
+</ParamField>
+
+<ParamField path="每单位价格" type="currency">
+超出免费阈值的使用费用。
+</ParamField>
+
+<ParamField path="最后事件" type="timestamp">
+客户最近使用事件的时间戳。
+</ParamField>
+
+<ParamField path="总价格" type="currency">
+基于使用的计费中向客户收取的总金额。
+</ParamField>
+
+<ParamField path="消耗单位" type="number">
+客户消耗的单位总数。
+</ParamField>
+
+<ParamField path="可收费单位" type="number">
+超过免费阈值并正在收费的单位数量。
+</ParamField>
+
+#### 表格功能
+
+- **列过滤**：使用 "编辑列" 功能显示/隐藏特定数据列
+- **实时更新**：使用数据反映最新的消费指标
+
+## 聚合示例
+
+以下是不同聚合类型如何工作的实际示例：
+
+### 理解聚合类型
+
+不同的聚合类型适用于不同的计费场景。根据您希望如何测量和收费使用情况选择正确的类型。
+
+### 实际实施示例
+
+这些示例展示了每种聚合类型的实际应用，包含示例事件和预期结果。
+
+<AccordionGroup>
+<Accordion title="计数聚合 - API 调用">
+场景：跟踪 API 请求的总数
+
+计量器配置：
+- 事件名称： `api.call`
+- 聚合类型：计数
+- 测量单位： `calls`
+
+**示例事件**：
+
+```json
+{
+  "events": [
+    {"event_id": "call_1", "customer_id": "cus_123", "event_name": "api.call"},
+    {"event_id": "call_2", "customer_id": "cus_123", "event_name": "api.call"},
+    {"event_id": "call_3", "customer_id": "cus_123", "event_name": "api.call"}
+  ]
+}
+```
+
+结果：向客户收费 3 次调用
+</Accordion>
+
+<Accordion title="求和聚合 - 数据传输">
+场景：根据传输的总字节收费
+
+计量器配置：
+- 事件名称： `data.transfer`
+- 聚合类型：求和
+- 聚合属性： `bytes`
+- 测量单位： `GB`
+
+**示例事件**：
+
+```json
+{
+  "events": [
+    {
+      "event_id": "transfer_1",
+      "customer_id": "cus_123", 
+      "event_name": "data.transfer",
+      "metadata": {"bytes": 1073741824}
+    },
+    {
+      "event_id": "transfer_2",
+      "customer_id": "cus_123",
+      "event_name": "data.transfer", 
+      "metadata": {"bytes": 536870912}
+    }
+  ]
+}
+```
+
+结果：向客户收费 1.5 GB 的总传输
+</Accordion>
+
+<Accordion title="最大聚合 - 峰值并发用户">
+场景：根据最高并发用户数收费
+
+计量器配置：
+- 事件名称： `concurrent.users`
+- 聚合类型：最大值
+- 聚合属性： `count`
+- 测量单位： `users`
+
+**示例事件**：
+
+```json
+{
+  "events": [
+    {
+      "event_id": "peak_1",
+      "customer_id": "cus_123",
+      "event_name": "concurrent.users", 
+      "metadata": {"count": 15}
+    },
+    {
+      "event_id": "peak_2",
+      "customer_id": "cus_123",
+      "event_name": "concurrent.users",
+      "metadata": {"count": 23}
+    },
+    {
+      "event_id": "peak_3",
+      "customer_id": "cus_123",
+      "event_name": "concurrent.users",
+      "metadata": {"count": 18}
+    }
+  ]
+}
+```
+
+结果：向客户收费 23 个峰值并发用户
+</Accordion>
+</AccordionGroup>
+
+### 事件过滤示例
+
+<Tabs>
+<Tab title="按 API 端点过滤">
+仅计算特定端点的 API 调用：
+
+过滤配置：
+- 属性： `endpoint`
+- 比较器： `equals`
+- 值： `/v1/orders`
+
+示例事件：
+
+```json
+{
+  "event_id": "call_1",
+  "customer_id": "cus_123",
+  "event_name": "api.call",
+  "metadata": {
+    "endpoint": "/v1/orders",
+    "method": "POST"
+  }
+}
+```
+
+结果：符合过滤条件的事件将被计数。不同端点的事件将被忽略。
+</Tab>
+
+<Tab title="按值范围过滤">
+仅计算大文件上传：
+
+过滤配置：
+- 属性： `file_size`
+- 比较器： `greater_than`
+- 值： `1048576` (1MB 以字节为单位)
+
+示例事件：
+
+```json
+{
+  "event_id": "upload_1",
+  "customer_id": "cus_123", 
+  "event_name": "file.upload",
+  "metadata": {
+    "file_size": 5242880,
+    "file_type": "image"
+  }
+}
+```
+
+结果：大于 1MB 的文件将被计数。较小的文件将被忽略。
+</Tab>
+
+<Tab title="复杂的多条件过滤">
+在工作时间内计算高级 API 调用：
+
+过滤配置（使用与逻辑）：
+- 属性： `plan_type`, 比较器： `equals`, 值： `premium`
+- 属性： `hour`, 比较器： `greater_than_or_equal`, 值： `9`
+- 属性： `hour`, 比较器： `less_than`, 值： `17`
+
+示例事件：
+
+```json
+{
+  "event_id": "call_1",
+  "customer_id": "cus_123",
+  "event_name": "api.call",
+  "metadata": {
+    "plan_type": "premium",
+    "hour": 14,
+    "endpoint": "/v1/analytics"
+  }
+}
+```
+
+结果：工作时间内的高级 API 调用（上午 9 点 - 下午 5 点）将被计数。
+</Tab>
+</Tabs>
+
+## 故障排除
+
+解决基于使用的计费实施中的常见问题，确保准确的跟踪和计费。
+
+### 常见问题
+
+大多数基于使用的计费问题都属于以下类别：
+- 事件交付和处理问题
+- 计量器配置问题
+- 数据类型和格式错误
+- 客户 ID 和身份验证问题
+
+### 调试步骤
+
+在故障排除基于使用的计费时：
+1. 验证事件交付在事件分析选项卡中
+2. 检查计量器配置是否与您的事件结构匹配
+3. 验证客户 ID 和 API 身份验证
+4. 审查过滤条件和聚合设置
+
+### 解决方案和修复
+
+<AccordionGroup>
+<Accordion title="事件未显示在计量器中">
+常见原因：
+- 事件名称与计量器配置不完全匹配
+- 事件过滤条件排除了您的事件
+- 客户 ID 在您的 Dodo Payments 账户中不存在
+- 事件时间戳超出当前计费周期
+
+解决方案：
+- 验证事件名称的拼写和大小写敏感性
+- 审查并测试您的过滤条件
+- 确认客户 ID 有效且处于活动状态
+- 检查事件时间戳是否最近且格式正确
+</Accordion>
+
+<Accordion title="聚合未按预期工作">
+常见原因：
+- 聚合属性名称与事件元数据键不匹配
+- 元数据值的数据类型错误（字符串与数字）
+- 缺少所需的元数据属性
+
+解决方案：
+- 确保元数据键与您的聚合属性设置完全匹配
+- 将字符串数字转换为事件中的实际数字
+- 在每个事件中包含所有必需的属性
+</Accordion>
+
+<Accordion title="过滤未按预期工作">
+常见原因：
+- 过滤属性名称与事件元数据不匹配
+- 数据类型的比较器错误（字符串与数字）
+- 字符串比较中的大小写敏感性
+
+解决方案：
+- 仔细检查属性名称是否完全匹配
+- 对于您的数据类型使用适当的比较器
+- 在过滤字符串时考虑大小写敏感性
+</Accordion>
+</AccordionGroup>

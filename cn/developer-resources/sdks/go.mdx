@@ -1,0 +1,393 @@
+---
+title: Go
+description: 将 Dodo Payments 集成到您的 Go 应用程序中，使用符合习惯的高性能 SDK
+icon: golang
+---
+
+Go SDK 提供了一个干净且符合习惯的 Go 接口，用于将 Dodo Payments 集成到您的应用程序中。它支持上下文，强类型响应，中间件功能，并且安全地支持并发使用。
+
+## 安装
+
+使用 Go 模块安装 SDK：
+
+```bash
+go get github.com/dodopayments/dodopayments-go
+```
+
+<Info>
+该 SDK 支持 Go 1.18 及更高版本，利用现代 Go 特性以实现最佳性能。
+</Info>
+
+## 快速开始
+
+初始化客户端并创建您的第一个结账会话：
+
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"log"
+
+	"github.com/dodopayments/dodopayments-go"
+	"github.com/dodopayments/dodopayments-go/option"
+)
+
+func main() {
+	client := dodopayments.NewClient(
+		option.WithBearerToken("My Bearer Token"), // defaults to os.LookupEnv("DODO_PAYMENTS_API_KEY")
+		option.WithEnvironmentTestMode(),          // defaults to option.WithEnvironmentLiveMode()
+	)
+	
+	checkoutSessionResponse, err := client.CheckoutSessions.New(context.TODO(), dodopayments.CheckoutSessionNewParams{
+		CheckoutSessionRequest: dodopayments.CheckoutSessionRequestParam{
+			ProductCart: dodopayments.F([]dodopayments.CheckoutSessionRequestProductCartParam{{
+				ProductID: dodopayments.F("product_id"),
+				Quantity:  dodopayments.F(int64(1)),
+			}}),
+		},
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("Session ID: %s\n", checkoutSessionResponse.SessionID)
+}
+```
+
+<Warning>
+请始终使用环境变量安全存储您的 API 密钥。切勿在源代码中硬编码它们。
+</Warning>
+
+## 核心功能
+
+<CardGroup cols={2}>
+<Card title="上下文支持" icon="clock">
+  完全支持 context.Context 以进行取消和超时
+</Card>
+
+<Card title="强类型" icon="shield-check">
+  强类型请求和响应以确保编译时安全
+</Card>
+
+<Card title="中间件" icon="layer-group">
+  可扩展的中间件支持，用于日志记录、指标和自定义逻辑
+</Card>
+
+<Card title="Goroutine 安全" icon="bolt">
+  设计用于并发操作的线程安全客户端
+</Card>
+</CardGroup>
+
+## 配置
+
+### 上下文和超时
+
+利用 Go 的上下文进行超时和取消：
+
+```go
+import (
+	"context"
+	"time"
+	
+	"github.com/dodopayments/dodopayments-go"
+	"github.com/dodopayments/dodopayments-go/option"
+)
+
+// Create a context with timeout
+ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+defer cancel()
+
+payment, err := client.Payments.Create(ctx, dodopayments.PaymentCreateParams{
+	Amount:     5000,
+	Currency:   "USD",
+	CustomerID: "cus_123",
+})
+if err != nil {
+	if ctx.Err() == context.DeadlineExceeded {
+		log.Println("Request timed out")
+	} else {
+		log.Fatal(err)
+	}
+}
+```
+
+### 重试配置
+
+配置自动重试行为：
+
+```go
+// Configure default for all requests (default is 2)
+client := dodopayments.NewClient(
+	option.WithMaxRetries(0), // disable retries
+)
+
+// Override per-request
+client.CheckoutSessions.New(
+	context.TODO(),
+	dodopayments.CheckoutSessionNewParams{
+		CheckoutSessionRequest: dodopayments.CheckoutSessionRequestParam{
+			ProductCart: dodopayments.F([]dodopayments.CheckoutSessionRequestProductCartParam{{
+				ProductID: dodopayments.F("product_id"),
+				Quantity:  dodopayments.F(int64(0)),
+			}}),
+		},
+	},
+	option.WithMaxRetries(5),
+)
+```
+
+## 常见操作
+
+### 创建结账会话
+
+生成一个结账会话：
+
+```go
+session, err := client.CheckoutSessions.New(ctx, dodopayments.CheckoutSessionNewParams{
+	CheckoutSessionRequest: dodopayments.CheckoutSessionRequestParam{
+		ProductCart: dodopayments.F([]dodopayments.CheckoutSessionRequestProductCartParam{{
+			ProductID: dodopayments.F("prod_123"),
+			Quantity:  dodopayments.F(int64(1)),
+		}}),
+		ReturnURL: dodopayments.F("https://yourdomain.com/return"),
+	},
+})
+if err != nil {
+	log.Fatal(err)
+}
+
+fmt.Printf("Checkout URL: %s\n", session.URL)
+```
+
+### 管理客户
+
+创建和检索客户信息：
+
+```go
+// Create a customer
+customer, err := client.Customers.New(ctx, dodopayments.CustomerNewParams{
+	Email: dodopayments.F("customer@example.com"),
+	Name:  dodopayments.F("John Doe"),
+	Metadata: dodopayments.F(map[string]string{
+		"user_id": "12345",
+	}),
+})
+if err != nil {
+	log.Fatal(err)
+}
+
+// Retrieve customer
+customer, err = client.Customers.Get(ctx, "cus_123")
+if err != nil {
+	log.Fatal(err)
+}
+
+fmt.Printf("Customer: %s (%s)\n", customer.Name, customer.Email)
+```
+
+### 处理订阅
+
+创建和管理定期订阅：
+
+```go
+// Create a subscription
+subscription, err := client.Subscriptions.New(ctx, dodopayments.SubscriptionNewParams{
+	CustomerID: dodopayments.F("cus_123"),
+	ProductID:  dodopayments.F("prod_456"),
+	PriceID:    dodopayments.F("price_789"),
+})
+if err != nil {
+	log.Fatal(err)
+}
+
+// Get usage history
+usageHistory, err := client.Subscriptions.GetUsageHistory(
+	ctx,
+	subscription.ID,
+	dodopayments.SubscriptionGetUsageHistoryParams{
+		StartDate: dodopayments.F("2024-01-01T00:00:00Z"),
+		EndDate:   dodopayments.F("2024-03-31T23:59:59Z"),
+	},
+)
+if err != nil {
+	log.Fatal(err)
+}
+```
+
+## 基于使用的计费
+
+### 记录使用事件
+
+跟踪自定义事件：
+
+```go
+import "github.com/dodopayments/dodopayments-go"
+
+response, err := client.UsageEvents.Ingest(ctx, dodopayments.UsageEventIngestParams{
+	Events: dodopayments.F([]dodopayments.UsageEventIngestParamsEvent{{
+		EventID:    dodopayments.F("api_call_12345"),
+		CustomerID: dodopayments.F("cus_abc123"),
+		EventName:  dodopayments.F("api_request"),
+		Timestamp:  dodopayments.F("2024-01-15T10:30:00Z"),
+		Metadata: dodopayments.F(map[string]string{
+			"endpoint":     "/api/v1/users",
+			"method":       "GET",
+			"tokens_used":  "150",
+		}),
+	}}),
+})
+if err != nil {
+	log.Fatal(err)
+}
+```
+
+### 列出使用事件
+
+```go
+// List events with filters
+params := dodopayments.UsageEventListParams{
+	CustomerID: dodopayments.F("cus_abc123"),
+	EventName:  dodopayments.F("api_request"),
+}
+
+events, err := client.UsageEvents.List(ctx, params)
+if err != nil {
+	log.Fatal(err)
+}
+
+for _, event := range events.Data {
+	fmt.Printf("Event %s: %s at %s\n", event.EventID, event.EventName, event.Timestamp)
+}
+```
+
+## 错误处理
+
+处理特定错误类型：
+
+```go
+payment, err := client.Payments.Create(ctx, dodopayments.PaymentCreateParams{
+	Amount:   5000,
+	Currency: "USD",
+})
+if err != nil {
+	if apiErr, ok := err.(*dodopayments.APIError); ok {
+		fmt.Printf("API Error: %s\n", apiErr.Message)
+		fmt.Printf("Status Code: %d\n", apiErr.StatusCode)
+		fmt.Printf("Request ID: %s\n", apiErr.RequestID)
+		
+		// Handle specific error types
+		switch apiErr.Type {
+		case dodopayments.ErrorTypeAuthentication:
+			log.Println("Authentication failed")
+		case dodopayments.ErrorTypeInvalidRequest:
+			log.Println("Invalid request parameters")
+		case dodopayments.ErrorTypeRateLimit:
+			log.Println("Rate limit exceeded")
+		default:
+			log.Printf("API error: %s\n", apiErr.Message)
+		}
+	} else {
+		log.Fatal(err)
+	}
+}
+```
+
+## 中间件
+
+添加自定义中间件以进行日志记录或指标：
+
+```go
+func Logger(req *http.Request, next option.MiddlewareNext) (res *http.Response, err error) {
+	// Before the request
+	start := time.Now()
+	log.Printf("Request: %s %s\n", req.Method, req.URL)
+
+	// Forward the request to the next handler
+	res, err = next(req)
+
+	// After the request
+	end := time.Now()
+	log.Printf("Response: %d in %v\n", res.StatusCode, end.Sub(start))
+
+	return res, err
+}
+
+client := dodopayments.NewClient(
+	option.WithMiddleware(Logger),
+)
+```
+
+## 并发
+
+该客户端安全地支持并发使用：
+
+```go
+package main
+
+import (
+	"context"
+	"sync"
+	"log"
+
+	"github.com/dodopayments/dodopayments-go"
+)
+
+func main() {
+	client := dodopayments.NewClient()
+	
+	var wg sync.WaitGroup
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go func(idx int) {
+			defer wg.Done()
+			
+			payment, err := client.Payments.Create(context.Background(), dodopayments.PaymentCreateParams{
+				Amount:     1000,
+				Currency:   "USD",
+				CustomerID: "cus_123",
+			})
+			if err != nil {
+				log.Printf("Failed to create payment %d: %v", idx, err)
+				return
+			}
+			
+			log.Printf("Created payment %d: %s", idx, payment.ID)
+		}(i)
+	}
+	
+	wg.Wait()
+}
+```
+
+## 资源
+
+<CardGroup cols={2}>
+<Card title="GitHub 仓库" icon="github" href="https://github.com/dodopayments/dodopayments-go">
+  查看源代码并贡献
+</Card>
+
+<Card title="API 参考" icon="book" href="/api-reference/introduction">
+  完整的 API 文档
+</Card>
+
+<Card title="Discord 社区" icon="discord" href="https://discord.gg/bYqAp4ayYh">
+  获取帮助并与开发者联系
+</Card>
+
+<Card title="报告问题" icon="bug" href="https://github.com/dodopayments/dodopayments-go/issues">
+  报告错误或请求功能
+</Card>
+</CardGroup>
+
+## 支持
+
+需要 Go SDK 的帮助吗？
+
+- **Discord**: 加入我们的 [社区服务器](https://discord.gg/bYqAp4ayYh) 获取实时支持
+- **电子邮件**: 联系我们 support@dodopayments.com
+- **GitHub**: 在 [仓库](https://github.com/dodopayments/dodopayments-go) 上打开一个问题
+
+## 贡献
+
+我们欢迎贡献！查看 [贡献指南](https://github.com/dodopayments/dodopayments-go/blob/main/CONTRIBUTING.md) 开始。

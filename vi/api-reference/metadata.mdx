@@ -1,0 +1,191 @@
+---
+title: Hướng dẫn Metadata
+description: Tìm hiểu cách sử dụng metadata để lưu trữ thông tin bổ sung về các
+  đối tượng Dodo Payments của bạn
+icon: tags
+---
+
+## Giới thiệu
+
+Metadata cho phép bạn lưu trữ thông tin bổ sung, có cấu trúc về các đối tượng của bạn trong Dodo Payments. Bạn có thể gán metadata cho hầu hết các đối tượng Dodo Payments, bao gồm thanh toán, đăng ký, và nhiều hơn nữa.
+
+## Tổng quan
+
+- Khóa metadata có thể dài tối đa 40 ký tự
+- Giá trị metadata có thể dài tối đa 500 ký tự
+- Bạn có thể có tối đa 50 cặp khóa-giá trị metadata cho mỗi đối tượng
+- Khóa chỉ nên chứa các ký tự chữ và số, dấu gạch ngang và dấu gạch dưới
+- Metadata không thể tìm kiếm bằng API của chúng tôi nhưng được trả về trong các phản hồi API và webhook
+
+## Trường hợp sử dụng
+
+Metadata hữu ích cho:
+
+- Lưu trữ ID hoặc tham chiếu bên ngoài
+- Thêm chú thích nội bộ
+- Liên kết các đối tượng Dodo Payments với hệ thống của bạn
+- Phân loại giao dịch
+- Thêm thuộc tính tùy chỉnh cho báo cáo
+
+## Thêm Metadata
+
+Bạn có thể thêm metadata khi tạo hoặc cập nhật các đối tượng thông qua API. Đối với sản phẩm, bạn cũng có tùy chọn thêm metadata trực tiếp từ giao diện bảng điều khiển.
+
+### Qua API
+
+```javascript
+// Adding metadata when creating a checkout session
+const checkoutSession = await client.checkoutSessions.create({
+    product_cart: [{ product_id: 'product_id', quantity: 1 }],
+    return_url: 'https://example.com/return',
+    metadata: {
+        order_id: 'ORD-123',
+        campaign_source: 'email',
+        customer_segment: 'premium'
+    }
+});
+
+// Adding metadata when creating a payment
+const payment = await client.payments.create({
+    billing: { city: 'city', country: 'AF', state: 'state', street: 'street', zipcode: 0 },
+    customer: { customer_id: 'customer_id' },
+    product_cart: [{ product_id: 'product_id', quantity: 0 }],
+    metadata:{order_id: 'ORD-123', customer_notes: 'Customer notes'}
+  });
+
+// Adding metadata when creating a product
+const product = await client.products.create({
+    name: 'Premium Software License',
+    price: 9900,
+    currency: 'USD',
+    metadata: {
+        category: 'software',
+        license_type: 'premium',
+        support_tier: 'priority'
+    }
+});
+
+// Adding metadata when creating a customer
+const customer = await client.customers.create({
+    email: 'customer@example.com',
+    name: 'John Doe',
+    metadata: {
+        crm_id: 'CRM-12345',
+        customer_segment: 'enterprise',
+        referral_source: 'website'
+    }
+});
+```
+
+### Qua Giao diện Bảng điều khiển (Chỉ Sản phẩm)
+
+Đối với sản phẩm, bạn cũng có thể thêm metadata trực tiếp từ bảng điều khiển Dodo Payments khi tạo hoặc chỉnh sửa một sản phẩm. Phần metadata cho phép bạn dễ dàng thêm các cặp khóa-giá trị tùy chỉnh mà không cần viết mã.
+
+<Frame>
+<img src="/images/product-catalog/product-metadata-ui.png" alt="Giao diện metadata sản phẩm trong bảng điều khiển Dodo Payments" />
+</Frame>
+
+<Tip>
+Sử dụng giao diện bảng điều khiển cho metadata sản phẩm đặc biệt hữu ích cho các thành viên trong nhóm không chuyên về kỹ thuật cần quản lý thông tin và danh mục sản phẩm.
+</Tip>
+
+## Lấy Metadata
+
+Metadata được bao gồm trong các phản hồi API khi lấy các đối tượng:
+
+```javascript
+// Retrieving checkout session metadata
+const checkoutSession = await client.checkoutSessions.retrieve('cs_123');
+console.log(checkoutSession.metadata.order_id); // 'ORD-123'
+
+// Retrieving payment metadata
+const payment = await client.payments.retrieve('pay_123');
+console.log(payment.metadata.order_id); // '6735'
+
+// Retrieving customer metadata
+const customer = await client.customers.retrieve('customer_123');
+console.log(customer.metadata.crm_id); // 'CRM-12345'
+
+// Retrieving refund metadata
+const refund = await client.refunds.retrieve('refund_123');
+console.log(refund.metadata.refund_reason); // 'customer_request'
+```
+
+## Tìm kiếm và Lọc
+
+Mặc dù metadata không thể tìm kiếm trực tiếp qua API của chúng tôi, bạn có thể:
+
+1. Lưu trữ các định danh quan trọng trong metadata
+2. Lấy các đối tượng bằng ID chính của chúng
+3. Lọc kết quả trong mã ứng dụng của bạn
+
+```javascript
+// Example: Find a checkout session using metadata
+const checkoutSessions = await client.checkoutSessions.list({
+  limit: 100
+});
+
+const matchingSession = checkoutSessions.data.find(
+  session => session.metadata?.order_id === 'ORD-123'
+);
+
+// Example: Find a payment using your order ID
+const payments = await client.payments.list({
+  limit: 100
+});
+
+const matchingPayment = payments.data.find(
+  payment => payment.metadata.order_id === '6735'
+);
+```
+
+## Thực hành tốt nhất
+
+### Nên:
+- Sử dụng quy tắc đặt tên nhất quán cho các khóa metadata
+- Tài liệu hóa sơ đồ metadata của bạn nội bộ
+- Giữ giá trị ngắn gọn và có ý nghĩa
+- Sử dụng metadata cho dữ liệu tĩnh mà thôi
+- Cân nhắc sử dụng tiền tố cho các hệ thống khác nhau (ví dụ: `crm_id`, `inventory_sku`)
+
+### Không nên:
+- Lưu trữ dữ liệu nhạy cảm trong metadata
+- Sử dụng metadata cho các giá trị thay đổi thường xuyên
+- Dựa vào metadata cho logic kinh doanh quan trọng
+- Lưu trữ thông tin trùng lặp có sẵn ở nơi khác trong đối tượng
+- Sử dụng ký tự đặc biệt trong các khóa metadata
+
+## Các đối tượng được hỗ trợ
+
+Metadata được hỗ trợ trên các đối tượng sau:
+
+| Loại Đối tượng | Hỗ trợ |
+|------------|---------|
+| Thanh toán | ✓ |
+| Đăng ký | ✓ |
+| Sản phẩm | ✓ |
+| Hoàn tiền | ✓ |
+| Phiên thanh toán | ✓ |
+| Khách hàng | ✓ |
+
+## Webhook và Metadata
+
+Metadata được bao gồm trong các sự kiện webhook, giúp dễ dàng xử lý thông báo với dữ liệu tùy chỉnh của bạn:
+
+```javascript
+// Example webhook handler
+app.post('/webhook', (req, res) => {
+  const event = req.body;
+
+  if (event.type === 'payment.succeeded') {
+    const orderId = event.data.object.metadata.order_id;
+    // Process order using your internal order ID
+  }
+  
+  if (event.type === 'checkout.session.completed') {
+    const orderId = event.data.object.metadata.order_id;
+    const campaignSource = event.data.object.metadata.campaign_source;
+    // Handle checkout session completion with custom metadata
+  }
+});
+```

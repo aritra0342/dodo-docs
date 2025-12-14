@@ -1,0 +1,295 @@
+---
+title: Carteiras de Clientes
+description: Construa sistemas de cobrança baseados em crédito como OpenAI ou
+  Claude com carteiras de clientes. Acompanhe saldos, gerencie créditos e crie
+  fluxos de trabalho financeiros sofisticados.
+icon: wallet
+tag: NOVO
+---
+
+<CardGroup cols={3}>
+<Card title="Obter Carteiras de Clientes" icon="code" href="/api-reference/customers/get-customer-wallets">
+  Verifique os saldos das carteiras dos clientes em diferentes moedas.
+</Card>
+
+<Card title="Criar Lançamento no Livro" icon="plus" href="/api-reference/customers/post-customer-wallets-ledger-entries">
+  Adicione ou remova créditos das carteiras dos clientes.
+</Card>
+
+<Card title="Listar Lançamentos no Livro" icon="list" href="/api-reference/customers/get-customer-wallets-ledger-entries">
+  Veja o histórico completo de transações com paginação.
+</Card>
+</CardGroup>
+
+## O que são Carteiras de Clientes?
+
+Pense nas carteiras de clientes como porquinhos eletrônicos para seus usuários. Cada cliente recebe uma automaticamente quando você cria sua conta. Você pode usar essas carteiras para:
+
+- **Acompanhar saldos de crédito** em USD e INR
+- **Construir sistemas de crédito via API** como OpenAI ou Claude
+- **Criar cobrança pré-paga** onde os clientes compram créditos antecipadamente
+- **Gerenciar reembolsos** como créditos na carteira em vez de dinheiro
+- **Gerenciar cobranças complexas** com histórico detalhado de transações
+
+<Info>
+Cada cliente recebe automaticamente uma carteira quando você cria sua conta. As carteiras suportam as moedas USD e INR com saldos separados para cada uma.
+</Info>
+
+<Frame>
+  <img src="/images/customer/customer-wallet.png" alt="Carteiras de Clientes" />
+</Frame>
+
+## Como Funciona
+
+As carteiras de clientes são simples: elas guardam dinheiro (créditos) que os clientes podem gastar em seus serviços. Quando um cliente faz uma compra, o saldo da carteira é verificado primeiro, e quaisquer créditos disponíveis são usados antes de cobrar seu método de pagamento.
+
+### Configuração Automática
+
+Quando você cria um novo cliente, o Dodo Payments cria automaticamente uma carteira com saldo zero. Ela está pronta para uso imediato através da nossa API.
+
+### Suporte a Múltiplas Moedas
+
+Cada carteira pode manter saldos em diferentes moedas:
+
+<ResponseField name="Saldo em USD" type="integer">
+Saldo em Dólares Americanos (armazenado em centavos)
+</ResponseField>
+
+<ResponseField name="Saldo em INR" type="integer">
+Saldo em Rúpias Indianas (armazenado em paise)
+</ResponseField>
+
+<Info>
+Atualmente, apenas saldos em <strong>USD</strong> e <strong>INR</strong> estão disponíveis. Mais moedas em breve.
+</Info>
+
+## Trabalhando com Carteiras
+
+### Verificar Saldos dos Clientes
+
+Veja quanto crédito um cliente tem em todas as moedas. Perfeito para verificar se eles têm fundos suficientes antes de processar uma compra.
+
+<Card title="Obter Saldos das Carteiras dos Clientes" icon="wallet" href="/api-reference/customers/get-customer-wallets">
+  Verifique os saldos de crédito da carteira de um cliente em todas as moedas suportadas.
+</Card>
+
+### Adicionar ou Remover Créditos
+
+Dê créditos aos clientes (como bônus de boas-vindas) ou deduza créditos (como cobranças de uso). Você pode adicionar razões para cada transação para acompanhar o que aconteceu.
+
+<Card title="Criar Lançamento no Livro da Carteira do Cliente" icon="plus" href="/api-reference/customers/post-customer-wallets-ledger-entries">
+  Adicione ou remova créditos da carteira de um cliente.
+</Card>
+
+### Ver Histórico de Transações
+
+Veja cada transação de crédito e débito de um cliente. Ótimo para depurar problemas de cobrança ou mostrar aos clientes seu histórico de gastos.
+
+<Card title="Listar Lançamentos no Livro da Carteira do Cliente" icon="list" href="/api-reference/customers/get-customer-wallets-ledger-entries">
+  Veja cada transação de crédito e débito de um cliente.
+</Card>
+
+## Exemplos do Mundo Real
+
+### Sistema de Crédito via API (Como OpenAI)
+
+Construa um sistema onde os clientes compram créditos e os gastam em chamadas de API:
+
+```javascript
+// Give new customers welcome credits
+async function giveWelcomeCredits(customerId) {
+  await client.customers.wallets.ledgerEntries.create(customerId, {
+    amount: 10000, // $100 in cents
+    currency: 'USD',
+    entry_type: 'credit',
+    reason: 'Welcome bonus - 100 API credits',
+    idempotency_key: `welcome_${customerId}_${Date.now()}`
+  });
+}
+
+// Charge customers for API usage
+async function chargeForApiUsage(customerId, usageCost) {
+  try {
+    await client.customers.wallets.ledgerEntries.create(customerId, {
+      amount: usageCost, // Cost in cents
+      currency: 'USD',
+      entry_type: 'debit',
+      reason: `API usage - ${usageCost} credits consumed`,
+      idempotency_key: `usage_${customerId}_${Date.now()}`
+    });
+  } catch (error) {
+    if (error.status === 400) {
+      console.log('Customer needs to buy more credits');
+    }
+  }
+}
+```
+
+### Sistema de Cobrança Pré-Paga
+
+Deixe os clientes comprarem créditos antecipadamente e gastá-los ao longo do tempo:
+
+<Steps>
+<Step title="Dar Boas-Vindas a Novos Clientes">
+Dê aos novos clientes alguns créditos gratuitos para começar.
+
+```javascript
+await client.customers.wallets.ledgerEntries.create(customerId, {
+  amount: 5000, // $50 welcome bonus
+  currency: 'USD',
+  entry_type: 'credit',
+  reason: 'Welcome bonus for new customer',
+  idempotency_key: `welcome_${customerId}`
+});
+```
+
+</Step>
+
+<Step title="Gerenciar Compras de Créditos">
+Quando os clientes compram créditos, adicione-os à sua carteira.
+
+```javascript
+await client.customers.wallets.ledgerEntries.create(customerId, {
+  amount: purchaseAmount, // Amount paid in cents
+  currency: 'USD',
+  entry_type: 'credit',
+  reason: `Credit purchase - ${purchaseAmount} credits`,
+  idempotency_key: `purchase_${paymentId}`
+});
+```
+
+</Step>
+
+<Step title="Cobrar pelo Uso">
+Deduza créditos quando os clientes usarem seu serviço.
+
+```javascript
+await client.customers.wallets.ledgerEntries.create(customerId, {
+  amount: usageCost,
+  currency: 'USD', 
+  entry_type: 'debit',
+  reason: `Service usage - ${usageCost} credits`,
+  idempotency_key: `usage_${usageId}`
+});
+```
+
+</Step>
+
+<Step title="Monitorar Saldos">
+Verifique se os clientes estão com poucos créditos.
+
+```javascript
+const wallets = await client.customers.wallets.list(customerId);
+const usdWallet = wallets.items.find(w => w.currency === 'USD');
+const balance = usdWallet.balance;
+
+if (balance < 1000) { // Less than $10
+  // Send low balance notification
+  await sendLowBalanceNotification(customerId, balance);
+}
+```
+
+</Step>
+</Steps>
+
+### Suporte a Múltiplas Moedas
+
+Atenda clientes em diferentes países:
+
+<AccordionGroup>
+<Accordion title="Clientes dos EUA">
+Dê créditos em USD para clientes baseados nos EUA.
+
+```javascript
+await client.customers.wallets.ledgerEntries.create(customerId, {
+  amount: 20000, // $200 in cents
+  currency: 'USD',
+  entry_type: 'credit',
+  reason: 'USD credit purchase',
+  idempotency_key: `usd_purchase_${paymentId}`
+});
+```
+
+</Accordion>
+
+<Accordion title="Clientes Indianos">
+Dê créditos em INR para clientes indianos.
+
+```javascript
+await client.customers.wallets.ledgerEntries.create(customerId, {
+  amount: 1500000, // ₹15,000 in paise
+  currency: 'INR',
+  entry_type: 'credit',
+  reason: 'INR credit purchase',
+  idempotency_key: `inr_purchase_${paymentId}`
+});
+```
+
+</Accordion>
+</AccordionGroup>
+
+## Melhores Práticas
+
+### Prevenir Transações Duplicadas
+
+Use chaves de idempotência para garantir que você não cobre acidentalmente os clientes duas vezes pela mesma coisa:
+
+```javascript
+async function addCreditsSafely(customerId, amount, reason) {
+  const idempotencyKey = `${reason}_${customerId}_${Date.now()}`;
+  
+  try {
+    const result = await client.customers.wallets.ledgerEntries.create(customerId, {
+      amount: amount,
+      currency: 'USD',
+      entry_type: 'credit',
+      reason: reason,
+      idempotency_key: idempotencyKey
+    });
+    
+    return { success: true, wallet: result };
+  } catch (error) {
+    if (error.status === 400 && error.message.includes('Insufficient balance')) {
+      return { success: false, error: 'INSUFFICIENT_BALANCE' };
+    }
+    
+    if (error.status === 409) {
+      // Transaction already processed
+      return { success: true, wallet: null, duplicate: true };
+    }
+    
+    throw error;
+  }
+}
+```
+
+### Verificar Saldos Antes de Cobrar
+
+Sempre verifique se os clientes têm créditos suficientes antes de processar operações caras:
+
+```javascript
+async function checkBalanceBeforeOperation(customerId, requiredAmount) {
+  const wallets = await client.customers.wallets.list(customerId);
+  const usdWallet = wallets.items.find(w => w.currency === 'USD');
+  
+  if (!usdWallet || usdWallet.balance < requiredAmount) {
+    throw new Error('Not enough credits for this operation');
+  }
+  
+  return usdWallet.balance;
+}
+```
+
+## O que vem a seguir
+
+<Warning>
+Esses recursos estão planejados para lançamentos futuros:
+</Warning>
+
+- **Expiração de Créditos**: Defina créditos para expirarem após um certo tempo
+- **Melhores Análises**: Relatórios detalhados de gastos e insights de uso  
+- **Mais Webhooks**: Notificações em tempo real para mudanças de saldo e créditos baixos
+
+<Tip>
+Comece simples com operações básicas de crédito/débito, depois adicione recursos mais complexos à medida que seu negócio cresce.
+</Tip>

@@ -1,0 +1,173 @@
+---
+title: Customer.io
+description: Dodo Payments 이벤트를 Customer.io에 전송하여 이메일 자동화 및 고객 여정을 트리거합니다.
+icon: chart-area
+---
+
+## 소개
+
+결제 이벤트를 기반으로 개인화된 이메일 캠페인 및 고객 여정을 트리거합니다. 새로운 고객을 위한 환영 이메일, 구독 업데이트 및 결제 실패 알림을 Customer.io를 통해 자동으로 전송합니다.
+
+<Info>
+이 통합은 귀하의 Customer.io 사이트 ID와 API 키가 필요합니다.
+</Info>
+
+## 시작하기
+
+<Steps>
+<Step title="웹훅 섹션 열기">
+  Dodo Payments 대시보드에서 <b>Webhooks → + Add Endpoint</b>로 이동하고 통합 드롭다운을 확장합니다.
+  <Frame>
+    <img src="/images/integrations/customer-io.png" alt="Add Endpoint 및 통합 드롭다운" />
+  </Frame>
+</Step>
+
+<Step title="Customer.io 선택">
+  <b>Customer.io</b> 통합 카드를 선택합니다.
+</Step>
+
+<Step title="자격 증명 입력">
+  구성에서 귀하의 Customer.io 사이트 ID와 API 키를 제공합니다.
+</Step>
+
+<Step title="변환 구성">
+  Customer.io의 Track API에 맞게 이벤트 형식을 조정하기 위해 변환 코드를 편집합니다.
+</Step>
+
+<Step title="테스트 및 생성">
+  샘플 페이로드로 테스트하고 <b>Create</b>를 클릭하여 동기화를 활성화합니다.
+</Step>
+
+<Step title="완료!">
+  🎉 이제 결제 이벤트가 Customer.io 이메일 자동화를 트리거합니다.
+</Step>
+</Steps>
+
+## 변환 코드 예제
+
+### 결제 이벤트 추적
+
+```javascript track_payments.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.url = "https://track.customer.io/api/v2/entity";
+    webhook.payload = {
+      type: "person",
+      identifiers: {
+        id: p.customer.customer_id
+      },
+      action: "payment_completed",
+      name: "Payment Completed",
+      attributes: {
+        email: p.customer.email,
+        name: p.customer.name,
+        payment_amount: (p.total_amount / 100).toFixed(2),
+        payment_method: p.payment_method || "unknown",
+        payment_id: p.payment_id,
+        currency: p.currency || "USD"
+      }
+    };
+  }
+  return webhook;
+}
+```
+
+### 구독 생애 주기 추적
+
+```javascript track_subscriptions.js icon="js" expandable
+function handler(webhook) {
+  const s = webhook.payload.data;
+  switch (webhook.eventType) {
+    case "subscription.active":
+      webhook.url = "https://track.customer.io/api/v2/entity";
+      webhook.payload = {
+        type: "person",
+        identifiers: {
+          id: s.customer.customer_id
+        },
+        action: "subscription_started",
+        name: "Subscription Started",
+        attributes: {
+          email: s.customer.email,
+          subscription_id: s.subscription_id,
+          product_id: s.product_id,
+          amount: (s.recurring_pre_tax_amount / 100).toFixed(2),
+          frequency: s.payment_frequency_interval,
+          next_billing: s.next_billing_date
+        }
+      };
+      break;
+    case "subscription.cancelled":
+      webhook.url = "https://track.customer.io/api/v2/entity";
+      webhook.payload = {
+        type: "person",
+        identifiers: {
+          id: s.customer.customer_id
+        },
+        action: "subscription_cancelled",
+        name: "Subscription Cancelled",
+        attributes: {
+          email: s.customer.email,
+          subscription_id: s.subscription_id,
+          cancelled_at: s.cancelled_at,
+          cancel_at_next_billing: s.cancel_at_next_billing_date
+        }
+      };
+      break;
+  }
+  return webhook;
+}
+```
+
+### 고객 속성 추적
+
+```javascript track_attributes.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.url = "https://track.customer.io/api/v2/entity";
+    webhook.payload = {
+      type: "person",
+      identifiers: {
+        id: p.customer.customer_id
+      },
+      action: "identify",
+      name: "Customer Identified",
+      attributes: {
+        email: p.customer.email,
+        name: p.customer.name,
+        total_spent: (p.total_amount / 100).toFixed(2),
+        payment_method: p.payment_method || "unknown",
+        last_payment_date: webhook.payload.timestamp,
+        customer_since: webhook.payload.timestamp
+      }
+    };
+  }
+  return webhook;
+}
+```
+
+## 팁
+
+- Customer.io 캠페인과 일치하는 일관된 이벤트 이름 사용
+- 개인화를 위한 관련 속성 포함
+- 정확한 추적을 위한 적절한 고객 식별자 설정
+- 캠페인 트리거를 위한 의미 있는 이벤트 이름 사용
+
+## 문제 해결
+
+<AccordionGroup>
+<Accordion title="이벤트가 캠페인을 트리거하지 않음">
+- 사이트 ID와 API 키가 올바른지 확인
+- 이벤트 이름이 Customer.io 캠페인과 일치하는지 확인
+- 고객 식별자가 올바르게 설정되었는지 확인
+- Customer.io API 속도 제한 검토
+</Accordion>
+
+<Accordion title="변환 오류">
+- JSON 구조가 Customer.io API 형식과 일치하는지 검증
+- 모든 필수 필드가 포함되어 있는지 확인
+- 이벤트 이름과 속성이 올바르게 형식화되었는지 확인
+</Accordion>
+</AccordionGroup>

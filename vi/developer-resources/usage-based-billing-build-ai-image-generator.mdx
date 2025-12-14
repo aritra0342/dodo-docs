@@ -1,0 +1,709 @@
+---
+title: Xây dựng một Trình tạo Hình ảnh AI với Thanh toán Dựa trên Sử dụng
+description: Theo dõi khi chúng ta xây dựng PixelGen AI - một dịch vụ tạo hình
+  ảnh AI với thanh toán theo mức sử dụng
+icon: code
+---
+
+Trong hướng dẫn này, bạn sẽ xây dựng **PixelGen AI** - một dịch vụ tạo hình ảnh AI mẫu thể hiện thanh toán dựa trên mức sử dụng. Chúng ta sẽ tạo mọi thứ từ đầu: đồng hồ thanh toán, cấu hình sản phẩm và mã ứng dụng mẫu tạo hình ảnh và theo dõi mức sử dụng theo thời gian thực.
+
+<Note>
+Hướng dẫn này cung cấp mã triển khai mẫu cho một ứng dụng dựa trên terminal. Bạn có thể sửa đổi mã này cho framework cụ thể của bạn (React, Vue, Angular, v.v.) và tùy chỉnh phương thức nhập liệu của người dùng theo nhu cầu của ứng dụng của bạn.
+</Note>
+
+Cuối cùng của hướng dẫn này, bạn sẽ có một dịch vụ mẫu hoạt động mà:
+- Tạo hình ảnh sử dụng API DALL-E của OpenAI  
+- Theo dõi mọi lần tạo hình ảnh để thanh toán
+- Tự động tính phí khách hàng dựa trên mức sử dụng
+- Xử lý các cấp độ chất lượng khác nhau (chuẩn so với HD)
+
+## Những gì chúng ta đang xây dựng
+
+Hãy bắt đầu bằng cách hiểu dịch vụ PixelGen AI của chúng ta:
+
+- **Dịch vụ**: Tạo hình ảnh AI sử dụng API DALL-E của OpenAI
+- **Mô hình giá**: Thanh toán theo hình ảnh ($0.05 mỗi hình ảnh)
+- **Cấp miễn phí**: 10 hình ảnh miễn phí mỗi khách hàng mỗi tháng
+- **Tùy chọn chất lượng**: Hình ảnh chuẩn và HD (cùng mức giá để đơn giản)
+
+<Info>
+Trước khi bắt đầu, hãy đảm bảo bạn có:
+- Một tài khoản Dodo Payments
+- Quyền truy cập vào API của OpenAI
+- Kiến thức cơ bản về TypeScript/Node.js
+</Info>
+
+## Bước 1: Tạo Đồng hồ Sử dụng của Bạn
+
+Chúng ta sẽ bắt đầu bằng cách tạo một đồng hồ trong bảng điều khiển Dodo Payments của bạn để theo dõi mọi hình ảnh mà dịch vụ của chúng ta tạo ra. Hãy nghĩ về điều này như là "bộ đếm" theo dõi các sự kiện có thể tính phí.
+
+<Frame>
+  <img src="/images/usage-based/UBB-2.png" alt="" />
+</Frame>
+
+<Tip>
+**Những gì chúng ta đang xây dựng**: Một đồng hồ có tên "Đồng hồ Tạo hình ảnh" mà đếm mỗi lần ai đó tạo hình ảnh bằng dịch vụ của chúng ta.
+</Tip>
+
+<Steps>
+<Step title="Mở phần Đồng hồ">
+1. Đăng nhập vào bảng điều khiển Dodo Payments của bạn
+2. Nhấp vào **Meters** trong thanh bên trái
+3. Nhấp vào nút **Tạo Đồng hồ**
+
+Bạn sẽ thấy một biểu mẫu nơi chúng ta sẽ cấu hình theo dõi tạo hình ảnh của mình.
+</Step>
+
+<Step title="Điền thông tin cơ bản của đồng hồ">
+Bây giờ chúng ta sẽ nhập các chi tiết cụ thể cho dịch vụ PixelGen AI của mình:
+
+**Tên Đồng hồ**: Sao chép và dán chính xác → `Image Generation Meter`
+
+**Mô tả**: Sao chép cái này → `Tracks each AI image generation request made by customers using our DALL-E powered service`
+
+**Tên Sự kiện**: Điều này rất quan trọng - sao chép chính xác → `image.generated`
+
+<Warning>
+Tên sự kiện `image.generated` phải khớp chính xác với những gì chúng ta sẽ gửi từ mã ứng dụng của mình sau này. Tên sự kiện phân biệt chữ hoa chữ thường!
+</Warning>
+</Step>
+
+<Step title="Cấu hình cách chúng ta đếm hình ảnh">
+Thiết lập tổng hợp (cách đồng hồ đếm các sự kiện của chúng ta):
+
+**Loại Tổng hợp**: Chọn **Count** từ menu thả xuống
+
+**Đơn vị Đo lường**: Nhập → `images`
+
+<Info>
+Chúng tôi sử dụng "Count" vì chúng tôi muốn tính phí theo hình ảnh được tạo ra, không phải theo kích thước hoặc thời gian tạo. Mỗi hình ảnh thành công = 1 đơn vị có thể tính phí.
+</Info>
+</Step>
+
+<Step title="Thêm bộ lọc chất lượng">
+
+<Frame>
+  <img src="/images/usage-based/UBB-3.png" alt="" />
+</Frame>
+
+Chúng ta muốn đảm bảo chỉ đếm các hình ảnh hợp lệ (không phải các lần chạy thử nghiệm hoặc thất bại):
+
+1. **Bật Bộ lọc Sự kiện**: Bật cái này **ON**
+2. **Logic Lọc**: Chọn **OR** (điều này có nghĩa là "đếm nếu BẤT KỲ điều kiện nào trong số này là đúng")
+3. **Thêm điều kiện đầu tiên**:
+   - Khóa Thuộc tính: `quality`
+   - Bộ so sánh: `equals`  
+   - Giá trị: `standard`
+4. **Nhấp "Thêm Điều kiện"** cho điều kiện thứ hai:
+   - Khóa Thuộc tính: `quality`
+   - Bộ so sánh: `equals`
+   - Giá trị: `hd`
+
+<Tip>
+Cài đặt này có nghĩa là chúng ta chỉ đếm các sự kiện mà chất lượng là "chuẩn" HOẶC "hd" - lọc ra bất kỳ sự kiện thử nghiệm hoặc yêu cầu không hợp lệ nào.
+</Tip>
+</Step>
+
+<Step title="Tạo đồng hồ của bạn">
+1. Kiểm tra lại tất cả các cài đặt của bạn khớp với các giá trị ở trên
+2. Nhấp vào **Tạo Đồng hồ**
+
+<Check>
+**Đồng hồ đã được tạo!** Đồng hồ "Tạo hình ảnh" của bạn hiện đã sẵn sàng để bắt đầu đếm các lần tạo hình ảnh. Tiếp theo, chúng ta sẽ kết nối nó với một sản phẩm thanh toán.
+</Check>
+</Step>
+</Steps>
+
+## Bước 2: Tạo Sản phẩm Thanh toán của Bạn
+
+Bây giờ chúng ta cần tạo một sản phẩm xác định mức giá của chúng ta ($0.05 mỗi hình ảnh với 10 hình ảnh miễn phí). Điều này kết nối đồng hồ của chúng ta với thanh toán thực tế.
+
+<Tip>
+**Những gì chúng ta đang xây dựng**: Một sản phẩm có tên "PixelGen AI - Tạo hình ảnh" tính phí $0.05 mỗi hình ảnh sau 10 hình ảnh miễn phí đầu tiên mỗi tháng.
+</Tip>
+
+<Steps>
+<Step title="Đi tới Sản phẩm">
+1. Trong bảng điều khiển Dodo Payments của bạn, nhấp vào **Sản phẩm** trong thanh bên trái
+2. Nhấp vào **Tạo Sản phẩm**
+3. Chọn **Dựa trên Sử dụng** làm loại sản phẩm
+
+Điều này cho Dodo Payments biết rằng thanh toán sẽ dựa trên mức sử dụng của đồng hồ, không phải là một đăng ký cố định.
+</Step>
+
+<Step title="Nhập chi tiết sản phẩm">
+Điền vào các giá trị chính xác này cho dịch vụ PixelGen AI của chúng ta:
+
+**Tên Sản phẩm**: Sao chép cái này → `PixelGen AI - Image Generation`
+
+**Mô tả**: Sao chép cái này → `AI-powered image generation service with pay-per-use billing`
+
+**Hình ảnh Sản phẩm**: Tải lên một hình ảnh rõ ràng, liên quan.
+
+<Info>
+Những điều này sẽ xuất hiện trên hóa đơn của khách hàng, vì vậy hãy làm cho chúng rõ ràng và chuyên nghiệp.
+</Info>
+</Step>
+
+<Step title="Kết nối đồng hồ của bạn">
+
+<Frame>
+  <img src="/images/usage-based/UBB-5.png" alt="" />
+</Frame>
+
+Trước khi kết nối đồng hồ của bạn, hãy đảm bảo bạn đã chọn **Thanh toán Dựa trên Sử dụng** làm loại giá cho sản phẩm của bạn.
+
+Ngoài ra, đặt **Giá Cố định** thành `0` để đảm bảo khách hàng chỉ bị tính phí dựa trên mức sử dụng của họ, không có phí cơ bản.
+
+Bây giờ, liên kết đồng hồ mà bạn vừa tạo:
+
+1. Cuộn xuống phần **Đồng hồ Liên kết**
+2. Nhấp vào **Thêm Đồng hồ**
+3. Từ menu thả xuống, chọn **"Đồng hồ Tạo hình ảnh"** (cái mà bạn đã tạo trước đó)
+4. Xác nhận rằng nó xuất hiện trong cấu hình sản phẩm của bạn
+
+<Check>
+Đồng hồ của bạn hiện đã được kết nối thành công với sản phẩm này.
+</Check>
+</Step>
+
+<Step title="Đặt giá của bạn">
+Đây là nơi chúng ta xác định mô hình kinh doanh của mình:
+
+<Frame>
+  <img src="/images/usage-based/UBB-4.png" alt="" />
+</Frame>
+
+**Giá mỗi Đơn vị**: Nhập → `0.05` (đây là $0.05 mỗi hình ảnh)
+
+**Ngưỡng Miễn phí**: Nhập → `10` (khách hàng nhận 10 hình ảnh miễn phí mỗi tháng)
+
+<Tip>
+**Cách thanh toán hoạt động**: Nếu một khách hàng tạo ra 25 hình ảnh trong một tháng, họ sẽ bị tính phí cho 15 hình ảnh (25 - 10 miễn phí) = 15 × $0.05 = $0.75
+</Tip>
+</Step>
+
+<Step title="Lưu sản phẩm của bạn">
+1. Xem lại tất cả các cài đặt của bạn:
+   - Tên: PixelGen AI - Tạo hình ảnh
+   - Đồng hồ: Đồng hồ Tạo hình ảnh  
+   - Giá: $0.05 mỗi hình ảnh
+   - Cấp miễn phí: 10 hình ảnh
+2. Nhấp vào **Lưu Thay đổi**
+
+<Check>
+**Sản phẩm đã được tạo!** Thanh toán của bạn hiện đã được cấu hình. Khách hàng sẽ tự động bị tính phí dựa trên mức sử dụng tạo hình ảnh của họ.
+</Check>
+</Step>
+</Steps>
+
+## Bước 3: Thực hiện Mua thử nghiệm
+
+Trước khi chúng ta bắt đầu tiếp nhận các sự kiện sử dụng, chúng ta cần thực hiện một giao dịch thử nghiệm.
+
+<Steps>
+<Step title="Lấy liên kết thanh toán của bạn">
+1. Trong bảng điều khiển Dodo Payments của bạn, đi tới **Sản phẩm**
+2. Tìm sản phẩm "PixelGen AI - Tạo hình ảnh" của bạn
+3. Nhấp vào nút **Chia sẻ** bên cạnh sản phẩm của bạn
+4. Sao chép liên kết thanh toán xuất hiện
+
+Liên kết thanh toán sẽ trông giống như: `https://test.checkout.dodopayments.com/buy/pdt_IgPWlRsfpbPd5jQKezzW1?quantity=1`
+</Step>
+
+<Step title="Hoàn thành một giao dịch thử nghiệm">
+1. Mở liên kết thanh toán trong một tab trình duyệt mới
+2. Nhập thông tin thanh toán thử nghiệm và hoàn tất giao dịch.
+
+<Check>
+Sau khi thanh toán thành công, bạn sẽ có một ID khách hàng mà chúng ta sẽ sử dụng trong mã ứng dụng của mình.
+</Check>
+</Step>
+
+<Step title="Tìm ID khách hàng của bạn">
+1. Quay lại bảng điều khiển Dodo Payments của bạn
+2. Điều hướng đến **Khách hàng** trong thanh bên trái
+3. Tìm khách hàng mà bạn vừa tạo (với email thử nghiệm)
+4. Sao chép ID khách hàng - nó sẽ trông giống như `cus_abc123def456`
+
+<Note>
+Lưu ID khách hàng này - chúng tôi sẽ mã hóa nó trong mã ứng dụng mẫu của mình để đảm bảo các sự kiện được theo dõi chính xác.
+</Note>
+</Step>
+</Steps>
+
+## Bước 4: Xây dựng Ứng dụng Mẫu
+
+Bây giờ chúng ta đã hoàn tất thiết lập thanh toán và tạo một khách hàng thử nghiệm. Hãy xây dựng ứng dụng PixelGen AI mẫu tạo hình ảnh và tự động theo dõi mức sử dụng để thanh toán.
+
+<Steps>
+<Step title="Thiết lập dự án của bạn">
+Tạo một thư mục mới và khởi tạo dự án:
+
+```bash
+mkdir pixelgen-ai
+cd pixelgen-ai
+npm init -y
+```
+
+</Step>
+
+<Step title="Cài đặt các phụ thuộc">
+Cài đặt các gói mà chúng ta cần:
+
+```bash
+npm install openai dotenv
+npm install -D typescript @types/node ts-node
+```
+
+</Step>
+
+<Step title="Tạo ứng dụng chính">
+Tạo một tệp có tên `index.ts` và sao chép mã ứng dụng hoàn chỉnh này:
+</Step>
+</Steps>
+
+Đây là ứng dụng PixelGen AI hoàn chỉnh với thanh toán tích hợp:
+
+<CodeGroup>
+
+```typescript index.ts expandable
+import 'dotenv/config';
+import OpenAI from 'openai';
+import * as readline from 'readline';
+import { randomUUID } from 'crypto';
+
+// Initialize OpenAI client
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
+// Dodo Payments configuration
+const DODO_PAYMENTS_CONFIG = {
+  apiKey: process.env.DODO_PAYMENTS_API_KEY,
+  baseUrl: 'https://test.dodopayments.com',
+  customerId: 'cus_FX5FAB43aShGyiHJGIqjB', // Replace with your actual customer ID from Step 3
+};
+
+// DALL-E 3 pricing (as of 2024-2025)
+const PRICING = {
+  'standard': 0.040, // $0.040 per image (1024×1024)
+  'hd': 0.080,       // $0.080 per image (1024×1024, HD quality)
+};
+
+interface ImageGenerationOptions {
+  prompt: string;
+  model?: 'dall-e-3' | 'dall-e-2';
+  quality?: 'standard' | 'hd';
+  size?: '1024x1024' | '1792x1024' | '1024x1792';
+  style?: 'vivid' | 'natural';
+}
+
+interface UsageEvent {
+  event_id: string;
+  customer_id: string;
+  event_name: string;
+  timestamp: string;
+  metadata: {
+    quality: string;
+  };
+}
+
+/**
+ * Send usage event to Dodo Payments for billing tracking
+ */
+async function sendUsageEvent(event: UsageEvent): Promise<void> {
+  try {
+    console.log('Sending usage event to Dodo Payments...');
+    console.log(`URL: ${DODO_PAYMENTS_CONFIG.baseUrl}/events/ingest`);
+    console.log(`API Key present: ${!!DODO_PAYMENTS_CONFIG.apiKey}`);
+    console.log(`API Key length: ${DODO_PAYMENTS_CONFIG.apiKey?.length || 0}`);
+    console.log(`Customer ID: ${DODO_PAYMENTS_CONFIG.customerId}`);
+    
+    const requestBody = {
+      events: [event]
+    };
+    console.log('Request body:', JSON.stringify(requestBody, null, 2));
+    
+    const headers = {
+      'Authorization': `Bearer ${DODO_PAYMENTS_CONFIG.apiKey}`,
+      'Content-Type': 'application/json',
+    }
+    console.log('Headers:', headers);
+    const response = await fetch(`${DODO_PAYMENTS_CONFIG.baseUrl}/events/ingest`, {
+      method: 'POST',
+      headers: headers,
+      body: JSON.stringify(requestBody),
+    });
+
+    console.log(`Response status: ${response.status}`);
+    console.log(`Response headers:`, Object.fromEntries(response.headers.entries()));
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.log(`Error response body: ${errorData}`);
+      throw new Error(`HTTP ${response.status}: ${errorData}`);
+    }
+
+    const result = await response.json();
+    console.log('Usage event sent successfully');
+    console.log(`   • Event ID: ${event.event_id}`);
+    console.log(`   • Customer: ${event.customer_id}`);
+    console.log(`   • Quality: ${event.metadata.quality}`);
+    
+  } catch (error) {
+    console.error('Failed to send usage event:', error);
+    // In production, you might want to queue failed events for retry
+    throw error;
+  }
+}
+
+async function generateImage(options: ImageGenerationOptions) {
+  const startTime = Date.now();
+  const eventId = randomUUID();
+  
+  try {
+    console.log('Generating image...');
+    console.log(`Prompt: "${options.prompt}"`);
+    console.log(`Quality: ${options.quality || 'standard'}`);
+    console.log(`Size: ${options.size || '1024x1024'}`);
+    
+    const response = await openai.images.generate({
+      model: options.model || 'dall-e-3',
+      prompt: options.prompt,
+      n: 1,
+      size: options.size || '1024x1024',
+      quality: options.quality || 'standard',
+      style: options.style || 'vivid',
+    });
+
+    const endTime = Date.now();
+    const duration = (endTime - startTime) / 1000;
+    const cost = PRICING[options.quality || 'standard'];
+    
+    // Create usage event for Dodo Payments
+    const usageEvent: UsageEvent = {
+      event_id: eventId,
+      customer_id: DODO_PAYMENTS_CONFIG.customerId!,
+      event_name: 'image.generated',
+      timestamp: new Date().toISOString(),
+      metadata: {
+        quality: options.quality || 'standard',
+      }
+    };
+
+    // Send usage event to Dodo Payments for billing
+    await sendUsageEvent(usageEvent);
+    
+    console.log('\nImage generated successfully!');
+    console.log(`Generation Stats:`);
+    console.log(`   • Duration: ${duration.toFixed(2)} seconds`);
+    console.log(`   • Quality: ${options.quality || 'standard'}`);
+    console.log(`   • Cost: $${cost.toFixed(3)}`);
+    console.log(`   • Image URL: ${response.data?.[0]?.url}`);
+    
+    if (response.data?.[0]?.revised_prompt) {
+      console.log(`   • Revised prompt: "${response.data[0].revised_prompt}"`);
+    }
+
+    return {
+      imageUrl: response.data?.[0].url,
+      revisedPrompt: response.data?.[0].revised_prompt,
+      cost: cost,
+      duration: duration,
+      eventId: eventId,
+    };
+
+  } catch (error) {
+    console.error('Error generating image:', error);
+    
+    // Send failure event for monitoring (optional)
+    try {
+      const failureEvent: UsageEvent = {
+        event_id: eventId,
+        customer_id: DODO_PAYMENTS_CONFIG.customerId!,
+        event_name: 'image.generation.failed',
+        timestamp: new Date().toISOString(),
+        metadata: {
+          quality: options.quality || 'standard',
+        }
+      };
+      
+      // Note: You might want to create a separate meter for failed attempts
+      // await sendUsageEvent(failureEvent);
+    } catch (eventError) {
+      console.error('Failed to send failure event:', eventError);
+    }
+    
+    throw error;
+  }
+}
+
+async function getUserInput(): Promise<string> {
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout
+  });
+
+  return new Promise((resolve) => {
+    rl.question('Enter your image prompt: ', (answer) => {
+      rl.close();
+      resolve(answer);
+    });
+  });
+}
+
+async function main() {
+  console.log('PixelGen AI - Image Generator with Usage Billing\n');
+  
+  // Validate environment variables
+  const requiredEnvVars = [
+    'OPENAI_API_KEY',
+    'DODO_PAYMENTS_API_KEY'
+  ];
+  
+  for (const envVar of requiredEnvVars) {
+    if (!process.env[envVar]) {
+      console.error(`Error: ${envVar} environment variable is not set.`);
+      console.log('Please set all required environment variables:');
+      console.log('export OPENAI_API_KEY="your-openai-key"');
+      console.log('export DODO_PAYMENTS_API_KEY="your-dodo-api-key"');
+      console.log('Note: Customer ID is hardcoded in the application');
+      process.exit(1);
+    }
+  }
+
+  try {
+    const prompt = await getUserInput();
+    
+    if (!prompt.trim()) {
+      console.log('No prompt provided. Exiting...');
+      return;
+    }
+
+    const result = await generateImage({
+      prompt: prompt.trim(),
+      quality: 'standard', // Change to 'hd' for higher quality (costs more)
+      size: '1024x1024',
+      style: 'vivid'
+    });
+
+    console.log('\nProcess completed successfully!');
+    console.log(`Billing Information:`);
+    console.log(`   • Total cost: $${result.cost.toFixed(3)}`);
+    console.log(`   • Event ID: ${result.eventId}`);
+    console.log(`   • Billing will be processed automatically via Dodo Payments`);
+    
+  } catch (error) {
+    console.error('Application error:', error);
+    process.exit(1);
+  }
+}
+
+// Run the application
+if (require.main === module) {
+  main().catch(console.error);
+}
+```
+
+```bash .env
+# Create .env file with your API keys
+OPENAI_API_KEY=your_openai_api_key_here
+DODO_PAYMENTS_API_KEY=your_DODO_PAYMENTS_payments_api_key_here
+# Note: Customer ID is hardcoded in the application code
+```
+
+```typescript package.json
+{
+  "name": "pixelgen-ai",
+  "version": "1.0.0",
+  "description": "AI Image Generation with Usage-Based Billing",
+  "main": "index.js",
+  "scripts": {
+    "start": "ts-node index.ts",
+    "build": "tsc",
+    "dev": "ts-node --watch index.ts"
+  },
+  "dependencies": {
+    "openai": "^4.0.0",
+    "dotenv": "^16.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0",
+    "ts-node": "^10.0.0"
+  }
+}
+```
+
+</CodeGroup>
+
+## Bước 5: Kiểm tra Ứng dụng Mẫu của Bạn
+
+Đến lúc kiểm tra dịch vụ PixelGen AI mẫu của chúng ta và xem thanh toán hoạt động! Hãy đảm bảo mọi thứ hoạt động từ đầu đến cuối.
+
+<Tip>
+**Những gì chúng ta đang kiểm tra**: Chúng ta sẽ tạo một số hình ảnh, xác minh các sự kiện đến Dodo Payments và xác nhận các phép tính thanh toán là chính xác.
+</Tip>
+
+<Steps>
+<Step title="Thiết lập môi trường của bạn">
+Đầu tiên, hãy đảm bảo bạn đã cấu hình mọi thứ:
+
+1. Tạo một tệp `.env` trong thư mục `pixelgen-ai` của bạn
+2. Thêm các khóa API thực tế của bạn:
+
+```bash
+OPENAI_API_KEY=sk-your-actual-openai-key
+DODO_PAYMENTS_API_KEY=your-actual-dodo-api-key
+# Customer ID is hardcoded in the application
+```
+
+3. Cài đặt các phụ thuộc và chạy ứng dụng:
+
+```bash
+npm install
+npm start
+```
+
+<Warning>
+Hãy chắc chắn sử dụng các khóa API thực và cập nhật ID khách hàng mã hóa cứng trong mã với ID khách hàng thực tế của bạn từ Bước 3!
+</Warning>
+</Step>
+
+<Step title="Tạo hình ảnh thử nghiệm đầu tiên của bạn">
+Khi ứng dụng khởi động, bạn sẽ thấy:
+
+```
+PixelGen AI - Image Generator with Usage Billing
+
+Enter your image prompt:
+```
+
+Hãy thử gợi ý này: **"Một robot dễ thương đang vẽ một phong cảnh"**
+
+Bạn nên thấy đầu ra như thế này:
+
+```
+Generating image...
+Prompt: "A cute robot painting a landscape"
+Quality: standard
+Size: 1024x1024
+
+Sending usage event to Dodo Payments...
+Usage event sent successfully
+   • Event ID: 550e8400-e29b-41d4-a716-446655440000
+   • Customer: cus_atXa1lklCRRzMicTqfiw2
+   • Quality: standard
+
+Image generated successfully!
+Generation Stats:
+   • Duration: 8.45 seconds
+   • Quality: standard
+   • Cost: $0.040
+   • Image URL: https://oaidalleapi...
+```
+
+<Check>
+Nếu bạn thấy "Sự kiện sử dụng đã được gửi thành công", tích hợp thanh toán của bạn đang hoạt động!
+</Check>
+</Step>
+
+<Step title="Tạo thêm một vài hình ảnh">
+Hãy tạo 2-3 hình ảnh nữa để kiểm tra nhiều sự kiện. Hãy thử những gợi ý này:
+
+1. **"Một hoàng hôn trên núi với những đám mây tím"**
+2. **"Một máy pha cà phê steampunk trong một nhà bếp Victorian"**
+3. **"Một con rồng thân thiện đang đọc sách trong một thư viện"**
+
+Mỗi lần, hãy theo dõi thông điệp "Sự kiện sử dụng đã được gửi thành công".
+</Step>
+
+<Step title="Kiểm tra bảng điều khiển Dodo Payments của bạn">
+Bây giờ hãy xác minh các sự kiện đang được nhận:
+
+1. Mở bảng điều khiển Dodo Payments của bạn
+2. Đi tới *Thanh toán Dựa trên Sử dụng* → ***Đồng hồ** → **Đồng hồ Tạo hình ảnh**
+3. Nhấp vào tab **Sự kiện**
+4. Bạn nên thấy các sự kiện tạo hình ảnh của mình được liệt kê
+
+**Những gì cần tìm**:
+- Tên sự kiện: `image.generated`
+- ID khách hàng: ID khách hàng thử nghiệm của bạn
+
+<Check>
+Bạn nên thấy một sự kiện cho mỗi hình ảnh bạn đã tạo!
+</Check>
+</Step>
+
+<Step title="Xác minh các phép tính thanh toán">
+Hãy kiểm tra xem việc đếm mức sử dụng có hoạt động không:
+
+<Frame>
+  <img src="/images/usage-based/UBB-1.png" alt="" />
+</Frame>
+
+1. Trong đồng hồ của bạn, đi đến tab **Khách hàng**
+2. Tìm khách hàng thử nghiệm của bạn
+3. Kiểm tra cột "Đơn vị đã tiêu thụ"
+
+</Step>
+
+<Step title="Kiểm tra ngưỡng thanh toán">
+Hãy vượt quá cấp miễn phí để xem thanh toán hoạt động:
+
+1. Tạo thêm 8 hình ảnh (để đạt tổng cộng 12)
+2. Kiểm tra bảng điều khiển đồng hồ của bạn một lần nữa
+3. Bạn nên thấy:
+   - Đơn vị đã tiêu thụ: 12
+   - Đơn vị có thể tính phí: 2 (12 - 10 miễn phí)
+   - Số tiền thanh toán: $0.10
+
+<Check>
+**Thành công!** Thanh toán dựa trên mức sử dụng của bạn đang hoạt động hoàn hảo. Khách hàng sẽ tự động bị tính phí dựa trên mức sử dụng tạo hình ảnh thực tế của họ.
+</Check>
+</Step>
+</Steps>
+
+## Khắc phục sự cố
+
+Các vấn đề phổ biến và giải pháp của chúng:
+
+<AccordionGroup>
+<Accordion title="Sự kiện không xuất hiện trong bảng điều khiển">
+**Nguyên nhân có thể:**
+- Tên sự kiện không khớp chính xác với cấu hình đồng hồ
+- ID khách hàng không tồn tại trong tài khoản của bạn  
+- Khóa API không hợp lệ hoặc đã hết hạn
+- Vấn đề kết nối mạng
+
+**Giải pháp:**
+1. Xác minh tên sự kiện khớp chính xác với cấu hình đồng hồ (phân biệt chữ hoa chữ thường)
+2. Kiểm tra rằng ID khách hàng tồn tại trong Dodo Payments
+3. Kiểm tra khóa API với một cuộc gọi API đơn giản
+4. Kiểm tra kết nối mạng và cài đặt tường lửa
+</Accordion>
+
+</AccordionGroup>
+
+## Chúc mừng! Bạn đã xây dựng PixelGen AI
+
+Bạn đã thành công trong việc tạo một đoạn mã cho việc tạo hình ảnh AI với thanh toán dựa trên mức sử dụng! Đây là những gì bạn đã hoàn thành:
+
+<CardGroup cols={2}>
+<Card title="Đồng hồ Sử dụng" icon="sliders">
+Tạo "Đồng hồ Tạo hình ảnh" theo dõi mọi sự kiện tạo hình ảnh
+</Card>
+
+<Card title="Sản phẩm Thanh toán" icon="credit-card">
+Cấu hình mức giá là $0.05 mỗi hình ảnh với 10 hình ảnh miễn phí mỗi tháng
+</Card>
+
+<Card title="Ứng dụng AI" icon="robot">
+Xây dựng một ứng dụng TypeScript hoạt động tạo hình ảnh sử dụng API DALL-E của OpenAI
+</Card>
+
+<Card title="Thanh toán Tự động" icon="bolt">
+Tích hợp theo dõi sự kiện theo thời gian thực tự động tính phí khách hàng
+</Card>
+</CardGroup>

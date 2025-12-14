@@ -1,0 +1,144 @@
+---
+title: Loops
+description: Kirim email transaksional dan kelola komunikasi pelanggan melalui
+  Loops berdasarkan peristiwa Dodo Payments.
+icon: infinity
+---
+
+## Pendahuluan
+
+Kirim email transaksional dan kelola komunikasi pelanggan secara otomatis saat peristiwa pembayaran terjadi. Kirim konfirmasi pembayaran, pembaruan langganan, dan pemberitahuan penting dengan infrastruktur email Loops.
+
+<Info>
+Integrasi ini memerlukan Kunci API Loops Anda untuk otentikasi.
+</Info>
+
+## Memulai
+
+<Steps>
+<Step title="Buka Bagian Webhook">
+  Di dasbor Dodo Payments Anda, navigasikan ke <b>Webhooks → + Tambah Endpoint</b> dan perluas dropdown integrasi.
+  <Frame>
+    <img src="/images/integrations/loops.png" alt="Tambah Endpoint dan dropdown integrasi" />
+  </Frame>
+</Step>
+
+<Step title="Pilih Loops">
+  Pilih kartu integrasi <b>Loops</b>.
+</Step>
+
+<Step title="Masukkan Kunci API">
+  Berikan Kunci API Loops Anda dalam konfigurasi.
+</Step>
+
+<Step title="Konfigurasi Transformasi">
+  Edit kode transformasi untuk memformat email untuk API Loops.
+</Step>
+
+<Step title="Uji & Buat">
+  Uji dengan payload contoh dan klik <b>Buat</b> untuk mengaktifkan pengiriman email.
+</Step>
+
+<Step title="Selesai!">
+  🎉 Peristiwa pembayaran sekarang akan secara otomatis memicu email transaksional melalui Loops.
+</Step>
+</Steps>
+
+## Contoh Kode Transformasi
+
+### Email Konfirmasi Pembayaran
+
+```javascript payment_confirmation.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.url = "https://api.loops.so/v1/events/send";
+    webhook.payload = {
+      eventName: "payment_confirmation",
+      email: p.customer.email,
+      properties: {
+        customer_name: p.customer.name,
+        payment_id: p.payment_id,
+        amount: (p.total_amount / 100).toFixed(2),
+        currency: p.currency || "USD",
+        payment_method: p.payment_method || "unknown",
+        payment_date: new Date(webhook.payload.timestamp).toLocaleDateString()
+      }
+    };
+  }
+  return webhook;
+}
+```
+
+### Email Selamat Datang Langganan
+
+```javascript subscription_welcome.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "subscription.active") {
+    const s = webhook.payload.data;
+    webhook.url = "https://api.loops.so/v1/events/send";
+    webhook.payload = {
+      eventName: "subscription_welcome",
+      email: s.customer.email,
+      properties: {
+        customer_name: s.customer.name,
+        subscription_id: s.subscription_id,
+        product_id: s.product_id,
+        amount: (s.recurring_pre_tax_amount / 100).toFixed(2),
+        frequency: s.payment_frequency_interval,
+        next_billing: s.next_billing_date
+      }
+    };
+  }
+  return webhook;
+}
+```
+
+### Pemberitahuan Kegagalan Pembayaran
+
+```javascript payment_failure.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.failed") {
+    const p = webhook.payload.data;
+    webhook.url = "https://api.loops.so/v1/events/send";
+    webhook.payload = {
+      eventName: "payment_failed",
+      email: p.customer.email,
+      properties: {
+        customer_name: p.customer.name,
+        payment_id: p.payment_id,
+        amount: (p.total_amount / 100).toFixed(2),
+        error_message: p.error_message || "Payment processing failed",
+        retry_link: `https://yourdomain.com/retry-payment/${p.payment_id}`
+      }
+    };
+  }
+  return webhook;
+}
+```
+
+## Tips
+
+- Gunakan nama peristiwa yang deskriptif untuk organisasi template email yang lebih baik
+- Sertakan properti pelanggan yang relevan untuk personalisasi
+- Siapkan template email di dasbor Loops untuk setiap peristiwa
+- Gunakan penamaan properti yang konsisten di seluruh peristiwa
+- Uji pengiriman email sebelum diluncurkan
+
+## Pemecahan Masalah
+
+<AccordionGroup>
+<Accordion title="Email tidak terkirim">
+- Verifikasi Kunci API benar dan aktif
+- Periksa bahwa nama peristiwa cocok dengan template Loops Anda
+- Pastikan alamat email penerima valid
+- Tinjau batas dan kuota pengiriman Loops
+</Accordion>
+
+<Accordion title="Kesalahan transformasi">
+- Validasi struktur JSON sesuai dengan format API Loops
+- Periksa bahwa semua field yang diperlukan ada
+- Pastikan nama peristiwa diformat dengan benar
+- Verifikasi izin kunci API
+</Accordion>
+</AccordionGroup>

@@ -1,0 +1,122 @@
+---
+sidebarTitle: 세금 포함 가격
+title: 세금 포함 가격
+description: 최종 세금 포함 가격을 미리 보여줍니다. Dodo는 위치에 따라 세금을 계산하고 체크아웃 및 인보이스에서 명확하게 구분합니다.
+icon: file-invoice
+---
+
+## 세금 포함 가격이란?
+
+세금 포함 가격은 표시된 제품 가격에 적용 가능한 세금을 직접 포함할 수 있게 해줍니다. 고객은 더 투명하고 전환 친화적인 경험을 위해 최종 금액을 미리 확인할 수 있습니다. 체크아웃 시 Dodo는 고객의 위치에 따라 표시된 가격에서 세금 제외 부분과 세금 금액을 계산하고, 인보이스에서 이를 명확하게 구분합니다.
+
+<Info>
+최종 세금은 여전히 고객의 위치와 세금 카테고리에 따라 다릅니다. 체크아웃 및 인보이스는 표시된 가격에서 파생된 계산된 세금 부분을 보여줍니다.
+</Info>
+
+## 주요 이점
+
+- **고객을 위한 명확성**: 최종 가격이 미리 표시됨
+- **지역별 준수**: 위치별로 세금이 계산되고 구분됨
+- **정확한 인보이스**: 인보이스는 가격에서 파생된 순 금액과 세금을 보여줌
+- **전환 친화적**: 체크아웃 시 놀라움 감소
+
+## 제품 설정
+
+대시보드에서 제품을 생성하거나 편집한 후 가격 설정에서 세금 포함 가격을 활성화합니다.
+
+#### 가격
+
+- **가격** (필수): 고객에게 표시되는 기본 가격입니다.
+- **세금 포함 가격**: 표시된 가격을 세금 포함으로 처리하려면 토글을 켭니다. Dodo는 고객의 위치와 세금 카테고리에 따라 체크아웃 시 순(세전) 금액과 세금 부분을 계산합니다.
+
+<Warning>
+향후 구매만 업데이트된 세금 포함 설정을 반영합니다. 기존 구매 및 활성 구독은 소급하여 변경되지 않습니다.
+</Warning>
+
+<Tip>
+고객이 총액을 한눈에 이해할 수 있도록 “세금 포함”과 같은 일관된 제품 복사본을 사용하세요.
+</Tip>
+
+## API 관리
+
+<AccordionGroup>
+<Accordion title="제품 생성 (세금 포함)">
+`POST /products`를 사용하여 `tax_inclusive`가 `true`로 설정된 제품을 생성합니다.
+
+<Card title="API 참조" icon="code" href="/api-reference/products/post-products">
+API를 통해 제품 생성
+</Card>
+</Accordion>
+
+<Accordion title="제품 업데이트">
+`PATCH /products/{id}`를 사용하여 기존 제품에서 `tax_inclusive`를 토글합니다.
+
+<Card title="API 참조" icon="code" href="/api-reference/products/patch-products">
+API를 통해 제품 업데이트
+</Card>
+</Accordion>
+
+<Accordion title="체크아웃 세션">
+`POST /checkout-sessions/create`를 사용하여 세금 포함으로 표시된 제품을 판매합니다. 표시된 가격은 동일하게 유지되며, 체크아웃에서 순 금액과 세금을 파생합니다.
+
+<Card title="API 참조" icon="code" href="/api-reference/checkout-sessions/create">
+체크아웃 세션 생성
+</Card>
+</Accordion>
+
+<Accordion title="환불 (세금 처리)">
+`POST /refunds`를 사용하여 환불을 발행합니다. 해당되는 경우 `tax_inclusive` 플래그를 사용하여 환불이 세금 포함인지 여부를 지정할 수 있습니다.
+
+<Card title="API 참조" icon="code" href="/api-reference/refunds/post-refunds">
+환불 생성
+</Card>
+</Accordion>
+</AccordionGroup>
+
+## 통합 예시
+
+### 세금 포함 가격으로 제품 생성
+
+```typescript
+const product = await client.products.create({
+  name: 'Pro Plan',
+  description: 'All features included',
+  price: {
+    currency: 'USD',
+    price: 10000
+    tax_inclusive: true
+  }
+});
+```
+
+### 기존 제품을 세금 포함으로 토글하기
+
+```typescript
+await client.products.update(product.id, {
+  price: {
+    tax_inclusive: true
+  }
+});
+```
+
+## 모범 사례
+
+- **올바른 세금 카테고리 선택**: 지역별로 올바른 계산을 보장합니다.
+- **총액 명확히 전달**: 제품 복사본에 “세금 포함” 레이블을 사용하여 명확하게 전달합니다.
+- **샌드박스에서 테스트**: 유효성을 검증합니다.
+
+## 관련
+
+<CardGroup cols={2}>
+<Card title="제품 가격" icon="dollar-sign" href="/features/pricing">
+제품 전반에 걸쳐 가격 옵션 관리.
+</Card>
+
+<Card title="구독" icon="repeat" href="/features/subscription">
+고급 설정으로 반복 제품 구성.
+</Card>
+
+<Card title="할인 코드" icon="percent" href="/features/discount-codes">
+인보이스의 명확성을 유지하면서 프로모션 제공.
+</Card>
+</CardGroup>

@@ -1,0 +1,266 @@
+---
+sidebarTitle: Supabase
+title: Supabase Boilerplate
+description: Sử dụng bộ khởi động đăng ký chính thức Next.js + Supabase + Dodo
+  Payments để triển khai đăng ký nhanh chóng. Bao gồm xác thực, sơ đồ cơ sở dữ
+  liệu, trình xử lý webhook và giao diện người dùng giá cả.
+icon: database
+---
+
+<CardGroup cols={2}>
+<Card title="Kho lưu trữ GitHub" icon="github" href="https://github.com/dodopayments/dodo-supabase-subscription-starter">
+    Bộ khởi động đăng ký Next.js + Supabase + Dodo Payments tối thiểu
+</Card>
+<Card title="Demo trực tiếp" icon="rocket" href="https://dodopayments-supabase-nextjs.vercel.app">
+    Khám phá bản demo đã triển khai
+</Card>
+</CardGroup>
+
+## Tổng quan
+
+Một bộ khởi động sẵn sàng cho sản xuất cho các đăng ký sử dụng Next.js 15, React 19, Supabase, Drizzle ORM và Dodo Payments. Nó đi kèm với Google OAuth, thanh toán đăng ký, xử lý webhook, sơ đồ cơ sở dữ liệu và một bảng điều khiển cơ bản.
+
+<Info>
+Nếu bạn chỉ cần các trình xử lý tuyến đường cho một ứng dụng hiện có, hãy xem các bộ điều hợp chuyên dụng: <a href="/developer-resources/nextjs-adaptor">Next.js Adaptor</a> và <a href="/developer-resources/express-adaptor">Express Adaptor</a>.
+</Info>
+
+## Điều kiện tiên quyết
+
+- Node.js 18+ (hoặc Bun 1.0+)
+- Dự án Supabase (URL, Anon key, Service role key, Database URL)
+- Tài khoản Dodo Payments (API key, Webhook secret)
+- Google Cloud OAuth client (Client ID và Secret)
+
+## Bắt đầu nhanh
+
+<Steps>
+<Step title="Nhân bản và cài đặt">
+
+```bash
+git clone https://github.com/dodopayments/dodo-supabase-subscription-starter.git
+cd dodo-supabase-subscription-starter
+# choose one
+bun install
+# or
+npm install
+# or
+pnpm install
+```
+
+</Step>
+
+<Step title="Tạo dự án Supabase">
+Tạo một dự án Supabase và sao chép:
+- NEXT_PUBLIC_SUPABASE_URL
+- NEXT_PUBLIC_SUPABASE_ANON_KEY
+- SUPABASE_SERVICE_ROLE_KEY
+- DATABASE_URL (Chuỗi kết nối)
+</Step>
+
+<Step title="Cấu hình Google OAuth">
+Đặt URI chuyển hướng thành: `https://[your-project-ref].supabase.co/auth/v1/callback` trong Google Cloud, sau đó kích hoạt nhà cung cấp Google trong Supabase Auth bằng Client ID và Secret của bạn.
+</Step>
+
+<Step title="Cấu hình Dodo Payments">
+Tạo một API key và Webhook secret từ bảng điều khiển Dodo. Đặt môi trường thành `test_mode` trong quá trình phát triển.
+</Step>
+
+<Step title="Tạo .env.local">
+
+```env
+# Supabase
+NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role
+
+# Database
+DATABASE_URL=postgresql://postgres:[password]@db.[project-ref].supabase.co:5432/postgres
+
+# Dodo Payments
+DODO_PAYMENTS_API_KEY=your-dodo-api-key
+DODO_WEBHOOK_SECRET=your-webhook-secret
+DODO_PAYMENTS_ENVIRONMENT=test_mode
+```
+
+<Warning>
+Không bao giờ cam kết bí mật. Sử dụng biến môi trường trong các môi trường triển khai.
+</Warning>
+</Step>
+
+<Step title="Cung cấp sơ đồ cơ sở dữ liệu">
+
+```bash
+bun run db:push
+# or
+npm run db:push
+# or
+pnpm run db:push
+```
+
+<Check>
+Các bảng đã được tạo: `users`, `subscriptions`, `payments`.
+</Check>
+</Step>
+
+<Step title="Triển khai chức năng webhook">
+
+```bash
+# login (one-time)
+bunx supabase login
+# or
+npx supabase login
+
+# deploy the edge function
+bun run deploy:webhook --project-ref [your-project-ref]
+# or
+npm run deploy:webhook -- --project-ref [your-project-ref]
+# or
+pnpm run deploy:webhook --project-ref [your-project-ref]
+```
+
+```bash cURL
+curl -X POST \
+  'https://[your-project-ref].supabase.co/functions/v1/dodo-webhook' \
+  -H 'Content-Type: application/json' \
+  -H 'Dodo-Signature: <signature>' \
+  -d '{"type":"payment.succeeded","data":{}}'
+```
+
+</Step>
+
+<Step title="Thêm webhook trong Dodo Payments">
+Đặt URL điểm cuối thành:
+
+```text
+https://[your-project-ref].supabase.co/functions/v1/dodo-webhook
+```
+
+Chọn các sự kiện thanh toán và đăng ký.
+</Step>
+
+<Step title="Tạo sản phẩm và tính năng">
+Trong bảng điều khiển Dodo → Sản phẩm → Tạo sản phẩm. Tùy chọn thêm siêu dữ liệu:
+
+```json
+{
+  "features": ["Feature 1", "Feature 2", "Feature 3"]
+}
+```
+
+Giao diện người dùng giá cả đọc mảng `features` này và hiển thị nó một cách động.
+</Step>
+
+<Step title="Chạy máy chủ phát triển">
+
+```bash
+bun run dev
+# or
+npm run dev
+# or
+pnpm run dev
+```
+
+Mở http://localhost:3000.
+</Step>
+</Steps>
+
+## Những gì được bao gồm
+
+- Xác thực qua Supabase (Google OAuth đã được cấu hình)
+- Thanh toán đăng ký qua Dodo Payments
+- Chức năng Edge của Supabase cho webhook (`dodo-webhook`)
+- Sơ đồ và di chuyển Drizzle ORM
+- Bảng điều khiển với hóa đơn, trạng thái đăng ký và tính năng kế hoạch
+
+<Tip>
+Giữ `DODO_PAYMENTS_ENVIRONMENT` như `test_mode` cho đến khi bạn hoàn thành các bài kiểm tra end-to-end.
+</Tip>
+
+## Các tệp và đường dẫn chính
+
+<Tabs>
+<Tab title="Chức năng Edge">
+
+```text
+supabase/functions/dodo-webhook/
+  index.ts            # webhook handler verifying signatures
+  deno.json           # permissions
+```
+
+</Tab>
+<Tab title="Các tuyến Next.js">
+
+```text
+app/(marketing)/*     # landing + pricing UI
+app/(dashboard)/*     # protected pages
+app/api/*             # server actions & helpers
+```
+
+</Tab>
+<Tab title="Cơ sở dữ liệu (Drizzle)">
+
+```text
+lib/db/schema.ts      # users, subscriptions, payments
+lib/db/index.ts       # client
+```
+
+</Tab>
+</Tabs>
+
+## Biến môi trường
+
+<AccordionGroup>
+<Accordion title="Supabase">
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+DATABASE_URL=
+```
+
+</Accordion>
+<Accordion title="Dodo Payments">
+
+```env
+DODO_PAYMENTS_API_KEY=
+DODO_WEBHOOK_SECRET=
+DODO_PAYMENTS_ENVIRONMENT=test_mode|live_mode
+```
+
+</Accordion>
+<Accordion title="Google OAuth">
+
+```env
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+```
+
+</Accordion>
+</AccordionGroup>
+
+## Xác minh và khắc phục sự cố
+
+<AccordionGroup>
+<Accordion title="Chữ ký webhook không hợp lệ (401)">
+- Đảm bảo `DODO_WEBHOOK_SECRET` khớp với giá trị từ bảng điều khiển Dodo
+- Xác nhận bạn đã triển khai chức năng `dodo-webhook` mới nhất
+- Kiểm tra tên tiêu đề là chính xác trong chức năng của bạn (Dodo-Signature)
+</Accordion>
+<Accordion title="Đẩy cơ sở dữ liệu không thành công">
+- Kiểm tra cú pháp `DATABASE_URL` và mạng Supabase egress
+- Chờ ~2–3 phút sau khi tạo dự án trước khi đẩy lần đầu
+</Accordion>
+<Accordion title="Mismatched redirect OAuth">
+- URI chuyển hướng phải là `https://[ref].supabase.co/auth/v1/callback`
+- Đảm bảo điều tương tự trong Google Cloud và nhà cung cấp Supabase Auth
+</Accordion>
+</AccordionGroup>
+
+<Check>
+Bạn hiện có một mô hình SaaS đăng ký hoạt động với Supabase và Dodo Payments.
+</Check>
+
+<Info>
+Kho lưu trữ gốc và các bước chi tiết: <a href="https://github.com/dodopayments/dodo-supabase-subscription-starter">dodo-supabase-subscription-starter</a>.
+</Info>

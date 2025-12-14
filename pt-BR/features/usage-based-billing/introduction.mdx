@@ -1,0 +1,168 @@
+---
+sidebarTitle: Introdução
+title: Cobrança Baseada em Uso
+description: Cobre os clientes com base no que eles realmente usam com medição
+  flexível e cobrança automatizada.
+icon: box
+---
+
+A cobrança baseada em uso permite que você cobre os clientes pelo que eles realmente utilizam—chamadas de API, armazenamento, tokens de IA ou qualquer métrica que você definir. Os clientes pagam pelo consumo, não por taxas fixas.
+
+<Info>
+**Perfeito para**: APIs, serviços de IA, plataformas de infraestrutura e qualquer produto onde o valor aumenta com o uso.
+</Info>
+
+## Como Funciona
+
+<Steps>
+<Step title="Enviar Eventos de Uso">
+Seu aplicativo envia eventos quando ações cobradas ocorrem.
+
+```javascript
+{
+  "event_id": "evt_123",
+  "customer_id": "cus_abc",
+  "event_name": "api.call",
+  "metadata": { "endpoint": "/v1/users" }
+}
+```
+
+</Step>
+
+<Step title="Medidores Agregam Uso">
+Os medidores agregam eventos em quantidades cobradas usando contagem, soma, máximo ou última agregação.
+</Step>
+
+<Step title="Cobrança Automática">
+Defina preços por unidade e limites gratuitos. Os clientes são cobrados automaticamente a cada ciclo.
+</Step>
+</Steps>
+
+## Conceitos Principais
+
+### Eventos
+
+Eventos representam ações de uso em seu aplicativo. Cada evento inclui:
+- **Nome do Evento**: Tipo de uso (por exemplo, `api.call`)
+- **ID do Cliente**: Quem usou
+- **Metadados**: Propriedades adicionais para agregação
+
+### Medidores
+
+Os medidores agregam eventos em quantidades cobradas:
+- **Contagem**: Total de eventos (chamadas de API)
+- **Soma**: Adicionar valores (total de bytes)
+- **Máximo**: Maior valor (usuários de pico)
+- **Último**: Valor mais recente
+
+<Frame>
+<img src="/images/usage-based/UBB-2.png" alt="Interface de criação de medidor" />
+</Frame>
+
+### Produtos com Preços Baseados em Uso
+
+Defina preços por unidade e limites gratuitos opcionais:
+
+<Frame>
+<img src="/images/usage-based/UBB-4.png" alt="Configuração de preços" />
+</Frame>
+
+**Exemplo**: 2.500 chamadas - 1.000 gratuitas = 1.500 × $0.02 = $30.00
+
+### Créditos para Clientes
+
+Dê aos clientes créditos de uso incluídos que se renovam a cada ciclo de cobrança. Os créditos se aplicam antes do uso pago.
+
+## Início Rápido
+
+<Steps>
+<Step title="Criar um Medidor">
+No seu painel: **Medidores** → **Criar Medidor**
+
+1. Defina o nome do evento (por exemplo, `api.call`)
+2. Escolha a agregação (Contagem, Soma, Máximo, Último)
+3. Adicione filtros opcionais
+</Step>
+
+<Step title="Adicionar ao Produto">
+Vincule o medidor a um produto com preços:
+
+<Frame>
+<img src="/images/usage-based/UBB-5.png" alt="Adicionando medidor ao produto" />
+</Frame>
+
+1. Selecione **Cobrança Baseada em Uso**
+2. Escolha seu medidor
+3. Defina o preço por unidade e o limite gratuito
+</Step>
+
+<Step title="Enviar Eventos">
+
+```javascript
+await fetch('https://test.dodopayments.com/events/ingest', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${process.env.DODO_API_KEY}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    events: [{
+      event_id: "unique_event_id",
+      customer_id: "cus_abc123",
+      event_name: "api.call",
+      metadata: { endpoint: "/v1/users" }
+    }]
+  })
+});
+```
+
+</Step>
+
+<Step title="Monitorar Uso">
+<Frame>
+<img src="/images/guides/usage-based-billing/meter-quantities-chart.png" alt="Painel do medidor" />
+</Frame>
+
+Verifique o painel do seu medidor para ver eventos e agregação de uso. Os clientes são cobrados automaticamente a cada ciclo.
+</Step>
+</Steps>
+
+## Casos de Uso
+
+<CardGroup cols={2}>
+<Card title="APIs & Infraestrutura" icon="cloud">
+Rastreie chamadas de API, horas de computação, largura de banda, armazenamento. Exemplo: $0.001 por chamada após 10.000 gratuitas.
+</Card>
+
+<Card title="Rastreamento de Uso de IA" icon="brain">
+Rastreie tokens, gerações, tempo de processamento. Exemplo: \$0.04 por imagem padrão, \$0.08 por HD.
+</Card>
+
+<Card title="Dados & Análise" icon="chart-line">
+Cobre por dados processados, consultas executadas, registros analisados. Exemplo: $5 por GB após 10 GB gratuitos.
+</Card>
+
+<Card title="Comunicação" icon="message">
+Conte mensagens, minutos, dados transferidos. Exemplo: $0.01 por SMS enviado.
+</Card>
+</CardGroup>
+
+## Próximos Passos
+
+<CardGroup cols={2}>
+<Card title="Ingestão de Eventos" icon="bolt" href="/features/usage-based-billing/event-ingestion">
+Saiba como estruturar e enviar eventos de uso do seu aplicativo.
+</Card>
+
+<Card title="Guia de Medidores" icon="sliders" href="/features/usage-based-billing/meters">
+Domine a configuração de medidores, tipos de agregação e filtragem de eventos.
+</Card>
+
+<Card title="Tutorial Completo" icon="code" href="/developer-resources/usage-based-billing-build-ai-image-generator">
+Construa um gerador de imagens de IA completo com cobrança baseada em uso do zero.
+</Card>
+
+<Card title="Guia de Integração" icon="book" href="/developer-resources/usage-based-billing-guide">
+Guia abrangente para implementar cobrança baseada em uso em seu aplicativo.
+</Card>
+</CardGroup>

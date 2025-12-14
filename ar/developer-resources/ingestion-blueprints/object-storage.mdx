@@ -1,0 +1,164 @@
+---
+title: خطة تخزين الكائنات
+description: تتبع تحميلات الملفات واستخدام التخزين لـ S3 و Google Cloud Storage
+  و Azure Blob وغيرها من خدمات تخزين الكائنات.
+icon: box-archive
+---
+
+## حالات الاستخدام
+
+استكشف السيناريوهات الشائعة المدعومة من خطة تخزين الكائنات:
+
+<CardGroup cols={2}>
+<Card title="استضافة الملفات" icon="folder">
+فواتير العملاء بناءً على إجمالي استخدام التخزين وحجم التحميل.
+</Card>
+<Card title="خدمات النسخ الاحتياطي" icon="shield">
+تتبع تحميلات بيانات النسخ الاحتياطي وفرض رسوم لكل جيجابايت مخزنة.
+</Card>
+<Card title="شبكة توصيل الوسائط" icon="photo-film">
+مراقبة تحميلات الوسائط وفوترة التخزين وعرض النطاق الترددي.
+</Card>
+<Card title="إدارة الوثائق" icon="file">
+تتبع تحميلات الوثائق لكل عميل لأسعار قائمة على الاستخدام.
+</Card>
+</CardGroup>
+
+<Info>
+مثالي للفوترة بناءً على تحميلات التخزين، استضافة الملفات، استخدام CDN، أو خدمات النسخ الاحتياطي.
+</Info>
+
+## البداية السريعة
+
+تتبع تحميلات تخزين الكائنات مع البايتات المستهلكة:
+
+<Steps>
+<Step title="تثبيت SDK">
+
+```bash
+npm install @dodopayments/ingestion-blueprints
+```
+
+</Step>
+
+<Step title="احصل على مفاتيح API الخاصة بك">
+- **مفتاح API لمدفوعات دودي**: احصل عليه من [لوحة معلومات مدفوعات دودي](https://app.dodopayments.com/developer/api-keys)
+- **مفتاح API لمزود التخزين**: من AWS S3 و Google Cloud Storage و Azure، إلخ.
+</Step>
+
+<Step title="إنشاء عداد">
+قم بإنشاء عداد في [لوحة معلومات مدفوعات دودي](https://app.dodopayments.com/):
+- **اسم الحدث**: `object_storage_upload` (أو الاسم المفضل لديك)
+- **نوع التجميع**: `sum` لتتبع إجمالي البايتات المحملة
+- **على خاصية**: `bytes` للفوترة بناءً على حجم التخزين
+</Step>
+
+<Step title="تتبع استخدام التخزين">
+<CodeGroup>
+
+```javascript AWS S3 Upload
+import { Ingestion, trackObjectStorage } from '@dodopayments/ingestion-blueprints';
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import fs from 'fs';
+
+const ingestion = new Ingestion({
+  apiKey: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'test_mode',
+  eventName: 'object_storage_upload'
+});
+
+const s3 = new S3Client({ region: 'us-east-1' });
+
+// Read the file (example: from disk or request)
+const fileBuffer = fs.readFileSync('./document.pdf');
+
+// Upload to S3
+const command = new PutObjectCommand({
+  Bucket: 'my-bucket',
+  Key: 'uploads/document.pdf',
+  Body: fileBuffer
+});
+
+await s3.send(command);
+
+// Track the upload
+await trackObjectStorage(ingestion, {
+  customerId: 'customer_123',
+  bytes: fileBuffer.length
+});
+```
+
+```javascript Google Cloud Storage
+import { Ingestion, trackObjectStorage } from '@dodopayments/ingestion-blueprints';
+import { Storage } from '@google-cloud/storage';
+import fs from 'fs';
+
+const ingestion = new Ingestion({
+  apiKey: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'test_mode',
+  eventName: 'object_storage_upload'
+});
+
+const storage = new Storage();
+const bucket = storage.bucket('my-bucket');
+
+// Read the file
+const fileBuffer = fs.readFileSync('./image.png');
+
+// Upload to GCS
+await bucket.file('uploads/image.png').save(fileBuffer);
+
+// Track the upload
+await trackObjectStorage(ingestion, {
+  customerId: 'customer_456',
+  bytes: fileBuffer.length,
+  metadata: {
+    bucket: 'my-bucket',
+    key: 'uploads/image.png'
+  }
+});
+```
+
+</CodeGroup>
+</Step>
+</Steps>
+
+## التكوين
+
+### تكوين الاستيعاب
+
+<ParamField path="apiKey" type="string" required>
+مفتاح API الخاص بك من لوحة معلومات مدفوعات دودي.
+</ParamField>
+
+<ParamField path="environment" type="string" required>
+وضع البيئة: `test_mode` أو `live_mode`.
+</ParamField>
+
+<ParamField path="eventName" type="string" required>
+اسم الحدث الذي يتطابق مع تكوين العداد الخاص بك.
+</ParamField>
+
+### خيارات تتبع تخزين الكائنات
+
+<ParamField path="customerId" type="string" required>
+معرف العميل لفوترة النسبة.
+</ParamField>
+
+<ParamField path="bytes" type="number">
+عدد البايتات المحملة. مطلوب للفوترة بناءً على البايتات.
+</ParamField>
+
+<ParamField path="metadata" type="object">
+بيانات وصفية اختيارية حول التحميل مثل اسم الدلو، نوع المحتوى، إلخ.
+</ParamField>
+
+## أفضل الممارسات
+
+<Tip>
+**تتبع قبل أو بعد التحميل**: يمكنك تتبع الحدث قبل أو بعد التحميل الفعلي اعتمادًا على استراتيجية معالجة الأخطاء الخاصة بك.
+</Tip>
+
+<Warning>
+**التعامل مع فشل التحميل**: تتبع فقط التحميلات الناجحة لتجنب الفوترة عن العمليات الفاشلة.
+</Warning>

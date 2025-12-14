@@ -1,0 +1,122 @@
+---
+sidebarTitle: 含税定价
+title: 含税定价
+description: 提前显示最终的含税价格。Dodo 根据位置计算税费，并在结账和发票上清晰地列出。
+icon: file-invoice
+---
+
+## 什么是含税定价？
+
+含税定价允许您将适用的税费直接嵌入到显示的产品价格中。客户可以看到一个最终金额，从而获得更透明、友好的转化体验。在结账时，Dodo 根据客户位置从显示的价格中计算出不含税部分和税额，并在发票上清晰列出。
+
+<Info>
+最终税费仍然因客户位置和税种而异。结账和发票显示从显示价格中计算出的税费部分。
+</Info>
+
+## 主要好处
+
+- **客户清晰**：提前显示一个最终价格
+- **区域合规**：按位置计算税费并列出
+- **准确开票**：发票显示净额和从价格中得出的税费
+- **友好的转化**：减少结账时的意外
+
+## 产品设置
+
+在您的仪表板中创建或编辑产品，然后在定价设置中启用含税定价。
+
+#### 定价
+
+- **价格**（必填）：显示给客户的基础价格。
+- **含税定价**：切换开启以将显示的价格视为含税价格。Dodo 将根据客户位置和税种在结账时计算净额（税前）和税费部分。
+
+<Warning>
+仅未来的购买反映更新的含税设置。现有购买和活跃订阅不会追溯更改。
+</Warning>
+
+<Tip>
+使用一致的产品文案，例如“含税”，以便客户一目了然地理解总额。
+</Tip>
+
+## API 管理
+
+<AccordionGroup>
+<Accordion title="创建产品（含税）">
+使用 `POST /products` 创建含税的产品，`tax_inclusive` 设置为 `true`。
+
+<Card title="API 参考" icon="code" href="/api-reference/products/post-products">
+通过 API 创建产品
+</Card>
+</Accordion>
+
+<Accordion title="更新产品">
+使用 `PATCH /products/{id}` 切换现有产品的 `tax_inclusive`。
+
+<Card title="API 参考" icon="code" href="/api-reference/products/patch-products">
+通过 API 更新产品
+</Card>
+</Accordion>
+
+<Accordion title="结账会话">
+使用 `POST /checkout-sessions/create` 销售标记为含税的产品。显示的价格保持不变；结账时得出净额和税费。
+
+<Card title="API 参考" icon="code" href="/api-reference/checkout-sessions/create">
+创建结账会话
+</Card>
+</Accordion>
+
+<Accordion title="退款（税务处理）">
+使用 `POST /refunds` 发放退款。您可以在适用时使用 `tax_inclusive` 标志指定退款是否含税。
+
+<Card title="API 参考" icon="code" href="/api-reference/refunds/post-refunds">
+创建退款
+</Card>
+</Accordion>
+</AccordionGroup>
+
+## 集成示例
+
+### 创建含税定价的产品
+
+```typescript
+const product = await client.products.create({
+  name: 'Pro Plan',
+  description: 'All features included',
+  price: {
+    currency: 'USD',
+    price: 10000
+    tax_inclusive: true
+  }
+});
+```
+
+### 更新现有产品以切换含税
+
+```typescript
+await client.products.update(product.id, {
+  price: {
+    tax_inclusive: true
+  }
+});
+```
+
+## 最佳实践
+
+- **选择正确的税种** 以确保按区域正确计算。
+- **清晰传达总额**，在产品文案中使用“含税”标签。
+- **在沙盒中测试** 以验证。
+
+## 相关
+
+<CardGroup cols={2}>
+<Card title="产品定价" icon="dollar-sign" href="/features/pricing">
+管理产品的定价选项。
+</Card>
+
+<Card title="订阅" icon="repeat" href="/features/subscription">
+配置具有高级设置的定期产品。
+</Card>
+
+<Card title="折扣代码" icon="percent" href="/features/discount-codes">
+提供促销，同时保持发票的清晰度。
+</Card>
+</CardGroup>

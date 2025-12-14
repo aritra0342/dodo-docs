@@ -1,0 +1,178 @@
+---
+title: Zapier
+description: Dodo Payments를 Zapier 웹후크를 통해 5000개 이상의 앱에 연결하여 무한한 자동화 가능성을 제공합니다.
+icon: bolt
+---
+
+## 소개
+
+Dodo Payments를 수천 개의 앱 및 서비스에 Zapier를 통해 연결하세요. 결제 이벤트가 발생할 때 Zaps를 트리거하여 이메일 전송, 스프레드시트 업데이트, 작업 생성 등 다양한 워크플로를 자동화할 수 있습니다.
+
+<Info>
+이 통합은 Zap 구성에서 Zapier 웹후크 URL이 필요합니다.
+</Info>
+
+## 시작하기
+
+<Steps>
+<Step title="웹후크 섹션 열기">
+  Dodo Payments 대시보드에서 <b>Webhooks → + Add Endpoint</b>로 이동하고 통합 드롭다운을 확장합니다.
+  <Frame>
+    <img src="/images/integrations/zapier.png" alt="Add Endpoint and integrations dropdown" />
+  </Frame>
+</Step>
+
+<Step title="Zapier 선택하기">
+  <b>Zapier</b> 통합 카드를 선택합니다.
+</Step>
+
+<Step title="Zapier에서 Zap 만들기">
+  Zapier에서 "Webhooks by Zapier"를 트리거로 하여 새 Zap을 만듭니다. 웹후크 URL을 복사합니다.
+</Step>
+
+<Step title="웹후크 URL 붙여넣기">
+  Zapier 웹후크 URL을 엔드포인트 구성에 붙여넣습니다.
+</Step>
+
+<Step title="변환 구성하기">
+  Zapier 워크플로에 맞게 데이터를 포맷하기 위해 변환 코드를 편집합니다.
+</Step>
+
+<Step title="테스트 및 생성">
+  샘플 페이로드로 테스트하고 <b>Create</b>를 클릭하여 통합을 활성화합니다.
+</Step>
+
+<Step title="완료!">
+  🎉 이제 결제 이벤트가 자동으로 Zapier 워크플로를 트리거합니다.
+</Step>
+</Steps>
+
+## 변환 코드 예제
+
+### 기본 웹후크 페이로드
+
+```javascript basic_webhook.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.payload = {
+      event_type: webhook.eventType,
+      payment_id: p.payment_id,
+      amount: (p.total_amount / 100).toFixed(2),
+      currency: p.currency || "USD",
+      customer_email: p.customer.email,
+      customer_name: p.customer.name,
+      payment_method: p.payment_method || "unknown",
+      timestamp: webhook.payload.timestamp
+    };
+  }
+  return webhook;
+}
+```
+
+### 구독 이벤트 핸들러
+
+```javascript subscription_webhook.js icon="js" expandable
+function handler(webhook) {
+  const s = webhook.payload.data;
+  switch (webhook.eventType) {
+    case "subscription.active":
+      webhook.payload = {
+        event_type: "subscription_started",
+        subscription_id: s.subscription_id,
+        customer_email: s.customer.email,
+        customer_name: s.customer.name,
+        product_id: s.product_id,
+        amount: (s.recurring_pre_tax_amount / 100).toFixed(2),
+        frequency: s.payment_frequency_interval,
+        next_billing: s.next_billing_date,
+        timestamp: webhook.payload.timestamp
+      };
+      break;
+    case "subscription.cancelled":
+      webhook.payload = {
+        event_type: "subscription_cancelled",
+        subscription_id: s.subscription_id,
+        customer_email: s.customer.email,
+        cancelled_at: s.cancelled_at,
+        cancel_at_next_billing: s.cancel_at_next_billing_date,
+        timestamp: webhook.payload.timestamp
+      };
+      break;
+  }
+  return webhook;
+}
+```
+
+### 분쟁 알림 핸들러
+
+```javascript dispute_webhook.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType.startsWith("dispute.")) {
+    const d = webhook.payload.data;
+    webhook.payload = {
+      event_type: webhook.eventType,
+      dispute_id: d.dispute_id,
+      payment_id: d.payment_id,
+      amount: (d.amount / 100).toFixed(2),
+      status: d.dispute_status,
+      stage: d.dispute_stage,
+      remarks: d.remarks || "",
+      urgent: webhook.eventType === "dispute.opened",
+      timestamp: webhook.payload.timestamp
+    };
+  }
+  return webhook;
+}
+```
+
+## 인기 있는 Zapier 사용 사례
+
+<AccordionGroup>
+<Accordion title="이메일 알림">
+- 결제 확인을 위한 Gmail/Outlook 이메일 전송
+- Mailchimp/ConvertKit에서 이메일 시퀀스 생성
+- Slack/Discord 알림 전송
+- Google Sheets 기록 생성
+</Accordion>
+
+<Accordion title="CRM 업데이트">
+- HubSpot/Salesforce에 연락처 추가
+- Pipedrive/Close에서 거래 생성
+- Airtable에서 고객 기록 업데이트
+- Monday.com에서 활동 기록
+</Accordion>
+
+<Accordion title="작업 관리">
+- Asana/Trello에서 작업 생성
+- Notion에 할 일 항목 추가
+- 캘린더 이벤트 생성
+- Twilio를 통해 SMS 알림 전송
+</Accordion>
+</AccordionGroup>
+
+## 팁
+
+- Zapier 파싱을 쉽게 하기 위해 페이로드 구조를 간단하게 유지하세요.
+- 모든 이벤트에서 일관된 필드 이름을 사용하세요.
+- 워크플로 타이밍을 위해 타임스탬프를 포함하세요.
+- 라이브로 전환하기 전에 샘플 데이터로 Zap을 테스트하세요.
+- 조건 논리를 위해 Zapier의 내장 필터를 사용하세요.
+
+## 문제 해결
+
+<AccordionGroup>
+<Accordion title="Zap이 트리거되지 않음">
+- 웹후크 URL이 올바르고 활성화되어 있는지 확인하세요.
+- Zapier에서 Zap이 켜져 있는지 확인하세요.
+- 페이로드 구조가 Zapier의 기대와 일치하는지 확인하세요.
+- Zapier 대시보드에서 웹후크 전송을 테스트하세요.
+</Accordion>
+
+<Accordion title="데이터가 올바르게 매핑되지 않음">
+- Zapier 작업 단계에서 필드 이름을 확인하세요.
+- 데이터 유형이 예상 형식과 일치하는지 확인하세요.
+- 매핑 디버그를 위해 Zapier의 테스트 기능을 사용하세요.
+- 변환 코드가 유효한 JSON을 반환하는지 확인하세요.
+</Accordion>
+</AccordionGroup>

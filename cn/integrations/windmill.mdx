@@ -1,0 +1,188 @@
+---
+title: 风车
+description: 根据 Dodo Payments 事件触发风车工作流和脚本以实现自定义自动化。
+icon: wind
+---
+
+## 介绍
+
+在支付事件发生时，在风车中执行自定义工作流和脚本。运行数据库操作、发送通知、处理数据，并利用风车强大的工作流引擎自动化复杂的业务逻辑。
+
+<Info>
+此集成需要您从工作流配置中获取的风车 webhook URL。
+</Info>
+
+## 开始使用
+
+<Steps>
+<Step title="打开 Webhook 部分">
+  在您的 Dodo Payments 仪表板中，导航到 <b>Webhooks → + 添加端点</b> 并展开集成下拉菜单。
+  <Frame>
+    <img src="/images/integrations/windmill.png" alt="添加端点和集成下拉菜单" />
+  </Frame>
+</Step>
+
+<Step title="选择风车">
+  选择 <b>风车</b> 集成卡片。
+</Step>
+
+<Step title="创建风车工作流">
+  在风车中创建一个新工作流，并从触发器配置中复制 webhook URL。
+</Step>
+
+<Step title="粘贴 Webhook URL">
+  将风车 webhook URL 粘贴到端点配置中。
+</Step>
+
+<Step title="配置转换">
+  编辑转换代码以格式化事件以适应您的风车工作流。
+</Step>
+
+<Step title="测试并创建">
+  使用示例有效负载进行测试，然后单击 <b>创建</b> 以激活集成。
+</Step>
+
+<Step title="完成！">
+  🎉 付款事件现在将自动触发您的风车工作流。
+</Step>
+</Steps>
+
+## 转换代码示例
+
+### 基本工作流有效负载
+
+```javascript basic_workflow.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.payload = {
+      event_type: webhook.eventType,
+      payment_id: p.payment_id,
+      amount: (p.total_amount / 100).toFixed(2),
+      currency: p.currency || "USD",
+      customer_email: p.customer.email,
+      customer_name: p.customer.name,
+      payment_method: p.payment_method || "unknown",
+      timestamp: webhook.payload.timestamp,
+      metadata: {
+        business_id: p.business_id,
+        product_id: p.product_id
+      }
+    };
+  }
+  return webhook;
+}
+```
+
+### 订阅工作流处理程序
+
+```javascript subscription_workflow.js icon="js" expandable
+function handler(webhook) {
+  const s = webhook.payload.data;
+  switch (webhook.eventType) {
+    case "subscription.active":
+      webhook.payload = {
+        event_type: "subscription_started",
+        subscription_id: s.subscription_id,
+        customer_email: s.customer.email,
+        customer_name: s.customer.name,
+        product_id: s.product_id,
+        amount: (s.recurring_pre_tax_amount / 100).toFixed(2),
+        frequency: s.payment_frequency_interval,
+        next_billing: s.next_billing_date,
+        customer_id: s.customer.customer_id,
+        timestamp: webhook.payload.timestamp
+      };
+      break;
+    case "subscription.cancelled":
+      webhook.payload = {
+        event_type: "subscription_cancelled",
+        subscription_id: s.subscription_id,
+        customer_email: s.customer.email,
+        cancelled_at: s.cancelled_at,
+        cancel_at_next_billing: s.cancel_at_next_billing_date,
+        customer_id: s.customer.customer_id,
+        timestamp: webhook.payload.timestamp
+      };
+      break;
+  }
+  return webhook;
+}
+```
+
+### 争议工作流处理程序
+
+```javascript dispute_workflow.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType.startsWith("dispute.")) {
+    const d = webhook.payload.data;
+    webhook.payload = {
+      event_type: webhook.eventType,
+      dispute_id: d.dispute_id,
+      payment_id: d.payment_id,
+      amount: (d.amount / 100).toFixed(2),
+      status: d.dispute_status,
+      stage: d.dispute_stage,
+      remarks: d.remarks || "",
+      urgent: webhook.eventType === "dispute.opened",
+      business_id: d.business_id,
+      timestamp: webhook.payload.timestamp
+    };
+  }
+  return webhook;
+}
+```
+
+## 常见的风车用例
+
+<AccordionGroup>
+<Accordion title="数据库操作">
+- 在 PostgreSQL/MySQL 中更新客户记录
+- 将支付事件记录到数据仓库
+- 将数据同步到外部系统
+- 更新库存水平
+- 跟踪分析指标
+</Accordion>
+
+<Accordion title="业务逻辑">
+- 计算收入指标
+- 处理退款和调整
+- 处理订阅生命周期
+- 生成报告和导出
+- 验证支付数据
+</Accordion>
+
+<Accordion title="外部集成">
+- 将数据发送到分析平台
+- 更新 CRM 系统
+- 触发电子邮件活动
+- 创建日历事件
+- 发送 SMS 通知
+</Accordion>
+</AccordionGroup>
+
+## 提示
+
+- 结构化有效负载数据以便于工作流处理
+- 包含所有相关的元数据以支持业务逻辑
+- 在事件中使用一致的字段命名
+- 包含时间戳以便于工作流时序
+- 利用风车内置的错误处理
+
+## 故障排除
+
+<AccordionGroup>
+<Accordion title="工作流未触发">
+- 验证 webhook URL 是否正确且处于活动状态
+- 检查风车工作流是否已发布并处于活动状态
+- 确保有效负载结构符合工作流预期
+- 查看风车执行日志以查找错误
+</Accordion>
+
+<Accordion title="数据处理问题">
+- 检查工作流输入参数映射
+- 验证数据类型是否符合预期格式
+- 使用示例数据测试工作流
+- 查看风车脚本执行日志
+</Accordion>
+</AccordionGroup>

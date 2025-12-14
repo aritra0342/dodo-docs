@@ -1,0 +1,462 @@
+---
+title: بايثون
+description: دمج مدفوعات دودي في تطبيقات بايثون الخاصة بك مع واجهة بايثونية ودعم
+  حديث لـ async/await
+icon: python
+---
+
+تقدم مكتبة بايثون واجهة بايثونية لواجهة برمجة تطبيقات مدفوعات دودي، حيث توفر عملاء متزامنين وغير متزامنين مع تعريفات نوعية للطلبات والاستجابات. تدعم بايثون 3.7+ وتشتمل على تغطية شاملة للاختبارات.
+
+## التثبيت
+
+قم بتثبيت المكتبة باستخدام pip:
+
+```bash
+pip install dodopayments
+```
+
+لأداء غير متزامن معزز باستخدام aiohttp:
+
+```bash
+pip install dodopayments[aiohttp]
+```
+
+<Info>
+تتطلب المكتبة بايثون 3.7 أو أعلى. نوصي باستخدام أحدث إصدار مستقر من بايثون للحصول على أفضل تجربة وتحديثات الأمان.
+</Info>
+
+## البداية السريعة
+
+### العميل المتزامن
+
+```python
+import os
+from dodopayments import DodoPayments
+
+client = DodoPayments(
+    bearer_token=os.environ.get("DODO_PAYMENTS_API_KEY"),  # This is the default and can be omitted
+    environment="test_mode",  # defaults to "live_mode"
+)
+
+checkout_session_response = client.checkout_sessions.create(
+    product_cart=[
+        {
+            "product_id": "product_id",
+            "quantity": 1
+        }
+    ],
+)
+print(checkout_session_response.session_id)
+```
+
+### العميل غير المتزامن
+
+```python
+import os
+import asyncio
+from dodopayments import AsyncDodoPayments
+
+client = AsyncDodoPayments(
+    bearer_token=os.environ.get("DODO_PAYMENTS_API_KEY"),
+    environment="test_mode",
+)
+
+async def main() -> None:
+    checkout_session_response = await client.checkout_sessions.create(
+        product_cart=[
+            {
+                "product_id": "product_id",
+                "quantity": 1,
+            }
+        ],
+    )
+    print(checkout_session_response.session_id)
+
+asyncio.run(main())
+```
+
+<Warning>
+احفظ مفاتيح API الخاصة بك بشكل آمن باستخدام متغيرات البيئة. لا تقم أبداً بإدخالها في نظام التحكم في الإصدارات.
+</Warning>
+
+## الميزات الأساسية
+
+<CardGroup cols={2}>
+<Card title="واجهة بايثونية" icon="code">
+  كود بايثون نظيف ويدل على الاستخدام الصحيح يتبع إرشادات PEP 8 و تقاليد بايثون
+</Card>
+
+<Card title="Async/Await" icon="bolt">
+  دعم كامل للعمليات غير المتزامنة مع asyncio ودمج اختياري مع aiohttp
+</Card>
+
+<Card title="تلميحات النوع" icon="check">
+  تلميحات نوع كاملة لدعم أفضل من IDE والتحقق من النوع باستخدام mypy
+</Card>
+
+<Card title="التصفح التلقائي" icon="arrows-rotate">
+  تصفح تلقائي للاستجابات القائمة مع تكرار بسيط
+</Card>
+</CardGroup>
+
+## التكوين
+
+### متغيرات البيئة
+
+قم بالتكوين باستخدام متغيرات البيئة:
+
+```bash .env
+DODO_PAYMENTS_API_KEY=your_api_key_here
+```
+
+### مهلات
+
+قم بتكوين مهلات الطلبات على مستوى عالمي أو لكل طلب:
+
+```python
+import httpx
+from dodopayments import DodoPayments
+
+# Configure default for all requests (default is 1 minute)
+client = DodoPayments(
+    timeout=20.0,  # 20 seconds
+)
+
+# More granular control
+client = DodoPayments(
+    timeout=httpx.Timeout(60.0, read=5.0, write=10.0, connect=2.0),
+)
+
+# Override per-request
+client.with_options(timeout=5.0).checkout_sessions.create(
+    product_cart=[
+        {
+            "product_id": "product_id",
+            "quantity": 0,
+        }
+    ],
+)
+```
+
+### إعادة المحاولة
+
+قم بتكوين سلوك إعادة المحاولة التلقائي:
+
+```python
+from dodopayments import DodoPayments
+
+# Configure default for all requests (default is 2)
+client = DodoPayments(
+    max_retries=0,  # disable retries
+)
+
+# Override per-request
+client.with_options(max_retries=5).checkout_sessions.create(
+    product_cart=[
+        {
+            "product_id": "product_id",
+            "quantity": 0,
+        }
+    ],
+)
+```
+
+## العمليات الشائعة
+
+### إنشاء جلسة دفع
+
+قم بإنشاء جلسة دفع:
+
+```python
+session = client.checkout_sessions.create(
+    product_cart=[
+        {
+            "product_id": "prod_123",
+            "quantity": 1
+        }
+    ],
+    return_url="https://yourdomain.com/return"
+)
+
+print(f"Checkout URL: {session.url}")
+```
+
+### إدارة العملاء
+
+قم بإنشاء واسترجاع معلومات العملاء:
+
+```python
+# Create a customer
+customer = client.customers.create(
+    email="customer@example.com",
+    name="John Doe",
+    metadata={
+        "user_id": "12345"
+    }
+)
+
+# Retrieve customer
+customer = client.customers.retrieve("cus_123")
+print(f"Customer: {customer.name} ({customer.email})")
+```
+
+### التعامل مع الاشتراكات
+
+قم بإنشاء وإدارة الاشتراكات المتكررة:
+
+```python
+# Create a subscription
+subscription = client.subscriptions.create(
+    customer_id="cus_123",
+    product_id="prod_456",
+    price_id="price_789"
+)
+
+# Retrieve usage history
+usage_history = client.subscriptions.retrieve_usage_history(
+    subscription.id,
+    start_date="2024-01-01T00:00:00Z"
+)
+```
+
+## الفوترة المعتمدة على الاستخدام
+
+### استيعاب أحداث الاستخدام
+
+تتبع الأحداث المخصصة للفوترة المعتمدة على الاستخدام:
+
+```python
+response = client.usage_events.ingest(
+    events=[
+        {
+            "event_id": "api_call_12345",
+            "customer_id": "cus_abc123",
+            "event_name": "api_request",
+            "timestamp": "2024-01-15T10:30:00Z",
+            "metadata": {
+                "endpoint": "/api/v1/users",
+                "method": "GET",
+                "tokens_used": "150"
+            }
+        }
+    ]
+)
+```
+
+### قائمة واسترجاع الأحداث
+
+```python
+# Get a specific event
+event = client.usage_events.retrieve("api_call_12345")
+
+# List events with filtering
+events = client.usage_events.list(
+    customer_id="cus_abc123",
+    event_name="api_request",
+    limit=20
+)
+
+for event in events.data:
+    print(f"Event: {event.event_id} at {event.timestamp}")
+```
+
+## التصفح
+
+### التصفح التلقائي
+
+تصفح جميع العناصر تلقائيًا:
+
+```python
+from dodopayments import DodoPayments
+
+client = DodoPayments()
+all_payments = []
+
+# Automatically fetches more pages as needed
+for payment in client.payments.list():
+    all_payments.append(payment)
+print(all_payments)
+```
+
+### التصفح غير المتزامن
+
+```python
+import asyncio
+from dodopayments import AsyncDodoPayments
+
+client = AsyncDodoPayments()
+
+async def main() -> None:
+    all_payments = []
+    # Iterate through items across all pages
+    async for payment in client.payments.list():
+        all_payments.append(payment)
+    print(all_payments)
+
+asyncio.run(main())
+```
+
+### التصفح اليدوي
+
+للحصول على مزيد من التحكم في التصفح:
+
+```python
+# Access items from current page
+first_page = client.payments.list()
+for payment in first_page.items:
+    print(payment.brand_id)
+
+# Check for more pages
+if first_page.has_next_page():
+    next_page = first_page.get_next_page()
+    print(f"Fetched {len(next_page.items)} more items")
+```
+
+## تكوين عميل HTTP
+
+خصص العميل الأساسي `httpx`:
+
+```python
+import httpx
+from dodopayments import DodoPayments, DefaultHttpxClient
+
+client = DodoPayments(
+    base_url="http://my.test.server.example.com:8083",
+    http_client=DefaultHttpxClient(
+        proxy="http://my.test.proxy.example.com",
+        transport=httpx.HTTPTransport(local_address="0.0.0.0"),
+    ),
+)
+```
+
+## غير متزامن مع aiohttp
+
+استخدم aiohttp لأداء غير متزامن معزز:
+
+```python
+import asyncio
+from dodopayments import DefaultAioHttpClient
+from dodopayments import AsyncDodoPayments
+
+async def main() -> None:
+    async with AsyncDodoPayments(
+        bearer_token="My Bearer Token",
+        http_client=DefaultAioHttpClient(),
+    ) as client:
+        checkout_session_response = await client.checkout_sessions.create(
+            product_cart=[
+                {
+                    "product_id": "product_id",
+                    "quantity": 0,
+                }
+            ],
+        )
+        print(checkout_session_response.session_id)
+
+asyncio.run(main())
+```
+
+## السجل
+
+قم بتمكين السجل عن طريق تعيين متغير البيئة:
+
+```bash
+export DODO_PAYMENTS_LOG=info
+```
+
+أو لتسجيل مستوى التصحيح:
+
+```bash
+export DODO_PAYMENTS_LOG=debug
+```
+
+## تكامل الإطار
+
+### FastAPI
+
+```python
+from fastapi import FastAPI, HTTPException
+from dodopayments import AsyncDodoPayments
+from pydantic import BaseModel
+import os
+
+app = FastAPI()
+dodo = AsyncDodoPayments(bearer_token=os.getenv("DODO_API_KEY"))
+
+class CheckoutRequest(BaseModel):
+    product_id: str
+    quantity: int
+
+@app.post("/create-checkout")
+async def create_checkout(request: CheckoutRequest):
+    try:
+        session = await dodo.checkout_sessions.create(
+            product_cart=[{
+                "product_id": request.product_id,
+                "quantity": request.quantity
+            }],
+            return_url="https://yourdomain.com/return"
+        )
+        return {"checkout_url": session.url}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+```
+
+### Django
+
+```python
+from django.http import JsonResponse
+from dodopayments import DodoPayments
+import os
+
+dodo = DodoPayments(bearer_token=os.getenv("DODO_API_KEY"))
+
+def create_payment(request):
+    try:
+        payment = dodo.payments.create(
+            amount=5000,
+            currency="USD",
+            customer_id=request.user.customer_id
+        )
+        return JsonResponse({
+            "status": "success",
+            "payment_id": payment.id
+        })
+    except Exception as e:
+        return JsonResponse({
+            "status": "error",
+            "message": str(e)
+        }, status=400)
+```
+
+## الموارد
+
+<CardGroup cols={2}>
+<Card title="مستودع GitHub" icon="github" href="https://github.com/dodopayments/dodopayments-python">
+  عرض كود المصدر والمساهمة
+</Card>
+
+<Card title="مرجع API" icon="book" href="/api-reference/introduction">
+  وثائق API كاملة
+</Card>
+
+<Card title="مجتمع Discord" icon="discord" href="https://discord.gg/bYqAp4ayYh">
+  احصل على المساعدة وتواصل مع المطورين
+</Card>
+
+<Card title="الإبلاغ عن المشكلات" icon="bug" href="https://github.com/dodopayments/dodopayments-python/issues">
+  الإبلاغ عن الأخطاء أو طلب الميزات
+</Card>
+</CardGroup>
+
+## الدعم
+
+هل تحتاج إلى مساعدة بشأن مكتبة بايثون؟
+
+- **Discord**: انضم إلى [خادم المجتمع](https://discord.gg/bYqAp4ayYh) للحصول على دعم في الوقت الحقيقي
+- **البريد الإلكتروني**: اتصل بنا على support@dodopayments.com
+- **GitHub**: افتح مشكلة على [المستودع](https://github.com/dodopayments/dodopayments-python)
+
+## المساهمة
+
+نرحب بالمساهمات! تحقق من [إرشادات المساهمة](https://github.com/dodopayments/dodopayments-python/blob/main/CONTRIBUTING.md) للبدء.

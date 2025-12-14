@@ -1,0 +1,749 @@
+---
+sidebarTitle: 概述
+title: Webhooks
+description: 在 Dodo Payments 中，当事件发生时接收实时通知。通过即时事件传递自动化工作流程并保持系统同步。
+icon: box
+---
+
+<Frame>
+  <img src="/images/cover-images/Webhooks.webp" alt="Webhook 封面图"/>
+</Frame>
+
+Webhooks 在您的 Dodo Payments 账户中，当特定事件发生时提供实时通知。使用 webhooks 自动化工作流程、更新数据库、发送通知并保持系统同步。
+
+<Info>
+我们的 webhook 实现遵循 [Standard Webhooks](https://standardwebhooks.com/) 规范，确保与行业最佳实践和现有 webhook 库的兼容性。
+</Info>
+
+## 主要特性
+
+<CardGroup cols={2}>
+  <Card title="实时交付" icon="bolt">
+    当事件发生时接收即时通知
+  </Card>
+  <Card title="默认安全" icon="shield-check">
+    包含 HMAC SHA256 签名验证
+  </Card>
+  <Card title="自动重试" icon="rotate">
+    内置指数退避的重试逻辑
+  </Card>
+  <Card title="事件过滤" icon="filter">
+    仅订阅您需要的事件
+  </Card>
+</CardGroup>
+
+## 开始使用
+
+<Steps>
+<Step title="访问 Webhook 设置">
+    导航到 DodoPayments 仪表板并转到 `Settings > Webhooks`。
+</Step>
+
+<Step title="创建 Webhook 端点">
+    点击 `Add Webhook` 创建新的 webhook 端点。
+    
+
+    <Frame>
+        <img src="/images/webhooks/create-endpoint.png" alt="添加 Webhook" />
+    </Frame>
+</Step>
+
+<Step title="添加端点 URL">
+    输入您希望接收 webhook 事件的 URL。
+    
+</Step>
+
+<Step title="选择要接收的事件">
+    通过从事件列表中选择，选择您的 webhook 端点应监听的特定事件。
+    
+    <Tip>
+    仅选定的事件将触发 webhook 到您的端点，帮助您避免不必要的流量和处理。
+    </Tip>
+</Step>
+
+<Step title="获取密钥">
+    从设置页面获取您的 webhook `Secret Key`。您将使用此密钥来验证接收到的 webhook 的真实性。
+    
+    <Warning>
+    保持您的 webhook 密钥安全，切勿在客户端代码或公共存储库中暴露它。
+    </Warning>
+</Step>
+
+<Step title="轮换密钥（可选）">
+    如有需要，您可以轮换您的 webhook 密钥以增强安全性。在您的 webhook 设置中点击 **轮换密钥** 按钮。
+    
+    <Warning>
+    轮换密钥将 **使其失效** 并 **替换为** 新密钥。旧密钥仅在接下来的 24 小时内有效。之后，尝试使用旧密钥进行验证将失败。
+    </Warning>
+    
+    <Info>
+    定期使用密钥轮换，或在怀疑当前密钥已被泄露时立即进行轮换。
+    </Info>
+</Step>
+</Steps>
+
+## 配置订阅事件
+
+您可以为每个 webhook 端点配置希望接收的特定事件。
+
+### 访问事件配置
+
+<Steps>
+<Step title="导航到 Webhook 详情">
+    转到您的 Dodo Payments 仪表板并导航到 `Settings > Webhooks`。
+</Step>
+
+<Step title="选择您的端点">
+    点击您想要配置的 webhook 端点。
+</Step>
+
+<Step title="打开事件设置">
+    在 webhook 详情页面，您将看到一个 "订阅事件" 部分。点击 **编辑** 按钮以修改您的事件订阅。
+</Step>
+</Steps>
+
+### 管理事件订阅
+
+<Steps>
+<Step title="查看可用事件">
+    界面显示所有可用的 webhook 事件，按层次结构组织。事件按类别分组（例如，`dispute`，`payment`，`subscription`）。
+</Step>
+
+<Step title="搜索和过滤">
+    使用搜索栏通过输入事件名称或关键字快速查找特定事件。
+</Step>
+
+<Step title="选择事件">
+    勾选您想要接收的事件旁边的框。您可以：
+    - 选择单个子事件（例如，`dispute.accepted`，`dispute.challenged`）
+    - 选择父事件以接收所有相关子事件
+    - 根据需要混合和匹配特定事件
+</Step>
+
+<Step title="查看事件详情">
+    将鼠标悬停在每个事件旁的信息图标 (ⓘ) 上，以查看该事件触发时的描述。
+</Step>
+
+<Step title="保存配置">
+    点击 **保存** 以应用更改，或 **取消** 以放弃修改。
+</Step>
+</Steps>
+
+<Warning>
+如果您取消选择所有事件，您的 webhook 端点将不会接收任何通知。确保至少选择您的应用程序正常运行所需的事件。
+</Warning>
+
+## Webhook 交付
+
+### 超时
+
+Webhook 的 **15 秒超时窗口** 适用于连接和读取操作。确保您的端点快速响应以避免超时。
+
+<Tip>
+通过立即确认接收并返回 `200` 状态码来异步处理 webhook，然后在后台处理实际的处理。
+</Tip>
+
+### 自动重试
+
+如果 webhook 交付失败，Dodo Payments 会自动以指数退避的方式重试，以防止对您的系统造成过大压力。
+
+| 尝试 | 延迟 | 描述 |
+|---------|------------------------------|-------------|
+| 1 | 立即 | 第一次重试立即发生 |
+| 2 | 5 秒 | 第二次尝试在短暂延迟后进行 |
+| 3 | 5 分钟 | 第三次尝试增加退避 |
+| 4 | 30 分钟 | 第四次尝试继续退避 |
+| 5 | 2 小时 | 第五次尝试延长延迟 |
+| 6 | 5 小时 | 第六次尝试更长延迟 |
+| 7 | 10 小时 | 第七次尝试最大延迟 |
+| 8 | 10 小时 | **最后一次尝试** - 如果不成功，webhook 将标记为失败 |
+
+<Info>
+**每个 webhook 事件最多 8 次重试**。例如，如果一个 webhook 在成功之前失败了三次，则总交付时间约为 35 分钟和 5 秒，从第一次尝试开始。
+</Info>
+
+<Tip>
+使用 Dodo Payments 仪表板随时手动重试单个消息或批量恢复所有失败的消息。
+</Tip>
+
+### 幂等性
+
+每个 webhook 事件都包含一个唯一的 `webhook-id` 头。使用此标识符实现幂等性，防止重复处理。
+
+```javascript
+// Example: Storing webhook IDs to prevent duplicate processing
+const processedWebhooks = new Set();
+
+app.post('/webhook', (req, res) => {
+  const webhookId = req.headers['webhook-id'];
+  
+  if (processedWebhooks.has(webhookId)) {
+    return res.status(200).json({ received: true });
+  }
+  
+  processedWebhooks.add(webhookId);
+  // Process the webhook...
+});
+```
+
+<Warning>
+始终实现幂等性检查。由于重试，您可能会多次收到相同的事件。
+</Warning>
+
+### 事件顺序
+
+Webhook 事件可能由于重试或网络条件而乱序到达。设计您的系统以处理任何顺序的事件。
+
+<Info>
+您将收到 **交付时的最新有效负载**，无论 webhook 事件最初何时发出。
+</Info>
+
+## 保护 Webhooks
+
+为了确保您的 webhooks 的安全性，请始终验证有效负载并使用 HTTPS。
+
+### 验证签名
+
+每个 webhook 请求都包含一个 `webhook-signature` 头，这是 webhook 有效负载和时间戳的 HMAC SHA256 签名，使用您的密钥进行签名。
+
+#### SDK 验证（推荐）
+
+所有官方 SDK 都包含内置助手来安全地验证和解析传入的 webhooks。提供两种方法：
+
+* `unwrap()`：使用您的 webhook 密钥验证签名
+* `unsafe_unwrap()`：解析有效负载而不进行验证
+
+<Tip>
+  在初始化 Dodo Payments 客户端时，通过 `DODO_PAYMENTS_WEBHOOK_KEY` 提供您的 webhook 密钥。
+</Tip>
+
+<CodeGroup>
+
+```typescript TypeScript/Node.js
+import DodoPayments from 'dodopayments';
+import express from 'express';
+
+const app = express();
+app.use(express.raw({ type: 'application/json' }));
+
+const client = new DodoPayments({
+  bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+  environment: process.env.DODO_PAYMENTS_ENVIRONMENT,
+  webhookKey: process.env.DODO_PAYMENTS_WEBHOOK_KEY,
+});
+
+app.post('/webhook', async (req, res) => {
+  try {
+    const unwrapped = client.webhooks.unwrap(req.body.toString(), {
+      headers: {
+        'webhook-id': req.headers['webhook-id'] as string,
+        'webhook-signature': req.headers['webhook-signature'] as string,
+        'webhook-timestamp': req.headers['webhook-timestamp'] as string,
+      },
+    });
+    res.json({ received: true });
+  } catch (error) {
+    res.status(401).json({ error: 'Invalid signature' });
+  }
+});
+```
+
+```python Python
+from fastapi import FastAPI, Request, HTTPException
+from dodopayments import DodoPayments
+import os
+
+app = FastAPI()
+client = DodoPayments(
+    bearer_token=os.getenv("DODO_PAYMENTS_API_KEY"),
+    environment=os.getenv("DODO_PAYMENTS_ENVIRONMENT"),
+    webhook_key=os.getenv("DODO_PAYMENTS_WEBHOOK_KEY"),
+)
+
+@app.post("/webhook")
+async def handle_webhook(request: Request):
+    try:
+        unwrapped = client.webhooks.unwrap(
+            await request.body(),
+            headers={
+                "webhook-id": request.headers.get("webhook-id", ""),
+                "webhook-signature": request.headers.get("webhook-signature", ""),
+                "webhook-timestamp": request.headers.get("webhook-timestamp", ""),
+            },
+        )
+        return {"received": True}
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid signature")
+```
+
+```go Go
+import (
+	"context"
+	"io"
+	"net/http"
+	"os"
+	"github.com/dodopayments/dodopayments-go"
+	"github.com/dodopayments/dodopayments-go/option"
+)
+
+func webhookHandler(w http.ResponseWriter, r *http.Request) {
+	client := dodopayments.NewClient(
+		option.WithBearerToken(os.Getenv("DODO_PAYMENTS_API_KEY")),
+		option.WithEnvironment(os.Getenv("DODO_PAYMENTS_ENVIRONMENT")),
+		option.WithWebhookKey(os.Getenv("DODO_PAYMENTS_WEBHOOK_KEY")),
+	)
+	rawBody, _ := io.ReadAll(r.Body)
+	if _, err := client.Webhooks.Unwrap(context.Background(), rawBody, map[string]string{
+		"webhook-id":       r.Header.Get("webhook-id"),
+		"webhook-signature": r.Header.Get("webhook-signature"),
+		"webhook-timestamp": r.Header.Get("webhook-timestamp"),
+	}); err != nil {
+		http.Error(w, "Invalid signature", http.StatusUnauthorized)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+}
+```
+
+</CodeGroup>
+
+#### 手动验证（替代）
+
+如果您不使用 SDK，您可以按照 Standard Webhooks 规范自行验证签名：
+
+1. 通过连接 `webhook-id`、`webhook-timestamp` 和确切的原始字符串化 `payload`，用句点（`.`）分隔，构建签名消息。
+2. 使用来自仪表板的 webhook 密钥计算该字符串的 HMAC SHA256。
+3. 将计算出的签名与 `webhook-signature` 头进行比较。如果匹配，则 webhook 是有效的。
+
+<Info>
+  我们遵循 Standard Webhooks 规范。您可以使用他们的库来验证签名：[https://github.com/standard-webhooks/standard-webhooks/tree/main/libraries](https://github.com/standard-webhooks/standard-webhooks/tree/main/libraries)。有关事件有效负载格式，请参见 [Webhook Payload](/developer-resources/webhooks/intents/payment)。
+</Info>
+
+### 响应 Webhooks
+
+* 您的 webhook 处理程序必须返回 `2xx status code` 以确认接收事件。
+* 任何其他响应将被视为失败，webhook 将被重试。
+
+### 最佳实践
+
+<AccordionGroup>
+<Accordion title="仅使用 HTTPS 端点" icon="lock">
+  始终对 webhook 端点使用 HTTPS URL。HTTP 端点容易受到中间人攻击，并暴露您的 webhook 数据。
+</Accordion>
+
+<Accordion title="立即响应" icon="bolt">
+  在接收到 webhook 后立即返回 `200` 状态码。异步处理事件以避免超时。
+  
+
+  ```javascript
+  app.post('/webhook', async (req, res) => {
+    // Acknowledge receipt immediately
+    res.status(200).json({ received: true });
+    
+    // Process asynchronously
+    processWebhookAsync(req.body).catch(console.error);
+  });
+  ```
+
+</Accordion>
+
+<Accordion title="处理重复事件" icon="rotate">
+  使用 `webhook-id` 头实现幂等性，以安全地多次处理相同事件而不产生副作用。
+</Accordion>
+
+<Accordion title="保护您的 webhook 密钥" icon="key">
+  使用环境变量或秘密管理器安全存储您的 webhook 密钥。切勿将密钥提交到版本控制中。
+</Accordion>
+</AccordionGroup>
+
+## Webhook 有效负载结构
+
+了解 webhook 有效负载结构有助于您正确解析和处理事件。
+
+### 请求格式
+
+```http
+POST /your-webhook-url
+Content-Type: application/json
+```
+
+### 头部
+
+<ParamField header="webhook-id" type="string" required>
+此 webhook 事件的唯一标识符。使用此标识符进行幂等性检查。
+</ParamField>
+
+<ParamField header="webhook-signature" type="string" required>
+用于验证 webhook 真实性的 HMAC SHA256 签名。
+</ParamField>
+
+<ParamField header="webhook-timestamp" type="string" required>
+Webhook 发送时的 Unix 时间戳（以秒为单位）。
+</ParamField>
+
+### 请求体
+
+<ResponseField name="business_id" type="string" required>
+您的 Dodo Payments 商业标识符。
+</ResponseField>
+
+<ResponseField name="type" type="string" required>
+触发此 webhook 的事件类型（例如，`payment.succeeded`，`subscription.created`）。
+</ResponseField>
+
+<ResponseField name="timestamp" type="string" required>
+事件发生时的 ISO 8601 格式时间戳。
+</ResponseField>
+
+<ResponseField name="data" type="object" required>
+事件特定的有效负载，包含有关事件的详细信息。
+
+<Expandable title="数据对象属性">
+  <ResponseField name="payload_type" type="string">
+  资源类型：`Payment`，`Subscription`，`Refund`，`Dispute`，或 `LicenseKey`。
+  </ResponseField>
+  
+  其他字段因事件类型而异。有关完整模式，请参见特定事件的文档。
+</Expandable>
+</ResponseField>
+
+### 示例有效负载
+
+```json
+{
+  "business_id": "string",
+  "type": "payment.succeeded | payment.failed |...",
+  "timestamp": "2024-01-01T12:00:00Z",
+  "data": {
+    "payload_type": "Payment | Subscription | Refund | Dispute | LicenseKey",
+    // ... event-specific fields (see below)
+  }
+}
+```
+
+<CardGroup cols={2}>
+  <Card title="事件类型" icon="list" href="/developer-resources/webhooks/intents/webhook-events-guide">
+    浏览所有可用的 webhook 事件类型
+  </Card>
+  <Card title="事件有效负载" icon="code" href="/developer-resources/webhooks/intents/payment">
+    查看每个事件的详细有效负载模式
+  </Card>
+</CardGroup>
+
+## 测试 Webhooks
+
+您可以直接从 Dodo Payments 仪表板测试您的 webhook 集成，以确保您的端点正常工作，然后再上线。
+
+<Frame>
+    <img src="/images/webhooks/endpoints.png" alt="端点详情" />
+</Frame>
+
+### 访问测试界面
+
+<Steps>
+<Step title="导航到 Webhooks">
+    转到您的 Dodo Payments 仪表板并导航到 `Settings > Webhooks`。
+</Step>
+
+<Step title="选择您的端点">
+    点击您的 webhook 端点以访问其详情页面。
+</Step>
+
+<Step title="打开测试选项卡">
+    点击 **测试** 选项卡以访问 webhook 测试界面。
+</Step>
+</Steps>
+
+### 测试您的 Webhook
+
+测试界面提供了一种全面的方式来测试您的 webhook 端点：
+
+<Steps>
+<Step title="选择事件类型">
+    使用下拉菜单选择您想要测试的特定事件类型（例如，`payment.succeeded`，`payment.failed` 等）。
+    
+    <Info>
+    下拉菜单包含您的端点可以接收的所有可用 webhook 事件类型。
+    </Info>
+</Step>
+
+<Step title="查看模式和示例">
+    界面显示所选事件类型的 **模式**（数据结构）和 **示例**（示例有效负载）。
+</Step>
+
+<Step title="发送测试事件">
+    点击 **发送示例** 按钮将测试 webhook 发送到您的端点。
+    
+    <Warning>
+    **重要**：通过测试界面发送的失败消息将不会重试。这仅用于测试目的。
+    </Warning>
+</Step>
+</Steps>
+
+### 验证您的测试
+
+<Steps>
+<Step title="检查您的端点">
+    监控您的 webhook 端点日志以确认测试事件已接收。
+</Step>
+
+<Step title="验证签名">
+    确保您的签名验证在测试有效负载中正常工作。
+</Step>
+
+<Step title="测试响应">
+    确认您的端点返回 `2xx` 状态码以确认接收。
+</Step>
+</Steps>
+
+### 实现示例
+
+以下是一个完整的 Express.js 实现，展示了 webhook 验证和处理：
+
+<CodeGroup>
+
+```typescript Express.js Webhook Handler
+import { Webhook } from "standardwebhooks";
+import express from "express";
+
+const app = express();
+app.use(express.json());
+
+const webhook = new Webhook(process.env.DODO_WEBHOOK_SECRET);
+
+app.post('/webhook/dodo-payments', async (req, res) => {
+  try {
+    // Extract webhook headers
+    const webhookHeaders = {
+      "webhook-id": req.headers["webhook-id"] as string,
+      "webhook-signature": req.headers["webhook-signature"] as string,
+      "webhook-timestamp": req.headers["webhook-timestamp"] as string,
+    };
+
+    // Verify the webhook signature
+    const payload = JSON.stringify(req.body);
+    await webhook.verify(payload, webhookHeaders);
+    
+    // Acknowledge receipt immediately
+    res.status(200).json({ received: true });
+    
+    // Process webhook asynchronously
+    processWebhookAsync(req.body).catch(console.error);
+    
+  } catch (error) {
+    console.error('Webhook verification failed:', error);
+    res.status(400).json({ error: 'Invalid signature' });
+  }
+});
+
+async function processWebhookAsync(data: any) {
+  // Handle the webhook event based on type
+  switch (data.type) {
+    case 'payment.succeeded':
+      await handlePaymentSucceeded(data);
+      break;
+    case 'subscription.created':
+      await handleSubscriptionCreated(data);
+      break;
+    // Add more event handlers...
+  }
+}
+```
+
+```javascript Testing Webhooks Locally
+const { Webhook } = require("standardwebhooks");
+const axios = require("axios");
+const crypto = require("crypto");
+
+// Generate test webhook
+const timestamp = new Date();
+const webhookId = crypto.randomUUID();
+const payload = {
+  business_id: "biz_test123",
+  type: "payment.succeeded",
+  timestamp: timestamp.toISOString(),
+  data: {
+    payload_type: "Payment",
+    payment_id: "pay_test456",
+    amount: 2999
+  }
+};
+
+// Sign the payload
+const webhookSecret = process.env.DODO_WEBHOOK_SECRET;
+const webhookInstance = new Webhook(webhookSecret);
+const payloadString = JSON.stringify(payload);
+const signature = webhookInstance.sign(webhookId, timestamp, payloadString);
+
+// Send test webhook
+const response = await axios.post('http://localhost:3000/webhook/dodo-payments', payload, {
+  headers: {
+    "webhook-id": webhookId,
+    "webhook-timestamp": Math.floor(timestamp.getTime() / 1000),
+    "webhook-signature": signature,
+    "Content-Type": "application/json"
+  }
+});
+
+console.log("Test webhook sent successfully:", response.data);
+```
+
+</CodeGroup>
+
+<Tip>
+在处理生产事件之前，使用仪表板测试界面彻底测试您的 webhook 处理程序。这有助于及早识别和修复问题。
+</Tip>
+
+## 高级设置
+
+高级设置选项卡提供了额外的配置选项，以微调您的 webhook 端点行为。
+
+### 速率限制（节流）
+
+控制 webhook 事件交付到您的端点的速率，以防止对您的系统造成过大压力。
+
+<Steps>
+<Step title="访问速率限制设置">
+    在 **高级** 选项卡中，找到 "速率限制（节流）" 部分。
+</Step>
+
+<Step title="配置速率限制">
+    点击 **编辑** 按钮以修改速率限制设置。
+    
+    <Info>
+    默认情况下，webhooks 应用 "无速率限制"，这意味着事件会在发生时立即交付。
+    </Info>
+</Step>
+
+<Step title="设置限制">
+    配置您希望的速率限制，以控制 webhook 交付频率并防止系统过载。
+</Step>
+</Steps>
+
+<Tip>
+当您的 webhook 处理程序需要时间来处理事件或当您希望将多个事件批量处理时，请使用速率限制。
+</Tip>
+
+### 自定义头部
+
+向发送到您的端点的所有 webhook 请求添加自定义 HTTP 头。这对于身份验证、路由或向您的 webhook 请求添加元数据非常有用。
+
+<Steps>
+<Step title="添加自定义头部">
+    在 "自定义头部" 部分，输入自定义头的 **键** 和 **值**。
+</Step>
+
+<Step title="添加多个头部">
+    点击 **+** 按钮根据需要添加其他自定义头部。
+</Step>
+
+<Step title="保存配置">
+    您的自定义头将包含在所有发送到此端点的 webhook 请求中。
+</Step>
+</Steps>
+
+### 转换
+
+转换允许您修改 webhook 的有效负载并将其重定向到不同的 URL。此强大功能使您能够：
+
+- 在处理之前修改有效负载结构
+- 根据内容将 webhooks 路由到不同的端点
+- 添加或删除有效负载中的字段
+- 转换数据格式
+
+<Steps>
+<Step title="启用转换">
+    切换 **启用** 开关以激活转换功能。
+</Step>
+
+<Step title="配置转换">
+    点击 **编辑转换** 以定义您的转换规则。
+    
+    <Info>
+    您可以使用 JavaScript 来转换 webhook 有效负载并指定不同的目标 URL。
+    </Info>
+</Step>
+
+<Step title="测试转换">
+    使用测试界面验证您的转换在上线前是否正常工作。
+</Step>
+</Steps>
+
+<Warning>
+转换可能会显著影响 webhook 交付性能。请彻底测试并保持转换逻辑简单高效。
+</Warning>
+
+<Tip>
+转换特别适用于：
+- 在不同数据格式之间转换
+- 根据特定标准过滤事件
+- 向有效负载添加计算字段
+- 将事件路由到不同的微服务
+</Tip>
+
+## 监控 Webhook 日志
+
+日志选项卡提供了对您的 webhook 交付状态的全面可见性，使您能够有效监控、调试和管理 webhook 事件。
+
+<Frame>
+    <img src="/images/webhooks/logs.png" alt="日志" />
+</Frame>
+
+## 活动监控
+
+活动选项卡提供了对您的 webhook 交付性能的实时洞察，带有可视化分析。
+
+<Frame>
+    <img src="/images/webhooks/activity.png" alt="活动" />
+</Frame>
+
+## 邮件警报
+
+通过自动电子邮件通知保持对 webhook 健康状况的了解。当 webhook 交付开始失败或您的端点停止响应时，您将收到电子邮件警报，以便您可以快速解决问题并保持集成顺利运行。
+
+<Frame>
+  <img src="/images/webhooks/alerting.png" alt="Webhook 警报设置显示电子邮件通知配置" />
+</Frame>
+
+### 启用电子邮件警报
+
+<Steps>
+<Step title="导航到警报设置">
+  转到您的 Dodo Payments 仪表板并导航到 **仪表板 → Webhooks → 警报**。
+</Step>
+
+<Step title="启用电子邮件通知">
+  切换 **电子邮件通知** 开关以开始接收有关 webhook 交付问题的警报。
+</Step>
+
+<Step title="配置电子邮件地址">
+  输入您希望接收 webhook 警报的电子邮件地址。当您的 webhook 设置中发生某些事件（例如可能影响您集成的交付问题）时，我们将向此地址发送通知。
+</Step>
+</Steps>
+
+<Tip>
+启用电子邮件警报以尽早捕捉 webhook 交付问题并保持可靠的集成。当交付失败或您的端点变得无响应时，您将收到通知。
+</Tip>
+
+## 部署到云平台
+
+准备将您的 webhook 处理程序部署到生产环境？我们提供特定于平台的指南，帮助您将 webhooks 部署到流行的云提供商，并为每个平台提供最佳实践。
+
+<CardGroup cols={2}>
+  <Card title="Vercel" icon="triangle" href="/developer-resources/webhooks/examples/vercel-example">
+    使用无服务器函数将 webhooks 部署到 Vercel
+  </Card>
+  <Card title="Cloudflare Workers" icon="cloud" href="/developer-resources/webhooks/examples/cloudflare-example">
+    在 Cloudflare 的边缘网络上运行 webhooks
+  </Card>
+  <Card title="Supabase Edge Functions" icon="database" href="/developer-resources/webhooks/examples/supabase-example">
+    将 webhooks 与 Supabase 集成
+  </Card>
+  <Card title="Netlify Functions" icon="circle-nodes" href="/developer-resources/webhooks/examples/netlify-example">
+    将 webhooks 部署为 Netlify 无服务器函数
+  </Card>
+</CardGroup>
+
+<Info>
+每个平台指南包括特定于该提供商的环境设置、签名验证和部署步骤。
+</Info>

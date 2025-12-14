@@ -1,0 +1,528 @@
+---
+sidebarTitle: 动态定价结账
+title: 动态定价结账与随意支付
+description: 使用单一产品创建具有可变定价的灵活结账链接。启用随意支付，让客户选择他们的价格或以编程方式设置动态金额。
+icon: tags
+---
+
+**动态定价**允许您为产品提供可变定价，而无需创建多个产品条目。通过在单一产品上启用**随意支付 (PWYW)**，您可以设置最低和最高价格范围，然后在创建结账会话链接时传递动态金额。
+
+这种方法非常适合您需要的情况：
+- **可变定价**，无需管理多个产品
+- **客户驱动定价**，让买家选择他们的金额
+- **编程价格控制**，通过 API 动态设置金额
+- **灵活的定价模型**，适用于数字产品、捐赠或实验性发布
+
+<Warning>
+随意支付仅适用于**单次支付**（一次性）产品。不能与订阅产品一起使用。
+</Warning>
+
+## 工作原理
+
+启用随意支付后，您可以：
+
+1. **设置价格范围**：定义最低价格（必填）并可选设置最高价格
+2. **传递动态金额**：在创建结账会话时，在产品购物车中包含一个 `amount` 字段
+3. **让客户选择**：如果未提供金额，客户可以输入他们自己的价格（在您的范围内）
+
+<Info>
+当您在产品购物车中传递一个 `amount` 时，该金额将用于结账。如果您省略 `amount` 字段，客户可以在结账时选择他们自己的价格（受您的最低/最高设置限制）。
+</Info>
+
+## 第一步：创建一个随意支付的产品
+
+首先，在您的 Dodo Payments 仪表板中创建一个一次性产品，并启用随意支付定价。
+
+<Steps>
+<Step title="创建新产品">
+在您的 Dodo Payments 仪表板中导航到 **产品** 并点击 **添加产品**。
+</Step>
+
+<Step title="配置产品详情">
+填写所需的产品信息：
+- **产品名称**：您产品的显示名称
+- **产品描述**：清晰描述客户所购买的内容
+- **产品图片**：上传一张图片（PNG/JPG/WebP，最大 3 MB）
+- **税务类别**：选择适当的税务类别
+</Step>
+
+<Step title="设置定价类型">
+选择 **定价类型** 为 **单次支付**（一次性支付）。
+</Step>
+
+<Step title="启用随意支付">
+在 **定价** 部分，启用 **随意支付** 切换开关。
+</Step>
+
+<Step title="设置最低价格">
+输入客户必须支付的 **最低价格**。这是必填项，确保您保持收入底线。
+
+**示例**：如果您的最低价格是 $5.00，请输入 `5.00`（或 `500` 分）。
+</Step>
+
+<Step title="设置最高价格（可选）">
+可选设置 **最高价格**，以限制客户可以支付的金额。
+</Step>
+
+<Step title="设置建议价格（可选）">
+可选输入 **建议价格**，以指导客户。这有助于锚定期望，并可以提高平均订单价值。
+</Step>
+
+<Step title="保存产品">
+点击 **添加产品** 以保存。请记下您的产品 ID（例如，`pdt_123abc456def`），以便在结账会话中使用。
+</Step>
+</Steps>
+
+<Tip>
+您可以在仪表板的 **产品** → **查看详情** 中找到您的产品 ID，或通过使用 [列出产品 API](/api-reference/products/get-products) 来查找。
+</Tip>
+
+## 第二步：创建具有动态定价的结账会话
+
+一旦您的产品配置了随意支付，您就可以创建具有动态金额的结账会话。产品购物车中的 `amount` 字段允许您为每个结账会话以编程方式设置价格。
+
+### 理解金额字段
+
+在创建结账会话时，您可以在每个产品购物车项中包含一个 `amount` 字段：
+
+- **如果提供了 `amount`**：结账使用此确切金额（必须在您的最低/最高范围内）
+- **如果省略 `amount`**：客户可以在结账时输入他们自己的价格（在您的范围内）
+
+<Warning>
+`amount` 字段仅适用于随意支付产品。对于常规产品，此字段将被忽略。
+</Warning>
+
+### 代码示例
+
+<CodeGroup>
+
+```typescript TypeScript
+import DodoPayments from 'dodopayments';
+
+// Initialize the Dodo Payments client
+const client = new DodoPayments({
+  bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+});
+
+async function createDynamicPricingCheckout(
+  productId: string,
+  amountInCents: number,
+  returnUrl: string
+) {
+  try {
+    const session = await client.checkoutSessions.create({
+      product_cart: [
+        {
+          product_id: productId,
+          quantity: 1,
+          // Dynamic amount in cents (e.g., 1500 = $15.00)
+          amount: amountInCents
+        }
+      ],
+      return_url: returnUrl,
+      // Optional: Pre-fill customer information
+      customer: {
+        email: 'customer@example.com',
+        name: 'John Doe'
+      },
+      // Optional: Add metadata for tracking
+      metadata: {
+        order_id: 'order_123',
+        pricing_tier: 'custom'
+      }
+    });
+
+    console.log('Checkout URL:', session.checkout_url);
+    console.log('Session ID:', session.session_id);
+    
+    return session;
+  } catch (error) {
+    console.error('Failed to create checkout session:', error);
+    throw error;
+  }
+}
+
+// Example: Create checkout with $25.00 (2500 cents)
+const session = await createDynamicPricingCheckout(
+  'prod_123abc456def',
+  2500, // $25.00 in cents
+  'https://yoursite.com/checkout/success'
+);
+
+// Example: Create checkout with $10.00 (1000 cents)
+const session2 = await createDynamicPricingCheckout(
+  'prod_123abc456def',
+  1000, // $10.00 in cents
+  'https://yoursite.com/checkout/success'
+);
+```
+
+```python Python
+import os
+from dodopayments import DodoPayments
+
+# Initialize the Dodo Payments client
+client = DodoPayments(
+    bearer_token=os.environ.get("DODO_PAYMENTS_API_KEY"),
+)
+
+def create_dynamic_pricing_checkout(
+    product_id: str,
+    amount_in_cents: int,
+    return_url: str
+):
+    """
+    Create a checkout session with dynamic pricing.
+    
+    Args:
+        product_id: The product ID with Pay What You Want enabled
+        amount_in_cents: The amount in cents (e.g., 2500 for $25.00)
+        return_url: URL to redirect after payment completion
+    
+    Returns:
+        Session object with checkout_url and session_id
+    """
+    try:
+        session = client.checkout_sessions.create(
+            product_cart=[
+                {
+                    "product_id": product_id,
+                    "quantity": 1,
+                    # Dynamic amount in cents (e.g., 1500 = $15.00)
+                    "amount": amount_in_cents
+                }
+            ],
+            return_url=return_url,
+            # Optional: Pre-fill customer information
+            customer={
+                "email": "customer@example.com",
+                "name": "John Doe"
+            },
+            # Optional: Add metadata for tracking
+            metadata={
+                "order_id": "order_123",
+                "pricing_tier": "custom"
+            }
+        )
+        
+        print(f"Checkout URL: {session.checkout_url}")
+        print(f"Session ID: {session.session_id}")
+        
+        return session
+    except Exception as error:
+        print(f"Failed to create checkout session: {error}")
+        raise error
+
+# Example: Create checkout with $25.00 (2500 cents)
+session = create_dynamic_pricing_checkout(
+    "prod_123abc456def",
+    2500,  # $25.00 in cents
+    "https://yoursite.com/checkout/success"
+)
+
+# Example: Create checkout with $10.00 (1000 cents)
+session2 = create_dynamic_pricing_checkout(
+    "prod_123abc456def",
+    1000,  # $10.00 in cents
+    "https://yoursite.com/checkout/success"
+)
+```
+
+</CodeGroup>
+
+<Note>
+**金额格式**：`amount` 字段必须是货币的最小单位。对于美元，这意味着分（例如，$25.00 = `2500`）。对于其他货币，请使用最小单位（例如，印度卢比的 paise）。
+</Note>
+
+## 第三步：让客户选择他们的价格
+
+如果您希望客户在结账时选择他们自己的价格，只需从产品购物车中省略 `amount` 字段。结账页面将显示一个输入字段，客户可以在其中输入任何在您的最低和最高范围内的金额。
+
+<CodeGroup>
+
+```typescript TypeScript
+async function createCustomerChoiceCheckout(
+  productId: string,
+  returnUrl: string
+) {
+  try {
+    const session = await client.checkoutSessions.create({
+      product_cart: [
+        {
+          product_id: productId,
+          quantity: 1
+          // No amount field - customer will choose their price
+        }
+      ],
+      return_url: returnUrl,
+      customer: {
+        email: 'customer@example.com',
+        name: 'John Doe'
+      }
+    });
+
+    return session;
+  } catch (error) {
+    console.error('Failed to create checkout session:', error);
+    throw error;
+  }
+}
+```
+
+```python Python
+def create_customer_choice_checkout(
+    product_id: str,
+    return_url: str
+):
+    """
+    Create a checkout session where customers choose their own price.
+    """
+    try:
+        session = client.checkout_sessions.create(
+            product_cart=[
+                {
+                    "product_id": product_id,
+                    "quantity": 1
+                    # No amount field - customer will choose their price
+                }
+            ],
+            return_url=return_url,
+            customer={
+                "email": "customer@example.com",
+                "name": "John Doe"
+            }
+        )
+        
+        return session
+    except Exception as error:
+        print(f"Failed to create checkout session: {error}")
+        raise error
+```
+
+</CodeGroup>
+
+## 常见用例
+
+### 用例 1：基于用户类型的分层定价
+
+为不同客户群体提供不同价格，使用相同的产品：
+
+```typescript
+// Student discount: $10.00
+const studentSession = await createDynamicPricingCheckout(
+  'prod_123abc456def',
+  1000, // $10.00
+  'https://yoursite.com/success'
+);
+
+// Regular price: $25.00
+const regularSession = await createDynamicPricingCheckout(
+  'prod_123abc456def',
+  2500, // $25.00
+  'https://yoursite.com/success'
+);
+
+// Premium price: $50.00
+const premiumSession = await createDynamicPricingCheckout(
+  'prod_123abc456def',
+  5000, // $50.00
+  'https://yoursite.com/success'
+);
+```
+
+### 用例 2：基于数量的动态定价
+
+根据购买数量调整价格：
+
+```typescript
+async function createQuantityBasedCheckout(
+  productId: string,
+  quantity: number
+) {
+  // Base price: $20.00 per unit
+  // Discount: 10% for 2+ items, 20% for 5+ items
+  const basePrice = 2000; // $20.00 in cents
+  let discount = 0;
+  
+  if (quantity >= 5) {
+    discount = 0.20; // 20% off
+  } else if (quantity >= 2) {
+    discount = 0.10; // 10% off
+  }
+  
+  const totalAmount = Math.round(basePrice * quantity * (1 - discount));
+  
+  const session = await client.checkoutSessions.create({
+    product_cart: [
+      {
+        product_id: productId,
+        quantity: quantity,
+        amount: totalAmount
+      }
+    ],
+    return_url: 'https://yoursite.com/success'
+  });
+  
+  return session;
+}
+```
+
+### 用例 3：基于时间或促销的定价
+
+在特定时期内应用促销定价：
+
+```typescript
+async function createPromotionalCheckout(productId: string) {
+  const isPromoActive = checkIfPromotionActive(); // Your logic
+  const regularPrice = 3000; // $30.00
+  const promoPrice = 2000; // $20.00
+  
+  const amount = isPromoActive ? promoPrice : regularPrice;
+  
+  const session = await client.checkoutSessions.create({
+    product_cart: [
+      {
+        product_id: productId,
+        quantity: 1,
+        amount: amount
+      }
+    ],
+    return_url: 'https://yoursite.com/success',
+    metadata: {
+      pricing_type: isPromoActive ? 'promotional' : 'regular'
+    }
+  });
+  
+  return session;
+}
+```
+
+## 最佳实践
+
+<CardGroup cols={2}>
+<Card title="设置合理的范围" icon="sliders">
+选择一个覆盖您成本的最低价格，同时保持可接受性。使用建议价格来指导客户期望。
+</Card>
+
+<Card title="验证金额" icon="shield-check">
+在创建结账会话之前，始终验证动态金额是否在您产品的最低和最高范围内。
+</Card>
+
+<Card title="跟踪定价决策" icon="chart-line">
+使用元数据跟踪为什么选择特定金额（例如，`pricing_tier`，`discount_code`，`user_segment`）。
+</Card>
+
+<Card title="处理边缘情况" icon="exclamation-triangle">
+确保您的应用程序优雅地处理金额超过最高范围或低于最低范围的情况。
+</Card>
+</CardGroup>
+
+## 验证和错误处理
+
+始终根据您产品的最低和最高设置验证金额：
+
+<CodeGroup>
+
+```typescript TypeScript
+async function createValidatedCheckout(
+  productId: string,
+  amountInCents: number,
+  minAmount: number,
+  maxAmount: number | null
+) {
+  // Validate minimum
+  if (amountInCents < minAmount) {
+    throw new Error(
+      `Amount ${amountInCents} is below minimum ${minAmount}`
+    );
+  }
+  
+  // Validate maximum (if set)
+  if (maxAmount !== null && amountInCents > maxAmount) {
+    throw new Error(
+      `Amount ${amountInCents} exceeds maximum ${maxAmount}`
+    );
+  }
+  
+  // Create checkout session
+  return await client.checkoutSessions.create({
+    product_cart: [
+      {
+        product_id: productId,
+        quantity: 1,
+        amount: amountInCents
+      }
+    ],
+    return_url: 'https://yoursite.com/success'
+  });
+}
+```
+
+```python Python
+def create_validated_checkout(
+    product_id: str,
+    amount_in_cents: int,
+    min_amount: int,
+    max_amount: int | None
+):
+    """
+    Create a checkout session with amount validation.
+    """
+    # Validate minimum
+    if amount_in_cents < min_amount:
+        raise ValueError(
+            f"Amount {amount_in_cents} is below minimum {min_amount}"
+        )
+    
+    # Validate maximum (if set)
+    if max_amount is not None and amount_in_cents > max_amount:
+        raise ValueError(
+            f"Amount {amount_in_cents} exceeds maximum {max_amount}"
+        )
+    
+    # Create checkout session
+    return client.checkout_sessions.create(
+        product_cart=[
+            {
+                "product_id": product_id,
+                "quantity": 1,
+                "amount": amount_in_cents
+            }
+        ],
+        return_url="https://yoursite.com/success"
+    )
+```
+
+</CodeGroup>
+
+## API 参考
+
+<CardGroup cols={2}>
+
+<Card title="随意支付功能" icon="dollar-sign" href="/features/pay-what-you-want">
+了解更多关于随意支付定价模型及其功能的信息。
+</Card>
+
+<Card title="结账会话指南" icon="cart-shopping" href="/developer-resources/checkout-session">
+探索高级结账会话功能和自定义选项。
+</Card>
+</CardGroup>
+
+## 故障排除
+
+<AccordionGroup>
+<Accordion title="金额被忽略">
+如果您的 `amount` 字段被忽略，请验证：
+- 产品在仪表板中启用了 **随意支付**
+- 产品是 **单次支付**（一次性）产品，而不是订阅
+- 金额格式正确（最低货币单位，例如美元的分）
+</Accordion>
+
+<Accordion title="金额超过最高或低于最低">
+API 将拒绝金额违反您产品价格范围的结账会话。在创建结账会话之前始终验证金额，或者通过省略 `amount` 字段让客户选择他们的价格。
+</Accordion>
+
+<Accordion title="客户无法输入自己的价格">
+如果客户没有看到价格输入字段，请确保您已从产品购物车中省略 `amount` 字段。当提供 `amount` 时，结账使用该确切金额。
+</Accordion>
+</AccordionGroup>

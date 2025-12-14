@@ -1,0 +1,189 @@
+---
+title: Cối xay gió
+description: Kích hoạt các quy trình và kịch bản Cối xay gió dựa trên các sự
+  kiện Dodo Payments để tự động hóa tùy chỉnh.
+icon: wind
+---
+
+## Giới thiệu
+
+Thực hiện các quy trình và kịch bản tùy chỉnh trong Cối xay gió khi các sự kiện thanh toán xảy ra. Thực hiện các thao tác cơ sở dữ liệu, gửi thông báo, xử lý dữ liệu và tự động hóa logic kinh doanh phức tạp với động cơ quy trình mạnh mẽ của Cối xay gió.
+
+<Info>
+Tích hợp này yêu cầu URL webhook Cối xay gió của bạn từ cấu hình quy trình của bạn.
+</Info>
+
+## Bắt đầu
+
+<Steps>
+<Step title="Mở phần Webhook">
+  Trong bảng điều khiển Dodo Payments của bạn, điều hướng đến <b>Webhooks → + Thêm Điểm cuối</b> và mở rộng menu thả xuống tích hợp.
+  <Frame>
+    <img src="/images/integrations/windmill.png" alt="Thêm Điểm cuối và menu thả xuống tích hợp" />
+  </Frame>
+</Step>
+
+<Step title="Chọn Cối xay gió">
+  Chọn thẻ tích hợp <b>Cối xay gió</b>.
+</Step>
+
+<Step title="Tạo Quy trình Cối xay gió">
+  Trong Cối xay gió, tạo một quy trình mới và sao chép URL webhook từ cấu hình kích hoạt.
+</Step>
+
+<Step title="Dán URL Webhook">
+  Dán URL webhook Cối xay gió vào cấu hình điểm cuối.
+</Step>
+
+<Step title="Cấu hình Chuyển đổi">
+  Chỉnh sửa mã chuyển đổi để định dạng các sự kiện cho quy trình Cối xay gió của bạn.
+</Step>
+
+<Step title="Kiểm tra & Tạo">
+  Kiểm tra với các payload mẫu và nhấp vào <b>Tạo</b> để kích hoạt tích hợp.
+</Step>
+
+<Step title="Xong!">
+  🎉 Các sự kiện thanh toán bây giờ sẽ tự động kích hoạt các quy trình Cối xay gió của bạn.
+</Step>
+</Steps>
+
+## Ví dụ Mã Chuyển đổi
+
+### Payload Quy trình Cơ bản
+
+```javascript basic_workflow.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.payload = {
+      event_type: webhook.eventType,
+      payment_id: p.payment_id,
+      amount: (p.total_amount / 100).toFixed(2),
+      currency: p.currency || "USD",
+      customer_email: p.customer.email,
+      customer_name: p.customer.name,
+      payment_method: p.payment_method || "unknown",
+      timestamp: webhook.payload.timestamp,
+      metadata: {
+        business_id: p.business_id,
+        product_id: p.product_id
+      }
+    };
+  }
+  return webhook;
+}
+```
+
+### Bộ xử lý Quy trình Đăng ký
+
+```javascript subscription_workflow.js icon="js" expandable
+function handler(webhook) {
+  const s = webhook.payload.data;
+  switch (webhook.eventType) {
+    case "subscription.active":
+      webhook.payload = {
+        event_type: "subscription_started",
+        subscription_id: s.subscription_id,
+        customer_email: s.customer.email,
+        customer_name: s.customer.name,
+        product_id: s.product_id,
+        amount: (s.recurring_pre_tax_amount / 100).toFixed(2),
+        frequency: s.payment_frequency_interval,
+        next_billing: s.next_billing_date,
+        customer_id: s.customer.customer_id,
+        timestamp: webhook.payload.timestamp
+      };
+      break;
+    case "subscription.cancelled":
+      webhook.payload = {
+        event_type: "subscription_cancelled",
+        subscription_id: s.subscription_id,
+        customer_email: s.customer.email,
+        cancelled_at: s.cancelled_at,
+        cancel_at_next_billing: s.cancel_at_next_billing_date,
+        customer_id: s.customer.customer_id,
+        timestamp: webhook.payload.timestamp
+      };
+      break;
+  }
+  return webhook;
+}
+```
+
+### Bộ xử lý Quy trình Tranh chấp
+
+```javascript dispute_workflow.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType.startsWith("dispute.")) {
+    const d = webhook.payload.data;
+    webhook.payload = {
+      event_type: webhook.eventType,
+      dispute_id: d.dispute_id,
+      payment_id: d.payment_id,
+      amount: (d.amount / 100).toFixed(2),
+      status: d.dispute_status,
+      stage: d.dispute_stage,
+      remarks: d.remarks || "",
+      urgent: webhook.eventType === "dispute.opened",
+      business_id: d.business_id,
+      timestamp: webhook.payload.timestamp
+    };
+  }
+  return webhook;
+}
+```
+
+## Các Trường hợp Sử dụng Cối xay gió Thông thường
+
+<AccordionGroup>
+<Accordion title="Các Thao tác Cơ sở dữ liệu">
+- Cập nhật hồ sơ khách hàng trong PostgreSQL/MySQL
+- Ghi lại các sự kiện thanh toán vào kho dữ liệu
+- Đồng bộ dữ liệu với các hệ thống bên ngoài
+- Cập nhật mức tồn kho
+- Theo dõi các chỉ số phân tích
+</Accordion>
+
+<Accordion title="Logic Kinh doanh">
+- Tính toán các chỉ số doanh thu
+- Xử lý hoàn tiền và điều chỉnh
+- Xử lý vòng đời đăng ký
+- Tạo báo cáo và xuất khẩu
+- Xác thực dữ liệu thanh toán
+</Accordion>
+
+<Accordion title="Tích hợp Bên ngoài">
+- Gửi dữ liệu đến các nền tảng phân tích
+- Cập nhật hệ thống CRM
+- Kích hoạt các chiến dịch email
+- Tạo sự kiện lịch
+- Gửi thông báo SMS
+</Accordion>
+</AccordionGroup>
+
+## Mẹo
+
+- Cấu trúc dữ liệu payload để dễ dàng xử lý quy trình
+- Bao gồm tất cả các siêu dữ liệu liên quan cho logic kinh doanh
+- Sử dụng tên trường nhất quán giữa các sự kiện
+- Bao gồm dấu thời gian cho thời gian quy trình
+- Tận dụng khả năng xử lý lỗi tích hợp sẵn của Cối xay gió
+
+## Khắc phục sự cố
+
+<AccordionGroup>
+<Accordion title="Quy trình không được kích hoạt">
+- Xác minh URL webhook là chính xác và hoạt động
+- Kiểm tra xem quy trình Cối xay gió đã được xuất bản và hoạt động
+- Đảm bảo cấu trúc payload khớp với mong đợi của quy trình
+- Xem lại nhật ký thực thi Cối xay gió để tìm lỗi
+</Accordion>
+
+<Accordion title="Vấn đề xử lý dữ liệu">
+- Kiểm tra ánh xạ tham số đầu vào quy trình
+- Xác minh các kiểu dữ liệu khớp với định dạng mong đợi
+- Kiểm tra quy trình với dữ liệu mẫu
+- Xem lại nhật ký thực thi kịch bản Cối xay gió
+</Accordion>
+</AccordionGroup>

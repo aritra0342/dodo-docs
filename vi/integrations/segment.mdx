@@ -1,0 +1,161 @@
+---
+title: Segment
+description: Gửi các sự kiện Dodo Payments đến Segment để phân tích và tích hợp
+  nền tảng dữ liệu khách hàng.
+icon: chart-line
+---
+
+## Giới thiệu
+
+Theo dõi các sự kiện thanh toán trong Segment để hỗ trợ phân tích, tự động hóa tiếp thị và nền tảng dữ liệu khách hàng của bạn. Gửi các sự kiện thanh toán, đăng ký và vòng đời khách hàng đến hơn 300 công cụ hạ nguồn một cách tự động.
+
+<Info>
+Tích hợp này yêu cầu một Segment Write Key từ không gian làm việc Segment của bạn.
+</Info>
+
+## Bắt đầu
+
+<Steps>
+<Step title="Mở phần Webhook">
+  Trong bảng điều khiển Dodo Payments của bạn, điều hướng đến <b>Webhooks → + Thêm Điểm cuối</b> và mở rộng danh sách thả xuống tích hợp.
+  <Frame>
+    <img src="/images/integrations/segment.png" alt="Thêm Điểm cuối và danh sách thả xuống tích hợp" />
+  </Frame>
+</Step>
+
+<Step title="Chọn Segment">
+  Chọn thẻ tích hợp <b>Segment</b>.
+</Step>
+
+<Step title="Nhập Write Key">
+  Cung cấp Write Key của bạn trong cấu hình.
+</Step>
+
+<Step title="Cấu hình Biến đổi">
+  Chỉnh sửa mã biến đổi để định dạng các sự kiện cho API Track của Segment.
+</Step>
+
+<Step title="Kiểm tra & Tạo">
+  Kiểm tra với các payload mẫu và nhấp vào <b>Tạo</b> để kích hoạt đồng bộ hóa.
+</Step>
+
+<Step title="Xong!">
+  🎉 Các sự kiện thanh toán sẽ được theo dõi trong Segment và gửi đến các công cụ đã kết nối của bạn.
+</Step>
+</Steps>
+
+## Ví dụ Mã Biến đổi
+
+### Theo dõi Sự kiện Thanh toán
+
+```javascript track_payments.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.url = "https://api.segment.io/v1/track";
+    webhook.payload = {
+      userId: p.customer.customer_id,
+      event: "Payment Completed",
+      properties: {
+        amount: (p.total_amount / 100).toFixed(2),
+        currency: p.currency || "USD",
+        payment_method: p.payment_method || "unknown",
+        payment_id: p.payment_id,
+        customer_email: p.customer.email,
+        customer_name: p.customer.name
+      },
+      timestamp: webhook.payload.timestamp
+    };
+  }
+  return webhook;
+}
+```
+
+### Theo dõi Vòng đời Đăng ký
+
+```javascript track_subscriptions.js icon="js" expandable
+function handler(webhook) {
+  const s = webhook.payload.data;
+  switch (webhook.eventType) {
+    case "subscription.active":
+      webhook.url = "https://api.segment.io/v1/track";
+      webhook.payload = {
+        userId: s.customer.customer_id,
+        event: "Subscription Started",
+        properties: {
+          subscription_id: s.subscription_id,
+          product_id: s.product_id,
+          amount: (s.recurring_pre_tax_amount / 100).toFixed(2),
+          frequency: s.payment_frequency_interval,
+          next_billing: s.next_billing_date,
+          customer_email: s.customer.email
+        },
+        timestamp: webhook.payload.timestamp
+      };
+      break;
+    case "subscription.cancelled":
+      webhook.url = "https://api.segment.io/v1/track";
+      webhook.payload = {
+        userId: s.customer.customer_id,
+        event: "Subscription Cancelled",
+        properties: {
+          subscription_id: s.subscription_id,
+          product_id: s.product_id,
+          cancelled_at: s.cancelled_at,
+          cancel_at_next_billing: s.cancel_at_next_billing_date,
+          customer_email: s.customer.email
+        },
+        timestamp: webhook.payload.timestamp
+      };
+      break;
+  }
+  return webhook;
+}
+```
+
+### Xác định Thuộc tính Khách hàng
+
+```javascript identify_customer.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.url = "https://api.segment.io/v1/identify";
+    webhook.payload = {
+      userId: p.customer.customer_id,
+      traits: {
+        email: p.customer.email,
+        name: p.customer.name,
+        total_spent: (p.total_amount / 100).toFixed(2),
+        payment_method: p.payment_method || "unknown",
+        last_payment_date: webhook.payload.timestamp,
+        customer_since: webhook.payload.timestamp
+      }
+    };
+  }
+  return webhook;
+}
+```
+
+## Mẹo
+
+- Sử dụng tên sự kiện nhất quán trong toàn bộ tích hợp của bạn
+- Bao gồm các thuộc tính liên quan cho phân tích và phân khúc
+- Đặt dấu thời gian chính xác để theo dõi sự kiện chính xác
+- Sử dụng ID khách hàng làm userId để xác định người dùng chính xác
+
+## Khắc phục sự cố
+
+<AccordionGroup>
+<Accordion title="Sự kiện không xuất hiện trong Segment">
+- Xác minh Write Key là chính xác và đang hoạt động
+- Kiểm tra rằng tên sự kiện tuân theo quy tắc đặt tên của Segment
+- Đảm bảo userId được thiết lập chính xác để xác định người dùng
+- Xem xét giới hạn tỷ lệ API của Segment
+</Accordion>
+
+<Accordion title="Lỗi biến đổi">
+- Xác thực cấu trúc JSON khớp với định dạng API của Segment
+- Kiểm tra rằng tất cả các trường bắt buộc đều có mặt
+- Đảm bảo tên sự kiện là chuỗi, không phải đối tượng
+</Accordion>
+</AccordionGroup>

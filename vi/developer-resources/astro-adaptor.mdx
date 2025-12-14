@@ -1,0 +1,634 @@
+---
+title: Astro Adaptor
+description: Tìm hiểu cách tích hợp Dodo Payments với dự án Astro App Router của
+  bạn bằng cách sử dụng Astro Adaptor của chúng tôi. Bao gồm thanh toán, cổng
+  thông tin khách hàng, webhook và thiết lập môi trường an toàn.
+icon: code-merge
+---
+
+<CardGroup cols={2}>
+<Card title="Xử lý Thanh Toán" icon="cart-shopping" href="#checkout-route-handler">
+    Tích hợp thanh toán Dodo Payments vào ứng dụng Astro của bạn.
+</Card>
+<Card title="Cổng Thông Tin Khách Hàng" icon="user" href="#customer-portal-route-handler">
+    Cho phép khách hàng quản lý đăng ký và thông tin.
+</Card>
+<Card title="Webhook" icon="bell" href="#webhook-route-handler">
+    Nhận và xử lý các sự kiện webhook của Dodo Payments.
+</Card>
+</CardGroup>
+
+## Cài Đặt
+
+<Steps>
+<Step title="Cài đặt gói">
+Chạy lệnh sau trong thư mục gốc của dự án bạn:
+
+```bash
+npm install @dodopayments/astro
+```
+
+</Step>
+<Step title="Thiết lập biến môi trường">
+Tạo một tệp <code>.env</code> trong thư mục gốc của dự án bạn:
+
+```env expandable
+DODO_PAYMENTS_API_KEY=your-api-key
+DODO_PAYMENTS_WEBHOOK_KEY=your-webhook-secret
+DODO_PAYMENTS_ENVIRONMENT="test_mode" or "live_mode"
+DODO_PAYMENTS_RETURN_URL=https://yourdomain.com/checkout/success
+```
+
+<Warning>
+Không bao giờ cam kết tệp <code>.env</code> hoặc bí mật của bạn vào hệ thống kiểm soát phiên bản.
+</Warning>
+</Step>
+</Steps>
+
+## Ví Dụ về Xử Lý Đường Dẫn
+
+<Info>
+Tất cả các ví dụ đều giả định rằng bạn đang sử dụng Astro App Router.
+</Info>
+
+<Tabs>
+<Tab title="Xử lý Thanh Toán">
+  <Info>
+  Sử dụng trình xử lý này để tích hợp thanh toán Dodo Payments vào ứng dụng Astro của bạn. Hỗ trợ các luồng thanh toán tĩnh (GET), động (POST) và phiên (POST).
+  </Info>
+  <CodeGroup>
+
+    ```typescript Astro Route Handler expandable
+    // src/pages/api/checkout.ts
+    import { Checkout } from "@dodopayments/astro";
+    export const prerender = false;
+
+    export const GET = Checkout({
+        bearerToken: import.meta.env.DODO_PAYMENTS_API_KEY,
+        returnUrl: import.meta.env.DODO_PAYMENTS_RETURN_URL,
+        environment: import.meta.env.DODO_PAYMENTS_ENVIRONMENT,
+        type: "static", // optional, defaults to 'static'
+    });
+
+    export const POST = Checkout({
+        bearerToken: import.meta.env.DODO_PAYMENTS_API_KEY,
+        returnUrl: import.meta.env.DODO_PAYMENTS_RETURN_URL,
+        environment: import.meta.env.DODO_PAYMENTS_ENVIRONMENT,
+        type: "dynamic", // for dynamic checkout
+    });
+
+    export const POST = Checkout({
+        bearerToken: import.meta.env.DODO_PAYMENTS_API_KEY,
+        returnUrl: import.meta.env.DODO_PAYMENTS_RETURN_URL,
+        environment: import.meta.env.DODO_PAYMENTS_ENVIRONMENT,
+        type: "session", // for checkout sessions
+    });
+    ```
+
+  </CodeGroup>
+  <CodeGroup>
+
+  ```curl Static Checkout Curl example expandable
+  curl --request GET \
+  --url 'https://example.com/api/checkout?productId=pdt_fqJhl7pxKWiLhwQR042rh' \
+  --header 'User-Agent: insomnia/11.2.0' \
+  --cookie mode=test
+  ```
+
+  </CodeGroup>
+  <CodeGroup>
+
+  ```curl Dynamic Checkout Curl example expandable
+  curl --request POST \
+  --url https://example.com/api/checkout \
+  --header 'Content-Type: application/json' \
+  --header 'User-Agent: insomnia/11.2.0' \
+  --cookie mode=test \
+  --data '{
+  "billing": {
+    "city": "Texas",
+    "country": "US",
+    "state": "Texas",
+    "street": "56, hhh",
+    "zipcode": "560000"
+  },
+  "customer": {
+    "email": "test@example.com",
+		"name": "test"
+  },
+  "metadata": {},
+  "payment_link": true,
+	"product_id": "pdt_QMDuvLkbVzCRWRQjLNcs",
+	"quantity": 1,
+	"billing_currency": "USD",
+	"discount_code": "IKHZ23M9GQ",
+    "return_url": "https://example.com",
+	"trial_period_days": 10
+}'
+  ```
+
+  </CodeGroup>
+  <CodeGroup>
+
+  ```curl Checkout Session Curl example expandable
+  curl --request POST \
+  --url https://example.com/api/checkout \
+  --header 'Content-Type: application/json' \
+  --header 'User-Agent: insomnia/11.2.0' \
+  --cookie mode=test \
+  --data '{
+  "product_cart": [
+    {
+      "product_id": "pdt_QMDuvLkbVzCRWRQjLNcs",
+      "quantity": 1
+    }
+  ],
+  "customer": {
+    "email": "test@example.com",
+    "name": "test"
+  },
+  "return_url": "https://example.com/success"
+}'
+  ```
+
+  </CodeGroup>
+
+</Tab>
+<Tab title="Xử lý Cổng Thông Tin Khách Hàng">
+  <Info>
+  Sử dụng trình xử lý này để cho phép khách hàng quản lý đăng ký và thông tin của họ thông qua cổng thông tin khách hàng Dodo Payments.
+  </Info>
+  <CodeGroup>
+
+    ```typescript Astro Route Handler expandable
+    // src/pages/api/customer-portal.ts
+    import { CustomerPortal } from "@dodopayments/astro";
+    export const GET = CustomerPortal({
+        bearerToken: import.meta.env.DODO_PAYMENTS_API_KEY,
+        environment: import.meta.env.DODO_PAYMENTS_ENVIRONMENT,
+    });
+    ```
+
+  </CodeGroup>
+  <CodeGroup>
+
+  ```curl Customer Portal Curl example expandable
+  curl --request GET \
+  --url 'https://example.com/api/customer-portal?customer_id=cus_9VuW4K7O3GHwasENg31m&send_email=true' \
+  --header 'User-Agent: insomnia/11.2.0' \
+  --cookie mode=test
+  ```
+
+  </CodeGroup>
+</Tab>
+<Tab title="Xử lý Webhook">
+  <Info>
+  Sử dụng trình xử lý này để nhận và xử lý các sự kiện webhook của Dodo Payments một cách an toàn trong ứng dụng Astro của bạn.
+  </Info>
+  <CodeGroup>
+
+    ```typescript expandable
+    // src/pages/api/webhook.ts
+    import { Webhooks } from "@dodopayments/astro";
+
+    export const POST = Webhooks({
+        webhookKey: import.meta.env.DODO_PAYMENTS_WEBHOOK_KEY,
+        onPayload: async (payload) => {
+            // handle the payload
+        },
+        // ... other event handlers for granular control
+    });
+    ```
+
+  </CodeGroup>
+</Tab>
+</Tabs>
+
+## Xử Lý Đường Dẫn Thanh Toán
+
+<Info>
+Dodo Payments hỗ trợ ba loại luồng thanh toán để tích hợp thanh toán vào trang web của bạn, bộ điều hợp này hỗ trợ tất cả các loại luồng thanh toán.
+</Info>
+
+- **Liên Kết Thanh Toán Tĩnh:** URL có thể chia sẻ ngay lập tức để thu thập thanh toán nhanh chóng, không cần mã.
+- **Liên Kết Thanh Toán Động:** Tạo liên kết thanh toán theo chương trình với các chi tiết tùy chỉnh bằng cách sử dụng API hoặc SDK.
+- **Phiên Thanh Toán:** Tạo trải nghiệm thanh toán an toàn, tùy chỉnh với giỏ hàng sản phẩm đã được cấu hình trước và thông tin khách hàng.
+
+<AccordionGroup>
+<Accordion title="Thanh Toán Tĩnh (GET)">
+
+### Tham Số Truy Vấn Hỗ Trợ
+<ParamField query="productId" type="string" required>
+Mã định danh sản phẩm (ví dụ: <code>?productId=pdt_nZuwz45WAs64n3l07zpQR</code>).
+</ParamField>
+<ParamField query="quantity" type="integer">
+Số lượng sản phẩm.
+</ParamField>
+<ParamField query="fullName" type="string">
+Họ và tên của khách hàng.
+</ParamField>
+<ParamField query="firstName" type="string">
+Tên của khách hàng.
+</ParamField>
+<ParamField query="lastName" type="string">
+Họ của khách hàng.
+</ParamField>
+<ParamField query="email" type="string">
+Địa chỉ email của khách hàng.
+</ParamField>
+<ParamField query="country" type="string">
+Quốc gia của khách hàng.
+</ParamField>
+<ParamField query="addressLine" type="string">
+Địa chỉ của khách hàng.
+</ParamField>
+<ParamField query="city" type="string">
+Thành phố của khách hàng.
+</ParamField>
+<ParamField query="state" type="string">
+Tiểu bang/tỉnh của khách hàng.
+</ParamField>
+<ParamField query="zipCode" type="string">
+Mã bưu điện của khách hàng.
+</ParamField>
+<ParamField query="disableFullName" type="boolean">
+Vô hiệu hóa trường họ và tên.
+</ParamField>
+<ParamField query="disableFirstName" type="boolean">
+Vô hiệu hóa trường tên.
+</ParamField>
+<ParamField query="disableLastName" type="boolean">
+Vô hiệu hóa trường họ.
+</ParamField>
+<ParamField query="disableEmail" type="boolean">
+Vô hiệu hóa trường email.
+</ParamField>
+<ParamField query="disableCountry" type="boolean">
+Vô hiệu hóa trường quốc gia.
+</ParamField>
+<ParamField query="disableAddressLine" type="boolean">
+Vô hiệu hóa trường địa chỉ.
+</ParamField>
+<ParamField query="disableCity" type="boolean">
+Vô hiệu hóa trường thành phố.
+</ParamField>
+<ParamField query="disableState" type="boolean">
+Vô hiệu hóa trường tiểu bang.
+</ParamField>
+<ParamField query="disableZipCode" type="boolean">
+Vô hiệu hóa trường mã bưu điện.
+</ParamField>
+<ParamField query="paymentCurrency" type="string">
+Chỉ định loại tiền tệ thanh toán (ví dụ: <code>USD</code>).
+</ParamField>
+<ParamField query="showCurrencySelector" type="boolean">
+Hiển thị trình chọn tiền tệ.
+</ParamField>
+<ParamField query="paymentAmount" type="integer">
+Chỉ định số tiền thanh toán (ví dụ: <code>1000</code> cho $10.00).
+</ParamField>
+<ParamField query="showDiscounts" type="boolean">
+Hiển thị các trường giảm giá.
+</ParamField>
+<ParamField query="metadata_*" type="string">
+Bất kỳ tham số truy vấn nào bắt đầu bằng <code>metadata_</code> sẽ được truyền dưới dạng metadata.
+</ParamField>
+
+<Warning>
+Nếu <code>productId</code> bị thiếu, trình xử lý sẽ trả về phản hồi 400. Các tham số truy vấn không hợp lệ cũng dẫn đến phản hồi 400.
+</Warning>
+
+### Định Dạng Phản Hồi
+Thanh toán tĩnh trả về phản hồi JSON với URL thanh toán:
+
+```json
+{
+  "checkout_url": "https://checkout.dodopayments.com/..."
+}
+```
+
+</Accordion>
+<Accordion title="Thanh Toán Động (POST)">
+- Gửi các tham số dưới dạng thân JSON trong yêu cầu POST.
+- Hỗ trợ cả thanh toán một lần và định kỳ.
+- Để có danh sách đầy đủ các trường thân POST được hỗ trợ, hãy tham khảo:
+  - [Thân yêu cầu cho sản phẩm thanh toán một lần](https://docs.dodopayments.com/api-reference/payments/post-payments)
+  - [Thân yêu cầu cho sản phẩm đăng ký](https://docs.dodopayments.com/api-reference/subscriptions/post-subscriptions)
+
+### Định Dạng Phản Hồi
+Thanh toán động trả về phản hồi JSON với URL thanh toán:
+
+```json
+{
+  "checkout_url": "https://checkout.dodopayments.com/..."
+}
+```
+
+</Accordion>
+<Accordion title="Phiên Thanh Toán (POST)">
+Các phiên thanh toán cung cấp trải nghiệm thanh toán an toàn hơn, được lưu trữ, xử lý toàn bộ luồng thanh toán cho cả mua hàng một lần và đăng ký với quyền kiểm soát tùy chỉnh đầy đủ.
+
+Tham khảo [Hướng Dẫn Tích Hợp Phiên Thanh Toán](https://docs.dodopayments.com/developer-resources/checkout-session) để biết thêm chi tiết và danh sách đầy đủ các trường được hỗ trợ.
+
+### Định Dạng Phản Hồi
+Các phiên thanh toán trả về phản hồi JSON với URL thanh toán:
+
+```json
+{
+  "checkout_url": "https://checkout.dodopayments.com/session/..."
+}
+```
+
+</Accordion>
+</AccordionGroup>
+
+## Xử Lý Đường Dẫn Cổng Thông Tin Khách Hàng
+
+Trình xử lý đường dẫn cổng thông tin khách hàng cho phép bạn tích hợp liền mạch cổng thông tin khách hàng Dodo Payments vào ứng dụng Astro của bạn.
+
+### Tham Số Truy Vấn
+<ParamField query="customer_id" type="string" required>
+Mã khách hàng cho phiên cổng (ví dụ: <code>?customer_id=cus_123</code>).
+</ParamField>
+<ParamField query="send_email" type="boolean">
+Nếu được đặt thành <code>true</code>, sẽ gửi email cho khách hàng với liên kết cổng.
+</ParamField>
+
+<Warning>
+Trả về 400 nếu <code>customer_id</code> bị thiếu.
+</Warning>
+
+## Xử Lý Đường Dẫn Webhook
+
+- **Phương Thức:** Chỉ hỗ trợ yêu cầu POST. Các phương thức khác trả về 405.
+- **Xác Minh Chữ Ký:** Xác minh chữ ký webhook bằng cách sử dụng <code>webhookKey</code>. Trả về 401 nếu xác minh thất bại.
+- **Xác Thực Tải:** Được xác thực bằng Zod. Trả về 400 cho các tải không hợp lệ.
+- **Xử Lý Lỗi:**
+  - 401: Chữ ký không hợp lệ
+  - 400: Tải không hợp lệ
+  - 500: Lỗi nội bộ trong quá trình xác minh
+- **Định Tuyến Sự Kiện:** Gọi trình xử lý sự kiện thích hợp dựa trên loại tải.
+
+### Các Trình Xử Lý Sự Kiện Webhook Hỗ Trợ
+<CodeGroup>
+
+```typescript Typescript expandable
+onPayload?: (payload: WebhookPayload) => Promise<void>;
+onPaymentSucceeded?: (payload: WebhookPayload) => Promise<void>;
+onPaymentFailed?: (payload: WebhookPayload) => Promise<void>;
+onPaymentProcessing?: (payload: WebhookPayload) => Promise<void>;
+onPaymentCancelled?: (payload: WebhookPayload) => Promise<void>;
+onRefundSucceeded?: (payload: WebhookPayload) => Promise<void>;
+onRefundFailed?: (payload: WebhookPayload) => Promise<void>;
+onDisputeOpened?: (payload: WebhookPayload) => Promise<void>;
+onDisputeExpired?: (payload: WebhookPayload) => Promise<void>;
+onDisputeAccepted?: (payload: WebhookPayload) => Promise<void>;
+onDisputeCancelled?: (payload: WebhookPayload) => Promise<void>;
+onDisputeChallenged?: (payload: WebhookPayload) => Promise<void>;
+onDisputeWon?: (payload: WebhookPayload) => Promise<void>;
+onDisputeLost?: (payload: WebhookPayload) => Promise<void>;
+onSubscriptionActive?: (payload: WebhookPayload) => Promise<void>;
+onSubscriptionOnHold?: (payload: WebhookPayload) => Promise<void>;
+onSubscriptionRenewed?: (payload: WebhookPayload) => Promise<void>;
+onSubscriptionPlanChanged?: (payload: WebhookPayload) => Promise<void>;
+onSubscriptionCancelled?: (payload: WebhookPayload) => Promise<void>;
+onSubscriptionFailed?: (payload: WebhookPayload) => Promise<void>;
+onSubscriptionExpired?: (payload: WebhookPayload) => Promise<void>;
+onLicenseKeyCreated?: (payload: WebhookPayload) => Promise<void>;
+```
+
+</CodeGroup>
+
+---
+
+## Lời Nhắc cho LLM
+
+```
+
+You are an expert Astro developer assistant. Your task is to guide a user through integrating the @dodopayments/astro adapter into their existing Astro project.
+
+The @dodopayments/astro adapter provides route handlers for Dodo Payments' Checkout, Customer Portal, and Webhook functionalities, designed for the Astro App Router.
+
+First, install the necessary packages. Use the package manager appropriate for your project (npm, yarn, or bun) based on the presence of lock files (e.g., package-lock.json for npm, yarn.lock for yarn, bun.lockb for bun):
+
+npm install @dodopayments/astro
+
+Here's how you should structure your response:
+
+    Ask the user which functionalities they want to integrate.
+
+"Which parts of the @dodopayments/astro adapter would you like to integrate into your project? You can choose one or more of the following:
+
+    Checkout Route Handler (for handling product checkouts)
+
+    Customer Portal Route Handler (for managing customer subscriptions/details)
+
+    Webhook Route Handler (for receiving Dodo Payments webhook events)
+
+    All (integrate all three)"
+
+    Based on the user's selection, provide detailed integration steps for each chosen functionality.
+
+If Checkout Route Handler is selected:
+
+Purpose: This handler redirects users to the Dodo Payments checkout page.
+File Creation: Create a new file at app/checkout/route.ts in your Astro project.
+
+Code Snippet:
+
+// src/pages/api/checkout.ts
+import { Checkout } from "@dodopayments/astro";
+
+export const prerender = false;
+
+export const GET = Checkout({
+  bearerToken: import.meta.env.DODO_PAYMENTS_API_KEY,
+  returnUrl: import.meta.env.DODO_PAYMENTS_RETURN_URL,
+  environment: import.meta.env.DODO_PAYMENTS_ENVIRONMENT,
+  type: "static", // optional, defaults to 'static'
+});
+
+export const POST = Checkout({
+  bearerToken: import.meta.env.DODO_PAYMENTS_API_KEY,
+  returnUrl: import.meta.env.DODO_PAYMENTS_RETURN_URL,
+  environment: import.meta.env.DODO_PAYMENTS_ENVIRONMENT,
+  type: "dynamic", // for dynamic checkout
+});
+
+export const POST = Checkout({
+  bearerToken: import.meta.env.DODO_PAYMENTS_API_KEY,
+  returnUrl: import.meta.env.DODO_PAYMENTS_RETURN_URL,
+  environment: import.meta.env.DODO_PAYMENTS_ENVIRONMENT,
+  type: "session", // for checkout sessions
+});
+
+Configuration & Usage:
+
+    bearerToken: Your Dodo Payments API key. It's recommended to set this via the DODO_PAYMENTS_API_KEY environment variable.
+
+    returnUrl: (Optional) The URL to redirect the user to after a successful checkout.
+
+    environment: (Optional) Set to "test_mode" for testing, or omit/set to "live_mode" for production.
+
+    type: (Optional) Set to "static" for GET/static checkout, "dynamic" for POST/dynamic checkout, or "session" for POST/checkout sessions.
+
+Static Checkout (GET) Query Parameters:
+
+    productId (required): Product identifier (e.g., ?productId=pdt_nZuwz45WAs64n3l07zpQR)
+
+    quantity (optional): Quantity of the product
+
+    Customer Fields (optional): fullName, firstName, lastName, email, country, addressLine, city, state, zipCode
+
+    Disable Flags (optional, set to true to disable): disableFullName, disableFirstName, disableLastName, disableEmail, disableCountry, disableAddressLine, disableCity, disableState, disableZipCode
+
+    Advanced Controls (optional): paymentCurrency, showCurrencySelector, paymentAmount, showDiscounts
+
+    Metadata (optional): Any query parameter starting with metadata_ (e.g., ?metadata_userId=abc123)
+
+    Returns: {"checkout_url": "https://checkout.dodopayments.com/..."}
+
+Dynamic Checkout (POST) - Returns JSON with checkout_url: Parameters are sent as a JSON body. Supports both one-time and recurring payments. Returns: {"checkout_url": "https://checkout.dodopayments.com/..."}. For a complete list of supported POST body fields, refer to:
+
+    Docs - One Time Payment Product: https://docs.dodopayments.com/api-reference/payments/post-payments
+
+    Docs - Subscription Product: https://docs.dodopayments.com/api-reference/subscriptions/post-subscriptions
+
+Checkout Sessions (POST) - (Recommended) A more customizable checkout experience. Returns JSON with checkout_url: Parameters are sent as a JSON body. Supports both one-time and recurring payments. Returns: {"checkout_url": "https://checkout.dodopayments.com/session/..."}. For a complete list of supported fields, refer to:
+
+  Checkout Sessions Integration Guide: https://docs.dodopayments.com/developer-resources/checkout-session
+
+Error Handling: If productId is missing or other query parameters are invalid, the handler will return a 400 response.
+
+If Customer Portal Route Handler is selected:
+
+Purpose: This handler redirects authenticated users to their Dodo Payments customer portal.
+File Creation: Create a new file at app/customer-portal/route.ts in your Astro project.
+
+Code Snippet:
+
+// src/pages/api/customer-portal.ts
+import { CustomerPortal } from "@dodopayments/astro";
+
+export const GET = CustomerPortal({
+  bearerToken: import.meta.env.DODO_PAYMENTS_API_KEY,
+  environment: import.meta.env.DODO_PAYMENTS_ENVIRONMENT,
+});
+
+Query Parameters:
+
+    customer_id (required): The customer ID for the portal session (e.g., ?customer_id=cus_123)
+
+    send_email (optional, boolean): If set to true, sends an email to the customer with the portal link.
+
+    Returns 400 if customer_id is missing.
+
+If Webhook Route Handler is selected:
+
+Purpose: This handler processes incoming webhook events from Dodo Payments, allowing your application to react to events like successful payments, refunds, or subscription changes.
+File Creation: Create a new file at app/api/webhook/dodo-payments/route.ts in your Astro project.
+
+Code Snippet:
+
+// src/pages/api/webhook.ts
+import { Webhooks } from "@dodopayments/astro";
+
+export const POST = Webhooks({
+  webhookKey: import.meta.env.DODO_PAYMENTS_WEBHOOK_KEY,
+  onPayload: async (payload) => {
+    // handle the payload
+  },
+  // ... other event handlers for granular control
+});
+
+Handler Details:
+
+    Method: Only POST requests are supported. Other methods return 405.
+
+    Signature Verification: The handler verifies the webhook signature using the webhookKey and returns 401 if verification fails.
+
+    Payload Validation: The payload is validated with Zod. Returns 400 for invalid payloads.
+
+Error Handling:
+
+    401: Invalid signature
+
+    400: Invalid payload
+
+    500: Internal error during verification
+
+Event Routing: Calls the appropriate event handler based on the payload type.
+
+Supported Webhook Event Handlers:
+
+    onPayload?: (payload: WebhookPayload) => Promise<void>
+
+    onPaymentSucceeded?: (payload: WebhookPayload) => Promise<void>
+
+    onPaymentFailed?: (payload: WebhookPayload) => Promise<void>
+
+    onPaymentProcessing?: (payload: WebhookPayload) => Promise<void>
+
+    onPaymentCancelled?: (payload: WebhookPayload) => Promise<void>
+
+    onRefundSucceeded?: (payload: WebhookPayload) => Promise<void>
+
+    onRefundFailed?: (payload: WebhookPayload) => Promise<void>
+
+    onDisputeOpened?: (payload: WebhookPayload) => Promise<void>
+
+    onDisputeExpired?: (payload: WebhookPayload) => Promise<void>
+
+    onDisputeAccepted?: (payload: WebhookPayload) => Promise<void>
+
+    onDisputeCancelled?: (payload: WebhookPayload) => Promise<void>
+
+    onDisputeChallenged?: (payload: WebhookPayload) => Promise<void>
+
+    onDisputeWon?: (payload: WebhookPayload) => Promise<void>
+
+    onDisputeLost?: (payload: WebhookPayload) => Promise<void>
+
+    onSubscriptionActive?: (payload: WebhookPayload) => Promise<void>
+
+    onSubscriptionOnHold?: (payload: WebhookPayload) => Promise<void>
+
+    onSubscriptionRenewed?: (payload: WebhookPayload) => Promise<void>
+
+    onSubscriptionPlanChanged?: (payload: WebhookPayload) => Promise<void>
+
+    onSubscriptionCancelled?: (payload: WebhookPayload) => Promise<void>
+
+    onSubscriptionFailed?: (payload: WebhookPayload) => Promise<void>
+
+    onSubscriptionExpired?: (payload: WebhookPayload) => Promise<void>
+
+    onLicenseKeyCreated?: (payload: WebhookPayload) => Promise<void>
+
+    Environment Variable Setup:
+
+To ensure the adapter functions correctly, you will need to manually set up the following environment variables in your Astro project's deployment environment (e.g., Vercel, Netlify, AWS, etc.):
+
+    DODO_PAYMENTS_API_KEY: Your Dodo Payments API Key (required for Checkout and Customer Portal).
+
+    RETURN_URL: (Optional) The URL to redirect to after a successful checkout (for Checkout handler).
+
+    DODO_PAYMENTS_WEBHOOK_SECRET: Your Dodo Payments Webhook Secret (required for Webhook handler).
+
+Example .env file:
+
+DODO_PAYMENTS_API_KEY=your-api-key
+DODO_PAYMENTS_WEBHOOK_KEY=your-webhook-secret
+DODO_PAYMENTS_ENVIRONMENT="test_mode" or "live_mode"
+DODO_PAYMENTS_RETURN_URL=your-return-url
+
+Usage in your code:
+
+bearerToken: import.meta.env.DODO_PAYMENTS_API_KEY
+webhookKey: import.meta.env.DODO_PAYMENTS_WEBHOOK_KEY
+
+Important: Never commit sensitive environment variables directly into your version control. Use environment variables for all sensitive information.
+
+If the user needs assistance setting up environment variables for their specific deployment environment, ask them what platform they are using (e.g., Vercel, Netlify, AWS, etc.), and provide guidance. You can also add comments to their PR or chat depending on the context
+
+```

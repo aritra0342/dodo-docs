@@ -1,0 +1,394 @@
+---
+title: Go
+description: Tích hợp Dodo Payments vào các ứng dụng Go của bạn với một SDK hiệu
+  suất cao và theo phong cách.
+icon: golang
+---
+
+SDK Go cung cấp một giao diện Go sạch sẽ và theo phong cách cho việc tích hợp Dodo Payments vào các ứng dụng của bạn. Nó hỗ trợ ngữ cảnh, phản hồi kiểu mạnh, khả năng middleware và an toàn cho việc sử dụng đồng thời.
+
+## Cài đặt
+
+Cài đặt SDK bằng cách sử dụng Go modules:
+
+```bash
+go get github.com/dodopayments/dodopayments-go
+```
+
+<Info>
+SDK hỗ trợ Go 1.18 và các phiên bản sau, tận dụng các tính năng Go hiện đại để đạt hiệu suất tối ưu.
+</Info>
+
+## Bắt đầu nhanh
+
+Khởi tạo client và tạo phiên giao dịch thanh toán đầu tiên của bạn:
+
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"log"
+
+	"github.com/dodopayments/dodopayments-go"
+	"github.com/dodopayments/dodopayments-go/option"
+)
+
+func main() {
+	client := dodopayments.NewClient(
+		option.WithBearerToken("My Bearer Token"), // defaults to os.LookupEnv("DODO_PAYMENTS_API_KEY")
+		option.WithEnvironmentTestMode(),          // defaults to option.WithEnvironmentLiveMode()
+	)
+	
+	checkoutSessionResponse, err := client.CheckoutSessions.New(context.TODO(), dodopayments.CheckoutSessionNewParams{
+		CheckoutSessionRequest: dodopayments.CheckoutSessionRequestParam{
+			ProductCart: dodopayments.F([]dodopayments.CheckoutSessionRequestProductCartParam{{
+				ProductID: dodopayments.F("product_id"),
+				Quantity:  dodopayments.F(int64(1)),
+			}}),
+		},
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("Session ID: %s\n", checkoutSessionResponse.SessionID)
+}
+```
+
+<Warning>
+Luôn lưu trữ các khóa API của bạn một cách an toàn bằng cách sử dụng biến môi trường. Không bao giờ mã hóa chúng trong mã nguồn của bạn.
+</Warning>
+
+## Tính năng chính
+
+<CardGroup cols={2}>
+<Card title="Hỗ trợ Ngữ cảnh" icon="clock">
+  Hỗ trợ đầy đủ cho context.Context để hủy bỏ và thời gian chờ
+</Card>
+
+<Card title="Kiểu mạnh" icon="shield-check">
+  Yêu cầu và phản hồi kiểu mạnh để đảm bảo an toàn tại thời điểm biên dịch
+</Card>
+
+<Card title="Middleware" icon="layer-group">
+  Hỗ trợ middleware mở rộng cho logging, metrics và logic tùy chỉnh
+</Card>
+
+<Card title="An toàn Goroutine" icon="bolt">
+  Client an toàn cho luồng được thiết kế cho các hoạt động đồng thời
+</Card>
+</CardGroup>
+
+## Cấu hình
+
+### Ngữ cảnh và Thời gian chờ
+
+Tận dụng ngữ cảnh của Go cho thời gian chờ và hủy bỏ:
+
+```go
+import (
+	"context"
+	"time"
+	
+	"github.com/dodopayments/dodopayments-go"
+	"github.com/dodopayments/dodopayments-go/option"
+)
+
+// Create a context with timeout
+ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+defer cancel()
+
+payment, err := client.Payments.Create(ctx, dodopayments.PaymentCreateParams{
+	Amount:     5000,
+	Currency:   "USD",
+	CustomerID: "cus_123",
+})
+if err != nil {
+	if ctx.Err() == context.DeadlineExceeded {
+		log.Println("Request timed out")
+	} else {
+		log.Fatal(err)
+	}
+}
+```
+
+### Cấu hình Retry
+
+Cấu hình hành vi tự động thử lại:
+
+```go
+// Configure default for all requests (default is 2)
+client := dodopayments.NewClient(
+	option.WithMaxRetries(0), // disable retries
+)
+
+// Override per-request
+client.CheckoutSessions.New(
+	context.TODO(),
+	dodopayments.CheckoutSessionNewParams{
+		CheckoutSessionRequest: dodopayments.CheckoutSessionRequestParam{
+			ProductCart: dodopayments.F([]dodopayments.CheckoutSessionRequestProductCartParam{{
+				ProductID: dodopayments.F("product_id"),
+				Quantity:  dodopayments.F(int64(0)),
+			}}),
+		},
+	},
+	option.WithMaxRetries(5),
+)
+```
+
+## Các hoạt động phổ biến
+
+### Tạo một Phiên giao dịch thanh toán
+
+Tạo một phiên giao dịch thanh toán:
+
+```go
+session, err := client.CheckoutSessions.New(ctx, dodopayments.CheckoutSessionNewParams{
+	CheckoutSessionRequest: dodopayments.CheckoutSessionRequestParam{
+		ProductCart: dodopayments.F([]dodopayments.CheckoutSessionRequestProductCartParam{{
+			ProductID: dodopayments.F("prod_123"),
+			Quantity:  dodopayments.F(int64(1)),
+		}}),
+		ReturnURL: dodopayments.F("https://yourdomain.com/return"),
+	},
+})
+if err != nil {
+	log.Fatal(err)
+}
+
+fmt.Printf("Checkout URL: %s\n", session.URL)
+```
+
+### Quản lý Khách hàng
+
+Tạo và truy xuất thông tin khách hàng:
+
+```go
+// Create a customer
+customer, err := client.Customers.New(ctx, dodopayments.CustomerNewParams{
+	Email: dodopayments.F("customer@example.com"),
+	Name:  dodopayments.F("John Doe"),
+	Metadata: dodopayments.F(map[string]string{
+		"user_id": "12345",
+	}),
+})
+if err != nil {
+	log.Fatal(err)
+}
+
+// Retrieve customer
+customer, err = client.Customers.Get(ctx, "cus_123")
+if err != nil {
+	log.Fatal(err)
+}
+
+fmt.Printf("Customer: %s (%s)\n", customer.Name, customer.Email)
+```
+
+### Xử lý Đăng ký
+
+Tạo và quản lý các đăng ký định kỳ:
+
+```go
+// Create a subscription
+subscription, err := client.Subscriptions.New(ctx, dodopayments.SubscriptionNewParams{
+	CustomerID: dodopayments.F("cus_123"),
+	ProductID:  dodopayments.F("prod_456"),
+	PriceID:    dodopayments.F("price_789"),
+})
+if err != nil {
+	log.Fatal(err)
+}
+
+// Get usage history
+usageHistory, err := client.Subscriptions.GetUsageHistory(
+	ctx,
+	subscription.ID,
+	dodopayments.SubscriptionGetUsageHistoryParams{
+		StartDate: dodopayments.F("2024-01-01T00:00:00Z"),
+		EndDate:   dodopayments.F("2024-03-31T23:59:59Z"),
+	},
+)
+if err != nil {
+	log.Fatal(err)
+}
+```
+
+## Thanh toán dựa trên mức sử dụng
+
+### Nhập sự kiện sử dụng
+
+Theo dõi các sự kiện tùy chỉnh:
+
+```go
+import "github.com/dodopayments/dodopayments-go"
+
+response, err := client.UsageEvents.Ingest(ctx, dodopayments.UsageEventIngestParams{
+	Events: dodopayments.F([]dodopayments.UsageEventIngestParamsEvent{{
+		EventID:    dodopayments.F("api_call_12345"),
+		CustomerID: dodopayments.F("cus_abc123"),
+		EventName:  dodopayments.F("api_request"),
+		Timestamp:  dodopayments.F("2024-01-15T10:30:00Z"),
+		Metadata: dodopayments.F(map[string]string{
+			"endpoint":     "/api/v1/users",
+			"method":       "GET",
+			"tokens_used":  "150",
+		}),
+	}}),
+})
+if err != nil {
+	log.Fatal(err)
+}
+```
+
+### Liệt kê sự kiện sử dụng
+
+```go
+// List events with filters
+params := dodopayments.UsageEventListParams{
+	CustomerID: dodopayments.F("cus_abc123"),
+	EventName:  dodopayments.F("api_request"),
+}
+
+events, err := client.UsageEvents.List(ctx, params)
+if err != nil {
+	log.Fatal(err)
+}
+
+for _, event := range events.Data {
+	fmt.Printf("Event %s: %s at %s\n", event.EventID, event.EventName, event.Timestamp)
+}
+```
+
+## Xử lý lỗi
+
+Xử lý các loại lỗi cụ thể:
+
+```go
+payment, err := client.Payments.Create(ctx, dodopayments.PaymentCreateParams{
+	Amount:   5000,
+	Currency: "USD",
+})
+if err != nil {
+	if apiErr, ok := err.(*dodopayments.APIError); ok {
+		fmt.Printf("API Error: %s\n", apiErr.Message)
+		fmt.Printf("Status Code: %d\n", apiErr.StatusCode)
+		fmt.Printf("Request ID: %s\n", apiErr.RequestID)
+		
+		// Handle specific error types
+		switch apiErr.Type {
+		case dodopayments.ErrorTypeAuthentication:
+			log.Println("Authentication failed")
+		case dodopayments.ErrorTypeInvalidRequest:
+			log.Println("Invalid request parameters")
+		case dodopayments.ErrorTypeRateLimit:
+			log.Println("Rate limit exceeded")
+		default:
+			log.Printf("API error: %s\n", apiErr.Message)
+		}
+	} else {
+		log.Fatal(err)
+	}
+}
+```
+
+## Middleware
+
+Thêm middleware tùy chỉnh cho logging hoặc metrics:
+
+```go
+func Logger(req *http.Request, next option.MiddlewareNext) (res *http.Response, err error) {
+	// Before the request
+	start := time.Now()
+	log.Printf("Request: %s %s\n", req.Method, req.URL)
+
+	// Forward the request to the next handler
+	res, err = next(req)
+
+	// After the request
+	end := time.Now()
+	log.Printf("Response: %d in %v\n", res.StatusCode, end.Sub(start))
+
+	return res, err
+}
+
+client := dodopayments.NewClient(
+	option.WithMiddleware(Logger),
+)
+```
+
+## Tính đồng thời
+
+Client an toàn cho việc sử dụng đồng thời:
+
+```go
+package main
+
+import (
+	"context"
+	"sync"
+	"log"
+
+	"github.com/dodopayments/dodopayments-go"
+)
+
+func main() {
+	client := dodopayments.NewClient()
+	
+	var wg sync.WaitGroup
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go func(idx int) {
+			defer wg.Done()
+			
+			payment, err := client.Payments.Create(context.Background(), dodopayments.PaymentCreateParams{
+				Amount:     1000,
+				Currency:   "USD",
+				CustomerID: "cus_123",
+			})
+			if err != nil {
+				log.Printf("Failed to create payment %d: %v", idx, err)
+				return
+			}
+			
+			log.Printf("Created payment %d: %s", idx, payment.ID)
+		}(i)
+	}
+	
+	wg.Wait()
+}
+```
+
+## Tài nguyên
+
+<CardGroup cols={2}>
+<Card title="Kho lưu trữ GitHub" icon="github" href="https://github.com/dodopayments/dodopayments-go">
+  Xem mã nguồn và đóng góp
+</Card>
+
+<Card title="Tài liệu API" icon="book" href="/api-reference/introduction">
+  Tài liệu API đầy đủ
+</Card>
+
+<Card title="Cộng đồng Discord" icon="discord" href="https://discord.gg/bYqAp4ayYh">
+  Nhận trợ giúp và kết nối với các nhà phát triển
+</Card>
+
+<Card title="Báo cáo sự cố" icon="bug" href="https://github.com/dodopayments/dodopayments-go/issues">
+  Báo cáo lỗi hoặc yêu cầu tính năng
+</Card>
+</CardGroup>
+
+## Hỗ trợ
+
+Cần trợ giúp với SDK Go?
+
+- **Discord**: Tham gia [máy chủ cộng đồng](https://discord.gg/bYqAp4ayYh) của chúng tôi để được hỗ trợ theo thời gian thực
+- **Email**: Liên hệ với chúng tôi tại support@dodopayments.com
+- **GitHub**: Mở một vấn đề trên [kho lưu trữ](https://github.com/dodopayments/dodopayments-go)
+
+## Đóng góp
+
+Chúng tôi hoan nghênh các đóng góp! Kiểm tra [hướng dẫn đóng góp](https://github.com/dodopayments/dodopayments-go/blob/main/CONTRIBUTING.md) để bắt đầu.

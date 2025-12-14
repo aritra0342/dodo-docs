@@ -1,0 +1,622 @@
+---
+title: MCP Server
+description: Cho phép các trợ lý AI tương tác với API Dodo Payments thông qua
+  Giao thức Ngữ cảnh Mô hình (MCP) để thực hiện các hoạt động thanh toán, quản
+  lý đăng ký và tương tác với khách hàng một cách liền mạch.
+icon: server
+---
+
+## Tổng quan
+
+Giao thức Ngữ cảnh Mô hình (MCP) là một tiêu chuẩn mở cho phép các ứng dụng AI kết nối an toàn với các nguồn dữ liệu và API bên ngoài. Máy chủ MCP Dodo Payments cung cấp cho các trợ lý AI như Claude, Cursor và các khách hàng tương thích với MCP khác quyền truy cập có cấu trúc vào hạ tầng thanh toán của bạn.
+
+### Các khả năng chính
+
+- **Hoạt động thanh toán**: Tạo, truy xuất và quản lý thanh toán và hoàn tiền
+- **Quản lý đăng ký**: Xử lý thanh toán định kỳ, nâng cấp và hủy bỏ
+- **Quản lý khách hàng**: Quản lý dữ liệu khách hàng và quyền truy cập cổng thông tin
+- **Danh mục sản phẩm**: Tạo và cập nhật sản phẩm, giá cả và giảm giá
+- **Quản lý giấy phép**: Kích hoạt, xác thực và quản lý giấy phép phần mềm
+- **Thanh toán dựa trên mức sử dụng**: Theo dõi và lập hóa đơn cho mức sử dụng theo chỉ số
+
+## Cài đặt
+
+Chọn phương pháp cài đặt phù hợp nhất với quy trình làm việc của bạn.
+
+### Máy chủ MCP từ xa (Khuyến nghị)
+
+Truy cập máy chủ MCP được lưu trữ mà không cần thiết lập hoặc cài đặt cục bộ. Đây là cách nhanh nhất để bắt đầu.
+
+<Frame>
+  <iframe 
+      className="w-full aspect-video rounded-md" 
+      src="https://www.youtube.com/embed/TxGgYxNmkT4"
+      title="Sử dụng Máy chủ MCP từ xa của Dodo Payment"
+      frameBorder="0"
+      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+      allowFullScreen
+  ></iframe>
+</Frame>
+
+<Steps>
+<Step title="Truy cập máy chủ từ xa">
+    Điều hướng đến [https://mcp.dodopayments.com](https://mcp.dodopayments.com) trong trình duyệt của bạn.
+</Step>
+
+<Step title="Cấu hình khách hàng MCP của bạn">
+    Sao chép cấu hình JSON được cung cấp cho khách hàng cụ thể của bạn. Đối với Cursor hoặc Claude Desktop, thêm điều này vào cài đặt MCP của bạn:
+    
+
+    ```json
+    {
+      "mcpServers": {
+        "dodopayments_api": {
+          "command": "npx",
+          "args": ["-y", "mcp-remote@latest", "https://mcp.dodopayments.com/sse"]
+        }
+      }
+    }
+    ```
+
+</Step>
+
+<Step title="Xác thực và cấu hình">
+    Quy trình OAuth sẽ yêu cầu bạn:
+    - Nhập khóa API Dodo Payments của bạn
+    - Chọn môi trường của bạn (kiểm tra hoặc trực tiếp)
+    - Chọn loại khách hàng MCP của bạn
+    
+    <Warning>
+    Giữ cho khóa API của bạn an toàn. Sử dụng khóa chế độ kiểm tra trong quá trình phát triển.
+    </Warning>
+</Step>
+
+<Step title="Hoàn tất thiết lập">
+    Nhấp vào **Đăng nhập và Phê duyệt** để ủy quyền kết nối.
+    
+    <Check>
+    Khi đã kết nối, trợ lý AI của bạn có thể tương tác với API Dodo Payments thay mặt bạn.
+    </Check>
+</Step>
+</Steps>
+
+### Gói NPM
+
+Cài đặt và chạy máy chủ MCP cục bộ bằng NPM.
+
+<Tabs>
+<Tab title="NPX (Không Cài Đặt)">
+
+```bash
+# Set your API key
+export DODO_PAYMENTS_API_KEY="dodo_test_..."
+
+# Run the latest version
+npx -y dodopayments-mcp@latest
+```
+
+</Tab>
+
+<Tab title="Cấu hình Khách hàng MCP">
+
+```json
+{
+  "mcpServers": {
+    "dodopayments_api": {
+      "command": "npx",
+      "args": ["-y", "dodopayments-mcp@latest"],
+      "env": {
+        "DODO_PAYMENTS_API_KEY": "dodo_test_..."
+      }
+    }
+  }
+}
+```
+
+</Tab>
+</Tabs>
+
+<Tip>
+Sử dụng `@latest` để luôn kéo phiên bản mới nhất, hoặc ghim vào một phiên bản cụ thể như `@1.0.0` để đảm bảo tính ổn định.
+</Tip>
+
+### Docker
+
+Chạy máy chủ MCP trong môi trường container hóa để triển khai nhất quán.
+
+<CodeGroup>
+
+```bash Docker
+# Pull the latest image
+docker pull ghcr.io/dodopayments/mcp:latest
+
+# Run the container
+docker run -e DODO_PAYMENTS_API_KEY="dodo_test_..." \
+  -p 3000:3000 \
+  ghcr.io/dodopayments/mcp:latest
+```
+
+```yaml Docker Compose
+services:
+  dodopayments-mcp:
+    image: ghcr.io/dodopayments/mcp:latest
+    environment:
+      - DODO_PAYMENTS_API_KEY=dodo_test_...
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+```
+
+</CodeGroup>
+
+<Note>
+Hình ảnh Docker có sẵn trên [GitHub Container Registry](https://github.com/orgs/dodopayments/packages/container/package/mcp).
+</Note>
+
+## Cấu hình Khách hàng
+
+Cấu hình máy chủ MCP Dodo Payments trong khách hàng AI mà bạn ưa thích.
+
+<Tabs>
+<Tab title="Cursor">
+Thiết lập máy chủ MCP Dodo Payments trong Cursor để cho phép truy cập hội thoại vào dữ liệu thanh toán của bạn.
+
+<Steps>
+<Step title="Mở cài đặt Cursor">
+    Điều hướng đến **Cài đặt Cursor** > **Tính năng** > **Giao thức Ngữ cảnh Mô hình** hoặc nhấn `Cmd/Ctrl + Shift + P` và tìm kiếm "Cài đặt MCP".
+</Step>
+
+<Step title="Chỉnh sửa cấu hình">
+    Nhấp vào **Chỉnh sửa Cấu hình** để mở tệp `mcp_config.json`.
+</Step>
+
+<Step title="Thêm cấu hình Dodo Payments">
+    Chọn một trong các cấu hình sau:
+    
+    **Máy chủ từ xa (Khuyến nghị)**
+
+    ```json
+    {
+      "mcpServers": {
+        "dodopayments": {
+          "command": "npx",
+          "args": ["-y", "mcp-remote@latest", "https://mcp.dodopayments.com/sse"]
+        }
+      }
+    }
+    ```
+
+    
+    **Local NPX**
+
+    ```json
+    {
+      "mcpServers": {
+        "dodopayments": {
+          "command": "npx",
+          "args": ["-y", "dodopayments-mcp@latest"],
+          "env": {
+            "DODO_PAYMENTS_API_KEY": "dodo_test_..."
+          }
+        }
+      }
+    }
+    ```
+
+</Step>
+
+<Step title="Lưu và khởi động lại">
+    Lưu tệp cấu hình và khởi động lại Cursor.
+    
+    <Check>
+    Xác minh kết nối bằng cách hỏi trợ lý AI về dữ liệu Dodo Payments của bạn.
+    </Check>
+</Step>
+</Steps>
+</Tab>
+
+<Tab title="Claude Desktop">
+Thiết lập máy chủ MCP Dodo Payments trong Claude Desktop để cho phép truy cập hội thoại vào dữ liệu thanh toán của bạn.
+<Steps>
+<Step title="Tìm tệp cấu hình">
+    Tìm tệp cấu hình Claude Desktop:
+    
+    - **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+    - **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+    - **Linux**: `~/.config/Claude/claude_desktop_config.json`
+</Step>
+
+<Step title="Chỉnh sửa cấu hình">
+    Mở tệp trong trình soạn thảo văn bản và thêm cấu hình Dodo Payments:
+    
+    **Máy chủ từ xa (Khuyến nghị)**
+
+    ```json
+    {
+      "mcpServers": {
+        "dodopayments": {
+          "command": "npx",
+          "args": ["-y", "mcp-remote@latest", "https://mcp.dodopayments.com/sse"]
+        }
+      }
+    }
+    ```
+
+    
+    **Local NPX**
+
+    ```json
+    {
+      "mcpServers": {
+        "dodopayments": {
+          "command": "npx",
+          "args": ["-y", "dodopayments-mcp@latest"],
+          "env": {
+            "DODO_PAYMENTS_API_KEY": "dodo_test_..."
+          }
+        }
+      }
+    }
+    ```
+
+</Step>
+
+<Step title="Khởi động lại Claude Desktop">
+    Đóng và mở lại Claude Desktop để các thay đổi có hiệu lực.
+    
+    <Tip>
+    Tìm biểu tượng 🔌 trong Claude Desktop để xác nhận máy chủ MCP đã được kết nối.
+    </Tip>
+</Step>
+</Steps>
+</Tab>
+
+<Tab title="Cline (VS Code)">
+Thiết lập máy chủ MCP Dodo Payments trong Cline (VS Code) để cho phép truy cập hội thoại vào dữ liệu thanh toán của bạn.
+<Steps>
+<Step title="Mở cài đặt Cline">
+    Tìm tệp cấu hình Cline:
+    
+    - **macOS**: `~/Library/Application Support/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json`
+    - **Windows**: `%APPDATA%\Code\User\globalStorage\saoudrizwan.claude-dev\settings\cline_mcp_settings.json`
+    - **Linux**: `~/.config/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json`
+</Step>
+
+<Step title="Cấu hình máy chủ MCP">
+    Thêm cấu hình máy chủ MCP Dodo Payments:
+    
+
+    ```json
+    {
+      "mcpServers": {
+        "dodopayments": {
+          "command": "npx",
+          "args": ["-y", "dodopayments-mcp@latest"],
+          "env": {
+            "DODO_PAYMENTS_API_KEY": "dodo_test_..."
+          }
+        }
+      }
+    }
+    ```
+
+</Step>
+
+<Step title="Tải lại VS Code">
+    Tải lại cửa sổ VS Code (`Cmd/Ctrl + Shift + P` > "Tải lại Cửa sổ") để kích hoạt kết nối máy chủ MCP.
+</Step>
+</Steps>
+</Tab>
+
+<Tab title="Zed">
+Thiết lập máy chủ MCP Dodo Payments trong Zed để cho phép truy cập hội thoại vào dữ liệu thanh toán của bạn.
+<Steps>
+<Step title="Mở cài đặt Zed">
+    Điều hướng đến **Cài đặt** > **Trợ lý** > **Giao thức Ngữ cảnh Mô hình**.
+</Step>
+
+<Step title="Thêm cấu hình máy chủ">
+    Thêm cấu hình sau:
+    
+
+    ```json
+    {
+      "mcpServers": {
+        "dodopayments": {
+          "command": "npx",
+          "args": ["-y", "dodopayments-mcp@latest"],
+          "env": {
+            "DODO_PAYMENTS_API_KEY": "dodo_test_..."
+          }
+        }
+      }
+    }
+    ```
+
+</Step>
+
+<Step title="Lưu và xác minh">
+    Lưu cấu hình. Máy chủ MCP bây giờ nên có sẵn trong trợ lý AI của Zed.
+</Step>
+</Steps>
+</Tab>
+
+<Tab title="Khách hàng khác">
+Thiết lập máy chủ MCP Dodo Payments trong các khách hàng tương thích với MCP khác để cho phép truy cập hội thoại vào dữ liệu thanh toán của bạn.
+
+**Máy chủ từ xa (Khuyến nghị)**
+
+```json
+{
+  "mcpServers": {
+    "dodopayments": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote@latest", "https://mcp.dodopayments.com/sse"]
+    }
+  }
+}
+```
+
+**Local NPX**
+
+```json
+{
+  "mcpServers": {
+    "dodopayments": {
+      "command": "npx",
+      "args": ["-y", "dodopayments-mcp@latest"],
+      "env": {
+        "DODO_PAYMENTS_API_KEY": "dodo_test_..."
+      }
+    }
+  }
+}
+```
+
+<Info>
+Truy cập [modelcontextprotocol.io/clients](https://modelcontextprotocol.io/clients) để có danh sách đầy đủ các khách hàng tương thích với MCP và các phương pháp cấu hình của họ.
+</Info>
+</Tab>
+</Tabs>
+
+## Lọc công cụ
+
+Kiểm soát các hoạt động API nào được công khai cho trợ lý AI của bạn để tối ưu hóa hiệu suất và duy trì an ninh.
+
+### Lọc theo loại hoạt động
+
+Hạn chế quyền truy cập chỉ cho các hoạt động đọc hoặc ghi.
+
+```bash
+# Only expose read operations (GET requests)
+npx dodopayments-mcp --operation=read
+
+# Only expose write operations (POST, PUT, DELETE)
+npx dodopayments-mcp --operation=write
+```
+
+<Tip>
+Sử dụng `--operation=read` trong quá trình phát triển để ngăn chặn các thay đổi không mong muốn đối với dữ liệu của bạn.
+</Tip>
+
+### Lọc theo tài nguyên
+
+Giới hạn các công cụ cho các tài nguyên API cụ thể.
+
+```bash
+# Only expose payment-related tools
+npx dodopayments-mcp --resource=payments
+
+# Expose multiple resources
+npx dodopayments-mcp --resource=payments --resource=customers
+```
+
+### Bao gồm hoặc loại trừ các công cụ cụ thể
+
+Tinh chỉnh các công cụ riêng lẻ nào có sẵn.
+
+```bash
+# Include only specific tools
+npx dodopayments-mcp --tool=create_payments --tool=list_payments
+
+# Exclude specific tools
+npx dodopayments-mcp --no-tool=delete_products
+
+# List all available tools
+npx dodopayments-mcp --list
+```
+
+### Kết hợp các bộ lọc
+
+Áp dụng nhiều bộ lọc đồng thời để kiểm soát chính xác.
+
+```bash
+# Only payment and subscription read operations
+npx dodopayments-mcp --operation=read --resource=payments --resource=subscriptions
+```
+
+## Sử dụng nâng cao
+
+### Tích hợp lập trình
+
+Xây dựng các máy chủ MCP tùy chỉnh hoặc mở rộng máy chủ hiện có một cách lập trình.
+
+```javascript
+import { server, endpoints, init } from "dodopayments-mcp/server";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+
+// Initialize with all default endpoints
+init({ server, endpoints });
+
+// Start the server
+const transport = new StdioServerTransport();
+await server.connect(transport);
+```
+
+### Phát triển công cụ tùy chỉnh
+
+Mở rộng máy chủ MCP với các công cụ và logic kinh doanh của riêng bạn.
+
+```javascript
+import { server, init } from "dodopayments-mcp/server";
+import createPayments from "dodopayments-mcp/tools/payments/create-payments";
+import { zodToJsonSchema } from "zod-to-json-schema";
+import { z } from "zod";
+
+// Define a custom tool
+const customTool = {
+  tool: {
+    name: 'calculate_payment_total',
+    description: 'Calculate payment total with tax and fees',
+    inputSchema: zodToJsonSchema(
+      z.object({
+        amount: z.number().describe('Base amount in cents'),
+        tax_rate: z.number().describe('Tax rate as decimal'),
+      })
+    ),
+  },
+  handler: async (client, args) => {
+    const total = args.amount * (1 + args.tax_rate);
+    return {
+      content: [{
+        type: 'text',
+        text: JSON.stringify({ total, currency: 'usd' }),
+      }],
+    };
+  },
+};
+
+// Initialize with custom tools
+init({ 
+  server, 
+  endpoints: [createPayments, customTool] 
+});
+```
+
+## Thực hành bảo mật tốt nhất
+
+Bảo vệ thông tin xác thực API của bạn và duy trì các tích hợp an toàn.
+
+<AccordionGroup>
+<Accordion title="Quản lý Khóa API">
+**Không bao giờ cam kết thông tin xác thực vào kiểm soát phiên bản**
+
+Lưu trữ khóa API trong các biến môi trường hoặc hệ thống quản lý bí mật an toàn.
+
+```bash
+# Use environment variables
+export DODO_PAYMENTS_API_KEY="dodo_test_..."
+
+# Use a .env file (add to .gitignore)
+echo "DODO_PAYMENTS_API_KEY=dodo_test_..." > .env
+```
+
+**Thay đổi khóa thường xuyên**
+
+Tạo khóa API mới định kỳ và thu hồi các khóa cũ thông qua bảng điều khiển Dodo Payments của bạn.
+
+**Sử dụng khóa kiểm tra cho phát triển**
+
+Luôn sử dụng khóa API chế độ kiểm tra trong quá trình phát triển để tránh ảnh hưởng đến dữ liệu sản xuất.
+</Accordion>
+
+<Accordion title="Kiểm soát Truy cập">
+**Áp dụng lọc công cụ trong sản xuất**
+
+Giới hạn các hoạt động được công khai chỉ cho những gì trợ lý AI của bạn cần.
+
+```bash
+# Production: read-only access
+npx dodopayments-mcp --operation=read
+
+# Development: full access
+npx dodopayments-mcp
+```
+
+**Thực hiện xác thực cho các điểm cuối tùy chỉnh**
+
+Xác thực các yêu cầu và thực thi ủy quyền trong các trình xử lý công cụ tùy chỉnh của bạn.
+
+**Theo dõi việc sử dụng API**
+
+Theo dõi hoạt động máy chủ MCP thông qua bảng điều khiển Dodo Payments của bạn và thiết lập cảnh báo cho các mẫu bất thường.
+</Accordion>
+
+<Accordion title="An ninh Mạng">
+**Sử dụng HTTPS cho các máy chủ từ xa**
+
+Luôn triển khai các máy chủ MCP từ xa phía sau các điểm cuối HTTPS.
+
+**Thực hiện giới hạn tỷ lệ**
+
+Bảo vệ chống lại lạm dụng bằng cách thực hiện giới hạn tỷ lệ ở cả cấp máy chủ MCP và API.
+
+**Hạn chế quyền truy cập mạng**
+
+Cấu hình các quy tắc tường lửa để giới hạn các khách hàng nào có thể kết nối với máy chủ MCP của bạn.
+</Accordion>
+</AccordionGroup>
+
+## Khắc phục sự cố
+
+<AccordionGroup>
+<Accordion title="Vấn đề kết nối">
+**Xác minh khóa API của bạn**
+
+Đảm bảo khóa API của bạn được thiết lập chính xác và có các quyền cần thiết.
+
+```bash
+# Test your API key
+curl -H "Authorization: Bearer dodo_test_..." \
+  https://api.dodopayments.com/payments
+```
+
+**Kiểm tra kết nối mạng của bạn**
+
+Xác minh rằng bạn có thể truy cập các điểm cuối API Dodo Payments.
+
+**Xem nhật ký của khách hàng**
+
+Bật ghi nhật ký chi tiết trong khách hàng MCP của bạn để chẩn đoán các vấn đề kết nối.
+</Accordion>
+
+<Accordion title="Lỗi xác thực">
+**Xác nhận môi trường khóa API**
+
+Đảm bảo bạn đang sử dụng khóa kiểm tra với các điểm cuối kiểm tra và khóa trực tiếp với các điểm cuối sản xuất.
+
+**Kiểm tra quyền của khóa**
+
+Xác minh rằng khóa API của bạn có quyền cho các hoạt động mà bạn đang cố gắng thực hiện.
+
+**Tạo lại thông tin xác thực**
+
+Nếu vấn đề vẫn tiếp diễn, hãy tạo một khóa API mới thông qua bảng điều khiển của bạn.
+</Accordion>
+
+<Accordion title="Lỗi thực thi công cụ">
+**Xác thực các tham số đầu vào**
+
+Đảm bảo trợ lý AI đang cung cấp các tham số được định dạng chính xác cho mỗi công cụ.
+
+**Xem các thông báo lỗi**
+
+Kiểm tra phản hồi lỗi từ API để có hướng dẫn cụ thể về những gì đã sai.
+
+**Kiểm tra trực tiếp với API**
+
+Xác minh rằng hoạt động hoạt động khi gọi API Dodo Payments trực tiếp qua curl hoặc Postman.
+</Accordion>
+</AccordionGroup>
+
+## Tài nguyên
+
+<CardGroup cols={2}>
+<Card title="Tài liệu API" icon="book" href="/api-reference/introduction">
+  Khám phá tài liệu API Dodo Payments đầy đủ
+</Card>
+
+<Card title="Giao thức MCP" icon="link" href="https://modelcontextprotocol.io">
+  Tìm hiểu thêm về tiêu chuẩn Giao thức Ngữ cảnh Mô hình
+</Card>
+</CardGroup>

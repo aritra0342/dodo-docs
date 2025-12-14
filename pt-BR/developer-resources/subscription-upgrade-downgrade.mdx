@@ -1,0 +1,817 @@
+---
+title: Guia de Upgrade e Downgrade de Assinatura
+description: Aprenda como mudar o plano de assinatura de um cliente, lidar com a
+  prorrata e processar webhooks de forma confiável.
+icon: arrows-rotate
+---
+
+<CardGroup cols={2}>
+<Card title="Referência da API de Mudança de Plano" icon="code" href="/api-reference/subscriptions/change-plan">
+  Acesse a documentação completa da API para mudar planos de assinatura e teste solicitações de mudança de plano de forma interativa.
+</Card>
+
+<Card title="API de Pré-visualização da Mudança de Plano" icon="eye" href="/api-reference/subscriptions/preview-change-plan">
+  Pré-visualize o valor exato da cobrança antes de confirmar a mudança de plano.
+</Card>
+
+<Card title="Guia de Integração de Assinatura" icon="book" href="/developer-resources/subscription-integration-guide">
+  Aprenda como criar e gerenciar assinaturas do zero com nosso guia de integração abrangente.
+</Card>
+</CardGroup>
+
+## O que é um upgrade ou downgrade de assinatura?
+
+Mudar de plano permite que você mova um cliente entre níveis ou quantidades de assinatura. Use isso para:
+- Alinhar preços com uso ou recursos
+- Mover de mensal para anual (ou vice-versa)
+- Ajustar a quantidade para produtos baseados em assentos
+
+<Info>
+Mudanças de plano podem acionar uma cobrança imediata dependendo do modo de prorrata que você escolher.
+</Info>
+
+## Quando usar mudanças de plano
+
+- Upgrade quando um cliente precisa de mais recursos, uso ou assentos
+- Downgrade quando o uso diminui
+- Migrar usuários para um novo produto ou preço sem cancelar sua assinatura
+
+## Pré-requisitos
+
+Antes de implementar mudanças de plano de assinatura, certifique-se de que você tem:
+
+- Uma conta de comerciante Dodo Payments com produtos de assinatura ativos
+- Credenciais da API (chave da API e chave secreta do webhook) do painel
+- Uma assinatura ativa existente para modificar
+- Endpoint de webhook configurado para lidar com eventos de assinatura
+
+<Info>
+Para instruções detalhadas de configuração, consulte nosso [Guia de Integração](/developer-resources/integration-guide#dashboard-setup).
+</Info>
+
+## Guia de Implementação Passo a Passo
+
+Siga este guia abrangente para implementar mudanças de plano de assinatura em sua aplicação:
+
+<Steps>
+<Step title="Entender os Requisitos da Mudança de Plano">
+Antes de implementar, determine:
+- Quais produtos de assinatura podem ser mudados para quais outros
+- Qual modo de prorrata se encaixa no seu modelo de negócios
+- Como lidar com falhas nas mudanças de plano de forma elegante
+- Quais eventos de webhook rastrear para gerenciamento de estado
+
+<Tip>
+Teste mudanças de plano minuciosamente em modo de teste antes de implementar em produção.
+</Tip>
+</Step>
+
+<Step title="Escolha Sua Estratégia de Prorrata">
+Selecione a abordagem de cobrança que se alinha com as necessidades do seu negócio:
+
+<Tabs>
+<Tab title="prorated_immediately">
+Melhor para: Aplicativos SaaS que desejam cobrar de forma justa pelo tempo não utilizado
+- Calcula o valor exato da prorrata com base no tempo restante do ciclo
+- Cobra um valor proporcional com base no tempo não utilizado restante no ciclo
+- Fornece cobrança transparente aos clientes
+</Tab>
+
+<Tab title="difference_immediately">
+Melhor para: Cenários claros de upgrade/downgrade
+- Upgrade: Cobra a diferença imediata (por exemplo, $30→$80 = cobra $50)
+- Downgrade: Credita o valor restante para renovações futuras
+- Simplifica a lógica de cobrança e a comunicação com o cliente
+</Tab>
+
+<Tab title="full_immediately">
+Melhor para: Quando você deseja reiniciar o ciclo de cobrança
+- Cobra o valor total do novo plano imediatamente
+- Ignora o tempo restante do plano antigo
+- Útil para transições de anual para mensal
+</Tab>
+</Tabs>
+</Step>
+
+<Step title="Implemente a API de Mudança de Plano">
+Use a API de Mudança de Plano para modificar os detalhes da assinatura:
+
+<ParamField path="subscription_id" type="string" required>
+O ID da assinatura ativa a ser modificada.
+</ParamField>
+
+<ParamField path="product_id" type="string" required>
+O novo ID do produto para o qual mudar a assinatura.
+</ParamField>
+
+<ParamField path="quantity" type="integer" default="1">
+Número de unidades para o novo plano (para produtos baseados em assentos).
+</ParamField>
+
+<ParamField path="proration_billing_mode" type="string" required>
+Como lidar com a cobrança imediata: `prorated_immediately`, `full_immediately`, ou `difference_immediately`.
+</ParamField>
+
+<ParamField path="addons" type="array">
+Addons opcionais para o novo plano. Deixar isso vazio remove quaisquer addons existentes.
+</ParamField>
+</Step>
+
+<Step title="Lidar com Eventos de Webhook">
+Configure o manuseio de webhook para rastrear os resultados da mudança de plano:
+
+- `subscription.active`: Mudança de plano bem-sucedida, assinatura atualizada
+- `subscription.plan_changed`: Plano de assinatura mudado (upgrade/downgrade/atualização de addon)
+- `subscription.on_hold`: Falha na cobrança da mudança de plano, assinatura pausada
+- `payment.succeeded`: Cobrança imediata pela mudança de plano bem-sucedida
+- `payment.failed`: Cobrança imediata falhou
+
+<Warning>
+Sempre verifique as assinaturas de webhook e implemente o processamento de eventos idempotentes.
+</Warning>
+</Step>
+
+<Step title="Atualize o Estado da Sua Aplicação">
+Com base nos eventos de webhook, atualize sua aplicação:
+- Conceda/revogue recursos com base no novo plano
+- Atualize o painel do cliente com os detalhes do novo plano
+- Envie e-mails de confirmação sobre mudanças de plano
+- Registre mudanças de cobrança para fins de auditoria
+</Step>
+
+<Step title="Teste e Monitore">
+Teste minuciosamente sua implementação:
+- Teste todos os modos de prorrata com diferentes cenários
+- Verifique se o manuseio de webhook funciona corretamente
+- Monitore as taxas de sucesso das mudanças de plano
+- Configure alertas para mudanças de plano falhadas
+
+<Check>
+Sua implementação de mudança de plano de assinatura agora está pronta para uso em produção.
+</Check>
+</Step>
+</Steps>
+
+## Pré-visualizar Mudanças de Plano
+
+Antes de confirmar uma mudança de plano, use a API de Pré-visualização para mostrar aos clientes exatamente o que eles serão cobrados:
+
+<Tabs>
+<Tab title="Node.js SDK">
+
+```javascript
+const preview = await client.subscriptions.previewChangePlan('sub_123', {
+  product_id: 'prod_pro',
+  quantity: 1,
+  proration_billing_mode: 'prorated_immediately'
+});
+
+// Show customer the charge before confirming
+console.log('Immediate charge:', preview.immediate_charge.summary);
+console.log('New plan details:', preview.new_plan);
+```
+
+</Tab>
+
+<Tab title="Python SDK">
+
+```python
+preview = client.subscriptions.preview_change_plan(
+    subscription_id="sub_123",
+    product_id="prod_pro",
+    quantity=1,
+    proration_billing_mode="prorated_immediately"
+)
+
+# Show customer the charge before confirming
+print("Immediate charge:", preview.immediate_charge.summary)
+print("New plan details:", preview.new_plan)
+```
+
+</Tab>
+</Tabs>
+
+<Tip>
+Use a API de pré-visualização para construir diálogos de confirmação que mostrem aos clientes o valor exato que eles serão cobrados antes de confirmarem uma mudança de plano.
+</Tip>
+
+## API de Mudança de Plano
+
+Use a API de Mudança de Plano para modificar o produto, a quantidade e o comportamento de prorrata para uma assinatura ativa.
+
+### Exemplos de início rápido
+
+<Tabs>
+  <Tab title="Node.js SDK">
+
+    ```javascript
+    import DodoPayments from 'dodopayments';
+
+    const client = new DodoPayments({
+      bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+      environment: 'test_mode', // defaults to 'live_mode'
+    });
+
+    async function changePlan() {
+      const result = await client.subscriptions.changePlan('sub_123', {
+        product_id: 'prod_new',
+        quantity: 3,
+        proration_billing_mode: 'prorated_immediately',
+      });
+      console.log(result.status, result.invoice_id, result.payment_id);
+    }
+
+    changePlan();
+    ```
+
+  </Tab>
+  <Tab title="Python SDK">
+
+    ```python
+    import os
+    from dodopayments import DodoPayments
+
+    client = DodoPayments(
+        bearer_token=os.environ.get("DODO_PAYMENTS_API_KEY"),
+        environment="test_mode",  # defaults to "live_mode"
+    )
+
+    result = client.subscriptions.change_plan(
+        subscription_id="sub_123",
+        product_id="prod_new",
+        quantity=3,
+        proration_billing_mode="prorated_immediately",
+    )
+    print(result.status, result.get("invoice_id"), result.get("payment_id"))
+    ```
+
+  </Tab>
+  <Tab title="Go SDK">
+
+    ```go
+    package main
+
+    import (
+      "context"
+      "fmt"
+      "github.com/dodopayments/dodopayments-go"
+      "github.com/dodopayments/dodopayments-go/option"
+    )
+
+    func main() {
+      client := dodopayments.NewClient(option.WithBearerToken("YOUR_TOKEN"))
+      res, err := client.Subscriptions.ChangePlan(context.TODO(), dodopayments.SubscriptionChangePlanParams{
+        SubscriptionID: dodopayments.F("sub_123"),
+        ProductID:             dodopayments.F("prod_new"),
+        Quantity:              dodopayments.F(int64(3)),
+        ProrationBillingMode:  dodopayments.F(dodopayments.SubscriptionChangePlanParamsProrationBillingModeProratedImmediately),
+      })
+      if err != nil { panic(err) }
+      fmt.Println(res.Status, res.InvoiceID, res.PaymentID)
+    }
+    ```
+
+  </Tab>
+  <Tab title="HTTP">
+
+    ```bash
+    curl -X POST "$DODO_API_BASE/subscriptions/sub_123/change-plan" \
+      -H "Authorization: Bearer $DODO_PAYMENTS_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "product_id": "prod_new",
+        "quantity": 3,
+        "proration_billing_mode": "prorated_immediately"
+      }'
+    ```
+
+  </Tab>
+</Tabs>
+
+```json Success
+{
+  "status": "processing",
+  "subscription_id": "sub_123",
+  "invoice_id": "inv_789",
+  "payment_id": "pay_456",
+  "proration_billing_mode": "prorated_immediately"
+}
+```
+
+<Note>
+Campos como <code>invoice_id</code> e <code>payment_id</code> são retornados apenas quando uma cobrança imediata e/ou fatura é criada durante a mudança de plano. Sempre confie em eventos de webhook (por exemplo, <code>payment.succeeded</code>, <code>subscription.plan_changed</code>) para confirmar resultados.
+</Note>
+
+<Warning>
+Se a cobrança imediata falhar, a assinatura pode ser movida para `subscription.on_hold` até que o pagamento seja bem-sucedido.
+</Warning>
+
+## Gerenciando Addons
+
+Ao mudar planos de assinatura, você também pode modificar addons:
+
+```javascript
+// Add addons to the new plan
+await client.subscriptions.changePlan('sub_123', {
+  product_id: 'prod_new',
+  quantity: 1,
+  proration_billing_mode: 'difference_immediately',
+  addons: [
+    { addon_id: 'addon_123', quantity: 2 }
+  ]
+});
+
+// Remove all existing addons
+await client.subscriptions.changePlan('sub_123', {
+  product_id: 'prod_new',
+  quantity: 1,
+  proration_billing_mode: 'difference_immediately',
+  addons: [] // Empty array removes all existing addons
+});
+```
+
+<Info>
+Addons estão incluídos no cálculo de prorrata e serão cobrados de acordo com o modo de prorrata selecionado.
+</Info>
+
+## Modos de Prorrata
+
+Escolha como cobrar o cliente ao mudar de planos:
+
+#### `prorated_immediately`
+- Cobra pela diferença parcial no ciclo atual
+- Se em teste, cobra imediatamente e muda para o novo plano agora
+- Downgrade: pode gerar um crédito proporcional aplicado a renovações futuras
+
+#### `full_immediately`
+- Cobra o valor total do novo plano imediatamente
+- Ignora o tempo restante do plano antigo
+
+<Info>
+Créditos criados por downgrades usando <code>difference_immediately</code> são específicos da assinatura e distintos de <a href="/features/customer-credit">Créditos de Cliente</a>. Eles se aplicam automaticamente a renovações futuras da mesma assinatura e não são transferíveis entre assinaturas.
+</Info>
+
+#### `difference_immediately`
+- Upgrade: cobra imediatamente a diferença de preço entre os planos antigo e novo
+- Downgrade: adiciona o valor restante como crédito interno à assinatura e aplica automaticamente nas renovações
+
+### Cenários de Exemplo
+
+<AccordionGroup>
+  <Accordion title="Upgrade: Básico ($30) → Pro ($80) com difference_immediately">
+
+    ```javascript
+    await client.subscriptions.changePlan('sub_123', {
+      product_id: 'prod_pro',
+      quantity: 1,
+      proration_billing_mode: 'difference_immediately'
+    })
+    // Immediate charge: $50
+    ```
+
+  </Accordion>
+  <Accordion title="Downgrade: Plus ($50) → Starter ($20) com difference_immediately">
+
+    ```javascript
+    await client.subscriptions.changePlan('sub_123', {
+      product_id: 'prod_starter',
+      quantity: 1,
+      proration_billing_mode: 'difference_immediately'
+    })
+    // Credit added: $30 (auto-applied to future renewals for this subscription)
+    ```
+
+  </Accordion>
+  <Accordion title="Upgrade no meio do ciclo com prorated_immediately">
+
+    ```javascript
+    await client.subscriptions.changePlan('sub_123', {
+      product_id: 'prod_new',
+      quantity: 1,
+      proration_billing_mode: 'prorated_immediately'
+    })
+    // Immediate prorated charge based on remaining days in cycle
+    ```
+
+  </Accordion>
+  <Accordion title="Reiniciar cobrança com full_immediately">
+
+    ```javascript
+    await client.subscriptions.changePlan('sub_123', {
+      product_id: 'prod_new',
+      quantity: 1,
+      proration_billing_mode: 'full_immediately'
+    })
+    // Immediate full charge for new plan; no credits calculated
+    ```
+
+  </Accordion>
+</AccordionGroup>
+
+<Tip>
+Escolha `prorated_immediately` para contabilidade justa de tempo; escolha `full_immediately` para reiniciar a cobrança; use `difference_immediately` para upgrades simples e crédito automático em downgrades.
+</Tip>
+
+## Lidar com webhooks
+
+Rastreie o estado da assinatura através de webhooks para confirmar mudanças de plano e pagamentos.
+
+### Tipos de eventos a serem tratados
+- `subscription.active`: assinatura ativada
+- `subscription.plan_changed`: plano de assinatura mudado (upgrade/downgrade/mudanças de addon)
+- `subscription.on_hold`: cobrança falhou, assinatura pausada
+- `subscription.renewed`: renovação bem-sucedida
+- `payment.succeeded`: pagamento pela mudança de plano ou renovação bem-sucedido
+- `payment.failed`: pagamento falhou
+
+<Info>
+Recomendamos conduzir a lógica de negócios a partir de eventos de assinatura e usar eventos de pagamento para confirmação e reconciliação.
+</Info>
+
+### Verifique assinaturas e lide com intenções
+
+<Tabs>
+  <Tab title="Manipulador de Rota Next.js">
+
+    ```javascript
+    import { NextRequest, NextResponse } from 'next/server';
+    
+    export async function POST(req) {
+      const webhookId = req.headers.get('webhook-id');
+      const webhookSignature = req.headers.get('webhook-signature');
+      const webhookTimestamp = req.headers.get('webhook-timestamp');
+      const secret = process.env.DODO_WEBHOOK_SECRET;
+    
+      const payload = await req.text();
+      // verifySignature is a placeholder – in production, use a Standard Webhooks library
+      const { valid, event } = await verifySignature(
+        payload,
+        { id: webhookId, signature: webhookSignature, timestamp: webhookTimestamp },
+        secret
+      );
+      if (!valid) return NextResponse.json({ error: 'Invalid signature' }, { status: 400 });
+    
+      switch (event.type) {
+        case 'subscription.active':
+          // mark subscription active in your DB
+          break;
+        case 'subscription.plan_changed':
+          // refresh entitlements and reflect the new plan in your UI
+          break;
+        case 'subscription.on_hold':
+          // notify user to update payment method
+          break;
+        case 'subscription.renewed':
+          // extend access window
+          break;
+        case 'payment.succeeded':
+          // reconcile payment for plan change
+          break;
+        case 'payment.failed':
+          // log and alert
+          break;
+        default:
+          // ignore unknown events
+          break;
+      }
+    
+      return NextResponse.json({ received: true });
+    }
+    ```
+
+  </Tab>
+  <Tab title="Express.js">
+
+    ```javascript
+    import express from 'express';
+    
+    const app = express();
+    app.post('/webhooks/dodo', express.raw({ type: 'application/json' }), async (req, res) => {
+      const webhookId = req.header('webhook-id');
+      const webhookSignature = req.header('webhook-signature');
+      const webhookTimestamp = req.header('webhook-timestamp');
+      const secret = process.env.DODO_WEBHOOK_SECRET;
+      const payload = req.body.toString('utf8');
+    
+      const { valid, event } = await verifySignature(
+        payload,
+        { id: webhookId, signature: webhookSignature, timestamp: webhookTimestamp },
+        secret
+      );
+      if (!valid) return res.status(400).send('Invalid signature');
+    
+      // handle events like above
+      res.json({ received: true });
+    });
+    
+    app.listen(3000);
+    ```
+
+  </Tab>
+</Tabs>
+
+<Note>
+Para esquemas de payload detalhados, consulte os <a href="/developer-resources/webhooks/intents/subscription">Payloads de webhook de assinatura</a> e <a href="/developer-resources/webhooks/intents/payment">Payloads de webhook de pagamento</a>.
+</Note>
+
+## Melhores Práticas
+
+Siga estas recomendações para mudanças de plano de assinatura confiáveis:
+
+### Estratégia de Mudança de Plano
+- **Teste minuciosamente**: Sempre teste mudanças de plano em modo de teste antes da produção
+- **Escolha prorrata com cuidado**: Selecione o modo de prorrata que se alinha com seu modelo de negócios
+- **Lide com falhas de forma elegante**: Implemente um tratamento de erros adequado e lógica de repetição
+- **Monitore taxas de sucesso**: Rastreie taxas de sucesso/falha de mudanças de plano e investigue problemas
+
+### Implementação de Webhook
+- **Verifique assinaturas**: Sempre valide assinaturas de webhook para garantir autenticidade
+- **Implemente idempotência**: Lide com eventos de webhook duplicados de forma elegante
+- **Processe de forma assíncrona**: Não bloqueie respostas de webhook com operações pesadas
+- **Registre tudo**: Mantenha logs detalhados para depuração e fins de auditoria
+
+### Experiência do Usuário
+- **Comunique-se claramente**: Informe os clientes sobre mudanças de cobrança e prazos
+- **Forneça confirmações**: Envie e-mails de confirmação para mudanças de plano bem-sucedidas
+- **Lide com casos extremos**: Considere períodos de teste, prorratas e pagamentos falhados
+- **Atualize a interface imediatamente**: Refletir mudanças de plano na interface da sua aplicação
+
+## Problemas Comuns e Soluções
+
+Resolva problemas típicos encontrados durante mudanças de plano de assinatura:
+
+<AccordionGroup>
+<Accordion title="Cobrança criada, mas assinatura não atualizada">
+**Sintomas**: Chamada da API é bem-sucedida, mas a assinatura permanece no plano antigo
+
+**Causas comuns**:
+- Processamento de webhook falhou ou foi atrasado
+- Estado da aplicação não atualizado após receber webhooks
+- Problemas de transação no banco de dados durante a atualização de estado
+
+**Soluções**:
+- Implemente um manuseio robusto de webhook com lógica de repetição
+- Use operações idempotentes para atualizações de estado
+- Adicione monitoramento para detectar e alertar sobre eventos de webhook perdidos
+- Verifique se o endpoint de webhook está acessível e respondendo corretamente
+</Accordion>
+
+<Accordion title="Créditos não aplicados após downgrade">
+**Sintomas**: Cliente faz downgrade, mas não vê saldo de crédito
+
+**Causas comuns**:
+- Expectativas do modo de prorrata: downgrades creditam a diferença total do preço do plano com `difference_immediately`, enquanto `prorated_immediately` cria um crédito proporcional com base no tempo restante no ciclo
+- Créditos são específicos da assinatura e não transferem entre assinaturas
+- Saldo de crédito não visível no painel do cliente
+
+**Soluções**:
+- Use `difference_immediately` para downgrades quando você quiser créditos automáticos
+- Explique aos clientes que os créditos se aplicam a renovações futuras da mesma assinatura
+- Implemente um portal do cliente para mostrar saldos de crédito
+- Verifique a pré-visualização da próxima fatura para ver créditos aplicados
+</Accordion>
+
+<Accordion title="Falha na verificação da assinatura do webhook">
+**Sintomas**: Eventos de webhook rejeitados devido a assinatura inválida
+
+**Causas comuns**:
+- Chave secreta de webhook incorreta
+- Corpo da solicitação bruta modificado antes da verificação da assinatura
+- Algoritmo de verificação de assinatura errado
+
+**Soluções**:
+- Verifique se você está usando a `DODO_WEBHOOK_SECRET` correta do painel
+- Leia o corpo da solicitação bruta antes de qualquer middleware de análise JSON
+- Use a biblioteca padrão de verificação de webhook para sua plataforma
+- Teste a verificação da assinatura do webhook no ambiente de desenvolvimento
+</Accordion>
+
+<Accordion title="Mudança de plano falha com erro 422">
+**Sintomas**: A API retorna erro 422 Unprocessable Entity
+
+**Causas comuns**:
+- ID de assinatura ou ID de produto inválido
+- Assinatura não está em estado ativo
+- Parâmetros obrigatórios ausentes
+- Produto não disponível para mudanças de plano
+
+**Soluções**:
+- Verifique se a assinatura existe e está ativa
+- Verifique se o ID do produto é válido e disponível
+- Certifique-se de que todos os parâmetros obrigatórios estão fornecidos
+- Revise a documentação da API para requisitos de parâmetros
+</Accordion>
+
+<Accordion title="Cobrança imediata falha durante a mudança de plano">
+**Sintomas**: Mudança de plano iniciada, mas cobrança imediata falha
+
+**Causas comuns**:
+- Fundos insuficientes no método de pagamento do cliente
+- Método de pagamento expirado ou inválido
+- Banco recusou a transação
+- Detecção de fraude bloqueou a cobrança
+
+**Soluções**:
+- Lide com eventos de webhook `payment.failed` de forma apropriada
+- Notifique o cliente para atualizar o método de pagamento
+- Implemente lógica de repetição para falhas temporárias
+- Considere permitir mudanças de plano com cobranças imediatas falhadas
+</Accordion>
+
+<Accordion title="Assinatura em espera após mudança de plano">
+**Sintomas**: Falha na cobrança da mudança de plano e assinatura move-se para o estado `on_hold`
+
+**O que acontece**:
+Quando uma cobrança de mudança de plano falha, a assinatura é automaticamente colocada no estado `on_hold`. A assinatura não será renovada automaticamente até que o método de pagamento seja atualizado.
+
+**Solução**: Atualize o método de pagamento para reativar a assinatura
+
+Para reativar uma assinatura do estado `on_hold` após uma falha na mudança de plano:
+
+1. **Atualize o método de pagamento** usando a API de Atualização do Método de Pagamento
+2. **Criação automática de cobrança**: A API cria automaticamente uma cobrança para as pendências restantes
+3. **Geração de fatura**: Uma fatura é gerada para a cobrança
+4. **Processamento de pagamento**: O pagamento é processado usando o novo método de pagamento
+5. **Reativação**: Após o pagamento bem-sucedido, a assinatura é reativada para o estado `active`
+
+<CodeGroup>
+
+```javascript Node.js
+// Reactivate subscription from on_hold after failed plan change
+async function reactivateAfterFailedPlanChange(subscriptionId) {
+  // Update payment method - automatically creates charge for remaining dues
+  const response = await client.subscriptions.updatePaymentMethod(subscriptionId, {
+    type: 'new',
+    return_url: 'https://example.com/return'
+  });
+  
+  if (response.payment_id) {
+    console.log('Charge created for remaining dues:', response.payment_id);
+    console.log('Payment link:', response.payment_link);
+    
+    // Redirect customer to payment_link to complete payment
+    // Monitor webhooks for:
+    // 1. payment.succeeded - charge succeeded
+    // 2. subscription.active - subscription reactivated
+  }
+  
+  return response;
+}
+
+// Or use existing payment method if available
+async function reactivateWithExistingPaymentMethod(subscriptionId, paymentMethodId) {
+  const response = await client.subscriptions.updatePaymentMethod(subscriptionId, {
+    type: 'existing',
+    payment_method_id: paymentMethodId
+  });
+  
+  // Monitor webhooks for payment.succeeded and subscription.active
+  return response;
+}
+```
+
+```python Python
+# Reactivate subscription from on_hold after failed plan change
+def reactivate_after_failed_plan_change(subscription_id):
+    # Update payment method - automatically creates charge for remaining dues
+    response = client.subscriptions.update_payment_method(
+        subscription_id=subscription_id,
+        type="new",
+        return_url="https://example.com/return"
+    )
+    
+    if response.payment_id:
+        print("Charge created for remaining dues:", response.payment_id)
+        print("Payment link:", response.payment_link)
+        
+        # Redirect customer to payment_link to complete payment
+        # Monitor webhooks for:
+        # 1. payment.succeeded - charge succeeded
+        # 2. subscription.active - subscription reactivated
+    
+    return response
+
+# Or use existing payment method if available
+def reactivate_with_existing_payment_method(subscription_id, payment_method_id):
+    response = client.subscriptions.update_payment_method(
+        subscription_id=subscription_id,
+        type="existing",
+        payment_method_id=payment_method_id
+    )
+    
+    # Monitor webhooks for payment.succeeded and subscription.active
+    return response
+```
+
+</CodeGroup>
+
+**Eventos de webhook a serem monitorados**:
+- `subscription.on_hold`: Assinatura colocada em espera (recebido quando a cobrança da mudança de plano falha)
+- `payment.succeeded`: Pagamento das pendências restantes bem-sucedido (após atualizar o método de pagamento)
+- `subscription.active`: Assinatura reativada após pagamento bem-sucedido
+
+**Melhores práticas**:
+- Notifique os clientes imediatamente quando uma cobrança de mudança de plano falhar
+- Forneça instruções claras sobre como atualizar seu método de pagamento
+- Monitore eventos de webhook para rastrear o status de reativação
+- Considere implementar lógica de repetição automática para falhas temporárias de pagamento
+
+<Card title="Referência da API de Atualização do Método de Pagamento" icon="code" href="/api-reference/subscriptions/update-payment-method">
+Veja a documentação completa da API para atualizar métodos de pagamento e reativar assinaturas.
+</Card>
+</Accordion>
+</AccordionGroup>
+
+## Testando Sua Implementação
+
+Siga estas etapas para testar minuciosamente sua implementação de mudança de plano de assinatura:
+
+<Steps>
+<Step title="Configurar ambiente de teste">
+- Use chaves de API de teste e produtos de teste
+- Crie assinaturas de teste com diferentes tipos de plano
+- Configure o endpoint de webhook de teste
+- Configure monitoramento e registro
+</Step>
+
+<Step title="Teste diferentes modos de prorrata">
+- Teste `prorated_immediately` com várias posições de ciclo de cobrança
+- Teste `difference_immediately` para upgrades e downgrades
+- Teste `full_immediately` para reiniciar ciclos de cobrança
+- Verifique se os cálculos de crédito estão corretos
+</Step>
+
+<Step title="Teste o manuseio de webhook">
+- Verifique se todos os eventos de webhook relevantes são recebidos
+- Teste a verificação da assinatura do webhook
+- Lide com eventos de webhook duplicados de forma elegante
+- Teste cenários de falha no processamento de webhook
+</Step>
+
+<Step title="Teste cenários de erro">
+- Teste com IDs de assinatura inválidos
+- Teste com métodos de pagamento expirados
+- Teste falhas de rede e timeouts
+- Teste com fundos insuficientes
+</Step>
+
+<Step title="Monitore em produção">
+- Configure alertas para mudanças de plano falhadas
+- Monitore os tempos de processamento de webhook
+- Rastreie taxas de sucesso de mudanças de plano
+- Revise tickets de suporte ao cliente para problemas de mudança de plano
+</Step>
+</Steps>
+
+## Tratamento de Erros
+
+Lide com erros comuns da API de forma elegante em sua implementação:
+
+### Códigos de Status HTTP
+
+<AccordionGroup>
+<Accordion title="200 OK">
+Solicitação de mudança de plano processada com sucesso. A assinatura está sendo atualizada e o processamento de pagamento foi iniciado.
+</Accordion>
+
+<Accordion title="400 Bad Request">
+Parâmetros de solicitação inválidos. Verifique se todos os campos obrigatórios estão fornecidos e formatados corretamente.
+</Accordion>
+
+<Accordion title="401 Unauthorized">
+Chave da API inválida ou ausente. Verifique se sua `DODO_PAYMENTS_API_KEY` está correta e possui as permissões adequadas.
+</Accordion>
+
+<Accordion title="404 Not Found">
+ID de assinatura não encontrado ou não pertence à sua conta.
+</Accordion>
+
+<Accordion title="422 Unprocessable Entity">
+A assinatura não pode ser mudada (por exemplo, já cancelada, produto não disponível, etc.).
+</Accordion>
+
+<Accordion title="500 Internal Server Error">
+Ocorreu um erro no servidor. Tente a solicitação novamente após um breve atraso.
+</Accordion>
+</AccordionGroup>
+
+### Formato de Resposta de Erro
+
+```json
+{
+  "error": {
+    "code": "subscription_not_found",
+    "message": "The subscription with ID 'sub_123' was not found",
+    "details": {
+      "subscription_id": "sub_123"
+    }
+  }
+}
+```
+
+## Próximos passos
+
+- Revise a <a href="/api-reference/subscriptions/change-plan">API de Mudança de Plano</a>
+- Explore <a href="/features/customer-credit">Créditos de Cliente</a>
+- Implemente alertas para `subscription.on_hold`
+- Confira nosso <a href="/developer-resources/webhooks">Guia de Integração de Webhook</a>

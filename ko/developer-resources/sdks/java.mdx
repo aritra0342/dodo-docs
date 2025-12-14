@@ -1,0 +1,412 @@
+---
+title: 자바
+description: 강력하고 타입 안전한 SDK로 Dodo Payments를 자바 애플리케이션에 통합하세요.
+icon: java
+---
+
+자바 SDK는 자바로 작성된 애플리케이션을 위한 Dodo Payments REST API에 편리하고 인체공학적으로 접근할 수 있게 해줍니다. Optional, Stream, CompletableFuture와 같은 자바 전용 기능을 활용하여 현대 자바 개발을 지원합니다.
+
+## 설치
+
+### Maven
+
+`pom.xml`에 의존성을 추가하세요:
+
+```xml pom.xml
+<dependency>
+  <groupId>com.dodopayments.api</groupId>
+  <artifactId>dodo-payments-java</artifactId>
+  <version>1.61.5</version>
+</dependency>
+```
+
+### Gradle
+
+`build.gradle`에 의존성을 추가하세요:
+
+```kotlin build.gradle.kts
+implementation("com.dodopayments.api:dodo-payments-java:1.61.5")
+```
+
+<Tip>
+항상 최신 SDK 버전을 사용하여 최신 Dodo Payments 기능에 접근하세요. 최신 버전은 [Maven Central](https://central.sonatype.com/artifact/com.dodopayments.api/dodo-payments-java)에서 확인하세요.
+</Tip>
+
+<Info>
+SDK는 Java 8 및 이후 모든 버전을 지원합니다. Java 11, 17, 21 포함.
+</Info>
+
+## 빠른 시작
+
+클라이언트를 초기화하고 체크아웃 세션을 생성하세요:
+
+```java
+import com.dodopayments.api.client.DodoPaymentsClient;
+import com.dodopayments.api.client.okhttp.DodoPaymentsOkHttpClient;
+import com.dodopayments.api.models.checkoutsessions.CheckoutSessionRequest;
+import com.dodopayments.api.models.checkoutsessions.CheckoutSessionResponse;
+
+// Configure using environment variables (DODO_PAYMENTS_API_KEY, DODO_PAYMENTS_BASE_URL)
+// Or system properties (dodopayments.apiKey, dodopayments.baseUrl)
+DodoPaymentsClient client = DodoPaymentsOkHttpClient.fromEnv();
+
+CheckoutSessionRequest params = CheckoutSessionRequest.builder()
+    .addProductCart(CheckoutSessionRequest.ProductCart.builder()
+        .productId("product_id")
+        .quantity(1)
+        .build())
+    .build();
+    
+CheckoutSessionResponse checkoutSessionResponse = client.checkoutSessions().create(params);
+System.out.println(checkoutSessionResponse.sessionId());
+```
+
+<Warning>
+항상 API 키를 환경 변수, 시스템 속성 또는 안전한 구성 관리 시스템을 사용하여 안전하게 저장하세요. 소스 코드에 하드코딩하지 마세요.
+</Warning>
+
+## 주요 기능
+
+<CardGroup cols={2}>
+<Card title="타입 안전성" icon="shield-check">
+  컴파일 타임 안전성을 갖춘 강력한 타입 API
+</Card>
+
+<Card title="스레드 안전성" icon="bolt">
+  다중 스레드 애플리케이션에서 안전하게 사용 가능
+</Card>
+
+<Card title="빌더 패턴" icon="layer-group">
+  요청 생성을 위한 직관적인 빌더 패턴
+</Card>
+
+<Card title="비동기 지원" icon="arrows-rotate">
+  비동기 작업을 위한 CompletableFuture 지원
+</Card>
+</CardGroup>
+
+## 구성
+
+### 환경 변수
+
+환경 변수 또는 시스템 속성을 사용하여 구성하세요:
+
+```bash .env
+DODO_PAYMENTS_API_KEY=your_api_key_here
+DODO_PAYMENTS_BASE_URL=https://live.dodopayments.com
+```
+
+```java
+// Automatically reads from environment variables
+DodoPaymentsClient client = DodoPaymentsOkHttpClient.fromEnv();
+```
+
+### 수동 구성
+
+모든 옵션으로 수동으로 구성하세요:
+
+```java
+import java.time.Duration;
+
+DodoPaymentsClient client = DodoPaymentsOkHttpClient.builder()
+    .bearerToken("your_api_key_here")
+    .baseUrl("https://live.dodopayments.com")
+    .maxRetries(4)
+    .timeout(Duration.ofSeconds(30))
+    .responseValidation(true)
+    .build();
+```
+
+### 테스트 모드
+
+테스트/샌드박스 환경을 위해 구성하세요:
+
+```java
+DodoPaymentsClient testClient = DodoPaymentsOkHttpClient.builder()
+    .fromEnv()
+    .testMode()
+    .build();
+```
+
+## 일반 작업
+
+### 체크아웃 세션 생성
+
+체크아웃 세션을 생성하세요:
+
+```java
+CheckoutSessionRequest params = CheckoutSessionRequest.builder()
+    .addProductCart(CheckoutSessionRequest.ProductCart.builder()
+        .productId("prod_123")
+        .quantity(1)
+        .build())
+    .returnUrl("https://yourdomain.com/return")
+    .build();
+
+CheckoutSessionResponse session = client.checkoutSessions().create(params);
+System.out.println("Checkout URL: " + session.url());
+```
+
+### 고객 관리
+
+고객 정보를 생성하고 검색하세요:
+
+```java
+import com.dodopayments.api.models.customers.Customer;
+import com.dodopayments.api.models.customers.CustomerCreateParams;
+
+// Create a customer
+CustomerCreateParams createParams = CustomerCreateParams.builder()
+    .email("customer@example.com")
+    .name("John Doe")
+    .putMetadata("user_id", "12345")
+    .build();
+
+Customer customer = client.customers().create(createParams);
+
+// Retrieve customer
+Customer retrieved = client.customers().retrieve("cus_123");
+System.out.println("Customer: " + retrieved.name() + " (" + retrieved.email() + ")");
+```
+
+### 구독 처리
+
+정기 구독을 생성하고 관리하세요:
+
+```java
+import com.dodopayments.api.models.subscriptions.*;
+
+// Create a subscription
+SubscriptionNewParams subscriptionParams = SubscriptionNewParams.builder()
+    .customerId("cus_123")
+    .productId("prod_456")
+    .priceId("price_789")
+    .build();
+
+Subscription subscription = client.subscriptions().create(subscriptionParams);
+
+// Charge subscription
+SubscriptionChargeParams chargeParams = SubscriptionChargeParams.builder()
+    .amount(1000)
+    .build();
+
+SubscriptionChargeResponse chargeResponse = client.subscriptions()
+    .charge(subscription.id(), chargeParams);
+```
+
+## 사용 기반 청구
+
+### 미터 구성
+
+사용량 추적을 위한 미터를 생성하고 관리하세요:
+
+```java
+import com.dodopayments.api.models.meters.*;
+
+// Create API calls meter
+MeterCreateParams apiMeterParams = MeterCreateParams.builder()
+    .name("API Requests")
+    .eventName("api_request")
+    .aggregation("count")
+    .putMetadata("category", "api_usage")
+    .build();
+
+Meter apiMeter = client.meters().create(apiMeterParams);
+System.out.println("Meter created: " + apiMeter.meterId());
+
+// List all meters
+client.meters().list()
+    .autoPager()
+    .forEach(m -> System.out.println("Meter: " + m.name() + " - " + m.aggregation()));
+```
+
+### 사용 이벤트 수집
+
+사용자 정의 이벤트를 추적하세요:
+
+```java
+import com.dodopayments.api.models.usageevents.*;
+import java.time.OffsetDateTime;
+
+// Ingest single event
+UsageEventIngestParams singleEventParams = UsageEventIngestParams.builder()
+    .addEvent(UsageEventIngestParams.Event.builder()
+        .eventId("api_call_" + System.currentTimeMillis())
+        .customerId("cus_abc123")
+        .eventName("api_request")
+        .timestamp(OffsetDateTime.now())
+        .putMetadata("endpoint", "/api/v1/users")
+        .putMetadata("method", "GET")
+        .putMetadata("tokens_used", "150")
+        .build())
+    .build();
+
+UsageEventIngestResponse response = client.usageEvents().ingest(singleEventParams);
+System.out.println("Processed: " + response.processedEvents());
+```
+
+### 배치 이벤트 수집
+
+여러 이벤트를 효율적으로 수집하세요 (요청당 최대 1000개):
+
+```java
+UsageEventIngestParams.Builder batchBuilder = UsageEventIngestParams.builder();
+
+for (int i = 0; i < 100; i++) {
+    batchBuilder.addEvent(UsageEventIngestParams.Event.builder()
+        .eventId("batch_event_" + i + "_" + System.currentTimeMillis())
+        .customerId("cus_abc123")
+        .eventName("video_transcode")
+        .timestamp(OffsetDateTime.now().minusMinutes(i))
+        .putMetadata("video_id", "video_" + i)
+        .putMetadata("duration_seconds", String.valueOf(120 + i))
+        .build());
+}
+
+UsageEventIngestResponse batchResponse = client.usageEvents().ingest(batchBuilder.build());
+System.out.println("Batch processed: " + batchResponse.processedEvents() + " events");
+```
+
+## 오류 처리
+
+다양한 시나리오에 대한 포괄적인 오류 처리:
+
+```java
+import com.dodopayments.api.errors.*;
+
+try {
+    Payment payment = client.payments().retrieve("pay_invalid");
+} catch (NotFoundException e) {
+    System.err.println("Payment not found: " + e.getMessage());
+} catch (UnauthorizedException e) {
+    System.err.println("Authentication failed: " + e.getMessage());
+} catch (PermissionDeniedException e) {
+    System.err.println("Permission denied: " + e.getMessage());
+} catch (BadRequestException e) {
+    System.err.println("Invalid request: " + e.getMessage());
+} catch (UnprocessableEntityException e) {
+    System.err.println("Validation error: " + e.getMessage());
+} catch (RateLimitException e) {
+    System.err.println("Rate limit exceeded: " + e.getMessage());
+    // SDK automatically retries with backoff
+} catch (InternalServerException e) {
+    System.err.println("Server error: " + e.getMessage());
+} catch (DodoPaymentsServiceException e) {
+    System.err.println("API error: " + e.statusCode() + " - " + e.getMessage());
+}
+```
+
+<Tip>
+SDK는 연결 오류, 408, 409, 429 및 5xx 오류에 대해 지수 백오프를 사용하여 요청을 자동으로 재시도합니다.
+</Tip>
+
+## 비동기 작업
+
+비동기 작업을 위해 CompletableFuture를 사용하세요:
+
+```java
+import java.util.concurrent.CompletableFuture;
+
+CompletableFuture<CheckoutSessionResponse> future = client.async()
+    .checkoutSessions()
+    .create(params);
+
+// Handle response asynchronously
+future.thenAccept(response -> {
+    System.out.println("Session created: " + response.sessionId());
+}).exceptionally(ex -> {
+    System.err.println("Error: " + ex.getMessage());
+    return null;
+});
+```
+
+## Spring Boot 통합
+
+### 구성 클래스
+
+```java
+import com.dodopayments.api.client.DodoPaymentsClient;
+import com.dodopayments.api.client.okhttp.DodoPaymentsOkHttpClient;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+@Configuration
+public class DodoPaymentsConfig {
+    
+    @Value("${dodo.api.key}")
+    private String apiKey;
+    
+    @Value("${dodo.environment:sandbox}")
+    private String environment;
+    
+    @Bean
+    public DodoPaymentsClient dodoPayments() {
+        return DodoPaymentsOkHttpClient.builder()
+            .bearerToken(apiKey)
+            .baseUrl(environment.equals("live") 
+                ? "https://live.dodopayments.com" 
+                : "https://sandbox.dodopayments.com")
+            .build();
+    }
+}
+```
+
+### 서비스 레이어
+
+```java
+import com.dodopayments.api.client.DodoPaymentsClient;
+import com.dodopayments.api.models.checkoutsessions.*;
+import org.springframework.stereotype.Service;
+
+@Service
+public class PaymentService {
+    
+    private final DodoPaymentsClient client;
+    
+    public PaymentService(DodoPaymentsClient client) {
+        this.client = client;
+    }
+    
+    public CheckoutSessionResponse createCheckout(List<CheckoutSessionRequest.ProductCart> items) {
+        CheckoutSessionRequest params = CheckoutSessionRequest.builder()
+            .productCart(items)
+            .returnUrl("https://yourdomain.com/return")
+            .build();
+            
+        return client.checkoutSessions().create(params);
+    }
+}
+```
+
+## 리소스
+
+<CardGroup cols={2}>
+<Card title="GitHub 리포지토리" icon="github" href="https://github.com/dodopayments/dodopayments-java">
+  소스 코드를 보고 기여하세요
+</Card>
+
+<Card title="API 참조" icon="book" href="/api-reference/introduction">
+  전체 API 문서
+</Card>
+
+<Card title="Discord 커뮤니티" icon="discord" href="https://discord.gg/bYqAp4ayYh">
+  도움을 받고 개발자와 연결하세요
+</Card>
+
+<Card title="문제 보고" icon="bug" href="https://github.com/dodopayments/dodopayments-java/issues">
+  버그를 보고하거나 기능 요청하세요
+</Card>
+</CardGroup>
+
+## 지원
+
+자바 SDK에 대한 도움이 필요하신가요?
+
+- **Discord**: 실시간 지원을 위해 [커뮤니티 서버](https://discord.gg/bYqAp4ayYh)에 참여하세요
+- **이메일**: support@dodopayments.com으로 문의하세요
+- **GitHub**: [리포지토리](https://github.com/dodopayments/dodopayments-java)에서 문제를 열어주세요
+
+## 기여
+
+기여를 환영합니다! 시작하려면 [기여 가이드라인](https://github.com/dodopayments/dodopayments-java/blob/main/CONTRIBUTING.md)을 확인하세요.

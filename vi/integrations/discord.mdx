@@ -1,0 +1,142 @@
+---
+title: Discord
+description: Gửi thông báo Dodo Payments theo thời gian thực đến các kênh Discord của bạn.
+icon: discord
+---
+
+## Giới thiệu
+
+Giữ cho đội ngũ của bạn được thông báo nơi họ đã hợp tác. Tích hợp Discord cung cấp thông tin về thanh toán, đăng ký, tranh chấp và các sự kiện quan trọng khác trực tiếp đến bất kỳ kênh nào bạn chọn—không cần polling hay bảng điều khiển.
+
+<Info>
+Hướng dẫn này giả định rằng bạn có quyền truy cập vào phần Tích hợp của bảng điều khiển Dodo Payments.
+</Info>
+
+## Bắt đầu
+
+<Steps>
+<Step title="Mở phần Webhook">
+  Trong bảng điều khiển Dodo Payments của bạn, mở <b>Webhooks → + Thêm Điểm cuối</b> và mở rộng danh sách thả xuống để hiển thị các tích hợp.
+  <Frame>
+    <img src="/images/integrations/discord.png" alt="Thêm Điểm cuối và danh sách thả xuống tích hợp" />
+  </Frame>
+</Step>
+
+<Step title="Chọn Discord">
+  Chọn thẻ <b>Discord</b> rồi nhấp vào <b>Kết nối không gian làm việc Discord của bạn</b>.
+</Step>
+
+<Step title="Cấp quyền cho Bot">
+  Cấp quyền được yêu cầu để bot có thể đăng tin nhắn trong kênh bạn đã chọn.
+</Step>
+
+<Step title="Chỉnh sửa Mã Biến đổi">
+  Tùy chỉnh payload → ánh xạ nhúng theo nhu cầu của bạn—hoặc bắt đầu với các mẫu bên dưới.
+</Step>
+
+<Step title="Kiểm tra & Tạo">
+  Sử dụng các payload mẫu để xem trước nhúng, sau đó nhấn <b>Tạo</b>.
+</Step>
+
+<Step title="Xong!">
+  🎉 Kênh Discord của bạn sẽ nhận được các cập nhật Dodo Payments trực tiếp ngay bây giờ.
+</Step>
+</Steps>
+
+## Ví dụ về Mã Biến đổi
+
+### Nhúng Thanh toán Tối thiểu
+
+```javascript payment_embed.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.payload = {
+      embeds: [{
+        title: "✅ Payment Successful",
+        description: `**Amount:** $${(p.total_amount / 100).toFixed(2)}\n**Customer:** ${p.customer.email}`,
+        color: 0x2ecc71 // green
+      }]
+    };
+  }
+  return webhook;
+}
+```
+
+### Sự kiện Đăng ký
+
+```javascript subscription_embed.js icon="js" expandable
+function handler(webhook) {
+  const s = webhook.payload.data;
+  switch (webhook.eventType) {
+    case "subscription.active":
+      webhook.payload = {
+        embeds: [{
+          title: "📄 Subscription Activated",
+          fields: [
+            { name: "Customer", value: s.customer.email, inline: true },
+            { name: "Product", value: s.product_id, inline: true },
+            { name: "Next Billing", value: new Date(s.next_billing_date).toLocaleDateString(), inline: true }
+          ],
+          color: 0x2ecc71
+        }]
+      };
+      break;
+    case "subscription.cancelled":
+      webhook.payload = {
+        embeds: [{
+          title: "⚠️ Subscription Cancelled",
+          fields: [
+            { name: "Customer", value: s.customer.email, inline: true },
+            { name: "Product", value: s.product_id, inline: true }
+          ],
+          color: 0xf1c40f
+        }]
+      };
+      break;
+  }
+  return webhook;
+}
+```
+
+### Cảnh báo Tranh chấp
+
+```javascript dispute_embed.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType.startsWith("dispute.")) {
+    const d = webhook.payload.data;
+    webhook.payload = {
+      embeds: [{
+        title: d.dispute_status === "won" ? "🏆 Dispute Won" : d.dispute_status === "lost" ? "❌ Dispute Lost" : "🚨 Dispute Update",
+        fields: [
+          { name: "Payment ID", value: d.payment_id, inline: true },
+          { name: "Amount", value: `$${(d.amount / 100).toFixed(2)}`, inline: true },
+          { name: "Status", value: d.dispute_status, inline: true }
+        ],
+        color: d.dispute_status === "won" ? 0x2ecc71 : d.dispute_status === "lost" ? 0xe74c3c : 0xe67e22
+      }]
+    };
+  }
+  return webhook;
+}
+```
+
+## Mẹo
+
+- Ưu tiên nhúng cho định dạng phong phú và màu sắc.
+- Giữ tiêu đề ngắn gọn; đưa chi tiết vào các trường.
+- Sử dụng màu sắc trực quan: xanh (thành công), đỏ (thất bại), cam (cảnh báo).
+
+## Khắc phục sự cố
+
+<AccordionGroup>
+<Accordion title="Không có tin nhắn trong Discord">
+- Xác nhận bot đã có quyền truy cập vào kênh.
+- Kiểm tra rằng biến đổi trả về một đối tượng JSON với `embeds`.
+</Accordion>
+
+<Accordion title="Lỗi biến đổi">
+- Xác thực mã của bạn trong trình chỉnh sửa – lỗi cú pháp sẽ chặn việc gửi.
+- Đảm bảo tên trường khớp với cấu trúc payload webhook.
+</Accordion>
+</AccordionGroup>

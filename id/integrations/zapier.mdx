@@ -1,0 +1,179 @@
+---
+title: Zapier
+description: Sambungkan Dodo Payments ke 5000+ aplikasi melalui webhook Zapier
+  untuk kemungkinan otomatisasi tanpa batas.
+icon: bolt
+---
+
+## Pendahuluan
+
+Sambungkan Dodo Payments ke ribuan aplikasi dan layanan melalui Zapier. Otomatiskan alur kerja dengan memicu Zaps saat peristiwa pembayaran terjadi, mulai dari mengirim email hingga memperbarui spreadsheet, membuat tugas, dan banyak lagi.
+
+<Info>
+Integrasi ini memerlukan URL webhook Zapier dari konfigurasi Zap Anda.
+</Info>
+
+## Memulai
+
+<Steps>
+<Step title="Buka Bagian Webhook">
+  Di dasbor Dodo Payments Anda, navigasikan ke <b>Webhooks → + Tambah Endpoint</b> dan perluas dropdown integrasi.
+  <Frame>
+    <img src="/images/integrations/zapier.png" alt="Tambah Endpoint dan dropdown integrasi" />
+  </Frame>
+</Step>
+
+<Step title="Pilih Zapier">
+  Pilih kartu integrasi <b>Zapier</b>.
+</Step>
+
+<Step title="Buat Zap di Zapier">
+  Di Zapier, buat Zap baru dengan "Webhooks by Zapier" sebagai pemicu. Salin URL webhook.
+</Step>
+
+<Step title="Tempel URL Webhook">
+  Tempel URL webhook Zapier ke dalam konfigurasi endpoint.
+</Step>
+
+<Step title="Konfigurasi Transformasi">
+  Edit kode transformasi untuk memformat data untuk alur kerja Zapier Anda.
+</Step>
+
+<Step title="Uji & Buat">
+  Uji dengan payload contoh dan klik <b>Buat</b> untuk mengaktifkan integrasi.
+</Step>
+
+<Step title="Selesai!">
+  🎉 Peristiwa pembayaran sekarang akan memicu alur kerja Zapier Anda secara otomatis.
+</Step>
+</Steps>
+
+## Contoh Kode Transformasi
+
+### Payload Webhook Dasar
+
+```javascript basic_webhook.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.payload = {
+      event_type: webhook.eventType,
+      payment_id: p.payment_id,
+      amount: (p.total_amount / 100).toFixed(2),
+      currency: p.currency || "USD",
+      customer_email: p.customer.email,
+      customer_name: p.customer.name,
+      payment_method: p.payment_method || "unknown",
+      timestamp: webhook.payload.timestamp
+    };
+  }
+  return webhook;
+}
+```
+
+### Penangan Acara Langganan
+
+```javascript subscription_webhook.js icon="js" expandable
+function handler(webhook) {
+  const s = webhook.payload.data;
+  switch (webhook.eventType) {
+    case "subscription.active":
+      webhook.payload = {
+        event_type: "subscription_started",
+        subscription_id: s.subscription_id,
+        customer_email: s.customer.email,
+        customer_name: s.customer.name,
+        product_id: s.product_id,
+        amount: (s.recurring_pre_tax_amount / 100).toFixed(2),
+        frequency: s.payment_frequency_interval,
+        next_billing: s.next_billing_date,
+        timestamp: webhook.payload.timestamp
+      };
+      break;
+    case "subscription.cancelled":
+      webhook.payload = {
+        event_type: "subscription_cancelled",
+        subscription_id: s.subscription_id,
+        customer_email: s.customer.email,
+        cancelled_at: s.cancelled_at,
+        cancel_at_next_billing: s.cancel_at_next_billing_date,
+        timestamp: webhook.payload.timestamp
+      };
+      break;
+  }
+  return webhook;
+}
+```
+
+### Penangan Pemberitahuan Sengketa
+
+```javascript dispute_webhook.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType.startsWith("dispute.")) {
+    const d = webhook.payload.data;
+    webhook.payload = {
+      event_type: webhook.eventType,
+      dispute_id: d.dispute_id,
+      payment_id: d.payment_id,
+      amount: (d.amount / 100).toFixed(2),
+      status: d.dispute_status,
+      stage: d.dispute_stage,
+      remarks: d.remarks || "",
+      urgent: webhook.eventType === "dispute.opened",
+      timestamp: webhook.payload.timestamp
+    };
+  }
+  return webhook;
+}
+```
+
+## Kasus Penggunaan Zapier yang Populer
+
+<AccordionGroup>
+<Accordion title="Pemberitahuan Email">
+- Kirim email Gmail/Outlook untuk konfirmasi pembayaran
+- Buat urutan email di Mailchimp/ConvertKit
+- Kirim pemberitahuan Slack/Discord
+- Buat catatan Google Sheets
+</Accordion>
+
+<Accordion title="Pembaruan CRM">
+- Tambahkan kontak ke HubSpot/Salesforce
+- Buat kesepakatan di Pipedrive/Close
+- Perbarui catatan pelanggan di Airtable
+- Catat aktivitas di Monday.com
+</Accordion>
+
+<Accordion title="Manajemen Tugas">
+- Buat tugas di Asana/Trello
+- Tambahkan item yang harus dilakukan di Notion
+- Buat acara kalender
+- Kirim pemberitahuan SMS melalui Twilio
+</Accordion>
+</AccordionGroup>
+
+## Tips
+
+- Jaga struktur payload tetap sederhana untuk memudahkan pemrosesan Zapier
+- Gunakan nama field yang konsisten di semua peristiwa
+- Sertakan timestamp untuk penjadwalan alur kerja
+- Uji Zap Anda dengan data contoh sebelum diluncurkan
+- Gunakan filter bawaan Zapier untuk logika bersyarat
+
+## Pemecahan Masalah
+
+<AccordionGroup>
+<Accordion title="Zap tidak memicu">
+- Verifikasi URL webhook benar dan aktif
+- Periksa bahwa Zap diaktifkan di Zapier
+- Pastikan struktur payload sesuai dengan harapan Zapier
+- Uji pengiriman webhook di dasbor Zapier
+</Accordion>
+
+<Accordion title="Data tidak dipetakan dengan benar">
+- Periksa nama field di langkah aksi Zapier
+- Verifikasi tipe data sesuai dengan format yang diharapkan
+- Gunakan fitur uji Zapier untuk memecahkan masalah pemetaan
+- Pastikan kode transformasi mengembalikan JSON yang valid
+</Accordion>
+</AccordionGroup>

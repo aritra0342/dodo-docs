@@ -1,0 +1,189 @@
+---
+title: طاحونة الهواء
+description: قم بتشغيل سير العمل والبرامج النصية لطاحونة الهواء بناءً على أحداث
+  مدفوعات دودو لأتمتة مخصصة.
+icon: wind
+---
+
+## المقدمة
+
+نفذ سير العمل والبرامج النصية المخصصة في طاحونة الهواء عند حدوث أحداث الدفع. قم بتشغيل عمليات قاعدة البيانات، إرسال الإشعارات، معالجة البيانات، وأتمتة منطق الأعمال المعقد باستخدام محرك سير العمل القوي في طاحونة الهواء.
+
+<Info>
+تتطلب هذه التكامل عنوان URL الخاص بـ webhook لطاحونة الهواء من تكوين سير العمل الخاص بك.
+</Info>
+
+## البدء
+
+<Steps>
+<Step title="افتح قسم Webhook">
+  في لوحة معلومات مدفوعات دودو، انتقل إلى <b>Webhooks → + إضافة نقطة نهاية</b> وقم بتوسيع قائمة التكاملات.
+  <Frame>
+    <img src="/images/integrations/windmill.png" alt="إضافة نقطة نهاية وقائمة التكاملات" />
+  </Frame>
+</Step>
+
+<Step title="اختر طاحونة الهواء">
+  اختر بطاقة تكامل <b>طاحونة الهواء</b>.
+</Step>
+
+<Step title="إنشاء سير عمل طاحونة الهواء">
+  في طاحونة الهواء، أنشئ سير عمل جديد وانسخ عنوان URL الخاص بـ webhook من تكوين الزناد.
+</Step>
+
+<Step title="ألصق عنوان URL الخاص بـ Webhook">
+  ألصق عنوان URL الخاص بـ webhook لطاحونة الهواء في تكوين نقطة النهاية.
+</Step>
+
+<Step title="تكوين التحويل">
+  قم بتحرير كود التحويل لتنسيق الأحداث لسير عمل طاحونة الهواء الخاص بك.
+</Step>
+
+<Step title="اختبر وأنشئ">
+  اختبر باستخدام حمولات عينة وانقر على <b>إنشاء</b> لتفعيل التكامل.
+</Step>
+
+<Step title="تم!">
+  🎉 ستقوم أحداث الدفع الآن بتشغيل سير عمل طاحونة الهواء الخاص بك تلقائيًا.
+</Step>
+</Steps>
+
+## أمثلة على كود التحويل
+
+### حمولة سير العمل الأساسية
+
+```javascript basic_workflow.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.payload = {
+      event_type: webhook.eventType,
+      payment_id: p.payment_id,
+      amount: (p.total_amount / 100).toFixed(2),
+      currency: p.currency || "USD",
+      customer_email: p.customer.email,
+      customer_name: p.customer.name,
+      payment_method: p.payment_method || "unknown",
+      timestamp: webhook.payload.timestamp,
+      metadata: {
+        business_id: p.business_id,
+        product_id: p.product_id
+      }
+    };
+  }
+  return webhook;
+}
+```
+
+### معالج سير عمل الاشتراك
+
+```javascript subscription_workflow.js icon="js" expandable
+function handler(webhook) {
+  const s = webhook.payload.data;
+  switch (webhook.eventType) {
+    case "subscription.active":
+      webhook.payload = {
+        event_type: "subscription_started",
+        subscription_id: s.subscription_id,
+        customer_email: s.customer.email,
+        customer_name: s.customer.name,
+        product_id: s.product_id,
+        amount: (s.recurring_pre_tax_amount / 100).toFixed(2),
+        frequency: s.payment_frequency_interval,
+        next_billing: s.next_billing_date,
+        customer_id: s.customer.customer_id,
+        timestamp: webhook.payload.timestamp
+      };
+      break;
+    case "subscription.cancelled":
+      webhook.payload = {
+        event_type: "subscription_cancelled",
+        subscription_id: s.subscription_id,
+        customer_email: s.customer.email,
+        cancelled_at: s.cancelled_at,
+        cancel_at_next_billing: s.cancel_at_next_billing_date,
+        customer_id: s.customer.customer_id,
+        timestamp: webhook.payload.timestamp
+      };
+      break;
+  }
+  return webhook;
+}
+```
+
+### معالج سير عمل النزاع
+
+```javascript dispute_workflow.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType.startsWith("dispute.")) {
+    const d = webhook.payload.data;
+    webhook.payload = {
+      event_type: webhook.eventType,
+      dispute_id: d.dispute_id,
+      payment_id: d.payment_id,
+      amount: (d.amount / 100).toFixed(2),
+      status: d.dispute_status,
+      stage: d.dispute_stage,
+      remarks: d.remarks || "",
+      urgent: webhook.eventType === "dispute.opened",
+      business_id: d.business_id,
+      timestamp: webhook.payload.timestamp
+    };
+  }
+  return webhook;
+}
+```
+
+## حالات استخدام طاحونة الهواء الشائعة
+
+<AccordionGroup>
+<Accordion title="عمليات قاعدة البيانات">
+- تحديث سجلات العملاء في PostgreSQL/MySQL
+- تسجيل أحداث الدفع في مستودعات البيانات
+- مزامنة البيانات مع الأنظمة الخارجية
+- تحديث مستويات المخزون
+- تتبع مقاييس التحليلات
+</Accordion>
+
+<Accordion title="منطق الأعمال">
+- حساب مقاييس الإيرادات
+- معالجة المبالغ المستردة والتعديلات
+- التعامل مع دورة حياة الاشتراك
+- إنشاء التقارير والتصديرات
+- التحقق من بيانات الدفع
+</Accordion>
+
+<Accordion title="التكاملات الخارجية">
+- إرسال البيانات إلى منصات التحليلات
+- تحديث أنظمة CRM
+- تشغيل حملات البريد الإلكتروني
+- إنشاء أحداث التقويم
+- إرسال إشعارات SMS
+</Accordion>
+</AccordionGroup>
+
+## نصائح
+
+- هيكل بيانات الحمولة لسهولة معالجة سير العمل
+- تضمين جميع البيانات الوصفية ذات الصلة لمنطق الأعمال
+- استخدام أسماء حقول متسقة عبر الأحداث
+- تضمين الطوابع الزمنية لتوقيت سير العمل
+- الاستفادة من معالجة الأخطاء المدمجة في طاحونة الهواء
+
+## استكشاف الأخطاء وإصلاحها
+
+<AccordionGroup>
+<Accordion title="سير العمل لا يتم تشغيله">
+- تحقق من أن عنوان URL الخاص بـ webhook صحيح ونشط
+- تحقق من أن سير عمل طاحونة الهواء منشور ونشط
+- تأكد من أن هيكل الحمولة يتطابق مع توقعات سير العمل
+- راجع سجلات تنفيذ طاحونة الهواء للبحث عن الأخطاء
+</Accordion>
+
+<Accordion title="مشكلات معالجة البيانات">
+- تحقق من تعيين معلمات إدخال سير العمل
+- تحقق من أن أنواع البيانات تتطابق مع التنسيقات المتوقعة
+- اختبر سير العمل باستخدام بيانات عينة
+- راجع سجلات تنفيذ البرنامج النصي لطاحونة الهواء
+</Accordion>
+</AccordionGroup>

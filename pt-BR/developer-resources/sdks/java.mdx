@@ -1,0 +1,413 @@
+---
+title: Java
+description: Integre os pagamentos Dodo em suas aplicações Java com um SDK
+  robusto e seguro em tipos
+icon: java
+---
+
+O SDK Java fornece acesso conveniente e ergonômico à API REST de pagamentos Dodo para aplicações escritas em Java. Ele utiliza recursos específicos do Java, como Optional, Stream e CompletableFuture para o desenvolvimento moderno em Java.
+
+## Instalação
+
+### Maven
+
+Adicione a dependência ao seu `pom.xml`:
+
+```xml pom.xml
+<dependency>
+  <groupId>com.dodopayments.api</groupId>
+  <artifactId>dodo-payments-java</artifactId>
+  <version>1.61.5</version>
+</dependency>
+```
+
+### Gradle
+
+Adicione a dependência ao seu `build.gradle`:
+
+```kotlin build.gradle.kts
+implementation("com.dodopayments.api:dodo-payments-java:1.61.5")
+```
+
+<Tip>
+Sempre use a versão mais recente do SDK para acessar os novos recursos de pagamentos Dodo. Verifique [Maven Central](https://central.sonatype.com/artifact/com.dodopayments.api/dodo-payments-java) para a versão mais recente.
+</Tip>
+
+<Info>
+O SDK suporta Java 8 e todas as versões posteriores, incluindo Java 11, 17 e 21.
+</Info>
+
+## Início Rápido
+
+Inicialize o cliente e crie uma sessão de checkout:
+
+```java
+import com.dodopayments.api.client.DodoPaymentsClient;
+import com.dodopayments.api.client.okhttp.DodoPaymentsOkHttpClient;
+import com.dodopayments.api.models.checkoutsessions.CheckoutSessionRequest;
+import com.dodopayments.api.models.checkoutsessions.CheckoutSessionResponse;
+
+// Configure using environment variables (DODO_PAYMENTS_API_KEY, DODO_PAYMENTS_BASE_URL)
+// Or system properties (dodopayments.apiKey, dodopayments.baseUrl)
+DodoPaymentsClient client = DodoPaymentsOkHttpClient.fromEnv();
+
+CheckoutSessionRequest params = CheckoutSessionRequest.builder()
+    .addProductCart(CheckoutSessionRequest.ProductCart.builder()
+        .productId("product_id")
+        .quantity(1)
+        .build())
+    .build();
+    
+CheckoutSessionResponse checkoutSessionResponse = client.checkoutSessions().create(params);
+System.out.println(checkoutSessionResponse.sessionId());
+```
+
+<Warning>
+Sempre armazene suas chaves de API de forma segura usando variáveis de ambiente, propriedades do sistema ou um sistema seguro de gerenciamento de configuração. Nunca as codifique diretamente em seu código-fonte.
+</Warning>
+
+## Recursos Principais
+
+<CardGroup cols={2}>
+<Card title="Segurança de Tipo" icon="shield-check">
+  API fortemente tipada com segurança em tempo de compilação
+</Card>
+
+<Card title="Segurança em Threads" icon="bolt">
+  Seguro para uso concorrente em aplicações multithreaded
+</Card>
+
+<Card title="Padrão Builder" icon="layer-group">
+  Padrão builder intuitivo para construir requisições
+</Card>
+
+<Card title="Suporte Assíncrono" icon="arrows-rotate">
+  Suporte a CompletableFuture para operações assíncronas
+</Card>
+</CardGroup>
+
+## Configuração
+
+### Variáveis de Ambiente
+
+Configure usando variáveis de ambiente ou propriedades do sistema:
+
+```bash .env
+DODO_PAYMENTS_API_KEY=your_api_key_here
+DODO_PAYMENTS_BASE_URL=https://live.dodopayments.com
+```
+
+```java
+// Automatically reads from environment variables
+DodoPaymentsClient client = DodoPaymentsOkHttpClient.fromEnv();
+```
+
+### Configuração Manual
+
+Configure manualmente com todas as opções:
+
+```java
+import java.time.Duration;
+
+DodoPaymentsClient client = DodoPaymentsOkHttpClient.builder()
+    .bearerToken("your_api_key_here")
+    .baseUrl("https://live.dodopayments.com")
+    .maxRetries(4)
+    .timeout(Duration.ofSeconds(30))
+    .responseValidation(true)
+    .build();
+```
+
+### Modo de Teste
+
+Configure para o ambiente de teste/sandbox:
+
+```java
+DodoPaymentsClient testClient = DodoPaymentsOkHttpClient.builder()
+    .fromEnv()
+    .testMode()
+    .build();
+```
+
+## Operações Comuns
+
+### Criar uma Sessão de Checkout
+
+Gere uma sessão de checkout:
+
+```java
+CheckoutSessionRequest params = CheckoutSessionRequest.builder()
+    .addProductCart(CheckoutSessionRequest.ProductCart.builder()
+        .productId("prod_123")
+        .quantity(1)
+        .build())
+    .returnUrl("https://yourdomain.com/return")
+    .build();
+
+CheckoutSessionResponse session = client.checkoutSessions().create(params);
+System.out.println("Checkout URL: " + session.url());
+```
+
+### Gerenciar Clientes
+
+Crie e recupere informações de clientes:
+
+```java
+import com.dodopayments.api.models.customers.Customer;
+import com.dodopayments.api.models.customers.CustomerCreateParams;
+
+// Create a customer
+CustomerCreateParams createParams = CustomerCreateParams.builder()
+    .email("customer@example.com")
+    .name("John Doe")
+    .putMetadata("user_id", "12345")
+    .build();
+
+Customer customer = client.customers().create(createParams);
+
+// Retrieve customer
+Customer retrieved = client.customers().retrieve("cus_123");
+System.out.println("Customer: " + retrieved.name() + " (" + retrieved.email() + ")");
+```
+
+### Gerenciar Assinaturas
+
+Crie e gerencie assinaturas recorrentes:
+
+```java
+import com.dodopayments.api.models.subscriptions.*;
+
+// Create a subscription
+SubscriptionNewParams subscriptionParams = SubscriptionNewParams.builder()
+    .customerId("cus_123")
+    .productId("prod_456")
+    .priceId("price_789")
+    .build();
+
+Subscription subscription = client.subscriptions().create(subscriptionParams);
+
+// Charge subscription
+SubscriptionChargeParams chargeParams = SubscriptionChargeParams.builder()
+    .amount(1000)
+    .build();
+
+SubscriptionChargeResponse chargeResponse = client.subscriptions()
+    .charge(subscription.id(), chargeParams);
+```
+
+## Cobrança Baseada em Uso
+
+### Configurar Medidores
+
+Crie e gerencie medidores para rastrear o uso:
+
+```java
+import com.dodopayments.api.models.meters.*;
+
+// Create API calls meter
+MeterCreateParams apiMeterParams = MeterCreateParams.builder()
+    .name("API Requests")
+    .eventName("api_request")
+    .aggregation("count")
+    .putMetadata("category", "api_usage")
+    .build();
+
+Meter apiMeter = client.meters().create(apiMeterParams);
+System.out.println("Meter created: " + apiMeter.meterId());
+
+// List all meters
+client.meters().list()
+    .autoPager()
+    .forEach(m -> System.out.println("Meter: " + m.name() + " - " + m.aggregation()));
+```
+
+### Registrar Eventos de Uso
+
+Rastreie eventos personalizados:
+
+```java
+import com.dodopayments.api.models.usageevents.*;
+import java.time.OffsetDateTime;
+
+// Ingest single event
+UsageEventIngestParams singleEventParams = UsageEventIngestParams.builder()
+    .addEvent(UsageEventIngestParams.Event.builder()
+        .eventId("api_call_" + System.currentTimeMillis())
+        .customerId("cus_abc123")
+        .eventName("api_request")
+        .timestamp(OffsetDateTime.now())
+        .putMetadata("endpoint", "/api/v1/users")
+        .putMetadata("method", "GET")
+        .putMetadata("tokens_used", "150")
+        .build())
+    .build();
+
+UsageEventIngestResponse response = client.usageEvents().ingest(singleEventParams);
+System.out.println("Processed: " + response.processedEvents());
+```
+
+### Registrar Eventos em Lote
+
+Registre múltiplos eventos de forma eficiente (máx. 1000 por requisição):
+
+```java
+UsageEventIngestParams.Builder batchBuilder = UsageEventIngestParams.builder();
+
+for (int i = 0; i < 100; i++) {
+    batchBuilder.addEvent(UsageEventIngestParams.Event.builder()
+        .eventId("batch_event_" + i + "_" + System.currentTimeMillis())
+        .customerId("cus_abc123")
+        .eventName("video_transcode")
+        .timestamp(OffsetDateTime.now().minusMinutes(i))
+        .putMetadata("video_id", "video_" + i)
+        .putMetadata("duration_seconds", String.valueOf(120 + i))
+        .build());
+}
+
+UsageEventIngestResponse batchResponse = client.usageEvents().ingest(batchBuilder.build());
+System.out.println("Batch processed: " + batchResponse.processedEvents() + " events");
+```
+
+## Tratamento de Erros
+
+Tratamento abrangente de erros para diferentes cenários:
+
+```java
+import com.dodopayments.api.errors.*;
+
+try {
+    Payment payment = client.payments().retrieve("pay_invalid");
+} catch (NotFoundException e) {
+    System.err.println("Payment not found: " + e.getMessage());
+} catch (UnauthorizedException e) {
+    System.err.println("Authentication failed: " + e.getMessage());
+} catch (PermissionDeniedException e) {
+    System.err.println("Permission denied: " + e.getMessage());
+} catch (BadRequestException e) {
+    System.err.println("Invalid request: " + e.getMessage());
+} catch (UnprocessableEntityException e) {
+    System.err.println("Validation error: " + e.getMessage());
+} catch (RateLimitException e) {
+    System.err.println("Rate limit exceeded: " + e.getMessage());
+    // SDK automatically retries with backoff
+} catch (InternalServerException e) {
+    System.err.println("Server error: " + e.getMessage());
+} catch (DodoPaymentsServiceException e) {
+    System.err.println("API error: " + e.statusCode() + " - " + e.getMessage());
+}
+```
+
+<Tip>
+O SDK automaticamente tenta novamente as requisições em erros de conexão, 408, 409, 429 e erros 5xx com backoff exponencial.
+</Tip>
+
+## Operações Assíncronas
+
+Use CompletableFuture para operações assíncronas:
+
+```java
+import java.util.concurrent.CompletableFuture;
+
+CompletableFuture<CheckoutSessionResponse> future = client.async()
+    .checkoutSessions()
+    .create(params);
+
+// Handle response asynchronously
+future.thenAccept(response -> {
+    System.out.println("Session created: " + response.sessionId());
+}).exceptionally(ex -> {
+    System.err.println("Error: " + ex.getMessage());
+    return null;
+});
+```
+
+## Integração com Spring Boot
+
+### Classe de Configuração
+
+```java
+import com.dodopayments.api.client.DodoPaymentsClient;
+import com.dodopayments.api.client.okhttp.DodoPaymentsOkHttpClient;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+@Configuration
+public class DodoPaymentsConfig {
+    
+    @Value("${dodo.api.key}")
+    private String apiKey;
+    
+    @Value("${dodo.environment:sandbox}")
+    private String environment;
+    
+    @Bean
+    public DodoPaymentsClient dodoPayments() {
+        return DodoPaymentsOkHttpClient.builder()
+            .bearerToken(apiKey)
+            .baseUrl(environment.equals("live") 
+                ? "https://live.dodopayments.com" 
+                : "https://sandbox.dodopayments.com")
+            .build();
+    }
+}
+```
+
+### Camada de Serviço
+
+```java
+import com.dodopayments.api.client.DodoPaymentsClient;
+import com.dodopayments.api.models.checkoutsessions.*;
+import org.springframework.stereotype.Service;
+
+@Service
+public class PaymentService {
+    
+    private final DodoPaymentsClient client;
+    
+    public PaymentService(DodoPaymentsClient client) {
+        this.client = client;
+    }
+    
+    public CheckoutSessionResponse createCheckout(List<CheckoutSessionRequest.ProductCart> items) {
+        CheckoutSessionRequest params = CheckoutSessionRequest.builder()
+            .productCart(items)
+            .returnUrl("https://yourdomain.com/return")
+            .build();
+            
+        return client.checkoutSessions().create(params);
+    }
+}
+```
+
+## Recursos
+
+<CardGroup cols={2}>
+<Card title="Repositório GitHub" icon="github" href="https://github.com/dodopayments/dodopayments-java">
+  Veja o código-fonte e contribua
+</Card>
+
+<Card title="Referência da API" icon="book" href="/api-reference/introduction">
+  Documentação completa da API
+</Card>
+
+<Card title="Comunidade Discord" icon="discord" href="https://discord.gg/bYqAp4ayYh">
+  Obtenha ajuda e conecte-se com desenvolvedores
+</Card>
+
+<Card title="Relatar Problemas" icon="bug" href="https://github.com/dodopayments/dodopayments-java/issues">
+  Relate bugs ou solicite recursos
+</Card>
+</CardGroup>
+
+## Suporte
+
+Precisa de ajuda com o SDK Java?
+
+- **Discord**: Junte-se ao nosso [servidor da comunidade](https://discord.gg/bYqAp4ayYh) para suporte em tempo real
+- **Email**: Entre em contato conosco pelo support@dodopayments.com
+- **GitHub**: Abra uma issue no [repositório](https://github.com/dodopayments/dodopayments-java)
+
+## Contribuindo
+
+Agradecemos contribuições! Confira as [diretrizes de contribuição](https://github.com/dodopayments/dodopayments-java/blob/main/CONTRIBUTING.md) para começar.

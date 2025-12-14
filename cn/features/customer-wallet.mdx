@@ -1,0 +1,293 @@
+---
+title: 客户钱包
+description: 构建基于信用的计费系统，如 OpenAI 或 Claude，使用客户钱包。跟踪余额，管理信用，并创建复杂的财务工作流程。
+icon: wallet
+tag: 新
+---
+
+<CardGroup cols={3}>
+<Card title="获取客户钱包" icon="code" href="/api-reference/customers/get-customer-wallets">
+  检查客户在不同货币中的钱包余额。
+</Card>
+
+<Card title="创建账本条目" icon="plus" href="/api-reference/customers/post-customer-wallets-ledger-entries">
+  向客户钱包中添加或移除信用。
+</Card>
+
+<Card title="列出账本条目" icon="list" href="/api-reference/customers/get-customer-wallets-ledger-entries">
+  查看完整的交易历史，支持分页。
+</Card>
+</CardGroup>
+
+## 什么是客户钱包？
+
+将客户钱包视为用户的数字储蓄罐。每当您创建客户账户时，客户会自动获得一个钱包。您可以使用这些钱包来：
+
+- **跟踪 USD 和 INR 的信用余额**
+- **构建 API 信用系统**，如 OpenAI 或 Claude
+- **创建预付费计费**，客户提前购买信用
+- **处理退款**，作为钱包信用而非现金
+- **管理复杂的计费**，提供详细的交易历史
+
+<Info>
+每当您创建客户账户时，客户会自动获得一个钱包。钱包支持 USD 和 INR 货币，并为每种货币提供单独的余额。
+</Info>
+
+<Frame>
+  <img src="/images/customer/customer-wallet.png" alt="客户钱包" />
+</Frame>
+
+## 工作原理
+
+客户钱包很简单：它们持有客户可以在您的服务上消费的资金（信用）。当客户进行购买时，首先会检查他们的钱包余额，并在收费其支付方式之前使用任何可用的信用。
+
+### 自动设置
+
+当您创建新客户时，Dodo Payments 会自动创建一个余额为零的钱包。它可以立即通过我们的 API 使用。
+
+### 多货币支持
+
+每个钱包可以持有不同货币的余额：
+
+<ResponseField name="USD Balance" type="integer">
+以美分存储的美元余额
+</ResponseField>
+
+<ResponseField name="INR Balance" type="integer">
+以派塞存储的印度卢比余额
+</ResponseField>
+
+<Info>
+目前，仅提供 <strong>USD</strong> 和 <strong>INR</strong> 余额。更多货币即将推出。
+</Info>
+
+## 使用钱包
+
+### 检查客户余额
+
+查看客户在所有货币中的信用余额。非常适合在处理购买之前检查他们是否有足够的资金。
+
+<Card title="获取客户钱包余额" icon="wallet" href="/api-reference/customers/get-customer-wallets">
+  检查客户在所有支持的货币中的钱包信用余额。
+</Card>
+
+### 添加或移除信用
+
+给予客户信用（如欢迎奖金）或扣除信用（如使用费用）。您可以为每笔交易添加原因，以跟踪发生了什么。
+
+<Card title="创建客户钱包账本条目" icon="plus" href="/api-reference/customers/post-customer-wallets-ledger-entries">
+  向客户的钱包中添加或移除信用。
+</Card>
+
+### 查看交易历史
+
+查看客户的每笔信用和借记交易。非常适合调试计费问题或向客户展示他们的消费历史。
+
+<Card title="列出客户钱包账本条目" icon="list" href="/api-reference/customers/get-customer-wallets-ledger-entries">
+  查看客户的每笔信用和借记交易。
+</Card>
+
+## 现实世界示例
+
+### API 信用系统（如 OpenAI）
+
+构建一个客户购买信用并在 API 调用中使用的系统：
+
+```javascript
+// Give new customers welcome credits
+async function giveWelcomeCredits(customerId) {
+  await client.customers.wallets.ledgerEntries.create(customerId, {
+    amount: 10000, // $100 in cents
+    currency: 'USD',
+    entry_type: 'credit',
+    reason: 'Welcome bonus - 100 API credits',
+    idempotency_key: `welcome_${customerId}_${Date.now()}`
+  });
+}
+
+// Charge customers for API usage
+async function chargeForApiUsage(customerId, usageCost) {
+  try {
+    await client.customers.wallets.ledgerEntries.create(customerId, {
+      amount: usageCost, // Cost in cents
+      currency: 'USD',
+      entry_type: 'debit',
+      reason: `API usage - ${usageCost} credits consumed`,
+      idempotency_key: `usage_${customerId}_${Date.now()}`
+    });
+  } catch (error) {
+    if (error.status === 400) {
+      console.log('Customer needs to buy more credits');
+    }
+  }
+}
+```
+
+### 预付费计费系统
+
+让客户提前购买信用并随时间消费：
+
+<Steps>
+<Step title="欢迎新客户">
+给予新客户一些免费信用以便开始使用。
+
+```javascript
+await client.customers.wallets.ledgerEntries.create(customerId, {
+  amount: 5000, // $50 welcome bonus
+  currency: 'USD',
+  entry_type: 'credit',
+  reason: 'Welcome bonus for new customer',
+  idempotency_key: `welcome_${customerId}`
+});
+```
+
+</Step>
+
+<Step title="处理信用购买">
+当客户购买信用时，将其添加到他们的钱包中。
+
+```javascript
+await client.customers.wallets.ledgerEntries.create(customerId, {
+  amount: purchaseAmount, // Amount paid in cents
+  currency: 'USD',
+  entry_type: 'credit',
+  reason: `Credit purchase - ${purchaseAmount} credits`,
+  idempotency_key: `purchase_${paymentId}`
+});
+```
+
+</Step>
+
+<Step title="按使用收费">
+在客户使用您的服务时扣除信用。
+
+```javascript
+await client.customers.wallets.ledgerEntries.create(customerId, {
+  amount: usageCost,
+  currency: 'USD', 
+  entry_type: 'debit',
+  reason: `Service usage - ${usageCost} credits`,
+  idempotency_key: `usage_${usageId}`
+});
+```
+
+</Step>
+
+<Step title="监控余额">
+检查客户的信用是否不足。
+
+```javascript
+const wallets = await client.customers.wallets.list(customerId);
+const usdWallet = wallets.items.find(w => w.currency === 'USD');
+const balance = usdWallet.balance;
+
+if (balance < 1000) { // Less than $10
+  // Send low balance notification
+  await sendLowBalanceNotification(customerId, balance);
+}
+```
+
+</Step>
+</Steps>
+
+### 多货币支持
+
+处理来自不同国家的客户：
+
+<AccordionGroup>
+<Accordion title="美国客户">
+给予美国客户美元信用。
+
+```javascript
+await client.customers.wallets.ledgerEntries.create(customerId, {
+  amount: 20000, // $200 in cents
+  currency: 'USD',
+  entry_type: 'credit',
+  reason: 'USD credit purchase',
+  idempotency_key: `usd_purchase_${paymentId}`
+});
+```
+
+</Accordion>
+
+<Accordion title="印度客户">
+给予印度客户印度卢比信用。
+
+```javascript
+await client.customers.wallets.ledgerEntries.create(customerId, {
+  amount: 1500000, // ₹15,000 in paise
+  currency: 'INR',
+  entry_type: 'credit',
+  reason: 'INR credit purchase',
+  idempotency_key: `inr_purchase_${paymentId}`
+});
+```
+
+</Accordion>
+</AccordionGroup>
+
+## 最佳实践
+
+### 防止重复交易
+
+使用幂等性密钥确保您不会意外地对客户收取两次相同的费用：
+
+```javascript
+async function addCreditsSafely(customerId, amount, reason) {
+  const idempotencyKey = `${reason}_${customerId}_${Date.now()}`;
+  
+  try {
+    const result = await client.customers.wallets.ledgerEntries.create(customerId, {
+      amount: amount,
+      currency: 'USD',
+      entry_type: 'credit',
+      reason: reason,
+      idempotency_key: idempotencyKey
+    });
+    
+    return { success: true, wallet: result };
+  } catch (error) {
+    if (error.status === 400 && error.message.includes('Insufficient balance')) {
+      return { success: false, error: 'INSUFFICIENT_BALANCE' };
+    }
+    
+    if (error.status === 409) {
+      // Transaction already processed
+      return { success: true, wallet: null, duplicate: true };
+    }
+    
+    throw error;
+  }
+}
+```
+
+### 在收费前检查余额
+
+在处理高费用操作之前，始终验证客户是否有足够的信用：
+
+```javascript
+async function checkBalanceBeforeOperation(customerId, requiredAmount) {
+  const wallets = await client.customers.wallets.list(customerId);
+  const usdWallet = wallets.items.find(w => w.currency === 'USD');
+  
+  if (!usdWallet || usdWallet.balance < requiredAmount) {
+    throw new Error('Not enough credits for this operation');
+  }
+  
+  return usdWallet.balance;
+}
+```
+
+## 接下来会发生什么
+
+<Warning>
+这些功能计划在未来的版本中推出：
+</Warning>
+
+- **信用过期**：设置信用在一定时间后过期
+- **更好的分析**：详细的消费报告和使用洞察  
+- **更多 Webhook**：余额变化和低信用的实时通知
+
+<Tip>
+从基本的信用/借记操作开始，随着您的业务增长再添加更复杂的功能。
+</Tip>

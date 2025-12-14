@@ -1,0 +1,119 @@
+---
+title: Stream Blueprint
+description: Acompanhe o consumo de dados de streaming para vídeo, áudio,
+  transmissões ao vivo e faturamento de transferência de dados em tempo real.
+icon: tower-broadcast
+---
+
+## Casos de Uso
+
+Explore cenários comuns suportados pelo Stream Blueprint:
+
+<CardGroup cols={2}>
+<Card title="Plataformas de Vídeo" icon="video">
+Fature os clientes com base no consumo de largura de banda de vídeo e qualidade de streaming.
+</Card>
+<Card title="Streaming de Música" icon="music">
+Acompanhe o uso de streaming de áudio por usuário para níveis de assinatura.
+</Card>
+<Card title="Eventos Ao Vivo" icon="signal-stream">
+Monitore o consumo de transmissões ao vivo e cobre pelo uso de largura de banda.
+</Card>
+<Card title="Dados em Tempo Real" icon="wave-pulse">
+Acompanhe a transferência de dados em tempo real para aplicações de IoT e telemetria.
+</Card>
+</CardGroup>
+
+<Info>
+Perfeito para plataformas de streaming de vídeo/áudio, serviços de streaming ao vivo e aplicações de dados em tempo real.
+</Info>
+
+## Início Rápido
+
+Acompanhe os bytes de streaming consumidos pelos seus clientes:
+
+<Steps>
+<Step title="Instale o SDK">
+
+```bash
+npm install @dodopayments/ingestion-blueprints
+```
+
+</Step>
+
+<Step title="Obtenha suas Chaves de API">
+- **Chave da API do Dodo Payments**: Obtenha-a no [Painel do Dodo Payments](https://app.dodopayments.com/developer/api-keys)
+</Step>
+
+<Step title="Crie um Medidor">
+Crie um medidor no seu [Painel do Dodo Payments](https://app.dodopayments.com/):
+- **Nome do Evento**: `stream_consumption` (ou o nome de sua preferência)
+- **Tipo de Agregação**: `sum` para acompanhar o total de bytes transmitidos
+- **Sobre Propriedade**: `bytes` para faturar com base no uso de largura de banda
+</Step>
+
+<Step title="Acompanhe o Uso do Stream">
+<CodeGroup>
+
+```javascript Video Streaming
+import { Ingestion, trackStreamBytes } from '@dodopayments/ingestion-blueprints';
+
+const ingestion = new Ingestion({
+  apiKey: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'test_mode',
+  eventName: 'stream_consumption'
+});
+
+// Track video stream consumption
+await trackStreamBytes(ingestion, {
+  customerId: 'customer_123',
+  bytes: 10485760, // 10MB
+  metadata: {
+    stream_type: 'video',
+  }
+});
+```
+
+</CodeGroup>
+</Step>
+</Steps>
+
+## Configuração
+
+### Configuração de Ingestão
+
+<ParamField path="apiKey" type="string" required>
+Sua chave da API do Dodo Payments do painel.
+</ParamField>
+
+<ParamField path="environment" type="string" required>
+Modo de ambiente: `test_mode` ou `live_mode`.
+</ParamField>
+
+<ParamField path="eventName" type="string" required>
+Nome do evento que corresponde à sua configuração de medidor.
+</ParamField>
+
+### Opções para Acompanhar Bytes de Stream
+
+<ParamField path="customerId" type="string" required>
+O ID do cliente para atribuição de faturamento.
+</ParamField>
+
+<ParamField path="bytes" type="number">
+Número de bytes consumidos no stream. Necessário para faturamento baseado em largura de banda.
+</ParamField>
+
+<ParamField path="metadata" type="object">
+Metadados opcionais sobre o stream, como tipo de stream, qualidade, sessionId, etc.
+</ParamField>
+
+## Melhores Práticas
+
+<Tip>
+**Acompanhe por Chunk**: Para streams longos, acompanhe o consumo em partes em vez de esperar que o stream completo termine.
+</Tip>
+
+<Warning>
+**Contagem de Bytes Precisa**: Certifique-se de que as contagens de bytes incluam toda a sobrecarga (cabeçalhos, sobrecarga de protocolo) se estiver faturando pela largura de banda total.
+</Warning>

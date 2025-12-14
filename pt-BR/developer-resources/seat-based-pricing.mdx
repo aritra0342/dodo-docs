@@ -1,0 +1,479 @@
+---
+title: Precificação Baseada em Assentos com Adicionais e Links de Pagamento
+description: Aprenda como criar adicionais para precificação baseada em assentos
+  e gerar links de pagamento com quantidades de adicionais personalizadas usando
+  Dodo Payments
+icon: users
+---
+
+Neste tutorial, você aprenderá como implementar a precificação baseada em assentos usando os adicionais do Dodo Payments. Vamos criar um produto de assinatura com adicionais para assentos adicionais e mostrar como gerar links de pagamento com quantidades de adicionais personalizadas.
+
+<Note>
+Este tutorial fornece um código de implementação de exemplo para uma aplicação Node.js/Express. Você pode modificar este código para seu framework específico (Next.js, React, Vue, etc.) e personalizar a interface do usuário de acordo com as necessidades da sua aplicação.
+</Note>
+
+Ao final deste tutorial, você saberá como:
+- Criar produtos de assinatura com precificação baseada em assentos
+- Configurar adicionais para assentos adicionais
+- Gerar links de pagamento com quantidades de adicionais personalizadas
+- Lidar com sessões de checkout com contagens de assentos dinâmicas
+
+## O Que Estamos Construindo
+
+Vamos criar um modelo de precificação baseada em assentos:
+
+- **Plano Base**: R$49/mês para até 5 membros da equipe
+- **Adicional de Assento**: R$2/mês por assento adicional
+- **Links de Pagamento**: Checkout dinâmico com quantidades de assentos personalizadas
+
+<Info>
+Antes de começarmos, certifique-se de que você tem:
+- Uma conta no Dodo Payments
+- Familiaridade básica com TypeScript/Node.js
+</Info>
+
+## Passo 1: Crie Seu Adicional de Assento
+
+Agora precisamos criar um adicional que represente assentos adicionais. Este adicional será anexado à nossa assinatura base e permitirá que os clientes comprem assentos adicionais.
+
+<Frame>
+  <img src="/images/cookbooks/seat-based/seat-based-addons-creation.png" alt="Criando produto de assinatura base" />
+</Frame>
+
+<Tip>
+**O que estamos construindo**: Um adicional que custa R$2/mês por assento e pode ser adicionado a qualquer assinatura base.
+</Tip>
+
+<Steps>
+<Step title="Navegue até Adicionais">
+1. No seu painel do Dodo Payments, permaneça na seção **Produtos**
+2. Clique na aba **Adicionais**
+3. Clique em **Criar Adicional**
+
+Isso abrirá o formulário de criação de adicionais.
+</Step>
+
+<Step title="Insira os detalhes do adicional">
+Preencha estes valores para nosso adicional de assento:
+
+**Nome do Adicional**: `Additional Team Seat`
+
+**Descrição**: `Add extra team members to your workspace with full access to all features`
+
+**Preço**: Insira → `2.00`
+
+**Moeda**: Deve corresponder à moeda da sua assinatura base
+
+**Categoria de Imposto**: Selecione a categoria apropriada para seu produto.
+
+</Step>
+
+<Step title="Salve seu adicional">
+1. Revise todas as suas configurações:
+   - Nome: Assento Adicional da Equipe
+   - Preço: R$2,00/mês
+2. Clique em **Criar Adicional**
+
+<Check>
+**Adicional criado!** Seu adicional de assento agora está disponível para ser anexado a assinaturas.
+</Check>
+</Step>
+</Steps>
+
+## Passo 2: Crie Seu Produto de Assinatura Base
+
+Começaremos criando um produto de assinatura base que inclui 5 membros da equipe. Esta será a base do nosso modelo de precificação baseada em assentos.
+
+<Frame>
+  <img src="/images/cookbooks/seat-based/seat-based-subscription.png" alt="Criando produto de assinatura base" />
+</Frame>
+
+<Steps>
+<Step title="Navegue até Produtos">
+1. Faça login no seu painel do Dodo Payments
+2. Clique em **Produtos** na barra lateral esquerda
+3. Clique no botão **Criar Produto**
+4. Selecione **Assinatura** como o tipo de produto
+
+Você deve ver um formulário onde configuraremos nossa assinatura base.
+</Step>
+
+<Step title="Preencha os detalhes da assinatura">
+Agora vamos inserir os detalhes específicos para nosso plano base:
+
+**Nome do Produto**: `Motion`
+
+**Descrição**: `Where your team's documentation lives.`
+
+**Preço Recorrente**: Insira → `49.00`
+
+**Ciclo de Cobrança**: Selecione → `Monthly`
+
+**Moeda**: Selecione sua moeda preferida (por exemplo, `USD`)
+
+</Step>
+
+</Steps>
+
+## Passo 3: Conecte o Adicional à Assinatura
+
+Agora precisamos associar nosso adicional de assento com a assinatura base para que os clientes possam comprar assentos adicionais durante o checkout.
+
+<Steps>
+
+<Step title="Anexar o adicional de assento">
+
+<Frame>
+  <img src="/images/cookbooks/seat-based/seat-based-addons.png" alt="Anexando adicional à assinatura" />
+</Frame>
+
+1. Role para baixo até a seção **Adicionais**
+2. Clique em **Adicionar Adicionais**
+3. No dropdown, selecione seu adicional de assento
+4. Confirme que ele aparece na configuração da sua assinatura
+
+</Step>
+
+<Step title="Salve as alterações da assinatura">
+1. Revise sua configuração completa de assinatura:
+   - Plano base: R$49/mês para 5 assentos
+   - Adicional: R$2/mês por assento adicional
+   - Período de teste: 14 dias
+2. Clique em **Salvar Alterações**
+
+<Check>
+**Precificação baseada em assentos configurada!** Os clientes agora podem comprar seu plano base e adicionar assentos extras conforme necessário.
+</Check>
+</Step>
+</Steps>
+
+## Passo 4: Gere Links de Pagamento com Quantidades de Adicionais Personalizadas
+
+Agora vamos criar uma aplicação Express.js que gera links de pagamento com quantidades de adicionais personalizadas. É aqui que o verdadeiro poder da precificação baseada em assentos entra em cena - você pode criar dinamicamente sessões de checkout com qualquer número de assentos adicionais.
+
+<Steps>
+<Step title="Configure seu projeto">
+Crie um novo projeto Node.js e instale as dependências necessárias:
+
+```bash
+mkdir seat-based-pricing
+cd seat-based-pricing
+npm init -y
+npm install dodopayments express dotenv
+npm install -D @types/node @types/express typescript ts-node
+```
+
+Crie um arquivo `tsconfig.json`:
+
+```json
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "commonjs",
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true
+  }
+}
+```
+
+</Step>
+
+<Step title="Crie seu arquivo de ambiente">
+Crie um arquivo `.env` com sua chave de API do Dodo Payments:
+
+```bash
+DODO_PAYMENTS_API_KEY=your_actual_dodo_api_key_here
+```
+
+<Warning>
+Nunca comite sua chave de API no controle de versão. Adicione `.env` ao seu arquivo `.gitignore`.
+</Warning>
+</Step>
+
+<Step title="Implemente a criação da sessão de checkout">
+Crie um arquivo `src/server.ts` com o seguinte código:
+
+<CodeGroup>
+
+```typescript server.ts expandable
+// Add this new endpoint for dynamic seat quantities
+import 'dotenv/config';
+import DodoPayments from 'dodopayments';
+import express, { Request, Response } from 'express';
+
+const app = express();
+
+// Initialize the Dodo Payments client
+const client = new DodoPayments({
+  bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'test_mode'
+});
+
+async function createCheckoutSession(seatCount: number) {
+  try {
+    const session = await client.checkoutSessions.create({
+      // Products to sell - use IDs from your Dodo Payments dashboard
+      product_cart: [
+        {
+          product_id: 'pdt_7Rl9OWT2Mz4wwUTKz74iZ', // Replace with your actual product ID
+          quantity: 1,
+          addons: [
+            {
+              addon_id: 'adn_eKQbNakKrivDpaxmI8wKI', // Replace with your actual addon ID
+              quantity: seatCount
+            }
+          ]
+        }
+      ],
+      
+      // Pre-fill customer information to reduce friction
+      customer: {
+        email: 'steve@example.com',
+        name: 'Steve Irwin',
+      },
+      // Where to redirect after successful payment
+      return_url: 'https://example.com/checkout/success',
+    });
+
+    // Redirect your customer to this URL to complete payment
+    console.log('Checkout URL:', session.checkout_url);
+    console.log('Session ID:', session.session_id);
+    
+    return session;
+    
+  } catch (error) {
+    console.error('Failed to create checkout session:', error);
+    throw error;
+  }
+}
+
+// Example usage in an Express.js route
+app.post('/create-checkout/:seatCount', async (req: Request, res: Response) => {
+  try {
+    const seatCount = parseInt(req.params.seatCount);
+    const session = await createCheckoutSession(seatCount);
+    res.json({ checkout_url: session.checkout_url });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to create checkout session' });
+  }
+});
+
+// Add this line after your other middleware
+app.use(express.static('public'));
+
+// Add this route to serve the demo page
+app.get('/', (req, res) => {
+  res.sendFile(__dirname + '/../public/index.html');
+});
+
+app.listen(3000, () => {
+  console.log('Server is running on port 3000');
+});
+```
+
+</CodeGroup>
+
+</Step>
+
+<Step title="Adicione uma interface web simples">
+Crie um arquivo `public/index.html` para testes fáceis:
+
+<CodeGroup>
+
+```html index.html expandable
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Seat-Based Pricing Demo</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; }
+        .form-group { margin: 20px 0; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; }
+        button { background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        .result { margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <h1>Seat-Based Pricing Demo</h1>
+    <p>Generate checkout links with custom seat quantities:</p>
+    
+    <div class="form-group">
+        <label for="seatCount">Number of Additional Seats:</label>
+        <input type="number" id="seatCount" value="3" min="0" max="50">
+    </div>
+    
+    <button onclick="createCheckout()">Generate Checkout Link</button>
+    
+    <div id="result" class="result" style="display: none;">
+        <h3>Checkout Link Generated!</h3>
+        <p><strong>Seat Count:</strong> <span id="seatCountDisplay"></span></p>
+        <p><strong>Total Cost:</strong> $<span id="totalCost"></span>/month</p>
+        <p><strong>Checkout URL:</strong></p>
+        <a id="checkoutUrl" href="#" target="_blank">Click here to checkout</a>
+    </div>
+
+    <script>
+        async function createCheckout() {
+            const seatCount = document.getElementById('seatCount').value;
+            
+            try {
+                const response = await fetch(`/create-checkout/${seatCount}`, {
+                    method: 'POST'
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    document.getElementById('seatCountDisplay').textContent = seatCount;
+                    document.getElementById('totalCost').textContent = data.total_cost;
+                    document.getElementById('checkoutUrl').href = data.checkout_url;
+                    document.getElementById('result').style.display = 'block';
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            } catch (error) {
+                alert('Error creating checkout session');
+            }
+        }
+    </script>
+</body>
+</html>
+```
+
+</CodeGroup>
+
+<Check>
+**Interface web criada!** Você agora tem uma UI simples para testar diferentes quantidades de assentos.
+</Check>
+</Step>
+
+<Step title="Sirva arquivos estáticos">
+Adicione isso ao seu `src/server.ts` para servir o arquivo HTML:
+
+```typescript
+// Add this line after your other middleware
+app.use(express.static('public'));
+
+// Add this route to serve the demo page
+app.get('/', (req, res) => {
+  res.sendFile(__dirname + '/../public/index.html');
+});
+```
+
+<Check>
+**Arquivos estáticos configurados!** Visite `http://localhost:3000` para ver sua interface de demonstração.
+</Check>
+</Step>
+</Steps>
+
+## Passo 5: Teste Sua Implementação
+
+Vamos testar nossa implementação de precificação baseada em assentos para garantir que tudo funcione corretamente.
+
+<Steps>
+<Step title="Inicie seu servidor">
+1. Certifique-se de que você tem seu arquivo `.env` com a chave de API correta
+2. Atualize os IDs do produto e do adicional em seu código com os valores reais do seu painel do Dodo Payments
+3. Inicie seu servidor:
+
+```bash
+npm run dev
+```
+
+<Check>
+Seu servidor deve iniciar com sucesso e mostrar "Servidor rodando em http://localhost:3000"
+</Check>
+</Step>
+
+<Step title="Teste a interface web">
+
+<Frame>
+  <img src="/images/cookbooks/seat-based/seat-based-billing-ui.png" alt="Criando produto de assinatura base" />
+</Frame>
+
+1. Abra seu navegador e vá para `http://localhost:3000`
+2. Você deve ver a interface de demonstração da precificação baseada em assentos
+3. Tente diferentes quantidades de assentos (0, 3, 10, etc.)
+4. Clique em "Gerar Link de Checkout" para cada quantidade
+5. Verifique se os URLs de checkout são gerados corretamente
+
+</Step>
+
+<Step title="Teste uma sessão de checkout">
+1. Gere um link de checkout com 3 assentos adicionais
+2. Clique no URL de checkout para abrir o checkout do Dodo Payments
+3. Verifique se o checkout mostra:
+   - Plano base: R$49/mês
+   - Assentos adicionais: 3 × R$2 = R$6/mês
+4. Complete a compra de teste
+
+<Check>
+O checkout deve exibir a divisão de preços correta e permitir que você complete a compra.
+</Check>
+</Step>
+
+<Step title="Escute por webhooks e atualize seu DB">
+Para manter seu banco de dados sincronizado com mudanças de assinatura e assentos, você precisa escutar eventos de webhook do Dodo Payments. Webhooks notificam seu backend quando um cliente completa o checkout, atualiza sua assinatura ou muda a contagem de assentos.
+
+Siga o guia oficial de webhooks do Dodo Payments para instruções passo a passo sobre como configurar endpoints de webhook e lidar com eventos:
+
+<Card title="Documentação de Webhooks do Dodo Payments" icon="bell" href="/developer-resources/webhooks">
+Aprenda como receber e processar eventos de webhook de forma segura para gerenciamento de assinaturas e assentos.
+</Card>
+
+</Step>
+
+</Steps>
+
+## Resolução de Problemas
+
+Problemas comuns e suas soluções:
+
+<AccordionGroup>
+<Accordion title="Falha na criação do checkout">
+**Possíveis causas:**
+- ID do produto ou ID do adicional inválido
+- A chave de API não tem permissões suficientes
+- Adicional não associado corretamente à assinatura
+- Problemas de conectividade de rede
+
+**Soluções:**
+1. Verifique se os IDs do produto e do adicional existem no seu painel do Dodo Payments
+2. Verifique se o adicional está anexado corretamente à assinatura
+3. Certifique-se de que a chave de API tem permissões para criar sessões de checkout
+4. Teste a conectividade da API com uma simples requisição GET
+</Accordion>
+
+</AccordionGroup>
+
+## Parabéns! Você Implementou a Precificação Baseada em Assentos
+
+Você criou com sucesso um sistema de precificação baseada em assentos com o Dodo Payments! Aqui está o que você realizou:
+
+<CardGroup cols={2}>
+<Card title="Assinatura Base">
+Criou um produto de assinatura com 5 assentos incluídos por R$49/mês
+</Card>
+
+<Card title="Adicionais de Assento">
+Configurou adicionais para assentos adicionais por R$2/mês por assento
+</Card>
+
+<Card title="Checkout">
+Construiu uma API que gera sessões de checkout com quantidades de assentos personalizadas
+</Card>
+
+<Card title="Interface Web">
+Criou uma interface web simples para testar diferentes quantidades de assentos
+</Card>
+</CardGroup>
+
+<Info>
+Este exemplo demonstra apenas uma implementação mínima da precificação baseada em assentos. Para uso em produção, você deve adicionar tratamento de erros robusto, autenticação, validação de dados, medidas de segurança e adaptar a lógica para atender às necessidades da sua aplicação.
+</Info>

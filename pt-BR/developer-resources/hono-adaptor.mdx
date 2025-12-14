@@ -1,0 +1,609 @@
+---
+title: Adaptador Hono
+description: Aprenda como integrar os pagamentos Dodo com seu projeto Hono App
+  Router usando nosso Adaptador NextJS. Cobre checkout, portal do cliente,
+  webhooks e configuração de ambiente seguro.
+icon: code-merge
+---
+
+<CardGroup cols={2}>
+<Card title="Manipulador de Checkout" icon="cart-shopping" href="#checkout-route-handler">
+    Integre o checkout dos pagamentos Dodo em seu aplicativo Hono.
+</Card>
+<Card title="Portal do Cliente" icon="user" href="#customer-portal-route-handler">
+    Permita que os clientes gerenciem assinaturas e detalhes.
+</Card>
+<Card title="Webhooks" icon="bell" href="#webhook-route-handler">
+    Receba e processe eventos de webhook dos pagamentos Dodo.
+</Card>
+</CardGroup>
+
+## Instalação
+
+<Steps>
+<Step title="Instale o pacote">
+Execute o seguinte comando na raiz do seu projeto:
+
+```bash
+npm install @dodopayments/hono
+```
+
+</Step>
+<Step title="Configure as variáveis de ambiente">
+Crie um arquivo <code>.env</code> na raiz do seu projeto:
+
+```env expandable
+DODO_PAYMENTS_API_KEY=your-api-key
+DODO_PAYMENTS_RETURN_URL=https://yourapp.com/success
+DODO_PAYMENTS_WEBHOOK_KEY=your-webhook-secret
+DODO_PAYMENTS_ENVIRONMENT="test_mode" or "live_mode""
+```
+
+<Warning>
+Nunca comite seu arquivo <code>.env</code> ou segredos no controle de versão.
+</Warning>
+</Step>
+</Steps>
+
+## Exemplos de Manipuladores de Rota
+
+<Info>
+Todos os exemplos assumem que você está usando o Hono App Router.
+</Info>
+
+<Tabs>
+<Tab title="Manipulador de Checkout">
+  <Info>
+  Use este manipulador para integrar o checkout dos pagamentos Dodo em seu aplicativo Hono. Suporta fluxos estáticos (GET), dinâmicos (POST) e de sessão (POST).
+  </Info>
+  <CodeGroup>
+
+  ```typescript Hono Route Handler expandable
+    // route.ts
+    import { Checkout } from '@dodopayments/hono';
+    import Hono from 'hono'
+
+    const app = new Hono()
+
+    app.get(
+    "/api/checkout",
+    Checkout({
+        bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+        environment: process.env.DODO_PAYMENTS_ENVIRONMENT,
+        returnUrl: process.env.DODO_PAYMENTS_RETURN_URL,
+        type: 'static'
+    })
+    );
+
+    app.post(
+    "/api/checkout",
+    Checkout({
+        bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+        environment: process.env.DODO_PAYMENTS_ENVIRONMENT,
+        returnUrl: process.env.DODO_PAYMENTS_RETURN_URL,
+        type: 'dynamic'
+    })
+    );
+    
+    app.post(
+    "/api/checkout",
+    Checkout({
+        bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+        environment: process.env.DODO_PAYMENTS_ENVIRONMENT,
+        returnUrl: process.env.DODO_PAYMENTS_RETURN_URL,
+        type: 'session'
+    })
+    );
+    ```
+
+  </CodeGroup>
+  <CodeGroup>
+
+  ```curl Static Checkout Curl example expandable
+  curl --request GET \
+  --url 'https://example.com/api/checkout?productId=pdt_fqJhl7pxKWiLhwQR042rh' \
+  --header 'User-Agent: insomnia/11.2.0' \
+  --cookie mode=test
+  ```
+
+  </CodeGroup>
+  <CodeGroup>
+
+  ```curl Dynamic Checkout Curl example expandable
+  curl --request POST \
+  --url https://example.com/api/checkout \
+  --header 'Content-Type: application/json' \
+  --header 'User-Agent: insomnia/11.2.0' \
+  --cookie mode=test \
+  --data '{
+  "billing": {
+    "city": "Texas",
+    "country": "US",
+    "state": "Texas",
+    "street": "56, hhh",
+    "zipcode": "560000"
+  },
+  "customer": {
+    "email": "test@example.com",
+		"name": "test"
+  },
+  "metadata": {},
+  "payment_link": true,
+	"product_id": "pdt_QMDuvLkbVzCRWRQjLNcs",
+	"quantity": 1,
+	"billing_currency": "USD",
+	"discount_code": "IKHZ23M9GQ",
+    "return_url": "https://example.com",
+	"trial_period_days": 10
+}'
+  ```
+
+  </CodeGroup>
+  <CodeGroup>
+
+  ```curl Checkout Session Curl example expandable
+  curl --request POST \
+  --url https://example.com/api/checkout \
+  --header 'Content-Type: application/json' \
+  --header 'User-Agent: insomnia/11.2.0' \
+  --cookie mode=test \
+  --data '{
+  "product_cart": [
+    {
+      "product_id": "pdt_QMDuvLkbVzCRWRQjLNcs",
+      "quantity": 1
+    }
+  ],
+  "customer": {
+    "email": "test@example.com",
+    "name": "test"
+  },
+  "return_url": "https://example.com/success"
+}'
+  ```
+
+  </CodeGroup>
+</Tab>
+<Tab title="Manipulador do Portal do Cliente">
+  <Info>
+  Use este manipulador para permitir que os clientes gerenciem suas assinaturas e detalhes através do portal do cliente dos pagamentos Dodo.
+  </Info>
+  <CodeGroup>
+
+    ```typescript Hono Route Handler expandable
+    // route.ts
+    import { Checkout } from '@dodopayments/hono';
+    import Hono from 'hono'
+
+    const app = new Hono()
+    app.get(
+        "/api/customer-portal",
+        CustomerPortal({
+            bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+            environment: process.env.DODO_PAYMENTS_ENVIRONMENT
+        })
+    );
+    ```
+
+  </CodeGroup>
+  <CodeGroup>
+
+  ```curl Customer Portal Curl example expandable
+  curl --request GET \
+  --url 'https://example.com/api/customer-portal?customer_id=cus_9VuW4K7O3GHwasENg31m&send_email=true' \
+  --header 'User-Agent: insomnia/11.2.0' \
+  --cookie mode=test
+  ```
+
+  </CodeGroup>
+</Tab>
+<Tab title="Manipulador de Webhook">
+  <Info>
+  Use este manipulador para receber e processar eventos de webhook dos pagamentos Dodo de forma segura em seu aplicativo Hono.
+  </Info>
+  <CodeGroup>
+
+    ```typescript Hono Route Handler expandable
+    // route.ts
+    import Hono from 'hono'
+    import { Webhooks } from '@dodopayments/hono'
+
+    const app = new Hono()
+    app.post(
+    "/api/webhooks",
+        Webhooks({
+            webhookKey: process.env.DODO_PAYMENTS_WEBHOOK_KEY,
+            onPayload: async (payload) => {
+            // Handle Payload Here
+            console.log(payload)
+            }
+        })
+    );
+
+    ```
+
+  </CodeGroup>
+</Tab>
+</Tabs>
+
+## Manipulador de Rota de Checkout
+
+<Info>
+Os pagamentos Dodo suportam três tipos de fluxos de pagamento para integrar pagamentos em seu site, este adaptador suporta todos os tipos de fluxos de pagamento.
+</Info>
+
+- **Links de Pagamento Estáticos:** URLs compartilháveis instantaneamente para coleta de pagamento rápida e sem código.
+- **Links de Pagamento Dinâmicos:** Gere programaticamente links de pagamento com detalhes personalizados usando a API ou SDKs.
+- **Sessões de Checkout:** Crie experiências de checkout seguras e personalizáveis com carrinhos de produtos pré-configurados e detalhes do cliente.
+
+<AccordionGroup>
+<Accordion title="Checkout Estático (GET)">
+
+### Parâmetros de Consulta Suportados
+<ParamField query="productId" type="string" required>
+Identificador do produto (por exemplo, <code>?productId=pdt_nZuwz45WAs64n3l07zpQR</code>).
+</ParamField>
+<ParamField query="quantity" type="integer">
+Quantidade do produto.
+</ParamField>
+<ParamField query="fullName" type="string">
+Nome completo do cliente.
+</ParamField>
+<ParamField query="firstName" type="string">
+Primeiro nome do cliente.
+</ParamField>
+<ParamField query="lastName" type="string">
+Último nome do cliente.
+</ParamField>
+<ParamField query="email" type="string">
+Endereço de e-mail do cliente.
+</ParamField>
+<ParamField query="country" type="string">
+País do cliente.
+</ParamField>
+<ParamField query="addressLine" type="string">
+Linha de endereço do cliente.
+</ParamField>
+<ParamField query="city" type="string">
+Cidade do cliente.
+</ParamField>
+<ParamField query="state" type="string">
+Estado/província do cliente.
+</ParamField>
+<ParamField query="zipCode" type="string">
+Código postal do cliente.
+</ParamField>
+<ParamField query="disableFullName" type="boolean">
+Desabilitar campo de nome completo.
+</ParamField>
+<ParamField query="disableFirstName" type="boolean">
+Desabilitar campo de primeiro nome.
+</ParamField>
+<ParamField query="disableLastName" type="boolean">
+Desabilitar campo de último nome.
+</ParamField>
+<ParamField query="disableEmail" type="boolean">
+Desabilitar campo de e-mail.
+</ParamField>
+<ParamField query="disableCountry" type="boolean">
+Desabilitar campo de país.
+</ParamField>
+<ParamField query="disableAddressLine" type="boolean">
+Desabilitar campo de linha de endereço.
+</ParamField>
+<ParamField query="disableCity" type="boolean">
+Desabilitar campo de cidade.
+</ParamField>
+<ParamField query="disableState" type="boolean">
+Desabilitar campo de estado.
+</ParamField>
+<ParamField query="disableZipCode" type="boolean">
+Desabilitar campo de código postal.
+</ParamField>
+<ParamField query="paymentCurrency" type="string">
+Especifique a moeda de pagamento (por exemplo, <code>USD</code>).
+</ParamField>
+<ParamField query="showCurrencySelector" type="boolean">
+Mostrar seletor de moeda.
+</ParamField>
+<ParamField query="paymentAmount" type="integer">
+Especifique o valor do pagamento (por exemplo, <code>1000</code> para $10,00).
+</ParamField>
+<ParamField query="showDiscounts" type="boolean">
+Mostrar campos de desconto.
+</ParamField>
+<ParamField query="metadata_*" type="string">
+Qualquer parâmetro de consulta que comece com <code>metadata_</code> será passado como metadados.
+</ParamField>
+
+<Warning>
+Se <code>productId</code> estiver ausente, o manipulador retornará uma resposta 400. Parâmetros de consulta inválidos também resultarão em uma resposta 400.
+</Warning>
+
+### Formato de Resposta
+O checkout estático retorna uma resposta JSON com a URL de checkout:
+
+```json
+{
+  "checkout_url": "https://checkout.dodopayments.com/..."
+}
+```
+
+</Accordion>
+<Accordion title="Checkout Dinâmico (POST)">
+- Envie parâmetros como um corpo JSON em uma solicitação POST.
+- Suporta pagamentos únicos e recorrentes.
+- Para uma lista completa de campos de corpo POST suportados, consulte:
+  - [Corpo da solicitação para um Produto de Pagamento Único](https://docs.dodopayments.com/api-reference/payments/post-payments)
+  - [Corpo da solicitação para um Produto de Assinatura](https://docs.dodopayments.com/api-reference/subscriptions/post-subscriptions)
+
+### Formato de Resposta
+O checkout dinâmico retorna uma resposta JSON com a URL de checkout:
+
+```json
+{
+  "checkout_url": "https://checkout.dodopayments.com/..."
+}
+```
+
+</Accordion>
+<Accordion title="Sessões de Checkout (POST)">
+As sessões de checkout fornecem uma experiência de checkout mais segura e hospedada que gerencia todo o fluxo de pagamento para compras únicas e assinaturas com controle total de personalização.
+
+Consulte o [Guia de Integração de Sessões de Checkout](https://docs.dodopayments.com/developer-resources/checkout-session) para mais detalhes e uma lista completa de campos suportados.
+
+### Formato de Resposta
+As sessões de checkout retornam uma resposta JSON com a URL de checkout:
+
+```json
+{
+  "checkout_url": "https://checkout.dodopayments.com/session/..."
+}
+```
+
+</Accordion>
+</AccordionGroup>
+
+## Manipulador de Rota do Portal do Cliente
+
+O Manipulador de Rota do Portal do Cliente permite que você integre perfeitamente o portal do cliente dos pagamentos Dodo em sua aplicação Hono.
+
+### Parâmetros de Consulta
+<ParamField query="customer_id" type="string" required>
+O ID do cliente para a sessão do portal (por exemplo, <code>?customer_id=cus_123</code>).
+</ParamField>
+<ParamField query="send_email" type="boolean">
+Se definido como <code>true</code>, envia um e-mail ao cliente com o link do portal.
+</ParamField>
+
+<Warning>
+Retorna 400 se <code>customer_id</code> estiver ausente.
+</Warning>
+
+## Manipulador de Rota de Webhook
+
+- **Método:** Apenas solicitações POST são suportadas. Outros métodos retornam 405.
+- **Verificação de Assinatura:** Verifica a assinatura do webhook usando <code>webhookKey</code>. Retorna 401 se a verificação falhar.
+- **Validação de Payload:** Validado com Zod. Retorna 400 para payloads inválidos.
+- **Tratamento de Erros:**
+  - 401: Assinatura inválida
+  - 400: Payload inválido
+  - 500: Erro interno durante a verificação
+- **Roteamento de Eventos:** Chama o manipulador de eventos apropriado com base no tipo de payload.
+
+### Manipuladores de Eventos de Webhook Suportados
+<CodeGroup>
+
+```typescript Typescript expandable
+onPayload?: (payload: WebhookPayload) => Promise<void>;
+onPaymentSucceeded?: (payload: WebhookPayload) => Promise<void>;
+onPaymentFailed?: (payload: WebhookPayload) => Promise<void>;
+onPaymentProcessing?: (payload: WebhookPayload) => Promise<void>;
+onPaymentCancelled?: (payload: WebhookPayload) => Promise<void>;
+onRefundSucceeded?: (payload: WebhookPayload) => Promise<void>;
+onRefundFailed?: (payload: WebhookPayload) => Promise<void>;
+onDisputeOpened?: (payload: WebhookPayload) => Promise<void>;
+onDisputeExpired?: (payload: WebhookPayload) => Promise<void>;
+onDisputeAccepted?: (payload: WebhookPayload) => Promise<void>;
+onDisputeCancelled?: (payload: WebhookPayload) => Promise<void>;
+onDisputeChallenged?: (payload: WebhookPayload) => Promise<void>;
+onDisputeWon?: (payload: WebhookPayload) => Promise<void>;
+onDisputeLost?: (payload: WebhookPayload) => Promise<void>;
+onSubscriptionActive?: (payload: WebhookPayload) => Promise<void>;
+onSubscriptionOnHold?: (payload: WebhookPayload) => Promise<void>;
+onSubscriptionRenewed?: (payload: WebhookPayload) => Promise<void>;
+onSubscriptionPlanChanged?: (payload: WebhookPayload) => Promise<void>;
+onSubscriptionCancelled?: (payload: WebhookPayload) => Promise<void>;
+onSubscriptionFailed?: (payload: WebhookPayload) => Promise<void>;
+onSubscriptionExpired?: (payload: WebhookPayload) => Promise<void>;
+onLicenseKeyCreated?: (payload: WebhookPayload) => Promise<void>;
+```
+
+</CodeGroup>
+
+---
+
+## Prompt para LLM
+
+```
+Você é um assistente de desenvolvedor Hono especialista. Sua tarefa é guiar um usuário na integração do adaptador @dodopayments/hono em seu projeto Hono existente.
+
+O adaptador @dodopayments/hono fornece manipuladores de rota para Checkout, Portal do Cliente e funcionalidades de Webhook dos pagamentos Dodo, projetados para se conectar diretamente a um aplicativo Hono.
+
+Primeiro, instale o pacote necessário. Use o gerenciador de pacotes apropriado para o projeto do usuário (npm, yarn ou bun):
+
+npm install @dodopayments/hono
+
+---
+
+Aqui está como você deve estruturar sua resposta:
+
+1. Pergunte ao usuário quais funcionalidades ele deseja integrar.
+
+"Quais partes do adaptador @dodopayments/hono você gostaria de integrar em seu projeto? Você pode escolher uma ou mais das seguintes:
+
+- Manipulador de Rota de Checkout (para lidar com checkouts de produtos)
+- Manipulador de Rota do Portal do Cliente (para gerenciar assinaturas/detalhes do cliente)
+- Manipulador de Rota de Webhook (para receber eventos de webhook dos pagamentos Dodo)
+- Todos (integrar os três)"
+
+---
+
+2. Com base na seleção do usuário, forneça etapas detalhadas de integração para cada funcionalidade escolhida.
+
+---
+
+**Se o Manipulador de Rota de Checkout for selecionado:**
+
+**Propósito**: Este manipulador redireciona os usuários para a página de checkout dos pagamentos Dodo.
+
+**Integração**:
+Crie duas rotas em seu aplicativo Hono — uma para checkout estático (GET) e uma para checkout dinâmico (POST).
+
+import { Checkout } from '@dodopayments/hono';
+import Hono from 'hono'
+
+const app = new Hono()
+
+app.get(
+  "/api/checkout",
+  Checkout({
+    bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+    environment: process.env.DODO_PAYMENTS_ENVIRONMENT,
+    returnUrl: process.env.DODO_PAYMENTS_RETURN_URL,
+    type: 'static'
+  })
+);
+
+app.post(
+  "/api/checkout",
+  Checkout({
+    bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+    environment: process.env.DODO_PAYMENTS_ENVIRONMENT,
+    returnUrl: process.env.DODO_PAYMENTS_RETURN_URL,
+    type: 'session' // ou 'dynamic' para link dinâmico
+  })
+);
+
+Opções de Configuração:
+
+    bearerToken: Sua chave de API dos pagamentos Dodo (recomendado armazenar na variável de ambiente DODO_PAYMENTS_API_KEY).
+
+    returnUrl (opcional): URL para redirecionar o usuário após o checkout bem-sucedido.
+
+    environment: "test_mode" ou "live_mode"
+
+    type: "static" (GET) ou "dynamic" (POST) ou "session" (POST)
+
+GET (checkout estático) espera parâmetros de consulta:
+
+    productId (obrigatório)
+
+    quantity, campos do cliente (fullName, email, etc.) e metadados (metadata_*) são opcionais.
+
+POST (checkout dinâmico) espera um corpo JSON com detalhes de pagamento (único ou assinatura). Consulte a documentação para o esquema completo do POST:
+
+    Pagamentos únicos: https://docs.dodopayments.com/api-reference/payments/post-payments
+
+    Assinaturas: https://docs.dodopayments.com/api-reference/subscriptions/post-subscriptions
+
+POST (sessões de checkout) - (Recomendado) Uma experiência de checkout mais personalizável. Retorna JSON com checkout_url: Os parâmetros são enviados como um corpo JSON. Suporta pagamentos únicos e recorrentes. Retorna: {"checkout_url": "https://checkout.dodopayments.com/session/..."}. Para uma lista completa de campos suportados, consulte:
+
+  Guia de Integração de Sessões de Checkout: https://docs.dodopayments.com/developer-resources/checkout-session
+
+Se o Manipulador de Rota do Portal do Cliente for selecionado:
+
+Propósito: Esta rota permite que os clientes gerenciem suas assinaturas através do portal dos pagamentos Dodo.
+
+Integração:
+
+import { Checkout } from '@dodopayments/hono';
+import Hono from 'hono'
+
+const app = new Hono()
+app.get(
+  "/api/customer-portal",
+  CustomerPortal({
+    bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+    environment: process.env.DODO_PAYMENTS_ENVIRONMENT
+  })
+);
+
+Parâmetros de Consulta:
+
+    customer_id (obrigatório): por exemplo, ?customer_id=cus_123
+
+    send_email (opcional): se verdadeiro, o cliente recebe o link do portal por e-mail
+
+Retorna 400 se customer_id estiver ausente.
+
+Se o Manipulador de Rota de Webhook for selecionado:
+
+Propósito: Processa eventos de webhook recebidos dos pagamentos Dodo para acionar eventos em seu aplicativo.
+
+Integração:
+
+import Hono from 'hono'
+import { Webhooks } from '@dodopayments/hono'
+
+const app = new Hono()
+app.post(
+  "/api/webhooks",
+  Webhooks({
+    webhookKey: process.env.DODO_PAYMENTS_WEBHOOK_KEY,
+    onPayload: async (payload) => {
+      // Manipule o Payload Aqui
+      console.log(payload)
+    }
+  })
+);
+
+Recursos:
+
+    Apenas o método POST é permitido — outros retornam 405
+
+    A verificação de assinatura é realizada usando webhookKey. Retorna 401 se inválido.
+
+    Validação de payload baseada em Zod. Retorna 400 se o esquema for inválido.
+
+    Todos os manipuladores são funções assíncronas.
+
+Manipuladores de Eventos de Webhook Suportados:
+
+Você pode passar qualquer um dos seguintes manipuladores:
+
+    onPayload
+
+    onPaymentSucceeded
+
+    onPaymentFailed
+
+    onPaymentProcessing
+
+    onPaymentCancelled
+
+    onRefundSucceeded
+
+    onRefundFailed
+
+    onDisputeOpened, onDisputeExpired, onDisputeAccepted, onDisputeCancelled, onDisputeChallenged, onDisputeWon, onDisputeLost
+
+    onSubscriptionActive, onSubscriptionOnHold, onSubscriptionRenewed, onSubscriptionPaused, onSubscriptionPlanChanged, onSubscriptionCancelled, onSubscriptionFailed, onSubscriptionExpired
+
+    onLicenseKeyCreated
+
+Configuração de Variáveis de Ambiente:
+
+Certifique-se de definir estas variáveis de ambiente em seu projeto:
+
+DODO_PAYMENTS_API_KEY=your-api-key
+DODO_PAYMENTS_RETURN_URL=https://yourapp.com/success
+DODO_PAYMENTS_WEBHOOK_KEY=your-webhook-secret
+DODO_PAYMENTS_ENVIRONMENT="test_mode" ou "live_mode""
+
+Use estas dentro do seu código como:
+
+process.env.DODO_PAYMENTS_API_KEY
+process.env.DODO_PAYMENTS_WEBHOOK_KEY
+
+Nota de Segurança: NÃO comite segredos no controle de versão. Use arquivos .env localmente e gerenciadores de segredos em ambientes de implantação (por exemplo, AWS, Vercel, Heroku, etc.).

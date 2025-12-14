@@ -1,0 +1,280 @@
+---
+sidebarTitle: Migrasi Langganan
+title: Migrasi Langganan ke Dodo Payments
+description: Pelajari cara memigrasi pelanggan dan metode pembayaran yang ada
+  dari pemroses pembayaran Anda saat ini ke Dodo Payments.
+icon: file-import
+---
+
+## Apa itu migrasi langganan?
+
+Migrasi langganan memindahkan pelanggan yang ada dari pemroses pembayaran lama Anda ke Dodo Payments, memberikan Anda satu sumber kebenaran untuk semua data pelanggan Anda. Tanpa migrasi, pelanggan yang telah Anda akuisisi hingga saat ini tetap berada di sistem lama Anda, dan hanya pelanggan baru yang akan terlihat di Dodo Payments.
+
+Proses migrasi memastikan pengalaman penagihan yang mulus bagi pelanggan Anda—mereka tidak perlu memasukkan kembali detail pembayaran mereka atau mengalami gangguan pada langganan mereka.
+
+<Warning>
+Saat ini, kami hanya mendukung migrasi untuk **token kartu**. Apple Pay, Google Pay, dan metode pembayaran dompet lainnya tidak dapat dipindahkan antara pemroses pembayaran karena pembatasan tokenisasi yang diberlakukan oleh penyedia ini.
+</Warning>
+
+## Ikhtisar proses migrasi
+
+Proses migrasi langganan terdiri dari tiga bagian kunci:
+
+1. **Transfer metode pembayaran** — Transfer aman data kartu sensitif dari pemroses Anda saat ini
+2. **Transfer data pelanggan** — Ekspor detail pelanggan, rencana langganan, dan jadwal penagihan
+3. **Impor dan validasi** — Menyatukan metode pembayaran dan data pelanggan di Dodo Payments
+
+<Note>
+Untuk memulai migrasi langganan, hubungi [tim dukungan kami](mailto:support@dodopayments.com). Mereka akan menghubungkan Anda dengan Insinyur Solusi yang berdedikasi yang akan membimbing Anda melalui seluruh proses.
+</Note>
+
+## Persyaratan
+
+Sebelum memulai migrasi, pastikan Anda memenuhi persyaratan berikut:
+
+<AccordionGroup>
+<Accordion title="Verifikasi kepatuhan PCI DSS">
+Dodo Payments adalah compliant PCI DSS Level 1. Untuk memenuhi kewajiban kepatuhan, kami hanya dapat menerima data kartu dari pemroses pembayaran lain yang compliant PCI DSS Level 1.
+
+Pemroses Anda saat ini harus menyediakan:
+- Attestation of Compliance (AOC) PCI mereka yang terbaru, atau daftar mereka di Global Registry of Service Providers Visa
+- Konfirmasi bahwa mereka mendukung ekspor data kartu yang aman
+
+Lihat [Attestation of Compliance (AOC)](/assets/dodo-payments-pci-dss-aoc.pdf) kami untuk dibagikan dengan pemroses Anda saat ini.
+</Accordion>
+
+<Accordion title="Integrasi Dodo Payments">
+Selesaikan integrasi Dodo Payments Anda dan pastikan semua pelanggan baru diarahkan ke checkout Dodo Payments sebelum memulai migrasi. Ini mencegah ketidakkonsistenan data selama periode transisi.
+</Accordion>
+
+<Accordion title="Otorisasi akses data">
+Pastikan Anda memiliki otorisasi yang diperlukan untuk meminta ekspor data dari pemroses Anda saat ini. Ini biasanya memerlukan:
+- Verifikasi pemilik akun
+- Otorisasi tertulis untuk akses data sensitif
+- Penyelesaian langkah verifikasi keamanan pemroses Anda
+</Accordion>
+</AccordionGroup>
+
+## Panduan migrasi langkah demi langkah
+
+<Steps>
+<Step title="Minta ekspor metode pembayaran dari pemroses Anda saat ini">
+Hubungi tim dukungan pemroses pembayaran Anda saat ini dan ajukan permintaan resmi untuk ekspor lengkap token kartu pelanggan Anda.
+
+Anda perlu:
+- Memberikan verifikasi identitas dan otorisasi Anda
+- Meminta mereka untuk mengenkripsi ekspor menggunakan kunci publik PGP Dodo Payments (disediakan di bawah)
+- Meminta mereka untuk mentransfer file terenkripsi langsung ke server SFTP aman kami
+
+<Info>
+Transfer aman dilakukan langsung dari server ke server melalui SFTP. Insinyur Solusi Anda akan memberikan kredensial SFTP untuk dibagikan dengan pemroses Anda saat ini.
+</Info>
+
+Rata-rata, proses ini memakan waktu sekitar **2 minggu**, meskipun waktu bervariasi tergantung pada kebijakan dan waktu respons pemroses Anda saat ini.
+</Step>
+
+<Step title="Siapkan ekspor data pelanggan">
+Sementara transfer metode pembayaran sedang berlangsung, ekspor data pelanggan Anda dari sistem lama Anda. Insinyur Solusi Anda akan menyediakan template CSV dan membimbing Anda melalui bidang yang diperlukan.
+
+### Data pelanggan yang diperlukan
+
+| Field | Deskripsi |
+|-------|-------------|
+| `customer_id` | Pengidentifikasi pelanggan internal Anda |
+| `email` | Alamat email pelanggan |
+| `name` | Nama lengkap pelanggan |
+| `country` | Kode negara dua huruf (ISO 3166-1 alpha-2) |
+| `currency` | Kode mata uang tiga huruf (ISO 4217) |
+| `payment_amount` | Jumlah langganan dalam unit mata uang terkecil |
+| `payment_interval` | Frekuensi penagihan (bulanan, tahunan, dll.) |
+| `next_billing_date` | Tanggal penagihan berikutnya yang dijadwalkan (ISO 8601) |
+| `card_token` | Token unik dari pemroses Anda saat ini |
+
+<Warning>
+Field `card_token` sangat penting—ini digunakan untuk mencocokkan catatan pelanggan dengan metode pembayaran mereka selama impor. Pastikan ini cocok persis dengan token dalam ekspor metode pembayaran.
+</Warning>
+
+### Format data contoh
+
+```json
+{
+  "customers": [
+    {
+      "customer_id": "cus_abc123",
+      "email": "jane.doe@example.com",
+      "name": "Jane Doe",
+      "country": "US",
+      "currency": "USD",
+      "payment_amount": 2999,
+      "payment_interval": "monthly",
+      "next_billing_date": "2025-01-15T00:00:00Z",
+      "card_token": "tok_xyz789",
+      "metadata": {
+        "plan": "pro",
+        "signup_source": "website"
+      }
+    }
+  ]
+}
+```
+
+</Step>
+
+<Step title="Validasi dan pengujian">
+Sebelum tanggal impor, tim kami akan:
+
+- Memverifikasi integritas file dan enkripsi data metode pembayaran
+- Memvalidasi CSV pelanggan Anda untuk format yang benar
+- Melakukan impor uji di lingkungan sandbox kami
+- Mengidentifikasi dan menyelesaikan masalah pemetaan data apa pun
+
+<Check>
+Anda akan menerima laporan validasi yang mengonfirmasi bahwa semuanya siap untuk impor produksi.
+</Check>
+</Step>
+
+<Step title="Impor produksi">
+Pada tanggal impor yang disepakati, tim teknik kami akan:
+
+1. Mengimpor data metode pembayaran ke dalam Card Vault kami yang compliant PCI
+2. Mengimpor data pelanggan Anda
+3. Mencocokkan pelanggan dengan metode pembayaran mereka menggunakan token kartu
+4. Mengaktifkan semua langganan yang dimigrasi
+
+<Info>
+Waktu pemrosesan tipikal adalah **2-3 hari kerja** untuk migrasi standar, tergantung pada volume pelanggan.
+</Info>
+</Step>
+
+<Step title="Verifikasi pasca-migrasi">
+Setelah impor selesai, Anda akan menerima:
+
+- Laporan migrasi yang komprehensif
+- CSV yang memetakan ID langganan lama Anda ke ID Dodo Payments baru
+- Akses ke semua pelanggan yang dimigrasi di dasbor Dodo Payments Anda
+
+Kami merekomendasikan:
+- Memverifikasi sampel langganan yang dimigrasi di dasbor Anda
+- Menguji beberapa pembaruan langganan dalam mode sandbox
+- Memperbarui referensi basis data internal Anda dengan ID baru
+- Melakukan pemantauan paralel untuk siklus penagihan pertama
+</Step>
+</Steps>
+
+## Data yang dapat dimigrasi
+
+Data berikut dapat dipindahkan selama migrasi langganan:
+
+| Tipe data | Didukung | Catatan |
+|-----------|-----------|-------|
+| Nomor kartu kredit/debit | ✅ | Terenkripsi melalui PGP |
+| Tanggal kedaluwarsa kartu | ✅ | |
+| Nama pemegang kartu | ✅ | |
+| Alamat penagihan | ✅ | |
+| Alamat email pelanggan | ✅ | |
+| Metadata pelanggan | ✅ | Pasangan kunci-nilai kustom |
+| Detail langganan | ✅ | Rencana, jumlah, interval |
+| Token Apple Pay | ❌ | Tidak dapat dipindahkan |
+| Token Google Pay | ❌ | Tidak dapat dipindahkan |
+| Token dompet lainnya | ❌ | Tidak dapat dipindahkan |
+| Riwayat pembayaran | ❌ | Ekspor dari pemroses Anda saat ini |
+
+<Note>
+Riwayat pembayaran dan catatan transaksi tidak dapat dimigrasi. Kami merekomendasikan mengekspor data ini dari pemroses Anda saat ini untuk catatan Anda sebelum menyelesaikan transisi.
+</Note>
+
+## Enkripsi PGP
+
+Untuk keamanan maksimum saat mentransfer data kartu sensitif, semua file **harus** dienkripsi menggunakan kunci publik PGP kami. Ini memberikan lapisan perlindungan tambahan di luar enkripsi tingkat transport.
+
+Bagikan kunci ini dengan pemroses pembayaran Anda saat ini untuk mengenkripsi ekspor data kartu:
+
+<Accordion title="Kunci Publik PGP Dodo Payments">
+
+```
+-----BEGIN PGP PUBLIC KEY BLOCK-----
+
+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
+1OSDhXaPYtJnVApUzaCrC5PJCXU=
+=nHcw
+-----END PGP PUBLIC KEY BLOCK-----
+
+```
+
+</Accordion>
+
+## Harapan timeline
+
+| Fase | Durasi |
+|-------|----------|
+| Pengaturan awal dan perencanaan | 1-2 hari |
+| Transfer metode pembayaran | ~2 minggu |
+| Persiapan data pelanggan | 3-5 hari (paralel) |
+| Validasi dan pengujian | 2-3 hari |
+| Impor produksi | 2-3 hari kerja |
+| Verifikasi pasca-migrasi | 1-2 hari |
+
+<Tip>
+Total migrasi biasanya memakan waktu **3-4 minggu** dari awal hingga akhir. Memulai persiapan data pelanggan Anda saat transfer metode pembayaran sedang berlangsung membantu meminimalkan keseluruhan timeline.
+</Tip>
+
+## Mulai
+
+Siap untuk memigrasi langganan Anda ke Dodo Payments? Hubungi tim kami untuk memulai proses:
+
+<CardGroup cols={2}>
+<Card title="Hubungi Dukungan" icon="envelope" href="mailto:support@dodopayments.com">
+Hubungi untuk memulai migrasi Anda dan terhubung dengan Insinyur Solusi.
+</Card>
+
+<Card title="Dokumentasi API" icon="code" href="/api-reference">
+Jelajahi API kami untuk memahami cara kerja langganan di Dodo Payments.
+</Card>
+</CardGroup>

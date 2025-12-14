@@ -1,0 +1,398 @@
+---
+title: PHP
+description: 将 Dodo Payments 集成到您的 PHP 应用程序中，使用现代的、符合 PSR-4 的 SDK
+icon: php
+tag: BETA
+---
+
+PHP SDK 提供了一种强大而灵活的方式，将 Dodo Payments 集成到您的 PHP 应用程序中。它遵循现代 PHP 标准，使用 PSR-4 自动加载，提供广泛的测试覆盖和详细的文档。
+
+<Note>
+Dodo Payments PHP API 库目前处于 **beta** 阶段。我们期待您进行实验！请通过 [提交问题](https://github.com/dodopayments/dodopayments-php/issues) 分享任何建议、错误报告或功能请求。
+</Note>
+
+## 安装
+
+使用 Composer 安装 SDK：
+
+```bash
+composer require "dodopayments/client:^3.5.0"
+```
+
+<Info>
+SDK 需要 PHP 8.1.0 或更高版本，并且需要 Composer 进行依赖管理。
+</Info>
+
+## 快速开始
+
+初始化客户端并创建结账会话：
+
+```php
+<?php
+
+use Dodopayments\Client;
+
+$client = new Client(
+  bearerToken: getenv("DODO_PAYMENTS_API_KEY") ?: "My Bearer Token",
+  environment: "test_mode",
+);
+
+$checkoutSessionResponse = $client->checkoutSessions->create(
+  productCart: [["productID" => "product_id", "quantity" => 1]]
+);
+
+var_dump($checkoutSessionResponse->session_id);
+```
+
+<Warning>
+请安全存储您的 API 密钥，使用环境变量。切勿在代码库中暴露它们或将其提交到版本控制中。
+</Warning>
+
+## 核心功能
+
+<CardGroup cols={2}>
+<Card title="符合 PSR-4" icon="check">
+  遵循现代 PHP 开发的 PHP 标准推荐
+</Card>
+
+<Card title="现代 PHP" icon="php">
+  为 PHP 8.1+ 构建，具有类型声明和严格类型
+</Card>
+
+<Card title="广泛测试" icon="vial">
+  提供全面的测试覆盖，以确保可靠性和稳定性
+</Card>
+
+<Card title="异常处理" icon="shield-check">
+  针对不同错误场景提供清晰的异常类型
+</Card>
+</CardGroup>
+
+## 值对象
+
+SDK 使用命名参数来指定可选参数。您可以使用静态 `with` 构造函数初始化值对象：
+
+```php
+<?php
+
+use Dodopayments\Customers\AttachExistingCustomer;
+
+// Recommended: Use static 'with' constructor with named parameters
+$customer = AttachExistingCustomer::with(customerID: "customer_id");
+```
+
+构建器也可以作为替代模式使用：
+
+```php
+<?php
+
+use Dodopayments\Customers\AttachExistingCustomer;
+
+// Alternative: Use builder pattern
+$customer = (new AttachExistingCustomer)->withCustomerID("customer_id");
+```
+
+## 配置
+
+### 重试配置
+
+某些错误默认会自动重试 2 次，并使用短的指数退避。以下错误会触发自动重试：
+
+- 连接错误（网络连接问题）
+- 408 请求超时
+- 409 冲突
+- 429 速率限制
+- 500+ 内部错误
+- 超时
+
+全局或按请求配置重试行为：
+
+```php
+<?php
+
+use Dodopayments\Client;
+use Dodopayments\RequestOptions;
+
+// Configure default for all requests (disable retries)
+$client = new Client(maxRetries: 0);
+
+// Or, configure per-request
+$result = $client->checkoutSessions->create(
+  productCart: [["productID" => "product_id", "quantity" => 1]],
+  requestOptions: RequestOptions::with(maxRetries: 5),
+);
+```
+
+## 常见操作
+
+### 创建结账会话
+
+生成结账会话：
+
+```php
+$session = $client->checkoutSessions->create(
+  productCart: [
+    ["productID" => "prod_123", "quantity" => 1]
+  ],
+  returnUrl: "https://yourdomain.com/return"
+);
+
+header('Location: ' . $session->url);
+```
+
+### 管理客户
+
+创建和检索客户信息：
+
+```php
+// Create a customer
+$customer = $client->customers->create(
+  email: "customer@example.com",
+  name: "John Doe",
+  metadata: [
+    "user_id" => "12345"
+  ]
+);
+
+// Retrieve customer
+$customer = $client->customers->retrieve("cus_123");
+echo "Customer: {$customer->name} ({$customer->email})";
+```
+
+### 处理订阅
+
+创建和管理定期订阅：
+
+```php
+// Create a subscription
+$subscription = $client->subscriptions->create(
+  customerID: "cus_123",
+  productID: "prod_456",
+  priceID: "price_789"
+);
+
+// Cancel subscription
+$client->subscriptions->cancel($subscription->id);
+```
+
+## 分页
+
+处理分页列表响应：
+
+```php
+$page = $client->payments->list();
+
+var_dump($page);
+
+// Fetch items from the current page
+foreach ($page->getItems() as $item) {
+  var_dump($item->brand_id);
+}
+
+// Auto-paginate: fetch items from all pages
+foreach ($page->pagingEachItem() as $item) {
+  var_dump($item->brand_id);
+}
+```
+
+## 错误处理
+
+当库无法连接到 API 或收到非成功状态码（4xx 或 5xx）时，将抛出 `APIException` 的子类：
+
+```php
+<?php
+
+use Dodopayments\Core\Exceptions\APIConnectionException;
+use Dodopayments\Core\Exceptions\RateLimitException;
+use Dodopayments\Core\Exceptions\APIStatusException;
+
+try {
+  $checkoutSessionResponse = $client->checkoutSessions->create(
+    productCart: [["productID" => "product_id", "quantity" => 1]]
+  );
+} catch (APIConnectionException $e) {
+  echo "The server could not be reached", PHP_EOL;
+  var_dump($e->getPrevious());
+} catch (RateLimitException $_) {
+  echo "A 429 status code was received; we should back off a bit.", PHP_EOL;
+} catch (APIStatusException $e) {
+  echo "Another non-200-range status code was received", PHP_EOL;
+  echo $e->getMessage();
+}
+```
+
+### 错误类型
+
+| 原因            | 错误类型                   |
+| ---------------- | ---------------------------- |
+| HTTP 400         | `BadRequestException`        |
+| HTTP 401         | `AuthenticationException`    |
+| HTTP 403         | `PermissionDeniedException`  |
+| HTTP 404         | `NotFoundException`          |
+| HTTP 409         | `ConflictException`          |
+| HTTP 422         | `UnprocessableEntityException` |
+| HTTP 429         | `RateLimitException`         |
+| HTTP >= 500      | `InternalServerException`    |
+| 其他 HTTP 错误 | `APIStatusException`         |
+| 超时          | `APITimeoutException`        |
+| 网络错误    | `APIConnectionException`     |
+
+<Tip>
+始终将 API 调用包装在 try-catch 块中，以优雅地处理潜在错误并为用户提供有意义的反馈。
+</Tip>
+
+## 高级用法
+
+### 未记录的端点
+
+向未记录的端点发出请求：
+
+```php
+<?php
+
+$response = $client->request(
+  method: "post",
+  path: '/undocumented/endpoint',
+  query: ['dog' => 'woof'],
+  headers: ['useful-header' => 'interesting-value'],
+  body: ['hello' => 'world']
+);
+```
+
+### 未记录的参数
+
+向任何端点发送未记录的参数或读取未记录的响应属性：
+
+```php
+<?php
+
+use Dodopayments\RequestOptions;
+
+$checkoutSessionResponse = $client->checkoutSessions->create(
+  productCart: [["productID" => "product_id", "quantity" => 1]],
+  requestOptions: RequestOptions::with(
+    extraQueryParams: ["my_query_parameter" => "value"],
+    extraBodyParams: ["my_body_parameter" => "value"],
+    extraHeaders: ["my-header" => "value"],
+  ),
+);
+```
+
+<Note>
+具有相同名称的 `extra*` 参数会覆盖文档中记录的参数。
+</Note>
+
+## 框架集成
+
+### Laravel
+
+为 Laravel 应用程序创建服务：
+
+```php
+<?php
+
+namespace App\Services;
+
+use Dodopayments\Client;
+
+class PaymentService
+{
+    protected $client;
+
+    public function __construct()
+    {
+        $this->client = new Client(
+            bearerToken: config('services.dodo.api_key')
+        );
+    }
+
+    public function createCheckout(array $items)
+    {
+        return $this->client->checkoutSessions->create(
+            productCart: $items,
+            returnUrl: route('checkout.return')
+        );
+    }
+}
+```
+
+在 `config/services.php` 中添加配置：
+
+```php
+'dodo' => [
+    'api_key' => env('DODO_API_KEY'),
+    'environment' => env('DODO_ENVIRONMENT', 'sandbox')
+],
+```
+
+### Symfony
+
+在 Symfony 中创建服务：
+
+```php
+<?php
+
+namespace App\Service;
+
+use Dodopayments\Client;
+
+class DodoPaymentService
+{
+    private Client $client;
+
+    public function __construct(string $apiKey)
+    {
+        $this->client = new Client(bearerToken: $apiKey);
+    }
+
+    public function createPayment(int $amount, string $currency, string $customerId): object
+    {
+        return $this->client->payments->create(
+            amount: $amount,
+            currency: $currency,
+            customerID: $customerId
+        );
+    }
+}
+```
+
+在 `config/services.yaml` 中注册：
+
+```yaml
+services:
+    App\Service\DodoPaymentService:
+        arguments:
+            $apiKey: '%env(DODO_API_KEY)%'
+```
+
+## 资源
+
+<CardGroup cols={2}>
+<Card title="GitHub 仓库" icon="github" href="https://github.com/dodopayments/dodopayments-php">
+  查看源代码并贡献
+</Card>
+
+<Card title="API 参考" icon="book" href="/api-reference/introduction">
+  完整的 API 文档
+</Card>
+
+<Card title="Discord 社区" icon="discord" href="https://discord.gg/bYqAp4ayYh">
+  获取帮助并与开发者联系
+</Card>
+
+<Card title="报告问题" icon="bug" href="https://github.com/dodopayments/dodopayments-php/issues">
+  报告错误或请求功能
+</Card>
+</CardGroup>
+
+## 支持
+
+需要 PHP SDK 的帮助吗？
+
+- **Discord**：加入我们的 [社区服务器](https://discord.gg/bYqAp4ayYh) 获取实时支持
+- **电子邮件**：通过 support@dodopayments.com 联系我们
+- **GitHub**：在 [仓库](https://github.com/dodopayments/dodopayments-php) 上打开一个问题
+
+## 贡献
+
+我们欢迎贡献！查看 [贡献指南](https://github.com/dodopayments/dodopayments-php/blob/main/CONTRIBUTING.md) 开始。

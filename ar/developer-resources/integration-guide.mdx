@@ -1,0 +1,439 @@
+---
+title: دليل تكامل المدفوعات لمرة واحدة
+description: سيساعدك هذا الدليل في دمج واجهة برمجة تطبيقات مدفوعات دودي في موقعك الإلكتروني.
+icon: code-merge
+---
+
+## المتطلبات الأساسية
+
+لدمج واجهة برمجة تطبيقات مدفوعات دودي، ستحتاج إلى:
+- حساب تاجر مدفوعات دودي
+- بيانات اعتماد API (مفتاح API ومفتاح سري للويب هوك) من لوحة التحكم
+
+## إعداد لوحة التحكم
+
+1. انتقل إلى [لوحة تحكم مدفوعات دودي](https://app.dodopayments.com/)
+
+2. أنشئ منتجًا (مدفوعات لمرة واحدة أو اشتراك)
+
+4. قم بإنشاء مفتاح API الخاص بك:
+   - انتقل إلى المطور > API
+   - [دليل مفصل](/api-reference/introduction#api-key-generation)
+   - انسخ مفتاح API في البيئة المسماة DODO_PAYMENTS_API_KEY
+
+5. قم بتكوين الويب هوكس:
+   - انتقل إلى المطور > الويب هوكس
+   - أنشئ عنوان URL للويب هوك لإشعارات الدفع
+   - انسخ مفتاح الويب هوك السري في البيئة
+
+## التكامل
+
+### روابط الدفع
+
+اختر مسار التكامل الذي يناسب حالتك:
+- **جلسات الدفع (موصى بها)**: الأفضل لمعظم عمليات التكامل. أنشئ جلسة على خادمك وأعد توجيه العملاء إلى عملية دفع آمنة ومستضافة.
+- **الدفع المدمج (Overlay Checkout)**: استخدمه عندما تحتاج إلى تجربة داخل الصفحة تدمج عملية الدفع المستضافة في موقعك.
+- **روابط الدفع الثابتة**: روابط قابلة للمشاركة على الفور بدون كود لجمع المدفوعات بسرعة.
+- **روابط الدفع الديناميكية**: روابط تم إنشاؤها برمجيًا. ومع ذلك، يُوصى بجلسات الدفع لأنها توفر مزيدًا من المرونة.
+
+#### 1. جلسات الدفع
+
+استخدم جلسات الدفع لإنشاء تجربة دفع آمنة ومستضافة للمدفوعات لمرة واحدة أو الاشتراكات. تقوم بإنشاء جلسة على خادمك، ثم تعيد توجيه العميل إلى `checkout_url`.
+
+<Info>
+جلسات الدفع صالحة لمدة 24 ساعة بشكل افتراضي. إذا قمت بتمرير <code>confirm=true</code>، فإن الجلسات تكون صالحة لمدة 15 دقيقة ويجب توفير جميع الحقول المطلوبة.
+</Info>
+
+<Steps>
+<Step title="إنشاء جلسة دفع">
+  اختر SDK المفضل لديك أو اتصل بواجهة برمجة التطبيقات REST.
+
+  <Tabs>
+  <Tab title="Node.js SDK">
+
+  ```javascript
+  import DodoPayments from 'dodopayments';
+
+  const client = new DodoPayments({
+    bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+    environment: 'test_mode', // defaults to 'live_mode'
+  });
+
+  const session = await client.checkoutSessions.create({
+    product_cart: [{ product_id: 'prod_123', quantity: 1 }],
+    customer: { email: 'customer@example.com', name: 'John Doe' },
+    return_url: 'https://yourapp.com/checkout/success',
+  });
+  ```
+
+  </Tab>
+
+  <Tab title="Python SDK">
+
+  ```python
+  import os
+  from dodopayments import DodoPayments
+
+  client = DodoPayments(
+      bearer_token=os.environ.get("DODO_PAYMENTS_API_KEY"),
+      environment="test_mode",  # defaults to "live_mode"
+  )
+
+  session = client.checkout_sessions.create(
+      product_cart=[{"product_id": "prod_123", "quantity": 1}],
+      customer={"email": "customer@example.com", "name": "John Doe"},
+      return_url="https://yourapp.com/checkout/success",
+  )
+  ```
+
+  </Tab>
+
+  <Tab title="REST API">
+
+  ```javascript
+  const response = await fetch('https://test.dodopayments.com/checkouts', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${process.env.DODO_PAYMENTS_API_KEY}`,
+    },
+    body: JSON.stringify({
+      product_cart: [{ product_id: 'prod_123', quantity: 1 }],
+      customer: { email: 'customer@example.com', name: 'John Doe' },
+      return_url: 'https://yourapp.com/checkout/success',
+    }),
+  });
+  const session = await response.json();
+  ```
+
+  </Tab>
+  </Tabs>
+</Step>
+
+<Step title="إعادة توجيه العميل إلى الدفع">
+  بعد إنشاء الجلسة، أعد توجيه إلى `checkout_url` لبدء العملية المستضافة.
+
+  ```javascript
+  // Example in a browser context
+  window.location.href = session.checkout_url;
+  ```
+
+</Step>
+</Steps>
+
+<Tip>
+يفضل استخدام جلسات الدفع كأسرع وأضمن طريقة لبدء قبول المدفوعات. لمزيد من التخصيص المتقدم، راجع الدليل الكامل لـ <a href="/developer-resources/checkout-session">جلسات الدفع</a> و <a href="/api-reference/checkout-sessions/create">مرجع API</a>.
+</Tip>
+
+#### 2. الدفع المدمج (Overlay Checkout)
+
+للحصول على تجربة دفع سلسة داخل الصفحة، استكشف تكامل [الدفع المدمج](/developer-resources/overlay-checkout) الذي يسمح للعملاء بإكمال المدفوعات دون مغادرة موقعك.
+
+#### 3. روابط الدفع الثابتة
+
+تتيح لك روابط الدفع الثابتة قبول المدفوعات بسرعة من خلال مشاركة عنوان URL بسيط. يمكنك تخصيص تجربة الدفع عن طريق تمرير معلمات الاستعلام لملء تفاصيل العميل مسبقًا، والتحكم في حقول النموذج، وإضافة بيانات وصفية مخصصة.
+
+<Steps>
+<Step title="إنشاء رابط الدفع الخاص بك">
+  ابدأ بعنوان URL الأساسي وأضف معرف المنتج الخاص بك:
+
+  ```text
+  https://checkout.dodopayments.com/buy/{productid}
+  ```
+
+</Step>
+<Step title="إضافة المعلمات الأساسية">
+  قم بتضمين معلمات الاستعلام الأساسية:
+  - <ParamField query="quantity" type="integer" default="1">عدد العناصر المراد شراؤها.</ParamField>
+  - <ParamField query="redirect_url" type="string" required>عنوان URL لإعادة التوجيه بعد إتمام الدفع.</ParamField>
+  <Note>
+  سيشمل عنوان URL لإعادة التوجيه تفاصيل الدفع كمعلمات استعلام، على سبيل المثال:<br/>
+  <code>https://example.com/?payment_id=pay_ts2ySpzg07phGeBZqePbH&status=succeeded</code>
+  </Note>
+</Step>
+<Step title="ملء معلومات العميل مسبقًا (اختياري)">
+  أضف حقول العميل أو الفوترة كمعلمات استعلام لتبسيط عملية الدفع.
+  <AccordionGroup>
+    <Accordion title="حقول العميل المدعومة">
+      - <ParamField query="fullName" type="string">الاسم الكامل للعميل (يتم تجاهله إذا تم توفير firstName أو lastName).</ParamField>
+      - <ParamField query="firstName" type="string">الاسم الأول للعميل.</ParamField>
+      - <ParamField query="lastName" type="string">اسم العائلة للعميل.</ParamField>
+      - <ParamField query="email" type="string">البريد الإلكتروني للعميل.</ParamField>
+      - <ParamField query="country" type="string">بلد العميل.</ParamField>
+      - <ParamField query="addressLine" type="string">عنوان الشارع.</ParamField>
+      - <ParamField query="city" type="string">المدينة.</ParamField>
+      - <ParamField query="state" type="string">الولاية أو المقاطعة.</ParamField>
+      - <ParamField query="zipCode" type="string">الرمز البريدي.</ParamField>
+      - <ParamField query="showDiscounts" type="boolean">true أو false</ParamField>
+    </Accordion>
+  </AccordionGroup>
+</Step>
+<Step title="التحكم في حقول النموذج (اختياري)">
+  <Info>
+  يمكنك تعطيل حقول معينة لجعلها للقراءة فقط للعميل. هذا مفيد عندما يكون لديك تفاصيل العميل بالفعل (مثل المستخدمين المسجلين).
+  </Info>
+  لتعطيل حقل، قدم قيمته واضبط علامة <code>disable...</code> المقابلة على <code>true</code>:
+  <CodeGroup>
+
+  ```text Example
+  &email=alice@example.com&disableEmail=true
+  ```
+
+  </CodeGroup>
+  <Tabs>
+    <Tab title="جدول علامات التعطيل">
+      | الحقل         | علامة التعطيل         | المعلمة المطلوبة |
+      |---------------|---------------------|-------------------|
+      | الاسم الكامل     | `disableFullName`   | `fullName`        |
+      | الاسم الأول    | `disableFirstName`  | `firstName`       |
+      | اسم العائلة     | `disableLastName`   | `lastName`        |
+      | البريد الإلكتروني         | `disableEmail`      | `email`           |
+      | البلد       | `disableCountry`    | `country`         |
+      | عنوان الشارع  | `disableAddressLine`| `addressLine`     |
+      | المدينة          | `disableCity`       | `city`            |
+      | الولاية         | `disableState`      | `state`           |
+      | الرمز البريدي      | `disableZipCode`    | `zipCode`         |
+    </Tab>
+  </Tabs>
+  <Tip>
+  يساعد تعطيل الحقول في منع التغييرات غير المقصودة وضمان اتساق البيانات.
+  </Tip>
+  <Note>
+  تعيين <code>showDiscounts=false</code> سيعطل ويخفي قسم الخصومات في نموذج الدفع. استخدم هذا إذا كنت ترغب في منع العملاء من إدخال رموز القسيمة أو الرموز الترويجية أثناء الدفع.
+  </Note>
+
+</Step>
+<Step title="إضافة عناصر تحكم متقدمة (اختياري)">
+  - <ParamField query="paymentCurrency" type="string">تحديد عملة الدفع. الافتراضي هو عملة بلد الفوترة.</ParamField>
+  - <ParamField query="showCurrencySelector" type="boolean" default="true">إظهار أو إخفاء محدد العملة.</ParamField>
+  - <ParamField query="paymentAmount" type="integer">المبلغ بالسنت (لأسعار الدفع التي تريدها فقط).</ParamField>
+  - <ParamField query="metadata_*" type="string">حقول بيانات وصفية مخصصة (مثل <code>metadata_orderId=123</code>).</ParamField>
+</Step>
+<Step title="مشاركة الرابط">
+  أرسل رابط الدفع المكتمل إلى عميلك. عندما يزورونه، يتم جمع جميع معلمات الاستعلام وتخزينها مع معرف الجلسة. ثم يتم تبسيط عنوان URL ليشمل فقط معلمة الجلسة (على سبيل المثال، <code>?session=sess_1a2b3c4d</code>). تستمر المعلومات المخزنة عبر تحديثات الصفحة وتكون متاحة طوال عملية الدفع.
+  <Check>
+  تجربة الدفع للعميل الآن سلسة ومخصصة بناءً على معلماتك.
+  </Check>
+</Step>
+</Steps>
+
+#### 4. روابط الدفع الديناميكية
+<Tip>
+يفضل استخدام جلسات الدفع لمعظم حالات الاستخدام، حيث توفر مزيدًا من المرونة والتحكم.
+</Tip>
+
+تم إنشاؤها عبر استدعاء API أو SDK الخاص بنا مع تفاصيل العميل. إليك مثال:
+
+هناك واجهتان برمجيتان لإنشاء روابط الدفع الديناميكية:
+
+- واجهة برمجة تطبيقات رابط الدفع لمرة واحدة [مرجع API](/api-reference/payments/post-payments)
+- واجهة برمجة تطبيقات رابط الدفع للاشتراك [مرجع API](/api-reference/subscriptions/post-subscriptions)
+
+الدليل أدناه هو لإنشاء رابط الدفع لمرة واحدة.
+
+للحصول على تعليمات مفصلة حول دمج الاشتراكات، راجع [دليل تكامل الاشتراك](/developer-resources/subscription-integration-guide).
+
+<Info>تأكد من أنك تمرر `payment_link = true` للحصول على رابط الدفع </Info>
+
+<Tabs>
+  
+  <Tab title="Node.js SDK">
+
+    ```javascript
+    import DodoPayments from 'dodopayments';
+
+const client = new DodoPayments({
+  bearerToken: process.env['DODO_PAYMENTS_API_KEY'], // This is the default and can be omitted
+  environment: 'test_mode', // defaults to 'live_mode'
+});
+
+async function main() {
+  const payment = await client.payments.create({
+    payment_link: true,
+    billing: { city: 'city', country: 'AF', state: 'state', street: 'street', zipcode: 0 },
+    customer: { email: 'email@email.com', name: 'name' },
+    product_cart: [{ product_id: 'product_id', quantity: 0 }],
+  });
+
+  console.log(payment.payment_id);
+}
+
+main();
+    ```
+
+    
+  </Tab>
+  <Tab title="Python SDK">
+
+    ```python
+    import os
+from dodopayments import DodoPayments
+
+client = DodoPayments(
+    bearer_token=os.environ.get("DODO_PAYMENTS_API_KEY"),  # This is the default and can be omitted (if using same name `DODO_PAYMENTS_API_KEY`)
+    environment="test_mode",  # defaults to "live_mode"
+)
+payment = client.payments.create(
+    payment_link=True,
+    billing={
+        "city": "city",
+        "country": "AF",
+        "state": "state",
+        "street": "street",
+        "zipcode": 0,
+    },
+    customer={
+        "email": "email@email.com",
+        "name": "name",
+    },
+    product_cart=[{
+        "product_id": "product_id",
+        "quantity": 0,
+    }],
+)
+print(payment.payment_link)
+    ```
+
+  </Tab>
+  <Tab title="Go SDK">
+
+    ```go
+    package main
+
+import (
+  "context"
+  "fmt"
+
+  "github.com/dodopayments/dodopayments-go"
+  "github.com/dodopayments/dodopayments-go/option"
+)
+
+func main() {
+  client := dodopayments.NewClient(
+    option.WithBearerToken("My Bearer Token"), // defaults to os.LookupEnv("DODO_PAYMENTS_API_KEY")
+  )
+  payment, err := client.Payments.New(context.TODO(), dodopayments.PaymentNewParams{
+    PaymentLink: dodopayments.F(true),
+    Billing: dodopayments.F(dodopayments.PaymentNewParamsBilling{
+      City: dodopayments.F("city"),
+      Country: dodopayments.F(dodopayments.CountryCodeAf),
+      State: dodopayments.F("state"),
+      Street: dodopayments.F("street"),
+      Zipcode: dodopayments.F(int64(0)),
+    }),
+    Customer: dodopayments.F(dodopayments.PaymentNewParamsCustomer{
+      Email: dodopayments.F("email"),
+      Name: dodopayments.F("name"),
+    }),
+    ProductCart: dodopayments.F([]dodopayments.PaymentNewParamsProductCart{dodopayments.PaymentNewParamsProductCart{
+      ProductID: dodopayments.F("product_id"),
+      Quantity: dodopayments.F(int64(0)),
+    }}),
+  })
+  if err != nil {
+    panic(err.Error())
+  }
+  fmt.Printf("%+v\n", payment.PaymentLink)
+}
+
+    ```
+
+    </Tab>
+<Tab title="مرجع API">
+
+    ```javascript
+import { NextRequest, NextResponse } from "next/server";      
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { formData, cartItems } = paymentRequestSchema.parse(body);
+
+    const response = await fetch(`${process.env.NEXT_PUBLIC_DODO_TEST_API}/payments`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${process.env.DODO_API_KEY}`, // Replace with your API secret key generated from the Dodo Payments Dashboard
+      },
+      body: JSON.stringify({
+        billing: {
+          city: formData.city,
+          country: formData.country,
+          state: formData.state,
+          street: formData.addressLine,
+          zipcode: parseInt(formData.zipCode),
+        },
+        customer: {
+          email: formData.email,
+          name: `${formData.firstName} ${formData.lastName}`,
+          phone_number: formData.phoneNumber || undefined,
+        },
+        payment_link: true,
+        product_cart: cartItems.map((id) => ({
+          product_id: id,
+          quantity: 1,
+        })),
+        return_url: process.env.NEXT_PUBLIC_RETURN_URL,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => null);
+      return NextResponse.json(
+        { error: "Payment link creation failed", details: errorData },
+        { status: response.status }
+      );
+    }
+
+    const data = await response.json();
+    return NextResponse.json({ paymentLink: data.payment_link });
+  } catch (err) {
+    console.error("Payment error:", err);
+    return NextResponse.json(
+      {
+        error: err instanceof Error ? err.message : "An unknown error occurred",
+      },
+      { status: 500 }
+    );
+  }
+}
+```
+
+  </Tab>
+</Tabs>
+
+<Info>بعد إنشاء رابط الدفع، أعد توجيه عملائك لإكمال دفعهم.</Info>
+
+### تنفيذ الويب هوكس
+
+قم بإعداد نقطة نهاية API لتلقي إشعارات الدفع. إليك مثال باستخدام Next.js:
+
+```javascript
+import { Webhook } from "standardwebhooks";
+import { headers } from "next/headers";
+import { WebhookPayload } from "@/types/api-types";
+
+const webhook = new Webhook(process.env.DODO_WEBHOOK_KEY!); // Replace with your secret key generated from the Dodo Payments Dashboard
+
+export async function POST(request: Request) {
+  const headersList = headers();
+  const rawBody = await request.text();
+
+  const webhookHeaders = {
+    "webhook-id": headersList.get("webhook-id") || "",
+    "webhook-signature": headersList.get("webhook-signature") || "",
+    "webhook-timestamp": headersList.get("webhook-timestamp") || "",
+  };
+
+  await webhook.verify(rawBody, webhookHeaders);
+  const payload = JSON.parse(rawBody) as WebhookPayload;
+  
+  // Process the payload according to your business logic
+}
+```
+
+تتبع تنفيذ الويب هوك لدينا مواصفات [الويب هوكس القياسية](https://standardwebhooks.com/). للحصول على تعريفات أنواع الويب هوك، راجع [دليل أحداث الويب هوك](/developer-resources/webhooks/intents/webhook-events-guide).
+
+يمكنك الرجوع إلى هذا المشروع مع تنفيذ تجريبي على [GitHub](https://github.com/dodopayments/dodo-checkout-demo) باستخدام Next.js وTypeScript.
+
+يمكنك الاطلاع على التنفيذ المباشر [هنا](https://atlas.dodopayments.com/).

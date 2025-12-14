@@ -1,0 +1,151 @@
+---
+title: HubSpot
+description: قم بإنشاء وتحديث جهات الاتصال والشركات والصفقات تلقائيًا في HubSpot
+  من أحداث مدفوعات Dodo.
+icon: hubspot
+---
+
+## المقدمة
+
+قم بمزامنة بيانات الدفع الخاصة بك مباشرةً إلى HubSpot CRM. أنشئ جهات اتصال من المدفوعات الناجحة، وتتبع دورة حياة الاشتراك، وابنِ ملفات تعريف شاملة للعملاء - كل ذلك يتم تشغيله تلقائيًا بواسطة أحداث مدفوعات Dodo.
+
+<Info>
+تتطلب هذه التكاملات الوصول كمسؤول في HubSpot لتكوين نطاقات OAuth وأذونات API.
+</Info>
+
+## البدء
+
+<Steps>
+<Step title="افتح قسم Webhook">
+  في لوحة معلومات مدفوعات Dodo، انتقل إلى <b>Webhooks → + إضافة نقطة نهاية</b> وقم بتوسيع قائمة التكاملات المنسدلة.
+  <Frame>
+    <img src="/images/integrations/hubspot.png" alt="إضافة نقطة نهاية وقائمة التكاملات المنسدلة" />
+  </Frame>
+</Step>
+
+<Step title="اختر HubSpot">
+  اختر بطاقة تكامل <b>HubSpot</b>.
+</Step>
+
+<Step title="اتصل بـ HubSpot">
+  انقر على <b>الاتصال بـ HubSpot</b> ووافق على نطاقات OAuth المطلوبة.
+</Step>
+
+<Step title="تكوين التحويل">
+  قم بتحرير كود التحويل لربط بيانات الدفع بأشياء HubSpot CRM.
+</Step>
+
+<Step title="اختبر وأنشئ">
+  اختبر باستخدام حمولات عينة وانقر على <b>إنشاء</b> لتفعيل المزامنة.
+</Step>
+
+<Step title="تم!">
+  🎉 ستقوم أحداث الدفع الآن بإنشاء/تحديث السجلات تلقائيًا في HubSpot CRM الخاص بك.
+</Step>
+</Steps>
+
+## أمثلة على كود التحويل
+
+### إنشاء جهة اتصال من الدفع
+
+```javascript create_contact.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.url = "https://api.hubapi.com/crm/v3/objects/contacts";
+    webhook.payload = {
+      properties: {
+        email: p.customer.email,
+        firstname: p.customer.name.split(' ')[0] || '',
+        lastname: p.customer.name.split(' ').slice(1).join(' ') || '',
+        phone: p.customer.phone || '',
+        company: p.customer.company || '',
+        amount: (p.total_amount / 100).toString(),
+        payment_method: p.payment_method || '',
+        currency: p.currency || 'USD'
+      }
+    };
+  }
+  return webhook;
+}
+```
+
+### تحديث جهة الاتصال مع الاشتراك
+
+```javascript update_contact.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "subscription.active") {
+    const s = webhook.payload.data;
+    webhook.url = `https://api.hubapi.com/crm/v3/objects/contacts/${s.customer.customer_id}`;
+    webhook.method = "PATCH";
+    webhook.payload = {
+      properties: {
+        subscription_status: "active",
+        subscription_amount: (s.recurring_pre_tax_amount / 100).toString(),
+        subscription_frequency: s.payment_frequency_interval,
+        next_billing_date: s.next_billing_date,
+        product_id: s.product_id
+      }
+    };
+  }
+  return webhook;
+}
+```
+
+### إنشاء صفقة من الدفع
+
+```javascript create_deal.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.url = "https://api.hubapi.com/crm/v3/objects/deals";
+    webhook.payload = {
+      properties: {
+        dealname: `Payment - ${p.customer.email}`,
+        amount: (p.total_amount / 100).toString(),
+        dealstage: "closedwon",
+        closedate: new Date().toISOString(),
+        hs_currency: p.currency || "USD"
+      },
+      associations: [
+        {
+          to: {
+            id: p.customer.customer_id
+          },
+          types: [
+            {
+              associationCategory: "HUBSPOT_DEFINED",
+              associationTypeId: 3
+            }
+          ]
+        }
+      ]
+    };
+  }
+  return webhook;
+}
+```
+
+## نصائح
+
+- استخدم مستكشف API الخاص بـ HubSpot لاختبار إنشاء الكائنات
+- قم بربط مبالغ الدفع بحقول العملة في HubSpot
+- قم بتضمين معرفات العملاء للتوافق الصحيح
+- قم بتعيين مراحل الصفقة المناسبة بناءً على حالة الدفع
+
+## استكشاف الأخطاء وإصلاحها
+
+<AccordionGroup>
+<Accordion title="السجلات غير المنشأة في HubSpot">
+- تحقق من أن نطاقات OAuth تشمل أذونات الكتابة
+- تحقق من وجود الخصائص المطلوبة في HubSpot
+- تأكد من أن البريد الإلكتروني للعميل صالح وفريد
+- راجع حدود معدل API في HubSpot
+</Accordion>
+
+<Accordion title="أخطاء التحويل">
+- تحقق من أن هيكل JSON يتطابق مع تنسيق API الخاص بـ HubSpot
+- تحقق من تضمين جميع الخصائص المطلوبة
+- تأكد من أن أسماء الخصائص تتطابق تمامًا مع أسماء حقول HubSpot
+</Accordion>
+</AccordionGroup>

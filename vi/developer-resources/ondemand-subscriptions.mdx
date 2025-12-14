@@ -1,0 +1,463 @@
+---
+title: Đăng ký theo yêu cầu
+description: Tích hợp đăng ký theo yêu cầu bằng cách ủy quyền các mệnh lệnh, tạo
+  các khoản phí biến đổi, xử lý webhook và thực hiện các chính sách thử lại an
+  toàn.
+icon: bolt
+---
+
+## Tổng quan
+
+Đăng ký theo yêu cầu cho phép bạn ủy quyền phương thức thanh toán của khách hàng một lần và sau đó tính phí các khoản biến đổi bất cứ khi nào bạn cần, thay vì theo lịch trình cố định.
+
+<Info>
+Tính năng này có thể cần được kích hoạt trên tài khoản của bạn. Liên hệ với bộ phận hỗ trợ nếu bạn không thấy nó trong bảng điều khiển của mình.
+</Info>
+
+Sử dụng hướng dẫn này để:
+- Tạo một đăng ký theo yêu cầu (ủy quyền một mệnh lệnh với giá ban đầu tùy chọn)
+- Kích hoạt các khoản phí tiếp theo với số tiền tùy chỉnh
+- Theo dõi kết quả bằng cách sử dụng webhook
+
+Để thiết lập đăng ký chung, xem [Hướng dẫn tích hợp Đăng ký](/developer-resources/subscription-integration-guide).
+
+## Điều kiện tiên quyết
+
+- Tài khoản thương nhân Dodo Payments và khóa API
+- Bí mật webhook được cấu hình và một điểm cuối để nhận sự kiện
+- Một sản phẩm đăng ký trong danh mục của bạn
+
+<Tip>
+Nếu bạn muốn khách hàng phê duyệt mệnh lệnh qua thanh toán được lưu trữ, hãy đặt `payment_link: true` và cung cấp một `return_url`.
+</Tip>
+
+## Cách thức hoạt động của đăng ký theo yêu cầu
+
+1. Bạn tạo một đăng ký với đối tượng `on_demand` để ủy quyền một phương thức thanh toán và tùy chọn thu phí ban đầu.
+2. Sau đó, bạn tạo các khoản phí chống lại đăng ký đó với số tiền tùy chỉnh bằng cách sử dụng điểm cuối phí chuyên dụng.
+3. Bạn lắng nghe các webhook (ví dụ: `payment.succeeded`, `payment.failed`) để cập nhật hệ thống của bạn.
+
+## Tạo một đăng ký theo yêu cầu
+
+Điểm cuối: [POST /subscriptions](/api-reference/subscriptions/post-subscriptions)
+
+Các trường yêu cầu chính (nội dung):
+
+<AccordionGroup>
+<Accordion title="Tham số nội dung yêu cầu">
+  <ParamField body="product_id" type="string" required>
+    ID sản phẩm cho đăng ký.
+  </ParamField>
+
+  <ParamField body="quantity" type="integer" required>
+    Số lượng đơn vị. Tối thiểu 1.
+  </ParamField>
+
+  <ParamField body="billing" type="object" required>
+    Địa chỉ thanh toán cho khách hàng.
+  </ParamField>
+
+  <ParamField body="customer" type="object" required>
+    Gắn một khách hàng hiện có hoặc cung cấp thông tin chi tiết của khách hàng.
+  </ParamField>
+
+  <ParamField body="payment_link" type="boolean" default="false">
+    Nếu đúng, tạo một liên kết thanh toán được lưu trữ cho việc ủy quyền mệnh lệnh và thanh toán ban đầu tùy chọn.
+  </ParamField>
+
+  <ParamField body="return_url" type="string">
+    Nơi để chuyển hướng khách hàng sau khi hoàn tất thanh toán được lưu trữ.
+  </ParamField>
+
+  <ParamField body="on_demand.mandate_only" type="boolean" required>
+    Nếu đúng, ủy quyền phương thức thanh toán mà không tính phí cho khách hàng trong quá trình tạo.
+  </ParamField>
+
+  <ParamField body="on_demand.product_price" type="integer">
+    Số tiền phí ban đầu (tính bằng đơn vị tiền tệ nhỏ nhất). Nếu được chỉ định, giá trị này sẽ ghi đè lên giá gốc của sản phẩm được thiết lập trong quá trình tạo sản phẩm. Nếu bị bỏ qua, giá đã lưu của sản phẩm sẽ được sử dụng. Ví dụ: để tính phí $1.00, hãy truyền <code>100</code>.
+  </ParamField>
+
+  <ParamField body="on_demand.product_currency" type="string">
+    Ghi đè tiền tệ tùy chọn cho phí ban đầu. Mặc định là tiền tệ của sản phẩm.
+  </ParamField>
+
+  <ParamField body="on_demand.product_description" type="string">
+    Ghi đè mô tả tùy chọn cho việc thanh toán và các mục dòng.
+  </ParamField>
+
+  <ParamField body="on_demand.adaptive_currency_fees_inclusive" type="boolean">
+    Nếu đúng, bao gồm phí tiền tệ thích ứng trong <code>product_price</code>. Nếu sai, phí sẽ được thêm vào. Bị bỏ qua khi giá thích ứng bị vô hiệu hóa.
+  </ParamField>
+</Accordion>
+</AccordionGroup>
+
+### Tạo một đăng ký theo yêu cầu
+
+<Tabs>
+<Tab title="Node.js SDK">
+
+```javascript
+import DodoPayments from 'dodopayments';
+
+const client = new DodoPayments({
+  bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'test_mode', // defaults to 'live_mode'
+});
+
+async function main() {
+  const subscription = await client.subscriptions.create({
+    billing: { city: 'SF', country: 'US', state: 'CA', street: '1 Market St', zipcode: '94105' },
+    customer: { customer_id: 'customer_123' },
+    product_id: 'prod_sub_123',
+    quantity: 1,
+    payment_link: true,
+    return_url: 'https://example.com/billing/success',
+    on_demand: {
+      mandate_only: true, // set false to collect an initial charge
+      // product_price: 1000, // optional: charge $10.00 now if mandate_only is false
+      // product_currency: 'USD',
+      // product_description: 'Custom initial charge',
+      // adaptive_currency_fees_inclusive: false,
+    },
+  });
+
+  // If payment_link was true, redirect the customer to authorize the mandate
+  console.log(subscription.payment_link);
+}
+
+main().catch(console.error);
+```
+
+</Tab>
+<Tab title="Python SDK">
+
+```python
+import os
+from dodopayments import DodoPayments
+
+client = DodoPayments(
+    bearer_token=os.environ.get('DODO_PAYMENTS_API_KEY'),
+    environment="test_mode",  # defaults to "live_mode"
+)
+
+subscription = client.subscriptions.create(
+    billing={
+        "city": "SF",
+        "country": "US",
+        "state": "CA",
+        "street": "1 Market St",
+        "zipcode": "94105",
+    },
+    customer={"customer_id": "customer_123"},
+    product_id="prod_sub_123",
+    quantity=1,
+    payment_link=True,
+    return_url="https://example.com/billing/success",
+    on_demand={
+        "mandate_only": True,
+        # "product_price": 1000,
+        # "product_currency": "USD",
+        # "product_description": "Custom initial charge",
+        # "adaptive_currency_fees_inclusive": False,
+    },
+)
+
+print(subscription.payment_link)
+```
+
+</Tab>
+<Tab title="Go SDK">
+
+```go
+package main
+
+import (
+  "context"
+  "fmt"
+  "github.com/dodopayments/dodopayments-go"
+  "github.com/dodopayments/dodopayments-go/option"
+)
+
+func main() {
+  client := dodopayments.NewClient(
+    option.WithBearerToken("YOUR_API_KEY"),
+  )
+  subscription, err := client.Subscriptions.New(context.TODO(), dodopayments.SubscriptionNewParams{
+    Billing: dodopayments.F(dodopayments.BillingAddressParam{
+      City:    dodopayments.F("SF"),
+      Country: dodopayments.F(dodopayments.CountryCodeUs),
+      State:   dodopayments.F("CA"),
+      Street:  dodopayments.F("1 Market St"),
+      Zipcode: dodopayments.F("94105"),
+    }),
+    Customer: dodopayments.F[dodopayments.CustomerRequestUnionParam](dodopayments.AttachExistingCustomerParam{
+      CustomerID: dodopayments.F("customer_123"),
+    }),
+    ProductID:  dodopayments.F("prod_sub_123"),
+    Quantity:   dodopayments.F(int64(1)),
+    PaymentLink: dodopayments.F(true),
+    ReturnURL:   dodopayments.F("https://example.com/billing/success"),
+    OnDemand: dodopayments.F(dodopayments.OnDemandSubscriptionReqParam{
+      MandateOnly: dodopayments.F(true),
+      // ProductPrice: dodopayments.F(int64(1000)),
+      // ProductCurrency: dodopayments.F(dodopayments.CurrencyUsd),
+      // ProductDescription: dodopayments.F("Custom initial charge"),
+      // AdaptiveCurrencyFeesInclusive: dodopayments.F(false),
+    }),
+  })
+  if err != nil { panic(err) }
+  fmt.Println(subscription.PaymentLink)
+}
+```
+
+</Tab>
+<Tab title="cURL">
+
+```bash
+curl -X POST "$DODO_API/subscriptions" \
+  -H "Authorization: Bearer $DODO_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "billing": {"city": "SF", "country": "US", "state": "CA", "street": "1 Market St", "zipcode": "94105"},
+    "customer": {"customer_id": "customer_123"},
+    "product_id": "prod_sub_123",
+    "quantity": 1,
+    "payment_link": true,
+    "return_url": "https://example.com/billing/success",
+    "on_demand": {
+      "mandate_only": true
+    }
+  }'
+```
+
+</Tab>
+</Tabs>
+
+<Check>
+Đặt `payment_link: true`, chuyển hướng khách hàng đến `payment_link` để hoàn tất việc ủy quyền mệnh lệnh.
+</Check>
+
+```json Success
+{
+  "subscription_id": "sub_123",
+  "payment_link": "https://pay.dodopayments.com/checkout/...",
+  "customer": { "customer_id": "customer_123", "email": "alex@example.com", "name": "Alex Doe" },
+  "metadata": {},
+  "recurring_pre_tax_amount": 0,
+  "addons": []
+}
+```
+
+## Tính phí cho một đăng ký theo yêu cầu
+
+Sau khi mệnh lệnh được ủy quyền, tạo các khoản phí khi cần.
+
+Điểm cuối: [POST /subscriptions/\{subscription_id\}/charge](/api-reference/subscriptions/create-charge)
+
+Các trường yêu cầu chính (nội dung):
+
+<AccordionGroup>
+  <Accordion title="Tham số nội dung yêu cầu phí">
+    <ParamField body="product_price" type="integer" required>
+      Số tiền để tính phí (tính bằng đơn vị tiền tệ nhỏ nhất). Ví dụ: để tính phí $25.00, hãy truyền <code>2500</code>.
+    </ParamField>
+
+    <ParamField body="product_currency" type="string">
+      Ghi đè tiền tệ tùy chọn cho khoản phí.
+    </ParamField>
+
+    <ParamField body="product_description" type="string">
+      Ghi đè mô tả tùy chọn cho khoản phí này.
+    </ParamField>
+
+    <ParamField body="adaptive_currency_fees_inclusive" type="boolean">
+      Nếu đúng, bao gồm phí tiền tệ thích ứng trong <code>product_price</code>. Nếu sai, phí sẽ được thêm vào.
+    </ParamField>
+
+    <ParamField body="metadata" type="object">
+      Thông tin bổ sung cho khoản thanh toán. Nếu bị bỏ qua, thông tin đăng ký sẽ được sử dụng.
+    </ParamField>
+  </Accordion>
+</AccordionGroup>
+
+<Tabs>
+<Tab title="Node.js SDK">
+
+```javascript
+import DodoPayments from 'dodopayments';
+
+const client = new DodoPayments({
+  bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'test_mode', // defaults to 'live_mode'
+});
+
+async function chargeNow(subscriptionId) {
+  const res = await client.subscriptions.charge(subscriptionId, { product_price: 2500 });
+  console.log(res.payment_id);
+}
+
+chargeNow('sub_123').catch(console.error);
+```
+
+</Tab>
+<Tab title="Python SDK">
+
+```python
+import os
+from dodopayments import DodoPayments
+
+client = DodoPayments(
+    bearer_token=os.environ.get('DODO_PAYMENTS_API_KEY'),
+    environment="test_mode",  # defaults to "live_mode"
+)
+
+response = client.subscriptions.charge(
+    subscription_id="sub_123",
+    product_price=2500,
+)
+
+print(response.payment_id)
+```
+
+</Tab>
+<Tab title="Go SDK">
+
+```go
+package main
+
+import (
+  "context"
+  "fmt"
+  "github.com/dodopayments/dodopayments-go"
+  "github.com/dodopayments/dodopayments-go/option"
+)
+
+func main() {
+  client := dodopayments.NewClient(option.WithBearerToken("YOUR_API_KEY"))
+  res, err := client.Subscriptions.Charge(context.TODO(), "sub_123", dodopayments.SubscriptionChargeParams{
+    ProductPrice: dodopayments.F(int64(2500)),
+  })
+  if err != nil { panic(err) }
+  fmt.Println(res.PaymentID)
+}
+```
+
+</Tab>
+<Tab title="cURL">
+
+```bash
+curl -X POST "$DODO_API/subscriptions/sub_123/charge" \
+  -H "Authorization: Bearer $DODO_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "product_price": 2500,
+    "product_description": "Extra usage for March"
+  }'
+```
+
+</Tab>
+</Tabs>
+
+```json Success
+{ "payment_id": "pay_abc123" }
+```
+
+<Warning>
+Tính phí cho một đăng ký không phải theo yêu cầu có thể thất bại. Đảm bảo rằng đăng ký có `on_demand: true` trong chi tiết của nó trước khi tính phí.
+</Warning>
+
+## Thử lại thanh toán
+
+Hệ thống phát hiện gian lận của chúng tôi có thể chặn các mẫu thử lại mạnh mẽ (và có thể đánh dấu chúng là thử nghiệm thẻ tiềm năng). Tuân theo một chính sách thử lại an toàn.
+
+<Warning>
+Các mẫu thử lại bùng nổ có thể bị đánh dấu là gian lận hoặc thử nghiệm thẻ nghi ngờ bởi các hệ thống và bộ xử lý rủi ro của chúng tôi. Tránh các thử lại cụm; tuân theo lịch trình lùi và hướng dẫn căn thời gian bên dưới.
+</Warning>
+
+### Nguyên tắc cho các chính sách thử lại an toàn
+
+- **Cơ chế lùi**: Sử dụng lùi theo cấp số nhân giữa các lần thử lại.
+- **Giới hạn thử lại**: Giới hạn tổng số lần thử lại (tối đa 3–4 lần).
+- **Lọc thông minh**: Chỉ thử lại khi gặp lỗi có thể thử lại (ví dụ: lỗi mạng/nhà phát hành, không đủ tiền); không bao giờ thử lại các từ chối cứng.
+- **Ngăn chặn thử nghiệm thẻ**: Không thử lại các lỗi như `DO_NOT_HONOR`, `STOLEN_CARD`, `LOST_CARD`, `PICKUP_CARD`, `FRAUDULENT`, `AUTHENTICATION_FAILURE`.
+- **Thay đổi metadata (tùy chọn)**: Nếu bạn duy trì hệ thống thử lại của riêng mình, phân biệt các lần thử lại qua metadata (ví dụ: `retry_attempt`).
+
+### Lịch trình thử lại đề xuất (đăng ký)
+
+- **Lần thử lại đầu tiên**: Ngay lập tức khi bạn tạo khoản phí
+- **Lần thử lại thứ hai**: Sau 3 ngày
+- **Lần thử lại thứ ba**: Sau 7 ngày nữa (tổng cộng 10 ngày)
+- **Lần thử lại thứ tư (cuối cùng)**: Sau 7 ngày nữa (tổng cộng 17 ngày)
+
+Bước cuối cùng: nếu vẫn chưa thanh toán, đánh dấu đăng ký là chưa thanh toán hoặc hủy nó, dựa trên chính sách của bạn. Thông báo cho khách hàng trong khoảng thời gian để cập nhật phương thức thanh toán của họ.
+
+### Tránh các thử lại bùng nổ; căn chỉnh theo thời gian ủy quyền
+
+- Gắn các lần thử lại vào dấu thời gian ủy quyền ban đầu để tránh hành vi "bùng nổ" trên toàn bộ danh mục của bạn.
+- Ví dụ: Nếu khách hàng bắt đầu một thử nghiệm hoặc mệnh lệnh vào lúc 1:10 chiều hôm nay, hãy lên lịch các lần thử lại tiếp theo vào lúc 1:10 chiều trong các ngày tiếp theo theo lịch lùi của bạn (ví dụ: +3 ngày → 1:10 chiều, +7 ngày → 1:10 chiều).
+- Ngoài ra, nếu bạn lưu thời gian thanh toán thành công cuối cùng `T`, hãy lên lịch lần thử tiếp theo vào `T + X days` để duy trì sự căn chỉnh theo thời gian trong ngày.
+
+<Note>
+Múi giờ và DST: sử dụng một tiêu chuẩn thời gian nhất quán cho việc lập lịch và chuyển đổi chỉ để hiển thị nhằm duy trì các khoảng thời gian.
+</Note>
+
+### Mã từ chối bạn không nên thử lại
+
+- `STOLEN_CARD`
+- `DO_NOT_HONOR`
+- `FRAUDULENT`
+- `PICKUP_CARD`
+- `AUTHENTICATION_FAILURE`
+- `LOST_CARD`
+
+<Note>
+Để có danh sách đầy đủ các lý do từ chối và liệu chúng có thể được sửa chữa bởi người dùng hay không, hãy xem tài liệu
+[Transaction Failures](/api-reference/transaction-failures).
+</Note>
+
+<Tip>
+Chỉ thử lại khi gặp các vấn đề mềm/tạm thời (ví dụ: `insufficient_funds`, `issuer_unavailable`, `processing_error`, thời gian chờ mạng). Nếu cùng một từ chối lặp lại, hãy tạm dừng các lần thử lại tiếp theo.
+</Tip>
+
+### Hướng dẫn triển khai (không có mã)
+
+- Sử dụng một bộ lập lịch/ hàng đợi mà duy trì các dấu thời gian chính xác; tính toán lần thử tiếp theo tại thời điểm chính xác (ví dụ: `T + 3 days` vào cùng một HH:MM).
+- Duy trì và tham chiếu dấu thời gian thanh toán thành công cuối cùng `T` để tính toán lần thử tiếp theo; không gom nhiều đăng ký vào cùng một thời điểm.
+- Luôn đánh giá lý do từ chối cuối cùng; dừng thử lại cho các từ chối cứng trong danh sách bỏ qua ở trên.
+- Giới hạn số lần thử lại đồng thời theo khách hàng và theo tài khoản để ngăn chặn các đợt tăng đột biến không mong muốn.
+- Giao tiếp chủ động: gửi email/SMS cho khách hàng để cập nhật phương thức thanh toán của họ trước lần thử tiếp theo đã lên lịch.
+- Sử dụng metadata chỉ để quan sát (ví dụ: `retry_attempt`); không bao giờ cố gắng "tránh" các hệ thống gian lận/rủi ro bằng cách xoay vòng các trường không quan trọng.
+
+## Theo dõi kết quả với webhook
+
+Triển khai xử lý webhook để theo dõi hành trình của khách hàng. Xem [Triển khai Webhooks](/developer-resources/integration-guide#implementing-webhooks).
+
+- **subscription.active**: Mệnh lệnh đã được ủy quyền và đăng ký đã được kích hoạt
+- **subscription.failed**: Tạo không thành công (ví dụ: thất bại mệnh lệnh)
+- **subscription.on_hold**: Đăng ký bị tạm hoãn (ví dụ: trạng thái chưa thanh toán)
+- **payment.succeeded**: Tính phí thành công
+- **payment.failed**: Tính phí thất bại
+
+<Tip>
+Đối với các luồng theo yêu cầu, tập trung vào `payment.succeeded` và `payment.failed` để đối chiếu các khoản phí dựa trên mức sử dụng.
+</Tip>
+
+## Kiểm tra và các bước tiếp theo
+
+<Steps>
+<Step title="Tạo trong chế độ thử nghiệm">
+Sử dụng khóa API thử nghiệm của bạn để tạo đăng ký với `payment_link: true`, sau đó mở liên kết và hoàn tất mệnh lệnh.
+</Step>
+<Step title="Kích hoạt một khoản phí">
+Gọi điểm cuối phí với một `product_price` nhỏ (ví dụ: `100`) và xác minh rằng bạn nhận được `payment.succeeded`.
+</Step>
+<Step title="Đi vào hoạt động">
+Chuyển sang khóa API trực tiếp của bạn khi bạn đã xác thực các sự kiện và cập nhật trạng thái nội bộ.
+</Step>
+</Steps>
+
+## Khắc phục sự cố
+
+- **422 Yêu cầu không hợp lệ**: Đảm bảo `on_demand.mandate_only` được cung cấp khi tạo và `product_price` được cung cấp cho các khoản phí.
+- **Lỗi tiền tệ**: Nếu bạn ghi đè `product_currency`, xác nhận rằng nó được hỗ trợ cho tài khoản và khách hàng của bạn.
+- **Không nhận được webhook**: Xác minh URL webhook và cấu hình bí mật chữ ký.

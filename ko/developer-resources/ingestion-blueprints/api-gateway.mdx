@@ -1,0 +1,200 @@
+---
+title: API Gateway Blueprint
+description: API 호출 및 게이트웨이 수준 사용량을 추적하여 청구합니다. 고용량 요청 추적이 필요한 API-as-a-service 플랫폼에 적합합니다.
+icon: cloud
+---
+
+## 사용 사례
+
+API Gateway Blueprint에서 지원하는 일반적인 시나리오를 살펴보세요:
+
+<CardGroup cols={2}>
+<Card title="API-as-a-Service" icon="server">
+API 플랫폼의 고객별 사용량을 추적하고 호출 수에 따라 요금을 부과합니다.
+</Card>
+<Card title="요금 제한" icon="gauge">
+API 사용 패턴을 모니터링하고 사용 기반 요금 제한을 구현합니다.
+</Card>
+<Card title="성능 모니터링" icon="chart-line">
+청구 데이터와 함께 응답 시간 및 오류 비율을 추적합니다.
+</Card>
+<Card title="다중 테넌트 SaaS" icon="users">
+다양한 엔드포인트에서의 API 소비에 따라 고객에게 요금을 부과합니다.
+</Card>
+</CardGroup>
+
+<Info>
+API 엔드포인트 사용량 추적, 요금 제한 및 사용 기반 API 청구 구현에 적합합니다.
+</Info>
+
+## 빠른 시작
+
+고용량 시나리오를 위한 자동 배치로 게이트웨이 수준에서 API 호출을 추적합니다:
+
+<Steps>
+<Step title="SDK 설치">
+
+```bash
+npm install @dodopayments/ingestion-blueprints
+```
+
+</Step>
+
+<Step title="API 키 받기">
+- **Dodo Payments API 키**: [Dodo Payments 대시보드](https://app.dodopayments.com/developer/api-keys)에서 받으세요.
+</Step>
+
+<Step title="미터 생성">
+[Dodo Payments 대시보드](https://app.dodopayments.com/)에서 미터를 생성하세요:
+- **이벤트 이름**: `api_call` (또는 선호하는 이름)
+- **집계 유형**: `count` 호출 수 추적을 위한
+- 응답 시간, 상태 코드 등과 같은 메타데이터를 추적하려면 추가 속성을 구성하세요.
+</Step>
+
+<Step title="API 호출 추적">
+<CodeGroup>
+
+```javascript Single API Call
+import { Ingestion, trackAPICall } from '@dodopayments/ingestion-blueprints';
+
+const ingestion = new Ingestion({
+  apiKey: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'test_mode',
+  eventName: 'api_call'
+});
+
+// Track a single API call
+await trackAPICall(ingestion, {
+  customerId: 'customer_123',
+  metadata: {
+    endpoint: '/api/v1/users',
+    method: 'GET',
+    status_code: 200,
+    response_time_ms: 45
+  }
+});
+```
+
+```javascript High-Volume with Batching
+import { Ingestion, createBatch } from '@dodopayments/ingestion-blueprints';
+
+const ingestion = new Ingestion({
+  apiKey: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'live_mode',
+  eventName: 'api_call'
+});
+
+// Create batch for high-volume tracking
+const batch = createBatch(ingestion, {
+  maxSize: 100,      // Flush after 100 events
+  flushInterval: 5000 // Or flush every 5 seconds
+});
+
+// Add API calls to batch
+batch.add({
+  customerId: 'customer_123',
+  metadata: {
+    endpoint: '/api/v1/products',
+    method: 'GET',
+    status_code: 200
+  }
+});
+
+// Clean up when done
+await batch.cleanup();
+```
+
+```javascript Express.js Middleware
+import express from 'express';
+import { Ingestion, createBatch } from '@dodopayments/ingestion-blueprints';
+
+const app = express();
+
+const ingestion = new Ingestion({
+  apiKey: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'live_mode',
+  eventName: 'api_call'
+});
+
+const batch = createBatch(ingestion, {
+  maxSize: 50,
+  flushInterval: 10000
+});
+
+// Middleware to track all API calls
+app.use((req, res, next) => {
+  const startTime = Date.now();
+  
+  res.on('finish', () => {
+    const responseTime = Date.now() - startTime;
+    
+    batch.add({
+      customerId: req.user?.id || 'anonymous',
+      metadata: {
+        endpoint: req.path,
+        method: req.method,
+        status_code: res.statusCode,
+        response_time_ms: responseTime
+      }
+    });
+  });
+  
+  next();
+});
+
+// Cleanup on shutdown
+process.on('SIGTERM', async () => {
+  await batch.cleanup();
+  process.exit(0);
+});
+```
+
+</CodeGroup>
+</Step>
+</Steps>
+
+## 구성
+
+### 수집 구성
+
+<ParamField path="apiKey" type="string" required>
+대시보드에서 가져온 Dodo Payments API 키입니다.
+</ParamField>
+
+<ParamField path="environment" type="string" required>
+환경 모드: `test_mode` 또는 `live_mode`.
+</ParamField>
+
+<ParamField path="eventName" type="string" required>
+미터 구성과 일치하는 이벤트 이름입니다.
+</ParamField>
+
+### API 호출 추적 옵션
+
+<ParamField path="customerId" type="string" required>
+청구 귀속을 위한 고객 ID입니다.
+</ParamField>
+
+<ParamField path="metadata" type="object">
+엔드포인트, 메서드, 상태 코드, 응답 시간 등과 같은 API 호출에 대한 선택적 메타데이터입니다.
+</ParamField>
+
+### 배치 구성
+
+<ParamField path="maxSize" type="number">
+자동 플러시 전 최대 이벤트 수. 기본값: `100`.
+</ParamField>
+
+<ParamField path="flushInterval" type="number">
+밀리초 단위의 자동 플러시 간격. 기본값: `5000` (5초).
+</ParamField>
+
+## 모범 사례
+
+<Tip>
+**고용량에 대한 배치 사용**: 초당 10개 이상의 요청을 처리하는 애플리케이션의 경우, `createBatch()`을 사용하여 오버헤드를 줄이고 성능을 향상시킵니다.
+</Tip>
+
+<Warning>
+**항상 배치 정리**: 애플리케이션 종료 시 `batch.cleanup()`을 호출하여 보류 중인 이벤트를 플러시하고 데이터 손실을 방지하세요.
+</Warning>

@@ -1,0 +1,178 @@
+---
+title: Zapier
+description: 通过 Zapier Webhooks 将 Dodo Payments 连接到 5000 多个应用程序，实现无限的自动化可能性。
+icon: bolt
+---
+
+## 介绍
+
+通过 Zapier 将 Dodo Payments 连接到数千个应用程序和服务。当发生支付事件时，通过触发 Zaps 来自动化工作流程，从发送电子邮件到更新电子表格、创建任务等等。
+
+<Info>
+此集成需要您从 Zap 配置中获取 Zapier webhook URL。
+</Info>
+
+## 开始使用
+
+<Steps>
+<Step title="打开 Webhook 部分">
+  在您的 Dodo Payments 仪表板中，导航到 <b>Webhooks → + 添加端点</b> 并展开集成下拉菜单。
+  <Frame>
+    <img src="/images/integrations/zapier.png" alt="添加端点和集成下拉菜单" />
+  </Frame>
+</Step>
+
+<Step title="选择 Zapier">
+  选择 <b>Zapier</b> 集成卡片。
+</Step>
+
+<Step title="在 Zapier 中创建 Zap">
+  在 Zapier 中，创建一个新的 Zap，触发器选择 "Webhooks by Zapier"。复制 webhook URL。
+</Step>
+
+<Step title="粘贴 Webhook URL">
+  将 Zapier webhook URL 粘贴到端点配置中。
+</Step>
+
+<Step title="配置转换">
+  编辑转换代码以格式化数据以适应您的 Zapier 工作流程。
+</Step>
+
+<Step title="测试并创建">
+  使用示例有效负载进行测试，然后单击 <b>创建</b> 以激活集成。
+</Step>
+
+<Step title="完成！">
+  🎉 现在，支付事件将自动触发您的 Zapier 工作流程。
+</Step>
+</Steps>
+
+## 转换代码示例
+
+### 基本 Webhook 有效负载
+
+```javascript basic_webhook.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.payload = {
+      event_type: webhook.eventType,
+      payment_id: p.payment_id,
+      amount: (p.total_amount / 100).toFixed(2),
+      currency: p.currency || "USD",
+      customer_email: p.customer.email,
+      customer_name: p.customer.name,
+      payment_method: p.payment_method || "unknown",
+      timestamp: webhook.payload.timestamp
+    };
+  }
+  return webhook;
+}
+```
+
+### 订阅事件处理程序
+
+```javascript subscription_webhook.js icon="js" expandable
+function handler(webhook) {
+  const s = webhook.payload.data;
+  switch (webhook.eventType) {
+    case "subscription.active":
+      webhook.payload = {
+        event_type: "subscription_started",
+        subscription_id: s.subscription_id,
+        customer_email: s.customer.email,
+        customer_name: s.customer.name,
+        product_id: s.product_id,
+        amount: (s.recurring_pre_tax_amount / 100).toFixed(2),
+        frequency: s.payment_frequency_interval,
+        next_billing: s.next_billing_date,
+        timestamp: webhook.payload.timestamp
+      };
+      break;
+    case "subscription.cancelled":
+      webhook.payload = {
+        event_type: "subscription_cancelled",
+        subscription_id: s.subscription_id,
+        customer_email: s.customer.email,
+        cancelled_at: s.cancelled_at,
+        cancel_at_next_billing: s.cancel_at_next_billing_date,
+        timestamp: webhook.payload.timestamp
+      };
+      break;
+  }
+  return webhook;
+}
+```
+
+### 争议警报处理程序
+
+```javascript dispute_webhook.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType.startsWith("dispute.")) {
+    const d = webhook.payload.data;
+    webhook.payload = {
+      event_type: webhook.eventType,
+      dispute_id: d.dispute_id,
+      payment_id: d.payment_id,
+      amount: (d.amount / 100).toFixed(2),
+      status: d.dispute_status,
+      stage: d.dispute_stage,
+      remarks: d.remarks || "",
+      urgent: webhook.eventType === "dispute.opened",
+      timestamp: webhook.payload.timestamp
+    };
+  }
+  return webhook;
+}
+```
+
+## 常见的 Zapier 用例
+
+<AccordionGroup>
+<Accordion title="电子邮件通知">
+- 发送 Gmail/Outlook 电子邮件以确认支付
+- 在 Mailchimp/ConvertKit 中创建电子邮件序列
+- 发送 Slack/Discord 通知
+- 创建 Google Sheets 记录
+</Accordion>
+
+<Accordion title="CRM 更新">
+- 将联系人添加到 HubSpot/Salesforce
+- 在 Pipedrive/Close 中创建交易
+- 更新 Airtable 中的客户记录
+- 在 Monday.com 中记录活动
+</Accordion>
+
+<Accordion title="任务管理">
+- 在 Asana/Trello 中创建任务
+- 在 Notion 中添加待办事项
+- 创建日历事件
+- 通过 Twilio 发送 SMS 通知
+</Accordion>
+</AccordionGroup>
+
+## 提示
+
+- 保持有效负载结构简单，以便于 Zapier 解析
+- 在所有事件中使用一致的字段名称
+- 包含时间戳以便于工作流程定时
+- 在上线前使用示例数据测试您的 Zap
+- 使用 Zapier 的内置过滤器进行条件逻辑
+
+## 故障排除
+
+<AccordionGroup>
+<Accordion title="Zap 未触发">
+- 验证 webhook URL 是否正确且处于活动状态
+- 检查 Zap 是否在 Zapier 中已开启
+- 确保有效负载结构符合 Zapier 的预期
+- 在 Zapier 仪表板中测试 webhook 交付
+</Accordion>
+
+<Accordion title="数据未正确映射">
+- 检查 Zapier 操作步骤中的字段名称
+- 验证数据类型是否与预期格式匹配
+- 使用 Zapier 的测试功能调试映射
+- 确保转换代码返回有效的 JSON
+</Accordion>
+</AccordionGroup>

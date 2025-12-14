@@ -1,0 +1,741 @@
+---
+title: Hướng dẫn tích hợp thanh toán dựa trên mức sử dụng
+description: Tìm hiểu cách thiết lập đồng hồ đo và gửi sự kiện sử dụng để kích
+  hoạt thanh toán chính xác dựa trên mức sử dụng với Dodo Payments.
+icon: arrow-trend-up
+---
+
+<CardGroup cols={2}>
+<Card title="Tài liệu tham khảo API - Nhập sự kiện" icon="code" href="/api-reference/usage-events/ingest-events">
+  Truy cập tài liệu API đầy đủ để nhập sự kiện sử dụng và thử nghiệm các yêu cầu và phản hồi nhập sự kiện một cách tương tác.
+</Card>
+
+<Card title="Tài liệu tham khảo API - Tạo đồng hồ đo" icon="code" href="/api-reference/meters/create-meter">
+  Khám phá tài liệu API đầy đủ để tạo đồng hồ đo và thử nghiệm các yêu cầu và phản hồi tạo đồng hồ đo một cách tương tác.
+</Card>
+</CardGroup>
+
+## Tạo một đồng hồ đo
+
+Các đồng hồ đo xác định cách các sự kiện sử dụng của bạn được tổng hợp và đo lường cho mục đích thanh toán.
+
+Trước khi tạo một đồng hồ đo, hãy lập kế hoạch chiến lược theo dõi mức sử dụng của bạn:
+- Xác định các sự kiện sử dụng mà bạn muốn theo dõi
+- Xác định cách các sự kiện nên được tổng hợp (đếm, tổng, v.v.)
+- Định nghĩa bất kỳ yêu cầu lọc nào cho các trường hợp sử dụng cụ thể
+
+### Quy trình tạo đồng hồ đo từng bước
+
+Theo dõi hướng dẫn toàn diện này để thiết lập đồng hồ đo sử dụng của bạn:
+
+<Steps>
+<Step title="Cấu hình thông tin cơ bản">
+Thiết lập các chi tiết cơ bản cho đồng hồ đo của bạn.
+
+<ParamField path="Tên đồng hồ đo" type="string" required>
+Chọn một tên rõ ràng, mô tả để xác định những gì đồng hồ đo này theo dõi.
+
+Ví dụ: "Tokens", "API Calls", "Storage Usage", "Compute Hours"
+</ParamField>
+
+<ParamField path="Mô tả" type="string">
+Cung cấp một giải thích chi tiết về những gì đồng hồ đo này đo lường.
+
+Ví dụ: "Đếm mỗi yêu cầu POST /v1/orders được thực hiện bởi khách hàng"
+</ParamField>
+
+<ParamField path="Tên sự kiện" type="string" required>
+Xác định định danh sự kiện sẽ kích hoạt đồng hồ đo này.
+
+Ví dụ: "token", "api.call", "storage.usage", "compute.session"
+</ParamField>
+
+<Info>
+Tên sự kiện phải khớp chính xác với những gì bạn gửi trong các sự kiện sử dụng của bạn. Tên sự kiện phân biệt chữ hoa chữ thường.
+</Info>
+</Step>
+
+<Step title="Cấu hình cài đặt tổng hợp">
+Định nghĩa cách đồng hồ đo tính toán mức sử dụng từ các sự kiện của bạn.
+
+<ParamField path="Loại tổng hợp" type="string" required>
+Chọn cách các sự kiện nên được tổng hợp:
+
+<Tabs>
+<Tab title="Đếm">
+Chỉ đơn giản đếm số lượng sự kiện đã nhận.
+
+Trường hợp sử dụng: Các cuộc gọi API, lượt xem trang, tải tệp
+
+Tính toán: Tổng số sự kiện
+</Tab>
+
+<Tab title="Tổng">
+Cộng dồn các giá trị từ một thuộc tính cụ thể trong các sự kiện của bạn.
+
+Trường hợp sử dụng: Chuyển dữ liệu, tiêu thụ lưu trữ, thời gian xử lý
+
+Tính toán: Tổng của tất cả các giá trị thuộc tính
+</Tab>
+
+<Tab title="Tối đa">
+Ghi lại giá trị cao nhất của một thuộc tính cụ thể trong thời gian thanh toán.
+
+Trường hợp sử dụng: Người dùng đồng thời cao nhất, lưu trữ tối đa đã sử dụng, băng thông cao nhất
+
+Tính toán: Giá trị thuộc tính tối đa quan sát được
+</Tab>
+
+<Tab title="Cuối cùng">
+Sử dụng giá trị gần nhất của một thuộc tính cụ thể.
+
+Trường hợp sử dụng: Cấp độ gói hiện tại, cài đặt cấu hình mới nhất
+
+Tính toán: Giá trị thuộc tính được ghi nhận cuối cùng
+</Tab>
+</Tabs>
+</ParamField>
+
+<ParamField path="Trên thuộc tính" type="string">
+Tên thuộc tính từ siêu dữ liệu sự kiện để tổng hợp.
+
+<Warning>
+Trường này là bắt buộc khi sử dụng các loại tổng hợp Tổng, Tối đa hoặc Cuối cùng.
+</Warning>
+</ParamField>
+
+<ParamField path="Đơn vị đo lường" type="string" required>
+Định nghĩa nhãn đơn vị để hiển thị trong các báo cáo và thanh toán.
+
+Ví dụ: "cuộc gọi", "GB", "giờ", "tokens"
+</ParamField>
+</Step>
+
+<Step title="Cấu hình lọc sự kiện (Tùy chọn)">
+Thiết lập tiêu chí để kiểm soát các sự kiện nào được bao gồm trong đồng hồ đo.
+
+<Info>
+Lọc sự kiện cho phép bạn tạo các quy tắc tinh vi xác định các sự kiện nào góp phần vào các phép tính mức sử dụng của bạn. Điều này hữu ích để loại trừ các sự kiện thử nghiệm, lọc theo cấp độ người dùng hoặc tập trung vào các hành động cụ thể.
+</Info>
+
+**Kích hoạt lọc sự kiện**
+
+Bật **Kích hoạt lọc sự kiện** để kích hoạt xử lý sự kiện có điều kiện.
+
+**Chọn logic lọc**
+
+Chọn cách nhiều điều kiện được đánh giá:
+
+<Tabs>
+<Tab title="Logic AND">
+Tất cả các điều kiện phải đúng để một sự kiện được tính. Sử dụng điều này khi bạn cần các sự kiện đáp ứng nhiều tiêu chí nghiêm ngặt cùng một lúc.
+
+**Ví dụ:** Đếm các cuộc gọi API nơi `user_tier = "premium"` VÀ `endpoint = "/api/v2/users"`
+</Tab>
+
+<Tab title="Logic OR">
+Ít nhất một điều kiện phải đúng để một sự kiện được tính. Sử dụng điều này khi bạn muốn bao gồm các sự kiện đáp ứng bất kỳ tiêu chí nào trong số nhiều tiêu chí.
+
+**Ví dụ:** Đếm các sự kiện nơi `method = "POST"` HOẶC `method = "PUT"` HOẶC `method = "DELETE"`
+</Tab>
+</Tabs>
+
+**Thiết lập điều kiện lọc**
+
+<Steps>
+<Step title="Thêm điều kiện">
+Nhấp vào **Thêm điều kiện** để tạo một quy tắc lọc mới.
+</Step>
+
+<Step title="Cấu hình khóa thuộc tính">
+Xác định tên thuộc tính từ siêu dữ liệu sự kiện của bạn.
+</Step>
+
+<Step title="Chọn bộ so sánh">
+Chọn từ các toán tử có sẵn:
+- `equals` - Khớp chính xác
+- `not equals` - Bộ lọc loại trừ
+- `greater than` - So sánh số  
+- `greater than or equals` - So sánh số (bao gồm)
+- `less than` - So sánh số
+- `less than or equals` - So sánh số (bao gồm)
+- `contains` - Chuỗi chứa chuỗi con
+- `does not contain` - Bộ lọc loại trừ chuỗi
+</Step>
+
+<Step title="Đặt giá trị so sánh">
+Đặt giá trị mục tiêu để so sánh.
+</Step>
+
+<Step title="Thêm nhóm">
+Sử dụng **Thêm nhóm** để tạo các nhóm điều kiện bổ sung cho logic phức tạp.
+</Step>
+</Steps>
+
+<Warning>
+Các thuộc tính đã lọc phải được bao gồm trong siêu dữ liệu sự kiện của bạn để các điều kiện hoạt động đúng cách. Các sự kiện thiếu các thuộc tính cần thiết sẽ bị loại trừ khỏi việc tính toán.
+</Warning>
+</Step>
+
+<Step title="Tạo đồng hồ đo">
+Xem lại cấu hình đồng hồ đo của bạn và nhấp vào **Tạo đồng hồ đo**.
+
+<Check>
+Đồng hồ đo của bạn hiện đã sẵn sàng để nhận và tổng hợp các sự kiện sử dụng.
+</Check>
+
+</Step>
+</Steps>
+
+## Liên kết đồng hồ đo trong một sản phẩm
+
+Khi bạn đã tạo đồng hồ đo của mình, bạn cần liên kết nó với một sản phẩm để kích hoạt thanh toán dựa trên mức sử dụng. Quy trình này kết nối dữ liệu sử dụng của đồng hồ đo với các quy tắc định giá cho việc thanh toán của khách hàng.
+
+Liên kết các đồng hồ đo với các sản phẩm thiết lập kết nối giữa theo dõi mức sử dụng và thanh toán:
+- Các sản phẩm xác định các quy tắc định giá và hành vi thanh toán
+- Các đồng hồ đo cung cấp dữ liệu sử dụng cho các phép tính thanh toán
+- Nhiều đồng hồ đo có thể được liên kết với một sản phẩm duy nhất cho các kịch bản thanh toán phức tạp
+
+### Quy trình cấu hình sản phẩm
+
+Biến dữ liệu sử dụng của bạn thành các khoản phí có thể tính bằng cách cấu hình đúng cài đặt sản phẩm của bạn:
+
+<Steps>
+<Step title="Chọn loại sản phẩm thanh toán dựa trên mức sử dụng">
+Đi đến trang tạo hoặc chỉnh sửa sản phẩm của bạn và chọn **Dựa trên mức sử dụng** làm loại sản phẩm.
+
+</Step>
+
+<Step title="Chọn đồng hồ đo liên kết">
+Nhấp vào **Đồng hồ đo liên kết** để mở bảng chọn đồng hồ đo từ bên cạnh.
+
+Bảng này cho phép bạn cấu hình các đồng hồ đo nào sẽ theo dõi mức sử dụng cho sản phẩm này.
+</Step>
+
+<Step title="Thêm đồng hồ đo của bạn">
+Trong bảng chọn đồng hồ đo:
+
+1. Nhấp vào **Thêm đồng hồ đo** để xem các đồng hồ đo có sẵn
+2. Chọn đồng hồ đo bạn đã tạo từ danh sách thả xuống
+3. Đồng hồ đo đã chọn sẽ xuất hiện trong cấu hình sản phẩm của bạn
+
+</Step>
+
+<Step title="Cấu hình giá mỗi đơn vị">
+Đặt giá cho mỗi đơn vị mức sử dụng được theo dõi bởi đồng hồ đo của bạn.
+
+<ParamField path="Giá mỗi đơn vị" type="number" required>
+Định nghĩa mức phí cho mỗi đơn vị được đo bởi đồng hồ đo của bạn.
+
+**Ví dụ**: Đặt `$0.50` mỗi đơn vị có nghĩa là:
+- 1.000 đơn vị tiêu thụ = 1.000 × $0,50 = 500,00 được tính
+- 500 đơn vị tiêu thụ = 500 × $0,50 = 250,00 được tính
+- 100 đơn vị tiêu thụ = 100 × $0,50 = 50,00 được tính
+</ParamField>
+
+</Step>
+
+<Step title="Đặt ngưỡng miễn phí (Tùy chọn)">
+Cấu hình một khoản miễn phí trước khi bắt đầu thanh toán.
+
+<ParamField path="Ngưỡng miễn phí" type="number">
+Số lượng đơn vị mà khách hàng có thể tiêu thụ mà không bị tính phí trước khi bắt đầu tính toán mức sử dụng trả phí.
+
+**Cách hoạt động**:
+- Ngưỡng miễn phí: 100 đơn vị
+- Giá mỗi đơn vị: $0,50
+- Mức sử dụng của khách hàng: 250 đơn vị
+- **Tính toán**: (250 - 100) × $0,50 = **$75,00** được tính
+</ParamField>
+
+<Info>
+Ngưỡng miễn phí là lý tưởng cho các mô hình freemium, thời gian dùng thử hoặc cung cấp cho khách hàng một khoản cho phép cơ bản được bao gồm trong gói của họ.
+</Info>
+
+<Check>
+Ngưỡng miễn phí áp dụng cho mỗi chu kỳ thanh toán, cung cấp cho khách hàng các khoản cho phép mới hàng tháng hoặc theo lịch trình thanh toán của bạn.
+</Check>
+</Step>
+
+<Step title="Lưu cấu hình">
+Xem lại cấu hình đồng hồ đo và giá của bạn, sau đó nhấp vào **Lưu thay đổi** để hoàn tất thiết lập.
+
+<Check>
+Sản phẩm của bạn hiện đã được cấu hình cho thanh toán dựa trên mức sử dụng và sẽ tự động tính phí khách hàng dựa trên mức tiêu thụ đã đo.
+</Check>
+
+**Điều gì xảy ra tiếp theo**:
+- Các sự kiện sử dụng gửi đến đồng hồ đo của bạn sẽ được theo dõi và tổng hợp
+- Các phép tính thanh toán sẽ tự động áp dụng các quy tắc định giá của bạn
+- Khách hàng sẽ bị tính phí dựa trên mức tiêu thụ thực tế trong mỗi chu kỳ thanh toán
+</Step>
+</Steps>
+
+<Note>
+Hãy nhớ rằng bạn có thể thêm tối đa 10 đồng hồ đo cho mỗi sản phẩm, cho phép theo dõi mức sử dụng tinh vi trên nhiều khía cạnh như cuộc gọi API, lưu trữ, thời gian tính toán và các chỉ số tùy chỉnh.
+</Note>
+
+## Gửi sự kiện sử dụng
+
+Khi đồng hồ đo của bạn đã được cấu hình, bạn có thể bắt đầu gửi các sự kiện sử dụng từ ứng dụng của mình để theo dõi mức sử dụng của khách hàng.
+
+### Cấu trúc sự kiện
+
+Mỗi sự kiện sử dụng phải bao gồm các trường bắt buộc sau:
+
+<ParamField body="event_id" type="string" required>
+Định danh duy nhất cho sự kiện cụ thể này. Phải là duy nhất trong tất cả các sự kiện.
+</ParamField>
+
+<ParamField body="customer_id" type="string" required>
+ID khách hàng Dodo Payments mà mức sử dụng này nên được quy cho.
+</ParamField>
+
+<ParamField body="event_name" type="string" required>
+Tên sự kiện khớp với cấu hình đồng hồ đo của bạn. Tên sự kiện kích hoạt đồng hồ đo thích hợp.
+</ParamField>
+
+<ParamField body="timestamp" type="string">
+Thời gian ISO 8601 khi sự kiện xảy ra. Mặc định là thời gian hiện tại nếu không được cung cấp.
+</ParamField>
+
+<ParamField body="metadata" type="object">
+Các thuộc tính bổ sung cho việc lọc và tổng hợp. Bao gồm bất kỳ giá trị nào được tham chiếu trong "Trên thuộc tính" hoặc các điều kiện lọc của đồng hồ đo của bạn.
+</ParamField>
+
+### Ví dụ API sự kiện sử dụng
+
+Gửi các sự kiện sử dụng đến các đồng hồ đo đã cấu hình của bạn bằng cách sử dụng API Sự kiện:
+
+<CodeGroup>
+
+```javascript Node.js
+const response = await fetch('https://test.dodopayments.com/events/ingest', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${process.env.DODO_API_KEY}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    events: [
+      {
+        event_id: "api_call_1234",
+        customer_id: "cus_atXa1lklCRRzMicTqfiw2", 
+        event_name: "api.call",
+        timestamp: new Date().toISOString(),
+        metadata: {
+          endpoint: "/v1/orders",
+          method: "POST",
+          response_size: 1024
+        }
+      }
+    ]
+  })
+});
+```
+
+```python Python
+import requests
+from datetime import datetime
+
+response = requests.post(
+    'https://test.dodopayments.com/events/ingest',
+    headers={
+        'Authorization': f'Bearer {api_key}',
+        'Content-Type': 'application/json'
+    },
+    json={
+        'events': [
+            {
+                'event_id': 'api_call_1234',
+                'customer_id': 'cus_atXa1lklCRRzMicTqfiw2',
+                'event_name': 'api.call',
+                'timestamp': datetime.now().isoformat(),
+                'metadata': {
+                    'endpoint': '/v1/orders',
+                    'method': 'POST',
+                    'response_size': 1024
+                }
+            }
+        ]
+    }
+)
+```
+
+```curl cURL
+curl -X POST 'https://test.dodopayments.com/events/ingest' \
+  -H 'Authorization: Bearer YOUR_API_KEY' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "events": [
+      {
+        "event_id": "api_call_1234",
+        "customer_id": "cus_atXa1lklCRRzMicTqfiw2",
+        "event_name": "api.call", 
+        "timestamp": "2024-01-15T10:30:00Z",
+        "metadata": {
+          "endpoint": "/v1/orders",
+          "method": "POST",
+          "response_size": 1024
+        }
+      }
+    ]
+  }'
+```
+
+</CodeGroup>
+
+## Phân tích thanh toán dựa trên mức sử dụng
+
+Theo dõi và phân tích dữ liệu thanh toán dựa trên mức sử dụng của bạn với bảng điều khiển phân tích toàn diện. Theo dõi các mẫu tiêu thụ của khách hàng, hiệu suất đồng hồ đo và xu hướng thanh toán để tối ưu hóa chiến lược định giá của bạn và hiểu hành vi sử dụng.
+
+### Phân tích tổng quan
+
+Tab Tổng quan cung cấp cái nhìn tổng quát về hiệu suất thanh toán dựa trên mức sử dụng của bạn:
+
+#### Chỉ số hoạt động
+
+Theo dõi các thống kê sử dụng chính trong các khoảng thời gian khác nhau:
+
+<ParamField path="Tháng hiện tại" type="metric">
+Hiển thị hoạt động sử dụng cho kỳ thanh toán hiện tại, giúp bạn hiểu các mẫu tiêu thụ hàng tháng.
+</ParamField>
+
+<ParamField path="Tất cả thời gian" type="metric">
+Hiển thị thống kê sử dụng tích lũy kể từ khi bạn bắt đầu theo dõi, cung cấp cái nhìn về sự phát triển lâu dài.
+</ParamField>
+
+<Tip>
+Sử dụng bộ chọn khoảng thời gian để so sánh mức sử dụng giữa các tháng khác nhau và xác định các xu hướng theo mùa hoặc mẫu tăng trưởng.
+</Tip>
+
+#### Biểu đồ số lượng đồng hồ đo
+
+<Frame>
+<img src="/images/guides/usage-based-billing/meter-quantities-chart.png" alt="Biểu đồ số lượng đồng hồ đo cho thấy các xu hướng sử dụng theo thời gian với hình ảnh gradient màu tím" />
+</Frame>
+
+Biểu đồ số lượng đồng hồ đo trực quan hóa các xu hướng sử dụng theo thời gian với các tính năng sau:
+
+- **Hình ảnh theo chuỗi thời gian**: Theo dõi các mẫu sử dụng qua các ngày, tuần hoặc tháng
+- **Hỗ trợ nhiều đồng hồ đo**: Xem dữ liệu từ các đồng hồ đo khác nhau cùng một lúc
+- **Phân tích xu hướng**: Xác định các đỉnh sử dụng, các mẫu và quỹ đạo tăng trưởng
+
+<Info>
+Biểu đồ tự động điều chỉnh dựa trên khối lượng sử dụng của bạn và khoảng thời gian đã chọn, cung cấp cái nhìn rõ ràng về cả những biến động nhỏ và những thay đổi lớn trong mức sử dụng.
+</Info>
+
+### Phân tích sự kiện
+
+<Frame>
+<img src="/images/guides/usage-based-billing/events-table.png" alt="Bảng sự kiện cho thấy tên sự kiện, ID và các điều khiển phân trang cho phân tích sự kiện chi tiết" />
+</Frame>
+
+Tab Sự kiện cung cấp cái nhìn chi tiết về từng sự kiện sử dụng:
+
+#### Hiển thị thông tin sự kiện
+
+Bảng sự kiện cung cấp cái nhìn rõ ràng về từng sự kiện sử dụng với các cột sau:
+
+- **Tên sự kiện**: Hành động hoặc kích hoạt cụ thể đã tạo ra sự kiện sử dụng
+- **ID sự kiện**: Định danh duy nhất cho mỗi phiên bản sự kiện
+- **ID khách hàng**: Khách hàng liên quan đến sự kiện
+- **Thời gian**: Khi sự kiện xảy ra
+
+<Info>
+Cái nhìn này cho phép bạn theo dõi và giám sát từng sự kiện sử dụng trong cơ sở khách hàng của bạn, cung cấp sự minh bạch trong các phép tính thanh toán và các mẫu sử dụng.
+</Info>
+
+### Phân tích khách hàng
+
+Tab Khách hàng cung cấp cái nhìn chi tiết về dữ liệu sử dụng của khách hàng với các thông tin sau:
+
+#### Các cột dữ liệu có sẵn
+
+<ParamField path="Email khách hàng" type="string">
+Địa chỉ email của khách hàng để xác định.
+</ParamField>
+
+<ParamField path="ID đăng ký" type="string">
+Định danh duy nhất cho đăng ký của khách hàng.
+</ParamField>
+
+<ParamField path="Ngưỡng miễn phí" type="number">
+Số lượng đơn vị miễn phí được bao gồm trong gói của khách hàng trước khi tính phí.
+</ParamField>
+
+<ParamField path="Giá mỗi đơn vị" type="currency">
+Chi phí mỗi đơn vị cho mức sử dụng vượt quá ngưỡng miễn phí.
+</ParamField>
+
+<ParamField path="Sự kiện cuối cùng" type="timestamp">
+Thời gian của sự kiện sử dụng gần nhất của khách hàng.
+</ParamField>
+
+<ParamField path="Tổng giá" type="currency">
+Tổng số tiền đã tính cho khách hàng cho thanh toán dựa trên mức sử dụng.
+</ParamField>
+
+<ParamField path="Đơn vị đã tiêu thụ" type="number">
+Tổng số đơn vị mà khách hàng đã tiêu thụ.
+</ParamField>
+
+<ParamField path="Đơn vị tính phí" type="number">
+Số lượng đơn vị vượt quá ngưỡng miễn phí và đang bị tính phí.
+</ParamField>
+
+#### Các tính năng của bảng
+
+- **Lọc cột**: Sử dụng tính năng "Chỉnh sửa cột" để hiển thị/ẩn các cột dữ liệu cụ thể
+- **Cập nhật theo thời gian thực**: Dữ liệu sử dụng phản ánh các chỉ số tiêu thụ hiện tại nhất
+
+## Ví dụ về tổng hợp
+
+Dưới đây là các ví dụ thực tế về cách các loại tổng hợp khác nhau hoạt động:
+
+### Hiểu các loại tổng hợp
+
+Các loại tổng hợp khác nhau phục vụ cho các kịch bản thanh toán khác nhau. Chọn loại phù hợp dựa trên cách bạn muốn đo lường và tính phí cho mức sử dụng.
+
+### Ví dụ thực tế về triển khai
+
+Các ví dụ này minh họa các ứng dụng thực tế của mỗi loại tổng hợp với các sự kiện mẫu và kết quả mong đợi.
+
+<AccordionGroup>
+<Accordion title="Tổng hợp đếm - Cuộc gọi API">
+Kịch bản: Theo dõi tổng số yêu cầu API
+
+Cấu hình đồng hồ đo:
+- Tên sự kiện: `api.call`
+- Loại tổng hợp: Đếm
+- Đơn vị đo lường: `calls`
+
+**Sự kiện mẫu**:
+
+```json
+{
+  "events": [
+    {"event_id": "call_1", "customer_id": "cus_123", "event_name": "api.call"},
+    {"event_id": "call_2", "customer_id": "cus_123", "event_name": "api.call"},
+    {"event_id": "call_3", "customer_id": "cus_123", "event_name": "api.call"}
+  ]
+}
+```
+
+Kết quả: 3 cuộc gọi được tính phí cho khách hàng
+</Accordion>
+
+<Accordion title="Tổng hợp tổng - Chuyển dữ liệu">
+Kịch bản: Tính phí dựa trên tổng số byte đã chuyển
+
+Cấu hình đồng hồ đo:
+- Tên sự kiện: `data.transfer`
+- Loại tổng hợp: Tổng
+- Trên thuộc tính: `bytes`
+- Đơn vị đo lường: `GB`
+
+**Sự kiện mẫu**:
+
+```json
+{
+  "events": [
+    {
+      "event_id": "transfer_1",
+      "customer_id": "cus_123", 
+      "event_name": "data.transfer",
+      "metadata": {"bytes": 1073741824}
+    },
+    {
+      "event_id": "transfer_2",
+      "customer_id": "cus_123",
+      "event_name": "data.transfer", 
+      "metadata": {"bytes": 536870912}
+    }
+  ]
+}
+```
+
+Kết quả: 1,5 GB tổng số chuyển được tính phí cho khách hàng
+</Accordion>
+
+<Accordion title="Tối đa - Người dùng đồng thời cao nhất">
+Kịch bản: Tính phí dựa trên số lượng người dùng đồng thời cao nhất
+
+Cấu hình đồng hồ đo:
+- Tên sự kiện: `concurrent.users`
+- Loại tổng hợp: Tối đa
+- Trên thuộc tính: `count`
+- Đơn vị đo lường: `users`
+
+**Sự kiện mẫu**:
+
+```json
+{
+  "events": [
+    {
+      "event_id": "peak_1",
+      "customer_id": "cus_123",
+      "event_name": "concurrent.users", 
+      "metadata": {"count": 15}
+    },
+    {
+      "event_id": "peak_2",
+      "customer_id": "cus_123",
+      "event_name": "concurrent.users",
+      "metadata": {"count": 23}
+    },
+    {
+      "event_id": "peak_3",
+      "customer_id": "cus_123",
+      "event_name": "concurrent.users",
+      "metadata": {"count": 18}
+    }
+  ]
+}
+```
+
+Kết quả: 23 người dùng đồng thời cao nhất được tính phí cho khách hàng
+</Accordion>
+</AccordionGroup>
+
+### Ví dụ về lọc sự kiện
+
+<Tabs>
+<Tab title="Lọc theo điểm cuối API">
+Chỉ đếm các cuộc gọi API đến các điểm cuối cụ thể:
+
+Cấu hình lọc:
+- Thuộc tính: `endpoint`
+- Bộ so sánh: `equals`
+- Giá trị: `/v1/orders`
+
+Sự kiện mẫu:
+
+```json
+{
+  "event_id": "call_1",
+  "customer_id": "cus_123",
+  "event_name": "api.call",
+  "metadata": {
+    "endpoint": "/v1/orders",
+    "method": "POST"
+  }
+}
+```
+
+Kết quả: Các sự kiện khớp với tiêu chí lọc sẽ được đếm. Các sự kiện với các điểm cuối khác sẽ bị bỏ qua.
+</Tab>
+
+<Tab title="Lọc theo khoảng giá trị">
+Chỉ đếm các tệp tải lên lớn:
+
+Cấu hình lọc:
+- Thuộc tính: `file_size`
+- Bộ so sánh: `greater_than`
+- Giá trị: `1048576` (1MB trong byte)
+
+Sự kiện mẫu:
+
+```json
+{
+  "event_id": "upload_1",
+  "customer_id": "cus_123", 
+  "event_name": "file.upload",
+  "metadata": {
+    "file_size": 5242880,
+    "file_type": "image"
+  }
+}
+```
+
+Kết quả: Các tệp lớn hơn 1MB sẽ được đếm. Các tệp nhỏ hơn sẽ bị bỏ qua.
+</Tab>
+
+<Tab title="Bộ lọc phức tạp với nhiều điều kiện">
+Đếm các cuộc gọi API cao cấp trong giờ làm việc:
+
+Cấu hình lọc (sử dụng logic AND):
+- Thuộc tính: `plan_type`, Bộ so sánh: `equals`, Giá trị: `premium`
+- Thuộc tính: `hour`, Bộ so sánh: `greater_than_or_equal`, Giá trị: `9`
+- Thuộc tính: `hour`, Bộ so sánh: `less_than`, Giá trị: `17`
+
+Sự kiện mẫu:
+
+```json
+{
+  "event_id": "call_1",
+  "customer_id": "cus_123",
+  "event_name": "api.call",
+  "metadata": {
+    "plan_type": "premium",
+    "hour": 14,
+    "endpoint": "/v1/analytics"
+  }
+}
+```
+
+Kết quả: Các cuộc gọi API cao cấp trong giờ làm việc (9 AM - 5 PM) sẽ được đếm.
+</Tab>
+</Tabs>
+
+## Khắc phục sự cố
+
+Giải quyết các vấn đề phổ biến với việc triển khai thanh toán dựa trên mức sử dụng và đảm bảo theo dõi và thanh toán chính xác.
+
+### Các vấn đề phổ biến
+
+Hầu hết các vấn đề thanh toán dựa trên mức sử dụng rơi vào các loại sau:
+- Vấn đề giao hàng và xử lý sự kiện
+- Vấn đề cấu hình đồng hồ đo
+- Lỗi kiểu dữ liệu và định dạng
+- Vấn đề ID khách hàng và xác thực
+
+### Các bước gỡ lỗi
+
+Khi khắc phục sự cố thanh toán dựa trên mức sử dụng:
+1. Xác minh giao hàng sự kiện trong tab phân tích Sự kiện
+2. Kiểm tra cấu hình đồng hồ đo khớp với cấu trúc sự kiện của bạn
+3. Xác thực ID khách hàng và xác thực API
+4. Xem xét các điều kiện lọc và cài đặt tổng hợp
+
+### Giải pháp và sửa chữa
+
+<AccordionGroup>
+<Accordion title="Sự kiện không hiển thị trong đồng hồ đo">
+Nguyên nhân phổ biến:
+- Tên sự kiện không khớp chính xác với cấu hình đồng hồ đo
+- Các điều kiện lọc sự kiện đang loại trừ các sự kiện của bạn
+- ID khách hàng không tồn tại trong tài khoản Dodo Payments của bạn
+- Thời gian sự kiện nằm ngoài kỳ thanh toán hiện tại
+
+Giải pháp:
+- Xác minh chính tả tên sự kiện và phân biệt chữ hoa chữ thường
+- Xem xét và thử nghiệm các điều kiện lọc của bạn
+- Xác nhận ID khách hàng là hợp lệ và đang hoạt động
+- Kiểm tra thời gian sự kiện là gần đây và được định dạng đúng
+</Accordion>
+
+<Accordion title="Tổng hợp không hoạt động như mong đợi">
+Nguyên nhân phổ biến:
+- Tên thuộc tính trên không khớp với các khóa siêu dữ liệu sự kiện
+- Các giá trị siêu dữ liệu có kiểu dữ liệu sai (chuỗi so với số)
+- Thiếu các thuộc tính siêu dữ liệu cần thiết
+
+Giải pháp:
+- Đảm bảo các khóa siêu dữ liệu khớp chính xác với cài đặt thuộc tính trên của bạn
+- Chuyển đổi các số chuỗi thành các số thực trong các sự kiện của bạn
+- Bao gồm tất cả các thuộc tính cần thiết trong mỗi sự kiện
+</Accordion>
+
+<Accordion title="Lọc không hoạt động">
+Nguyên nhân phổ biến:
+- Tên thuộc tính lọc không khớp với siêu dữ liệu sự kiện
+- Bộ so sánh sai cho kiểu dữ liệu (chuỗi so với số)
+- Phân biệt chữ hoa chữ thường trong các so sánh chuỗi
+
+Giải pháp:
+- Kiểm tra kỹ tên thuộc tính khớp chính xác
+- Sử dụng các bộ so sánh phù hợp cho các kiểu dữ liệu của bạn
+- Cân nhắc phân biệt chữ hoa chữ thường khi lọc chuỗi
+</Accordion>
+</AccordionGroup>

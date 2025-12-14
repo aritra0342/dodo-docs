@@ -1,0 +1,444 @@
+---
+title: React Native
+tag: BETA
+description: Panduan lengkap untuk mengintegrasikan Dodo Payments SDK dalam
+  aplikasi React Native Anda untuk pemrosesan pembayaran yang aman
+icon: mobile
+---
+
+# Integrasi SDK React Native
+
+SDK React Native Dodo Payments memungkinkan Anda untuk membangun pengalaman pembayaran yang aman di aplikasi Android dan iOS asli Anda. SDK kami menyediakan komponen UI dan layar yang dapat disesuaikan untuk mengumpulkan detail pembayaran.
+
+- 📦 Instal SDK kami dari [NPM](https://www.npmjs.com/package/dodopayments-react-native-sdk)
+- 📚 Lihat [repositori demo kami](https://github.com/dodopayments/dodopayments-react-native-demo) untuk contoh implementasi lengkap
+- 🎥 Tonton [video demo kami](https://youtu.be/eicctkqK04Y) untuk melihat SDK Dodo Payments beraksi
+
+<Frame>
+  <iframe 
+      className="w-full aspect-video rounded-md" 
+      src="https://www.youtube.com/embed/eicctkqK04Y"
+      title="Demo SDK React Native | Dodo Payments"
+      frameBorder="0"
+      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+      allowFullScreen
+  ></iframe>
+</Frame>
+
+## Fitur
+
+<CardGroup cols={1}>
+<Card title="Keamanan Sederhana" icon="shield-check">
+    Kumpulkan data pembayaran sensitif dengan aman sambil tetap mematuhi PCI
+</Card>
+
+<Card title="Berbagai Metode Pembayaran" icon="credit-card">
+    Terima berbagai [metode pembayaran](/features/payment-methods) untuk memperluas jangkauan global
+</Card>
+
+<Card title="UI Native" icon="mobile">
+    Layar dan elemen native untuk Android dan iOS
+</Card>
+</CardGroup>
+
+<Note>
+Saat ini, Apple Pay, Google Pay, Cash App, dan UPI tidak didukung dalam SDK React Native. Kami sedang bekerja untuk menambahkan dukungan untuk metode pembayaran ini di rilis mendatang.
+</Note>
+
+## Instalasi
+
+<Steps>
+<Step title="Instal SDK">
+    Instal SDK Dodo Payments menggunakan manajer paket pilihan Anda:
+
+    <Tabs>
+    <Tab title="npm">
+
+        ```bash
+        npm install dodopayments-react-native-sdk
+        ```
+
+    </Tab>
+    <Tab title="yarn">
+
+        ```bash
+        yarn add dodopayments-react-native-sdk
+        ```
+
+    </Tab>
+    </Tabs>
+</Step>
+
+<Step title="Pengaturan spesifik platform">
+    <Tabs>
+    <Tab title="iOS">
+        Jalankan pod install di folder iOS Anda:
+
+        ```bash
+        cd ios && pod install && npm run ios
+        ```
+
+    </Tab>
+    <Tab title="Android">
+        Jalankan perintah berikut:
+
+        ```bash
+        npm run android
+        ```
+
+    </Tab>
+    </Tabs>
+</Step>
+</Steps>
+
+## Pengaturan Sisi Klien
+
+<Steps>
+
+<Step title="Dapatkan Kunci Publik">
+    Dapatkan kunci publik Anda dari dasbor Dodo Payments. (Berbeda untuk mode uji dan langsung)
+    [https://app.dodopayments.com/developer/others](https://app.dodopayments.com/developer/others)
+</Step>
+
+<Step title="Siapkan Penyedia Pembayaran">
+    Bungkus aplikasi Anda dengan `DodoPaymentProvider`:
+
+    ```tsx App.tsx
+    import React from 'react';
+    import { DodoPaymentProvider } from 'dodopayments-react-native-sdk';
+    import PaymentScreen from './PaymentScreen';
+
+    function App() {
+      return (
+        <DodoPaymentProvider publishableKey="YOUR_PUBLISHABLE_KEY">
+          <PaymentScreen />
+        </DodoPaymentProvider>
+      );
+    }
+
+    export default App;
+    ```
+
+    <Note>
+    Anda perlu menghasilkan kunci API dari dasbor Dodo Payments Anda. Lihat panduan [generasi kunci API](/api-reference/introduction#api-key-generation) kami untuk instruksi rinci.
+    </Note>
+</Step>
+
+<Step title="Buat fungsi utilitas pembayaran">
+    Buat fungsi utilitas untuk mengambil parameter pembayaran dari API backend Anda:
+
+    ```tsx utils/fetchPaymentParams.ts
+    const API_URL = 'YOUR_BACKEND_URL'; // Replace with your server URL
+
+    const fetchPaymentParams = async () => {
+      const response = await fetch(`${API_URL}/create-payment`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch payment parameters');
+      }
+      
+      return await response.json();
+    };
+
+    export default fetchPaymentParams;
+    ```
+
+    <Note>
+    Fungsi ini mengasumsikan Anda memiliki endpoint API backend yang membuat niat pembayaran dan mengembalikan rahasia klien. Pastikan backend Anda dikonfigurasi dengan benar untuk menangani pembuatan pembayaran. Lihat [Tutorial Integrasi API kami](/developer-resources/integration-tutorial) untuk contoh pengaturan backend.
+    </Note>
+</Step>
+
+<Step title="Implementasikan layar pembayaran">
+    Buat layar pembayaran Anda menggunakan hook `useCheckout`. Berikut adalah implementasi lengkap:
+
+    ```tsx PaymentScreen.tsx
+    import React from 'react';
+    import { View, Text, useColorScheme } from 'react-native';
+    import { useCheckout, type sessionParams } from 'dodopayments-react-native-sdk';
+    import fetchPaymentParams from './utils/fetchPaymentParams';
+
+    const PaymentScreen = () => {
+      const { initPaymentSession, presentPaymentSheet } = useCheckout();
+      const [error, setError] = React.useState('');
+      const [message, setMessage] = React.useState('');
+      const [loading, setLoading] = React.useState(false);
+      const [showSuccessScreen, setShowSuccessScreen] = React.useState(false);
+      const isDarkMode = useColorScheme() === 'dark';
+
+      const processPayment = async () => {
+        setLoading(true);
+        setMessage('');
+        setError('');
+
+        try {
+          // 1. Get payment parameters from your backend
+          const key = await fetchPaymentParams();
+          
+          // 2. Initialize payment session
+          const paymentSheetParamsResult = await initPaymentSession({
+            clientSecret: key.clientSecret,
+          });
+          
+          // 3. Configure and present payment sheet
+          const params: sessionParams = {
+            ...(paymentSheetParamsResult as sessionParams),
+            configuration: {
+              appearance: {
+                themes: isDarkMode ? 'dark' : 'light',
+                primaryButton: {
+                  colors: {
+                    light: {
+                      background: 'green',
+                      componentBorder: 'green',
+                      placeholderText: 'yellow',
+                    },
+                    dark: {
+                      background: 'green',
+                      componentBorder: 'green',
+                      placeholderText: 'yellow',
+                    },
+                  },
+                  shapes: {
+                    borderRadius: 30,
+                    borderWidth: 3,
+                  },
+                },
+              },
+              mode: 'test', // DEFAULTS TO TEST MODE
+            },
+          };
+
+          const paymentSheetResponse = await presentPaymentSheet(params);
+
+          // 4. Handle payment result
+          switch (paymentSheetResponse?.status) {
+            case 'cancelled':
+              setError('Payment cancelled by user.');
+              break;
+            case 'succeeded':
+              setMessage('');
+              setShowSuccessScreen(true);
+              break;
+            case 'failed':
+              setError('Payment failed : \n' + paymentSheetResponse?.message);
+              break;
+            default:
+              setError(paymentSheetResponse?.message);
+              setMessage('');
+          }
+        } catch (err) {
+          setError('Failed to process payment');
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      return (
+        <View>
+          <Button 
+            onPress={processPayment}
+            disabled={loading}
+            title={loading ? 'Processing...' : 'Pay Now'}
+          />
+          {error && <Text style={{ color: 'red' }}>{error}</Text>}
+          {message && <Text style={{ color: 'green' }}>{message}</Text>}
+          {showSuccessScreen && (
+            <PaymentSuccessScreen
+              amount={total}
+              onContinue={() => setShowSuccessScreen(false)}
+            />
+          )}
+        </View>
+      );
+    };
+
+    export default PaymentScreen;
+    ```
+
+    <Note>
+    Untuk contoh lengkap dengan styling, penanganan kesalahan, dan opsi kustomisasi, lihat repositori demo kami:
+    - [Demo Integrasi Dasar](https://github.com/dodopayments/dodopayments-react-native-demo)
+    </Note>
+</Step>
+</Steps>
+
+## Opsi Konfigurasi
+
+### Parameter Sesi
+
+<ParamField path="clientSecret" type="string" required>
+Rahasia klien dari niat pembayaran Anda, diperoleh dari API pembayaran satu kali atau langganan.
+</ParamField>
+
+<ParamField path="mode" type="string" required>
+Mode sesi pembayaran (uji atau langsung).
+</ParamField>
+
+<ParamField path="configuration.appearance" type="object">
+Opsi kustomisasi untuk penampilan lembar pembayaran
+</ParamField>
+
+<ParamField path="configuration.appearance.themes" type="string">
+Mode tema: `'light'` atau `'dark'`
+</ParamField>
+
+### Kustomisasi Penampilan
+
+Anda dapat menyesuaikan React Native Unified Checkout agar sesuai dengan desain aplikasi Anda dengan memodifikasi warna, font, dan lainnya melalui parameter penampilan saat memanggil `initPaymentSession()`.
+
+#### Kustomisasi Warna
+
+Setiap kategori warna menentukan warna satu atau lebih komponen di UI. Misalnya, `primary` mendefinisikan warna tombol Bayar.
+
+| Kategori Warna | Penggunaan |
+|----------------|-------|
+| `primary` | Warna utama untuk tombol Bayar dan item yang dipilih |
+| `background` | Warna latar belakang halaman pembayaran |
+| `componentBackground` | Warna latar belakang untuk input, tab, dan komponen lainnya |
+| `componentBorder` | Warna batas eksternal untuk input, tab, dan komponen lainnya |
+| `componentDivider` | Warna batas internal (batas bersama) untuk komponen |
+| `primaryText` | Warna teks header |
+| `secondaryText` | Warna teks label untuk bidang input |
+| `componentText` | Warna teks input (misalnya, nomor kartu, kode pos) |
+| `placeholderText` | Warna teks placeholder untuk bidang input |
+| `icon` | Warna untuk ikon (misalnya, tombol tutup) |
+| `error` | Warna untuk pesan kesalahan dan tindakan destruktif |
+
+Contoh konfigurasi dengan dukungan mode terang dan gelap:
+
+```tsx
+const appearance = {
+  colors: {
+    light: {
+      primary: '#F8F8F2',
+      background: '#ffffff',
+      componentBackground: '#E6DB74',
+      componentBorder: '#FD971F',
+      componentDivider: '#FD971F',
+      primaryText: '#F8F8F2',
+      secondaryText: '#75715E',
+      componentText: '#AE81FF',
+      placeholderText: '#E69F66',
+      icon: '#F92672',
+      error: '#FF0000',
+    },
+    dark: {
+      primary: '#00ff0099',
+      background: '#ff0000',
+      componentBackground: '#ff0080',
+      componentBorder: '#62ff08',
+      componentDivider: '#d6de00',
+      primaryText: '#5181fc',
+      secondaryText: '#ff7b00',
+      componentText: '#00ffff',
+      placeholderText: '#00ffff',
+      icon: '#f0f0f0',
+      error: '#0f0f0f',
+    },
+  },
+};
+```
+
+#### Kustomisasi Bentuk
+
+Anda dapat menyesuaikan radius batas, lebar batas, dan bayangan yang digunakan di seluruh antarmuka pembayaran:
+
+```tsx
+const appearance = {
+  shapes: {
+    borderRadius: 10, // Border radius for input fields, tabs, and components
+    borderWidth: 1,   // Border width for components
+  },
+};
+```
+
+#### Kustomisasi Spesifik Komponen
+
+Anda dapat menyesuaikan komponen UI tertentu seperti tombol utama (tombol Bayar). Pengaturan ini memiliki prioritas lebih tinggi daripada pengaturan penampilan global:
+
+```tsx
+const appearance = {
+  primaryButton: {
+    colors: {
+      background: '#000000',
+      text: '#ffffff',
+      border: '#ff00ff',
+    },
+    shapes: {
+      borderRadius: 10,
+      borderWidth: 1.5,
+    },
+  },
+};
+```
+
+Untuk menerapkan kustomisasi ini, sertakan dalam konfigurasi sesi pembayaran Anda:
+
+```tsx
+const params: sessionParams = {
+  ...paymentSheetParams,
+  configuration: {
+    appearance: {
+      themes: isDarkMode ? 'dark' : 'light',
+      ...appearance, // Include your custom appearance settings
+    },
+  },
+};
+```
+
+## Penanganan Kesalahan
+
+Tangani berbagai status pembayaran dalam fungsi checkout Anda:
+
+```tsx
+const handlePaymentResult = (paymentSheetResponse) => {
+  switch (paymentSheetResponse?.status) {
+    case 'cancelled':
+      // User cancelled the payment
+      console.log('Payment cancelled by user');
+      break;
+    case 'succeeded':
+      // Payment completed successfully
+      console.log('Payment succeeded');
+      // Navigate to success screen or update UI
+      break;
+    case 'failed':
+      // Payment failed
+      console.log('Payment failed:', paymentSheetResponse?.message);
+      // Show error message to user
+      break;
+    default:
+      console.log('Unknown payment status:', paymentSheetResponse?.status);
+  }
+};
+```
+
+<AccordionGroup>
+<Accordion title="Skenario Kesalahan Umum">
+- **Masalah konektivitas jaringan**: Pastikan koneksi internet stabil
+- **Rahasia klien tidak valid**: Verifikasi backend menghasilkan niat pembayaran yang valid
+- **Ketergantungan peer yang hilang**: Instal semua ketergantungan yang diperlukan
+- **Pengaturan spesifik platform**: Selesaikan langkah konfigurasi iOS dan Android
+- **Kesalahan API**: Periksa [Referensi Kode Kesalahan](/api-reference/error-codes) kami untuk penanganan kesalahan yang rinci
+</Accordion>
+
+<Accordion title="Tips Debugging">
+- Aktifkan logging debug dalam pengembangan
+- Periksa permintaan jaringan ke backend Anda
+- Verifikasi kunci API dikonfigurasi dengan benar
+- Uji di kedua platform iOS dan Android
+- Tinjau [FAQ Teknis](/api-reference/technical-faqs) kami untuk masalah umum
+- Gunakan [Mode Uji vs Langsung](/miscellaneous/test-mode-vs-live-mode) dengan tepat
+</Accordion>
+</AccordionGroup>
+
+### Metode Pembayaran Uji
+
+<Tip>
+Gunakan nomor kartu uji dalam pengembangan untuk memverifikasi integrasi Anda tanpa memproses pembayaran nyata. Pelajari lebih lanjut tentang [proses pengujian](/miscellaneous/testing-process) kami dan lingkungan uji yang tersedia.
+</Tip>

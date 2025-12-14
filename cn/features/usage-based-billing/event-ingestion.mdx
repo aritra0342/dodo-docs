@@ -1,0 +1,206 @@
+---
+sidebarTitle: 事件摄取
+title: 事件摄取
+description: 从您的应用程序发送使用事件，以跟踪客户消费并支持计费。
+icon: bolt
+---
+
+事件是基于使用的计费的基础。当可计费操作发生时发送事件，计量器将其汇总为费用。
+
+<Card title="API 参考 - 事件摄取" icon="code" href="/api-reference/usage-events/ingest-events">
+完整的 API 文档，包括示例和响应代码。
+</Card>
+
+## 事件结构
+
+<Accordion title="必填字段">
+<ParamField body="event_id" type="string" required>
+唯一标识符。使用 UUID 或组合客户 ID + 时间戳 + 操作。
+</ParamField>
+
+<ParamField body="customer_id" type="string" required>
+Dodo Payments 客户 ID。必须是有效的现有客户。
+</ParamField>
+
+<ParamField body="event_name" type="string" required>
+事件类型，必须与您的计量器的事件名称匹配（区分大小写）。示例： `api.call`, `image.generated`
+</ParamField>
+</Accordion>
+
+<Accordion title="可选字段">
+
+<ParamField body="timestamp" type="string">
+ISO 8601 时间戳。如果省略，则默认为服务器时间。对于延迟/批处理事件，包含以确保准确计费。
+</ParamField>
+
+<ParamField body="metadata" type="object">
+用于聚合和过滤的附加属性：
+- 数值： `bytes`, `tokens`, `duration_ms`
+- 过滤器： `endpoint`, `method`, `quality`
+
+```javascript
+metadata: {
+  endpoint: "/v1/orders",
+  method: "POST",
+  tokens: 1024
+}
+```
+
+</ParamField>
+</Accordion>
+
+## 发送事件
+
+<CodeGroup>
+
+```javascript Single Event
+await fetch('https://test.dodopayments.com/events/ingest', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${process.env.DODO_API_KEY}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    events: [{
+      event_id: "api_call_1234",
+      customer_id: "cus_abc123",
+      event_name: "api.call",
+      metadata: { endpoint: "/v1/orders" }
+    }]
+  })
+});
+```
+
+```javascript Batch Events
+await fetch('https://test.dodopayments.com/events/ingest', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${process.env.DODO_API_KEY}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    events: [
+      { event_id: "call_1", customer_id: "cus_abc", event_name: "api.call" },
+      { event_id: "call_2", customer_id: "cus_abc", event_name: "api.call" },
+      { event_id: "call_3", customer_id: "cus_abc", event_name: "api.call" }
+    ]
+  })
+});
+```
+
+```python Python
+import requests
+
+requests.post(
+    'https://test.dodopayments.com/events/ingest',
+    headers={'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'},
+    json={'events': [{'event_id': 'call_1', 'customer_id': 'cus_abc', 'event_name': 'api.call'}]}
+)
+```
+
+```curl cURL
+curl -X POST 'https://test.dodopayments.com/events/ingest' \
+  -H 'Authorization: Bearer YOUR_API_KEY' \
+  -H 'Content-Type: application/json' \
+  -d '{"events": [{"event_id": "call_1", "customer_id": "cus_abc", "event_name": "api.call"}]}'
+```
+
+</CodeGroup>
+
+<Tip>
+每个请求批量处理最多 100 个事件以获得更好的性能。
+</Tip>
+
+## 摄取蓝图
+
+适用于常见用例的现成事件模式。使用经过验证的蓝图开始，而不是从头开始构建。
+
+<CardGroup cols={2}>
+<Card title="LLM 蓝图" icon="brain-circuit" href="/developer-resources/ingestion-blueprints/llm">
+跟踪 OpenAI、Anthropic、Groq、Gemini 等的 AI 令牌使用情况。
+</Card>
+
+<Card title="API 网关蓝图" icon="cloud" href="/developer-resources/ingestion-blueprints/api-gateway">
+计量 API 请求，支持端点过滤和速率限制。
+</Card>
+
+<Card title="对象存储蓝图" icon="box-archive" href="/developer-resources/ingestion-blueprints/object-storage">
+跟踪文件上传和云存储服务的存储消耗。
+</Card>
+
+<Card title="流蓝图" icon="tower-broadcast" href="/developer-resources/ingestion-blueprints/stream">
+测量视频、音频和实时数据的流带宽。
+</Card>
+
+<Card title="时间范围蓝图" icon="clock" href="/developer-resources/ingestion-blueprints/time-range">
+按经过的时间对无服务器函数和计算实例进行计费。
+</Card>
+
+<Card title="查看所有蓝图" icon="copy" href="/features/usage-based-billing/ingestion-blueprints">
+查看所有可用蓝图及其详细实施指南。
+</Card>
+</CardGroup>
+
+## 最佳实践
+
+<AccordionGroup>
+<Accordion title="使用唯一事件 ID">
+使用确定性 ID 以防止重复： `${customerId}_${action}_${timestamp}`
+</Accordion>
+
+<Accordion title="实现重试">
+在 5xx 错误时进行重试，使用指数退避。不要在 4xx 错误时重试。
+</Accordion>
+
+<Accordion title="包含时间戳">
+实时事件可省略。对于延迟/批处理事件，包含以确保准确性。
+</Accordion>
+
+<Accordion title="监控交付">
+跟踪成功率并将失败的事件排队以进行重试。
+</Accordion>
+</AccordionGroup>
+
+## 故障排除
+
+<AccordionGroup>
+<Accordion title="事件未出现">
+- 事件名称必须与计量器完全匹配（区分大小写）
+- 客户 ID 必须存在
+- 检查计量器过滤器是否未排除事件
+- 验证时间戳是否是最近的
+</Accordion>
+
+<Accordion title="身份验证错误 (401)">
+验证 API 密钥是否正确，并使用格式： `Bearer YOUR_API_KEY`
+</Accordion>
+
+<Accordion title="验证错误 (400)">
+确保所有必填字段均已存在： `event_id`, `customer_id`, `event_name`
+</Accordion>
+
+<Accordion title="元数据未聚合">
+- 元数据键必须与计量器的 "Over Property" 完全匹配
+- 使用数字，而不是字符串： `tokens: 150` 而不是 `tokens: "150"`
+</Accordion>
+</AccordionGroup>
+
+## 下一步
+
+<CardGroup cols={2}>
+<Card title="创建计量器" icon="sliders" href="/features/usage-based-billing/meters">
+定义您的事件如何通过过滤器和聚合函数聚合为可计费数量。
+</Card>
+
+<Card title="摄取蓝图" icon="copy" href="/features/usage-based-billing/ingestion-blueprints">
+使用现成的蓝图处理常见用例，如 LLM 跟踪、API 网关和存储。
+</Card>
+
+<Card title="完整教程" icon="code" href="/developer-resources/usage-based-billing-build-ai-image-generator">
+从头开始构建一个完整的 AI 图像生成器，支持基于使用的计费。
+</Card>
+
+<Card title="API 参考" icon="terminal" href="/api-reference/usage-events/ingest-events">
+完整的 API 文档，包括所有参数、响应代码和交互式测试。
+</Card>
+</CardGroup>

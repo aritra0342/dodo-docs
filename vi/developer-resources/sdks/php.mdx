@@ -1,0 +1,399 @@
+---
+title: PHP
+description: Tích hợp Dodo Payments vào các ứng dụng PHP của bạn với SDK hiện
+  đại, tuân thủ PSR-4
+icon: php
+tag: BETA
+---
+
+SDK PHP cung cấp một cách mạnh mẽ và linh hoạt để tích hợp Dodo Payments vào các ứng dụng PHP của bạn. Được xây dựng theo các tiêu chuẩn PHP hiện đại với autoloading PSR-4, nó cung cấp độ phủ kiểm tra rộng rãi và tài liệu chi tiết.
+
+<Note>
+Thư viện API PHP Dodo Payments hiện đang ở **beta**. Chúng tôi rất hào hứng cho bạn thử nghiệm với nó! Vui lòng chia sẻ bất kỳ đề xuất, báo cáo lỗi hoặc yêu cầu tính năng nào bằng cách [gửi một vấn đề](https://github.com/dodopayments/dodopayments-php/issues).
+</Note>
+
+## Cài đặt
+
+Cài đặt SDK bằng Composer:
+
+```bash
+composer require "dodopayments/client:^3.5.0"
+```
+
+<Info>
+SDK yêu cầu PHP 8.1.0 hoặc cao hơn và Composer để quản lý phụ thuộc.
+</Info>
+
+## Bắt đầu nhanh
+
+Khởi tạo client và tạo một phiên giao dịch thanh toán:
+
+```php
+<?php
+
+use Dodopayments\Client;
+
+$client = new Client(
+  bearerToken: getenv("DODO_PAYMENTS_API_KEY") ?: "My Bearer Token",
+  environment: "test_mode",
+);
+
+$checkoutSessionResponse = $client->checkoutSessions->create(
+  productCart: [["productID" => "product_id", "quantity" => 1]]
+);
+
+var_dump($checkoutSessionResponse->session_id);
+```
+
+<Warning>
+Lưu trữ các khóa API của bạn một cách an toàn bằng cách sử dụng biến môi trường. Không bao giờ để lộ chúng trong mã nguồn của bạn hoặc cam kết chúng vào hệ thống kiểm soát phiên bản.
+</Warning>
+
+## Tính năng chính
+
+<CardGroup cols={2}>
+<Card title="Tuân thủ PSR-4" icon="check">
+  Tuân theo các Khuyến nghị về Tiêu chuẩn PHP cho phát triển PHP hiện đại
+</Card>
+
+<Card title="PHP hiện đại" icon="php">
+  Được xây dựng cho PHP 8.1+ với khai báo kiểu và kiểu nghiêm ngặt
+</Card>
+
+<Card title="Kiểm tra toàn diện" icon="vial">
+  Độ phủ kiểm tra toàn diện cho độ tin cậy và ổn định
+</Card>
+
+<Card title="Xử lý ngoại lệ" icon="shield-check">
+  Các loại ngoại lệ rõ ràng cho các kịch bản lỗi khác nhau
+</Card>
+</CardGroup>
+
+## Đối tượng giá trị
+
+SDK sử dụng các tham số có tên để chỉ định các đối số tùy chọn. Bạn có thể khởi tạo các đối tượng giá trị bằng cách sử dụng hàm khởi tạo tĩnh `with`:
+
+```php
+<?php
+
+use Dodopayments\Customers\AttachExistingCustomer;
+
+// Recommended: Use static 'with' constructor with named parameters
+$customer = AttachExistingCustomer::with(customerID: "customer_id");
+```
+
+Các builder cũng có sẵn như một mẫu thay thế:
+
+```php
+<?php
+
+use Dodopayments\Customers\AttachExistingCustomer;
+
+// Alternative: Use builder pattern
+$customer = (new AttachExistingCustomer)->withCustomerID("customer_id");
+```
+
+## Cấu hình
+
+### Cấu hình thử lại
+
+Một số lỗi sẽ tự động được thử lại 2 lần theo mặc định với một khoảng thời gian chờ ngắn. Các lỗi sau đây kích hoạt thử lại tự động:
+
+- Lỗi kết nối (vấn đề kết nối mạng)
+- 408 Thời gian yêu cầu hết hạn
+- 409 Xung đột
+- 429 Giới hạn tỷ lệ
+- 500+ Lỗi nội bộ
+- Thời gian chờ
+
+Cấu hình hành vi thử lại toàn cục hoặc theo yêu cầu:
+
+```php
+<?php
+
+use Dodopayments\Client;
+use Dodopayments\RequestOptions;
+
+// Configure default for all requests (disable retries)
+$client = new Client(maxRetries: 0);
+
+// Or, configure per-request
+$result = $client->checkoutSessions->create(
+  productCart: [["productID" => "product_id", "quantity" => 1]],
+  requestOptions: RequestOptions::with(maxRetries: 5),
+);
+```
+
+## Các thao tác phổ biến
+
+### Tạo một phiên giao dịch thanh toán
+
+Tạo một phiên giao dịch thanh toán:
+
+```php
+$session = $client->checkoutSessions->create(
+  productCart: [
+    ["productID" => "prod_123", "quantity" => 1]
+  ],
+  returnUrl: "https://yourdomain.com/return"
+);
+
+header('Location: ' . $session->url);
+```
+
+### Quản lý khách hàng
+
+Tạo và truy xuất thông tin khách hàng:
+
+```php
+// Create a customer
+$customer = $client->customers->create(
+  email: "customer@example.com",
+  name: "John Doe",
+  metadata: [
+    "user_id" => "12345"
+  ]
+);
+
+// Retrieve customer
+$customer = $client->customers->retrieve("cus_123");
+echo "Customer: {$customer->name} ({$customer->email})";
+```
+
+### Xử lý đăng ký
+
+Tạo và quản lý các đăng ký định kỳ:
+
+```php
+// Create a subscription
+$subscription = $client->subscriptions->create(
+  customerID: "cus_123",
+  productID: "prod_456",
+  priceID: "price_789"
+);
+
+// Cancel subscription
+$client->subscriptions->cancel($subscription->id);
+```
+
+## Phân trang
+
+Làm việc với các phản hồi danh sách phân trang:
+
+```php
+$page = $client->payments->list();
+
+var_dump($page);
+
+// Fetch items from the current page
+foreach ($page->getItems() as $item) {
+  var_dump($item->brand_id);
+}
+
+// Auto-paginate: fetch items from all pages
+foreach ($page->pagingEachItem() as $item) {
+  var_dump($item->brand_id);
+}
+```
+
+## Xử lý lỗi
+
+Khi thư viện không thể kết nối với API hoặc nhận được mã trạng thái không thành công (4xx hoặc 5xx), một lớp con của `APIException` sẽ được ném ra:
+
+```php
+<?php
+
+use Dodopayments\Core\Exceptions\APIConnectionException;
+use Dodopayments\Core\Exceptions\RateLimitException;
+use Dodopayments\Core\Exceptions\APIStatusException;
+
+try {
+  $checkoutSessionResponse = $client->checkoutSessions->create(
+    productCart: [["productID" => "product_id", "quantity" => 1]]
+  );
+} catch (APIConnectionException $e) {
+  echo "The server could not be reached", PHP_EOL;
+  var_dump($e->getPrevious());
+} catch (RateLimitException $_) {
+  echo "A 429 status code was received; we should back off a bit.", PHP_EOL;
+} catch (APIStatusException $e) {
+  echo "Another non-200-range status code was received", PHP_EOL;
+  echo $e->getMessage();
+}
+```
+
+### Các loại lỗi
+
+| Nguyên nhân         | Loại lỗi                     |
+| ------------------- | ---------------------------- |
+| HTTP 400            | `BadRequestException`        |
+| HTTP 401            | `AuthenticationException`    |
+| HTTP 403            | `PermissionDeniedException`  |
+| HTTP 404            | `NotFoundException`          |
+| HTTP 409            | `ConflictException`          |
+| HTTP 422            | `UnprocessableEntityException` |
+| HTTP 429            | `RateLimitException`         |
+| HTTP >= 500         | `InternalServerException`    |
+| Lỗi HTTP khác      | `APIStatusException`         |
+| Thời gian chờ      | `APITimeoutException`        |
+| Lỗi mạng          | `APIConnectionException`     |
+
+<Tip>
+Luôn bọc các cuộc gọi API trong các khối try-catch để xử lý các lỗi tiềm ẩn một cách duyên dáng và cung cấp phản hồi có ý nghĩa cho người dùng.
+</Tip>
+
+## Sử dụng nâng cao
+
+### Các điểm cuối không tài liệu
+
+Thực hiện các yêu cầu đến các điểm cuối không tài liệu:
+
+```php
+<?php
+
+$response = $client->request(
+  method: "post",
+  path: '/undocumented/endpoint',
+  query: ['dog' => 'woof'],
+  headers: ['useful-header' => 'interesting-value'],
+  body: ['hello' => 'world']
+);
+```
+
+### Các tham số không tài liệu
+
+Gửi các tham số không tài liệu đến bất kỳ điểm cuối nào hoặc đọc các thuộc tính phản hồi không tài liệu:
+
+```php
+<?php
+
+use Dodopayments\RequestOptions;
+
+$checkoutSessionResponse = $client->checkoutSessions->create(
+  productCart: [["productID" => "product_id", "quantity" => 1]],
+  requestOptions: RequestOptions::with(
+    extraQueryParams: ["my_query_parameter" => "value"],
+    extraBodyParams: ["my_body_parameter" => "value"],
+    extraHeaders: ["my-header" => "value"],
+  ),
+);
+```
+
+<Note>
+Các tham số `extra*` có cùng tên sẽ ghi đè lên các tham số đã được tài liệu.
+</Note>
+
+## Tích hợp Framework
+
+### Laravel
+
+Tạo một dịch vụ cho các ứng dụng Laravel:
+
+```php
+<?php
+
+namespace App\Services;
+
+use Dodopayments\Client;
+
+class PaymentService
+{
+    protected $client;
+
+    public function __construct()
+    {
+        $this->client = new Client(
+            bearerToken: config('services.dodo.api_key')
+        );
+    }
+
+    public function createCheckout(array $items)
+    {
+        return $this->client->checkoutSessions->create(
+            productCart: $items,
+            returnUrl: route('checkout.return')
+        );
+    }
+}
+```
+
+Thêm cấu hình vào `config/services.php`:
+
+```php
+'dodo' => [
+    'api_key' => env('DODO_API_KEY'),
+    'environment' => env('DODO_ENVIRONMENT', 'sandbox')
+],
+```
+
+### Symfony
+
+Tạo một dịch vụ trong Symfony:
+
+```php
+<?php
+
+namespace App\Service;
+
+use Dodopayments\Client;
+
+class DodoPaymentService
+{
+    private Client $client;
+
+    public function __construct(string $apiKey)
+    {
+        $this->client = new Client(bearerToken: $apiKey);
+    }
+
+    public function createPayment(int $amount, string $currency, string $customerId): object
+    {
+        return $this->client->payments->create(
+            amount: $amount,
+            currency: $currency,
+            customerID: $customerId
+        );
+    }
+}
+```
+
+Đăng ký trong `config/services.yaml`:
+
+```yaml
+services:
+    App\Service\DodoPaymentService:
+        arguments:
+            $apiKey: '%env(DODO_API_KEY)%'
+```
+
+## Tài nguyên
+
+<CardGroup cols={2}>
+<Card title="Kho lưu trữ GitHub" icon="github" href="https://github.com/dodopayments/dodopayments-php">
+  Xem mã nguồn và đóng góp
+</Card>
+
+<Card title="Tài liệu API" icon="book" href="/api-reference/introduction">
+  Tài liệu API đầy đủ
+</Card>
+
+<Card title="Cộng đồng Discord" icon="discord" href="https://discord.gg/bYqAp4ayYh">
+  Nhận trợ giúp và kết nối với các nhà phát triển
+</Card>
+
+<Card title="Báo cáo sự cố" icon="bug" href="https://github.com/dodopayments/dodopayments-php/issues">
+  Báo cáo lỗi hoặc yêu cầu tính năng
+</Card>
+</CardGroup>
+
+## Hỗ trợ
+
+Cần trợ giúp với SDK PHP?
+
+- **Discord**: Tham gia máy chủ [cộng đồng của chúng tôi](https://discord.gg/bYqAp4ayYh) để được hỗ trợ theo thời gian thực
+- **Email**: Liên hệ với chúng tôi tại support@dodopayments.com
+- **GitHub**: Mở một vấn đề trên [kho lưu trữ](https://github.com/dodopayments/dodopayments-php)
+
+## Đóng góp
+
+Chúng tôi hoan nghênh các đóng góp! Kiểm tra [hướng dẫn đóng góp](https://github.com/dodopayments/dodopayments-php/blob/main/CONTRIBUTING.md) để bắt đầu.

@@ -1,0 +1,163 @@
+---
+title: Blueprint Rentang Waktu
+description: Lacak konsumsi sumber daya berdasarkan waktu yang berlalu untuk
+  komputasi, fungsi serverless, kontainer, dan penagihan runtime.
+icon: jam
+---
+
+## Kasus Penggunaan
+
+Jelajahi skenario umum yang didukung oleh Blueprint Rentang Waktu:
+
+<CardGroup cols={2}>
+<Card title="Fungsi Serverless" icon="function">
+Tagih berdasarkan waktu eksekusi fungsi dan penggunaan memori.
+</Card>
+<Card title="Runtime Kontainer" icon="container-storage">
+Lacak waktu berjalan kontainer untuk penagihan berbasis penggunaan.
+</Card>
+<Card title="Instansi Komputasi" icon="server">
+Pantau waktu runtime VM dan tagih per menit atau jam.
+</Card>
+<Card title="Pekerjaan Latar Belakang" icon="briefcase">
+Lacak waktu pemrosesan untuk ekspor data, laporan, dan pekerjaan batch.
+</Card>
+</CardGroup>
+
+<Info>
+Sempurna untuk penagihan berdasarkan waktu komputasi, durasi eksekusi fungsi, runtime kontainer, atau penggunaan berbasis waktu lainnya.
+</Info>
+
+## Memulai dengan Cepat
+
+Lacak penggunaan sumber daya berdasarkan durasi waktu:
+
+<Steps>
+<Step title="Instal SDK">
+
+```bash
+npm install @dodopayments/ingestion-blueprints
+```
+
+</Step>
+
+<Step title="Dapatkan Kunci API Anda">
+- **Kunci API Dodo Payments**: Dapatkan dari [Dasbor Dodo Payments](https://app.dodopayments.com/developer/api-keys)
+</Step>
+
+<Step title="Buat Meter">
+Buat meter di [Dasbor Dodo Payments](https://app.dodopayments.com/):
+- **Nama Acara**: `time_range_usage` (atau nama yang Anda pilih)
+- **Tipe Agregasi**: `sum` untuk melacak total durasi
+- **Properti Lebih**: `durationSeconds`, `durationMinutes`, atau `durationMs`
+</Step>
+
+<Step title="Lacak Penggunaan Waktu">
+<CodeGroup>
+
+```javascript Serverless Functions
+import { Ingestion, trackTimeRange } from '@dodopayments/ingestion-blueprints';
+
+const ingestion = new Ingestion({
+  apiKey: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'test_mode',
+  eventName: 'function_execution'
+});
+
+// Track function execution time
+const startTime = Date.now();
+
+// Execute your function (example: image processing)
+const result = await yourImageProcessingLogic();
+
+const durationMs = Date.now() - startTime;
+
+await trackTimeRange(ingestion, {
+  customerId: 'customer_123',
+  durationMs: durationMs
+});
+```
+
+```javascript Container Runtime
+import { Ingestion, trackTimeRange } from '@dodopayments/ingestion-blueprints';
+
+const ingestion = new Ingestion({
+  apiKey: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'test_mode',
+  eventName: 'container_runtime'
+});
+
+// Track container runtime in seconds
+await trackTimeRange(ingestion, {
+  customerId: 'customer_456',
+  durationSeconds: 120
+});
+```
+
+```javascript VM Instance Runtime
+import { Ingestion, trackTimeRange } from '@dodopayments/ingestion-blueprints';
+
+const ingestion = new Ingestion({
+  apiKey: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'test_mode',
+  eventName: 'vm_runtime'
+});
+
+// Track VM runtime in minutes
+await trackTimeRange(ingestion, {
+  customerId: 'customer_789',
+  durationMinutes: 60
+});
+```
+
+</CodeGroup>
+</Step>
+</Steps>
+
+## Konfigurasi
+
+### Konfigurasi Ingesti
+
+<ParamField path="apiKey" type="string" required>
+Kunci API Dodo Payments Anda dari dasbor.
+</ParamField>
+
+<ParamField path="environment" type="string" required>
+Mode lingkungan: `test_mode` atau `live_mode`.
+</ParamField>
+
+<ParamField path="eventName" type="string" required>
+Nama acara yang sesuai dengan konfigurasi meter Anda.
+</ParamField>
+
+### Opsi Rentang Waktu Lacak
+
+<ParamField path="customerId" type="string" required>
+ID pelanggan untuk atribusi penagihan.
+</ParamField>
+
+<ParamField path="durationMs" type="number">
+Durasi dalam milidetik. Gunakan untuk presisi sub-detik.
+</ParamField>
+
+<ParamField path="durationSeconds" type="number">
+Durasi dalam detik. Paling umum untuk eksekusi fungsi dan tugas singkat.
+</ParamField>
+
+<ParamField path="durationMinutes" type="number">
+Durasi dalam menit. Berguna untuk sumber daya yang berjalan lebih lama seperti VM.
+</ParamField>
+
+<ParamField path="metadata" type="object">
+Metadata opsional tentang sumber daya seperti CPU, memori, wilayah, dll.
+</ParamField>
+
+## Praktik Terbaik
+
+<Tip>
+**Pilih Satuan yang Tepat**: Gunakan milidetik untuk operasi singkat, detik untuk fungsi, dan menit untuk sumber daya yang berjalan lebih lama.
+</Tip>
+
+<Warning>
+**Waktu yang Akurat**: Gunakan `Date.now()` atau `performance.now()` untuk pelacakan waktu yang akurat, terutama untuk fungsi serverless.
+</Warning>

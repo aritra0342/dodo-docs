@@ -1,0 +1,332 @@
+---
+sidebarTitle: مزامنة قاعدة البيانات
+title: مزامنة مع قاعدة البيانات الخاصة بك
+icon: database
+description: قم بمزامنة بيانات مدفوعات Dodo تلقائيًا مع قاعدة البيانات الخاصة بك
+  للتحليلات والتقارير والتكاملات.
+---
+
+توفر مدفوعات Dodo ميزة مزامنة قاعدة البيانات المدمجة التي تقوم بمزامنة بيانات الدفع الخاصة بك تلقائيًا مع قاعدة البيانات الخاصة بك. يمكنك مزامنة **المدفوعات** و**العملاء** و**الاشتراكات** و**التراخيص** للحفاظ على نسخة محلية من بياناتك للتحليلات أو التقارير أو التكامل مع أنظمة أخرى.
+
+<Info>
+**التنفيذ**: متاح عبر [حزمة npm](https://www.npmjs.com/package/dodo-sync) | **شفرة المصدر**: [GitHub](https://github.com/dodopayments/dodo-sync)
+</Info>
+
+## ماذا يمكنك مزامنته؟
+
+تدعم ميزة مزامنة قاعدة البيانات لدينا مزامنة الكيانات التالية من مدفوعات Dodo إلى قاعدة البيانات الخاصة بك:
+
+<CardGroup cols={2}>
+  <Card title="المدفوعات" icon="credit-card">
+    مزامنة جميع معاملات الدفع، بما في ذلك المدفوعات لمرة واحدة، والمبالغ المستردة، وتحديثات حالة الدفع.
+  </Card>
+  <Card title="العملاء" icon="users">
+    حافظ على بيانات العملاء الخاصة بك متزامنة، بما في ذلك ملفات تعريف العملاء، ومعلومات الاتصال، والبيانات الوصفية.
+  </Card>
+  <Card title="الاشتراكات" icon="repeat">
+    مزامنة بيانات الاشتراك، بما في ذلك الاشتراكات النشطة، ودورات الفوترة، وتغييرات حالة الاشتراك.
+  </Card>
+  <Card title="التراخيص" icon="key">
+    مزامنة معلومات الترخيص، بما في ذلك مفاتيح الترخيص، والتفعيل، وتحديثات حالة الترخيص.
+  </Card>
+</CardGroup>
+
+يمكنك مزامنة أي مجموعة من هذه الكيانات عن طريق تحديدها في `scopes`. جميع عمليات المزامنة تزايدية وتنقل فقط السجلات الجديدة أو المحدثة لتحقيق أداء مثالي.
+
+## دعم قاعدة البيانات
+
+ندعم حاليًا **MongoDB** و**PostgreSQL** و**MySQL** و**ClickHouse**.
+
+نعمل بنشاط على توسيع الدعم لـ:
+- **قواعد البيانات**: Snowflake وغيرها.
+- **خطوط الأنابيب**: خطوط أنابيب ETL، المزامنة في الوقت الحقيقي.
+
+<Tip>
+نحن نوسع دعم قاعدة البيانات باستمرار. إذا كنت ترغب في المساهمة في تكامل قاعدة بيانات جديدة، يرجى تقديم طلب سحب إلى [مستودع GitHub الخاص بنا](https://github.com/dodopayments/dodo-sync).
+</Tip>
+
+## البدء
+
+يمكنك استخدام ميزة مزامنة قاعدة البيانات لدينا عبر **CLI** أو برمجيًا في **الكود** الخاص بك. توفر كلا الطريقتين نفس الوظائف—اختر الطريقة التي تناسب سير العمل الخاص بك.
+
+### استخدام CLI
+
+يوفر أداة CLI طريقة سريعة لإعداد وتشغيل مزامنة قاعدة البيانات. قم بتثبيته عالميًا لاستخدامه من أي مكان في الطرفية الخاصة بك:
+
+<CodeGroup>
+
+```bash npm
+npm install -g dodo-sync
+```
+
+```bash bun
+bun add -g dodo-sync
+```
+
+</CodeGroup>
+
+#### تشغيل CLI
+
+يدعم CLI وضعين: **الوضع التفاعلي** للإعداد الموجه، و**الوضع اليدوي** للتكوين المباشر.
+
+**الوضع التفاعلي**: قم بتشغيل الأمر بدون معلمات لبدء معالج الإعداد التفاعلي.
+
+```bash
+dodo-sync
+```
+
+**الوضع اليدوي**: مرر المعلمات مباشرة لتخطي المعالج.
+
+```bash
+dodo-sync -i [interval] -d [database] -u [database_uri] --scopes [scopes] --api-key [api_key] --env [environment]
+```
+
+**أمثلة:**
+
+```bash
+# MongoDB
+dodo-sync -i 600 -d mongodb -u mongodb://mymongodb.url --scopes "licences,payments,customers,subscriptions" --api-key YOUR_API_KEY --env test_mode
+
+# PostgreSQL
+dodo-sync -i 600 -d postgres -u postgresql://user:password@localhost:5432/mydb --scopes "licences,payments,customers,subscriptions" --api-key YOUR_API_KEY --env test_mode
+
+# MySQL
+dodo-sync -i 600 -d mysql -u mysql://user:password@localhost:3306/mydb --scopes "licences,payments,customers,subscriptions" --api-key YOUR_API_KEY --env test_mode
+
+# ClickHouse
+dodo-sync -i 600 -d clickhouse -u http://localhost:8123 --scopes "licences,payments,customers,subscriptions" --api-key YOUR_API_KEY --env test_mode
+```
+
+#### معلمات CLI
+
+<ParamField path="--interval" type="number" alias="-i">
+فترة المزامنة بالثواني. تحدد مدى تكرار تشغيل عملية المزامنة. إذا لم يتم توفيرها، ستعمل المزامنة مرة واحدة وتخرج.
+</ParamField>
+
+<ParamField path="--database" type="string" alias="-d" required>
+نوع قاعدة البيانات للاستخدام. القيم المدعومة: `"mongodb"`، `"postgres"`، `"mysql"`، أو `"clickhouse"`.
+</ParamField>
+
+<ParamField path="--database-uri" type="string" alias="-u" required>
+URI الاتصال بقاعدة البيانات الخاصة بك:
+- **MongoDB**: `mongodb://localhost:27017` أو `mongodb+srv://user:pass@cluster.mongodb.net/`
+- **PostgreSQL**: `postgresql://user:password@localhost:5432/mydb`
+- **MySQL**: `mysql://user:password@localhost:3306/mydb`
+- **ClickHouse**: `http://localhost:8123`
+</ParamField>
+
+<ParamField path="--scopes" type="string" required>
+قائمة مفصولة بفواصل من كيانات البيانات للمزامنة. النطاقات المتاحة: `licences`، `payments`، `customers`، `subscriptions`. مثال: `"payments,customers"`.
+</ParamField>
+
+<ParamField path="--api-key" type="string" required>
+مفتاح API الخاص بك في مدفوعات Dodo. يجب أن يبدأ بـ `dp_live_` لوضع التشغيل المباشر أو `dp_test_` لوضع الاختبار.
+</ParamField>
+
+<ParamField path="--env" type="string" required>
+البيئة المستهدفة. يجب أن تكون إما `"live_mode"` أو `"test_mode"`. هذا يحدد من أي بيئة من مدفوعات Dodo سيتم المزامنة.
+</ParamField>
+
+<ParamField path="--rate-limit" type="number" alias="--rl">
+حد الطلبات في الثانية. يتحكم في مدى سرعة محرك المزامنة في إجراء طلبات API لتجنب إغراق API مدفوعات Dodo.
+</ParamField>
+
+### الاستخدام في الكود الخاص بك
+
+للحصول على تحكم برمجي، قم بدمج ميزة المزامنة مباشرة في تطبيقك. قم بتثبيتها كاعتماد في مشروعك:
+
+<CodeGroup>
+
+```bash npm
+npm install dodo-sync
+```
+
+```bash bun
+bun add dodo-sync
+```
+
+</CodeGroup>
+
+#### المزامنة التلقائية (استنادًا إلى الفترات)
+
+استخدم المزامنة التلقائية عندما تريد أن تعمل المزامنة باستمرار على فترات منتظمة:
+
+```typescript
+import { DodoSync } from 'dodo-sync';
+
+const syncDodoPayments = new DodoSync({
+  interval: 60, // Sync every 60 seconds
+  database: 'mongodb',
+  databaseURI: process.env.MONGODB_URI, // e.g., 'mongodb://localhost:27017'
+  scopes: ['licences', 'payments', 'customers', 'subscriptions'],
+  dodoPaymentsOptions: {
+    bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+    environment: 'test_mode' // or 'live_mode'
+  }
+});
+
+// Initialize connection
+await syncDodoPayments.init();
+
+// Start the sync loop
+syncDodoPayments.start();
+```
+
+<Tip>
+الخيار `interval` مطلوب عند استخدام `.start()` للمزامنة التلقائية. ستعمل المزامنة باستمرار عند الفاصل الزمني المحدد حتى يتم إيقاف العملية.
+</Tip>
+
+#### المزامنة اليدوية
+
+استخدم المزامنة اليدوية عندما تريد تشغيل عمليات المزامنة عند الطلب (على سبيل المثال، من مهمة cron أو نقطة نهاية API):
+
+```typescript
+import { DodoSync } from 'dodo-sync';
+
+const syncDodoPayments = new DodoSync({
+  database: 'mongodb',
+  databaseURI: process.env.MONGODB_URI,
+  scopes: ['licences', 'payments', 'customers', 'subscriptions'],
+  dodoPaymentsOptions: {
+    bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+    environment: 'test_mode'
+  }
+});
+
+// Initialize connection
+await syncDodoPayments.init();
+
+// Trigger a single sync operation
+await syncDodoPayments.run();
+```
+
+<Tip>
+عند استخدام المزامنة اليدوية، الخيار `interval` ليس مطلوبًا. يمكنك استدعاء `.run()` كلما احتجت إلى إجراء عملية مزامنة.
+</Tip>
+
+#### مثال PostgreSQL
+
+إليك كيفية استخدام `dodo-sync` مع PostgreSQL:
+
+```typescript
+import { DodoSync } from 'dodo-sync';
+
+const syncDodoPayments = new DodoSync({
+  interval: 60,
+  database: 'postgres',
+  databaseURI: process.env.POSTGRES_URI, // e.g., 'postgresql://user:password@localhost:5432/mydb'
+  scopes: ['licences', 'payments', 'customers', 'subscriptions'],
+  dodoPaymentsOptions: {
+    bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+    environment: 'test_mode'
+  }
+});
+
+await syncDodoPayments.init();
+syncDodoPayments.start();
+```
+
+#### مثال MySQL
+
+إليك كيفية استخدام `dodo-sync` مع MySQL:
+
+```typescript
+import { DodoSync } from 'dodo-sync';
+
+const syncDodoPayments = new DodoSync({
+  interval: 60,
+  database: 'mysql',
+  databaseURI: process.env.MYSQL_URI, // e.g., 'mysql://user:password@localhost:3306/mydb'
+  scopes: ['licences', 'payments', 'customers', 'subscriptions'],
+  dodoPaymentsOptions: {
+    bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+    environment: 'test_mode'
+  }
+});
+
+await syncDodoPayments.init();
+syncDodoPayments.start();
+```
+
+#### مثال ClickHouse
+
+إليك كيفية استخدام `dodo-sync` مع ClickHouse:
+
+```typescript
+import { DodoSync } from 'dodo-sync';
+
+const syncDodoPayments = new DodoSync({
+  interval: 60,
+  database: 'clickhouse',
+  databaseURI: process.env.CLICKHOUSE_URI, // e.g., 'http://localhost:8123'
+  scopes: ['licences', 'payments', 'customers', 'subscriptions'],
+  dodoPaymentsOptions: {
+    bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+    environment: 'test_mode'
+  }
+});
+
+await syncDodoPayments.init();
+syncDodoPayments.start();
+```
+
+#### خيارات المُنشئ
+
+<ParamField body="database" type="string" required>
+اسم قاعدة البيانات للاستخدام. القيم المدعومة: `"mongodb"`، `"postgres"`، `"mysql"`، أو `"clickhouse"`.
+</ParamField>
+
+<ParamField body="databaseURI" type="string" required>
+سلسلة الاتصال بقاعدة البيانات الخاصة بك:
+- **MongoDB**: `mongodb://localhost:27017` أو `mongodb+srv://...`
+- **PostgreSQL**: `postgresql://user:password@localhost:5432/mydb`
+- **MySQL**: `mysql://user:password@localhost:3306/mydb`
+- **ClickHouse**: `http://localhost:8123`
+</ParamField>
+
+<ParamField body="scopes" type="string[]" required>
+مصفوفة من الكيانات للمزامنة. الخيارات المتاحة: `"licences"`، `"payments"`، `"customers"`، `"subscriptions"`. يمكنك تضمين أي مجموعة من هذه.
+</ParamField>
+
+<ParamField body="dodoPaymentsOptions" type="object" required>
+تكوين API لمدفوعات Dodo للمصادقة واختيار البيئة. راجع [أنواع SDK TypeScript](https://github.com/dodopayments/dodopayments-typescript/blob/main/src/client.ts) للحصول على الخيارات الكاملة.
+
+**الخصائص المطلوبة:**
+- `bearerToken`: مفتاح API الخاص بك في مدفوعات Dodo
+- `environment`: إما `"test_mode"` أو `"live_mode"`
+</ParamField>
+
+<ParamField body="interval" type="number">
+الوقت بالثواني بين المزامنات التلقائية. مطلوب عند استخدام `.start()` للمزامنة التلقائية. اختياري عند استخدام `.run()` للمزامنة اليدوية.
+</ParamField>
+
+<ParamField body="rateLimit" type="number">
+عدد الطلبات في الثانية. يتحكم في مدى سرعة محرك المزامنة في إجراء طلبات API لتجنب إغراق API مدفوعات Dodo.
+</ParamField>
+
+## معلومات هامة
+
+<Warning>
+**MongoDB**: سيتم إنشاء قاعدة بيانات باسم `dodopayments_sync` تلقائيًا على خادم قاعدة البيانات الخاص بك. سيتم تخزين جميع بيانات المزامنة هناك. اسم هذه القاعدة ثابت حاليًا ولا يمكن تغييره.
+
+**PostgreSQL**: سيتم إنشاء جداول (`Subscriptions`، `Payments`، `Licenses`، `Customers`) في قاعدة البيانات المحددة في URI الاتصال الخاص بك. يتم تخزين البيانات كـ JSONB.
+
+**MySQL**: سيتم إنشاء جداول (`Subscriptions`، `Payments`، `Licenses`، `Customers`) في قاعدة البيانات المحددة في URI الاتصال الخاص بك. يتم تخزين البيانات كـ JSON.
+
+**ClickHouse**: سيتم إنشاء جداول (`Subscriptions`، `Payments`، `Licenses`، `Customers`) باستخدام محرك ReplacingMergeTree. عند الاستعلام، استخدم الكلمة الرئيسية `FINAL` لضمان نتائج غير مكررة.
+</Warning>
+
+<Info>
+يتتبع محرك المزامنة التغييرات ويقوم بمزامنة السجلات الجديدة أو المحدثة فقط، مما يجعل المزامنات اللاحقة فعالة حتى مع مجموعات البيانات الكبيرة.
+</Info>
+
+## موارد إضافية
+
+<CardGroup cols={2}>
+  <Card title="مستودع GitHub" icon="github" href="https://github.com/dodopayments/dodo-sync">
+    عرض شفرة المصدر، الإبلاغ عن المشكلات، أو المساهمة في التحسينات
+  </Card>
+  <Card title="حزمة npm" icon="box-open" href="https://www.npmjs.com/package/dodo-sync">
+    عرض تفاصيل الحزمة وتعليمات التثبيت
+  </Card>
+</CardGroup>

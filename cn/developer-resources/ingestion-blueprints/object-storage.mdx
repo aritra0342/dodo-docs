@@ -1,0 +1,163 @@
+---
+title: 对象存储蓝图
+description: 跟踪 S3、Google Cloud Storage、Azure Blob 和其他对象存储服务的文件上传和存储使用情况。
+icon: box-archive
+---
+
+## 用例
+
+探索对象存储蓝图支持的常见场景：
+
+<CardGroup cols={2}>
+<Card title="文件托管" icon="folder">
+根据总存储使用量和上传量向客户收费。
+</Card>
+<Card title="备份服务" icon="shield">
+跟踪备份数据上传并按存储的 GB 收费。
+</Card>
+<Card title="媒体 CDN" icon="photo-film">
+监控媒体上传并按存储和带宽收费。
+</Card>
+<Card title="文档管理" icon="file">
+按客户跟踪文档上传以实现基于使用量的定价。
+</Card>
+</CardGroup>
+
+<Info>
+非常适合基于存储上传、文件托管、CDN 使用或备份服务进行计费。
+</Info>
+
+## 快速开始
+
+跟踪对象存储上传的字节消耗：
+
+<Steps>
+<Step title="安装 SDK">
+
+```bash
+npm install @dodopayments/ingestion-blueprints
+```
+
+</Step>
+
+<Step title="获取您的 API 密钥">
+- **Dodo Payments API 密钥**：从 [Dodo Payments Dashboard](https://app.dodopayments.com/developer/api-keys) 获取
+- **存储提供商 API 密钥**：来自 AWS S3、Google Cloud Storage、Azure 等。
+</Step>
+
+<Step title="创建计量器">
+在您的 [Dodo Payments Dashboard](https://app.dodopayments.com/) 中创建计量器：
+- **事件名称**：`object_storage_upload`（或您首选的名称）
+- **聚合类型**：`sum` 用于跟踪上传的总字节数
+- **超属性**：`bytes` 用于根据存储大小计费
+</Step>
+
+<Step title="跟踪存储使用情况">
+<CodeGroup>
+
+```javascript AWS S3 Upload
+import { Ingestion, trackObjectStorage } from '@dodopayments/ingestion-blueprints';
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import fs from 'fs';
+
+const ingestion = new Ingestion({
+  apiKey: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'test_mode',
+  eventName: 'object_storage_upload'
+});
+
+const s3 = new S3Client({ region: 'us-east-1' });
+
+// Read the file (example: from disk or request)
+const fileBuffer = fs.readFileSync('./document.pdf');
+
+// Upload to S3
+const command = new PutObjectCommand({
+  Bucket: 'my-bucket',
+  Key: 'uploads/document.pdf',
+  Body: fileBuffer
+});
+
+await s3.send(command);
+
+// Track the upload
+await trackObjectStorage(ingestion, {
+  customerId: 'customer_123',
+  bytes: fileBuffer.length
+});
+```
+
+```javascript Google Cloud Storage
+import { Ingestion, trackObjectStorage } from '@dodopayments/ingestion-blueprints';
+import { Storage } from '@google-cloud/storage';
+import fs from 'fs';
+
+const ingestion = new Ingestion({
+  apiKey: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'test_mode',
+  eventName: 'object_storage_upload'
+});
+
+const storage = new Storage();
+const bucket = storage.bucket('my-bucket');
+
+// Read the file
+const fileBuffer = fs.readFileSync('./image.png');
+
+// Upload to GCS
+await bucket.file('uploads/image.png').save(fileBuffer);
+
+// Track the upload
+await trackObjectStorage(ingestion, {
+  customerId: 'customer_456',
+  bytes: fileBuffer.length,
+  metadata: {
+    bucket: 'my-bucket',
+    key: 'uploads/image.png'
+  }
+});
+```
+
+</CodeGroup>
+</Step>
+</Steps>
+
+## 配置
+
+### 数据摄取配置
+
+<ParamField path="apiKey" type="string" required>
+您在仪表板上获取的 Dodo Payments API 密钥。
+</ParamField>
+
+<ParamField path="environment" type="string" required>
+环境模式：`test_mode` 或 `live_mode`。
+</ParamField>
+
+<ParamField path="eventName" type="string" required>
+与您的计量器配置匹配的事件名称。
+</ParamField>
+
+### 跟踪对象存储选项
+
+<ParamField path="customerId" type="string" required>
+用于计费归属的客户 ID。
+</ParamField>
+
+<ParamField path="bytes" type="number">
+上传的字节数。基于字节计费时必需。
+</ParamField>
+
+<ParamField path="metadata" type="object">
+有关上传的可选元数据，如存储桶名称、内容类型等。
+</ParamField>
+
+## 最佳实践
+
+<Tip>
+**上传前或上传后跟踪**：您可以根据错误处理策略在实际上传之前或之后跟踪事件。
+</Tip>
+
+<Warning>
+**处理上传失败**：仅跟踪成功的上传，以避免对失败的操作进行计费。
+</Warning>
