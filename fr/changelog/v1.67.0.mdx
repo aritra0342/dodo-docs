@@ -1,0 +1,113 @@
+---
+title: v1.67.0 (17 décembre 2025)
+description: Paiement de panier mixte pour produits uniques et d'abonnement,
+  Portail Client Unifié, invoice_id dans la Réponse de Paiement
+icon: arrows-turn-right
+---
+
+## Nouvelles Fonctionnalités 🚀
+
+1. **Paiement de Panier Mixte : Produits Uniques et d'Abonnement dans un Panier Unique**  
+   Le paiement prend désormais en charge la combinaison de produits à paiement unique et de produits d'abonnement dans un seul panier, ouvrant de nouveaux cas d'utilisation de facturation puissants.
+   
+   <Frame>
+   <img src="/images/changelog/mixed-checkout.png" alt="Paiement mixte avec produits uniques et d'abonnement" />
+   </Frame>
+   
+   ### Ce que cela permet
+   
+   - **Frais d'installation + abonnements** : Facturer des frais d'installation uniques en plus d'un abonnement récurrent dans un seul paiement
+   - **Bundles avec composants récurrents** : Vendre un produit physique (unique) associé à un accès à un service continu (abonnement)
+   - **Combinaisons de cours + adhésion** : Proposer un achat de cours avec un abonnement d'adhésion communautaire optionnel
+   - **Abonnements à vie + options** : Combiner l'accès à un produit à vie avec des fonctionnalités premium récurrentes optionnelles
+   
+   ### Comment ça fonctionne
+   
+   Il suffit d'ajouter à la fois des produits uniques et des produits d'abonnement à votre session de paiement :
+   
+
+   ```javascript
+   const session = await client.checkoutSessions.create({
+     product_cart: [
+       // One-time setup fee
+       { product_id: 'prod_setup_fee', quantity: 1 },
+       // Monthly subscription
+       { product_id: 'prod_monthly_plan', quantity: 1 }
+     ],
+     customer: {
+       email: 'customer@example.com',
+       name: 'Jane Doe'
+     },
+     return_url: 'https://yourapp.com/success'
+   });
+   ```
+
+   
+   <Check>
+   Résultat : Un flux de paiement unique qui traite le paiement unique et initie l'abonnement — réduisant les frictions et augmentant les taux de conversion.
+   </Check>
+   
+   <Info>
+   Lors de la combinaison de types de produits, le paiement unique est facturé immédiatement tandis que l'abonnement suit son cycle de facturation configuré (y compris toute période d'essai que vous avez définie).
+   </Info>
+   
+   En savoir plus : [Sessions de Paiement](/developer-resources/checkout-session)
+
+2. **Portail Client Unifié**  
+   
+   Un nouveau portail client centralisé à [customer.dodopayments.com](https://customer.dodopayments.com) où les clients peuvent voir et gérer tous leurs achats et abonnements à travers différentes entreprises sur Dodo Payments.
+   
+   <Frame>
+   <img src="/images/changelog/unified-customer-portal.png" alt="Portail Client Unifié" />
+   </Frame>
+   
+   ### Fonctionnalités du Portail
+   
+   - **Visibilité inter-entreprises** : Voir tous les achats et abonnements de n'importe quelle entreprise utilisant Dodo Payments en un seul endroit
+   - **Gestion centralisée des abonnements** : Gérer les abonnements à travers différents commerçants depuis un seul tableau de bord
+   - **Historique de facturation unifié** : Accéder aux factures et à l'historique des paiements de tous vos achats
+   - **Expérience de connexion unique** : Se connecter une fois avec votre email pour accéder aux achats de tous les commerçants Dodo Payments
+   
+   ### Comment ça fonctionne
+   
+   Les clients visitent simplement [customer.dodopayments.com](https://customer.dodopayments.com) et saisissent leur adresse email. Ils recevront un lien de connexion sécurisé qui leur donne accès à tous leurs achats dans l'écosystème Dodo Payments.
+   
+   <Tip>
+   Le Portail Client Unifié complète les portails clients spécifiques aux entreprises. Les clients peuvent toujours accéder aux portails individuels des commerçants pour une expérience de marque, ou utiliser le portail unifié pour une vue consolidée.
+   </Tip>
+   
+   <Note>
+   Le portail unifié utilise la même authentification par email que les portails spécifiques aux entreprises, garantissant une expérience cohérente et sécurisée.
+   </Note>
+
+3. **ID de Facture dans la Réponse de Paiement**  
+   La réponse de paiement inclut désormais un `invoice_id` champ, facilitant la réconciliation des paiements avec les factures et l'intégration avec les systèmes comptables.
+   
+
+   ```json
+   {
+     "payment_id": "pay_2IjeQm4hqU6RA4Z4kwDee",
+     "status": "succeeded",
+     "invoice_id": "inv_2IsUnWGtRKFLxk7xAQeyt",
+     "amount": 9900,
+     "currency": "USD",
+     // ... other fields
+   }
+   ```
+
+   
+   ### Cas d'Utilisation
+   
+   - **Intégration comptable** : Lier directement les paiements aux factures dans votre logiciel de comptabilité
+   - **Support client** : Trouver rapidement la facture associée à un paiement lors du traitement des demandes de support
+   - **Réconciliation** : Simplifier la réconciliation financière en associant les paiements aux factures de manière programmatique
+   - **Conformité** : Maintenir des enregistrements précis liant les paiements à leurs factures fiscales correspondantes
+   
+   <Info>
+   Le `invoice_id` champ utilise des ID de factures spécifiques à l'Inde lorsque disponibles, garantissant la conformité avec les exigences de facturation locales.
+   </Info>
+   
+   En savoir plus : [Obtenir l'API Détails de Paiement](/api-reference/payments/get-payments-1)
+
+4. **Corrections de Bugs Générales et Améliorations**  
+   Cette version inclut des améliorations de performance, un polissage de l'interface utilisateur et résout des bugs mineurs pour une expérience plus fiable et rationalisée.

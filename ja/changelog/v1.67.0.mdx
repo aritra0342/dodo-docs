@@ -1,0 +1,112 @@
+---
+title: v1.67.0 (2025年12月17日)
+description: 一時的およびサブスクリプション製品の混合カートチェックアウト、統合顧客ポータル、Payment Responseのinvoice_id
+icon: arrows-turn-right
+---
+
+## 新機能 🚀
+
+1. **混合カートチェックアウト: 一時的およびサブスクリプション製品を1つのカートで**  
+   チェックアウトは、1回限りの支払い製品とサブスクリプション製品を1つのカートに組み合わせることをサポートし、強力な新しい請求ユースケースを解放します。
+   
+   <Frame>
+   <img src="/images/changelog/mixed-checkout.png" alt="一時的およびサブスクリプション製品の混合チェックアウト" />
+   </Frame>
+   
+   ### これにより可能になること
+   
+   - **セットアップ料金 + サブスクリプション**: 繰り返しのサブスクリプションと一緒に一時的なセットアップ料金を請求
+   - **繰り返しコンポーネントを含むバンドル**: 物理製品（1回限り）を継続的なサービスアクセス（サブスクリプション）とバンドルして販売
+   - **コース + メンバーシップの組み合わせ**: コース購入にオプションのコミュニティメンバーシップサブスクリプションを提供
+   - **ライフタイム + アドオンサブスクリプション**: ライフタイム製品アクセスをオプションの繰り返しプレミアム機能と組み合わせ
+   
+   ### 仕組み
+   
+   一時的およびサブスクリプション製品をチェックアウトセッションに追加するだけです：
+   
+
+   ```javascript
+   const session = await client.checkoutSessions.create({
+     product_cart: [
+       // One-time setup fee
+       { product_id: 'prod_setup_fee', quantity: 1 },
+       // Monthly subscription
+       { product_id: 'prod_monthly_plan', quantity: 1 }
+     ],
+     customer: {
+       email: 'customer@example.com',
+       name: 'Jane Doe'
+     },
+     return_url: 'https://yourapp.com/success'
+   });
+   ```
+
+   
+   <Check>
+   結果: 一時的な支払いを処理し、サブスクリプションを開始する単一のチェックアウトフロー — 摩擦を減らし、コンバージョン率を向上させます。
+   </Check>
+   
+   <Info>
+   製品タイプを混合する場合、一時的な支払いは即座に請求され、サブスクリプションは設定された請求サイクルに従います（設定した試用期間を含む）。
+   </Info>
+   
+   詳細はこちら: [チェックアウトセッション](/developer-resources/checkout-session)
+
+2. **統合顧客ポータル**  
+   
+   Dodo Paymentsの異なるビジネス全体でのすべての購入とサブスクリプションを表示および管理できる新しい中央集権的顧客ポータル [customer.dodopayments.com](https://customer.dodopayments.com)。
+   
+   <Frame>
+   <img src="/images/changelog/unified-customer-portal.png" alt="統合顧客ポータル" />
+   </Frame>
+   
+   ### ポータルの機能
+   
+   - **ビジネス間の可視性**: Dodo Paymentsを使用している任意のビジネスからのすべての購入とサブスクリプションを1か所で表示
+   - **中央集権的なサブスクリプション管理**: 単一のダッシュボードから異なるマーチャントのサブスクリプションを管理
+   - **統一された請求履歴**: すべての購入からの請求書と支払い履歴にアクセス
+   - **シングルサインオン体験**: メールで1回ログインすることで、すべてのDodo Paymentsマーチャントからの購入にアクセス
+   
+   ### 仕組み
+   
+   顧客は単に [customer.dodopayments.com](https://customer.dodopayments.com) を訪れ、メールアドレスを入力します。安全なログインリンクが送信され、Dodo Paymentsエコシステム全体のすべての購入にアクセスできます。
+   
+   <Tip>
+   統合顧客ポータルは、ビジネス固有の顧客ポータルを補完します。顧客は、ブランド体験のために個別のマーチャントポータルにアクセスすることも、統合ポータルを使用して統合ビューを得ることもできます。
+   </Tip>
+   
+   <Note>
+   統合ポータルは、ビジネス固有のポータルと同じメールベースの認証を使用しており、一貫した安全な体験を保証します。
+   </Note>
+
+3. **Payment Responseの請求書ID**  
+   Payment responseには、請求書と支払いを照合し、会計システムと統合するのを容易にする `invoice_id` フィールドが含まれています。
+   
+
+   ```json
+   {
+     "payment_id": "pay_2IjeQm4hqU6RA4Z4kwDee",
+     "status": "succeeded",
+     "invoice_id": "inv_2IsUnWGtRKFLxk7xAQeyt",
+     "amount": 9900,
+     "currency": "USD",
+     // ... other fields
+   }
+   ```
+
+   
+   ### ユースケース
+   
+   - **会計統合**: 会計ソフトウェア内の請求書に直接支払いをリンク
+   - **顧客サポート**: サポートリクエストを処理する際に、支払いに関連する請求書を迅速に見つける
+   - **照合**: 支払いを請求書にプログラム的に一致させることで、財務照合を簡素化
+   - **コンプライアンス**: 支払いを対応する税請求書にリンクさせる正確な記録を維持
+   
+   <Info>
+   `invoice_id` フィールドは、利用可能な場合にインド特有の請求書IDを使用し、現地の請求要件に準拠します。
+   </Info>
+   
+   詳細はこちら: [Get Payment Detail API](/api-reference/payments/get-payments-1)
+
+4. **一般的なバグ修正と改善**  
+   このリリースには、パフォーマンスの向上、UIの改善、より信頼性の高いスムーズな体験のための小さなバグの修正が含まれています。

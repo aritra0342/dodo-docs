@@ -1,0 +1,112 @@
+---
+title: v1.67.0（2025年12月17日）
+description: 一次性和订阅产品的混合购物车结账，统一客户门户，支付响应中的 invoice_id
+icon: arrows-turn-right
+---
+
+## 新功能 🚀
+
+1. **混合购物车结账：一次性和订阅产品在一个购物车中**  
+   结账现在支持将一次性支付产品和订阅产品组合在一个购物车中，从而解锁强大的新计费用例。
+   
+   <Frame>
+   <img src="/images/changelog/mixed-checkout.png" alt="一次性和订阅产品的混合结账" />
+   </Frame>
+   
+   ### 这能实现什么
+   
+   - **设置费用 + 订阅**：在单次结账中收取一次性设置费用和定期订阅费用
+   - **带有定期组件的捆绑**：销售一个物理产品（一次性）与持续服务访问（订阅）捆绑
+   - **课程 + 会员组合**：提供课程购买和可选的社区会员订阅
+   - **终身 + 附加订阅**：将终身产品访问与可选的定期高级功能结合
+   
+   ### 工作原理
+   
+   只需将一次性和订阅产品添加到您的结账会话中：
+   
+
+   ```javascript
+   const session = await client.checkoutSessions.create({
+     product_cart: [
+       // One-time setup fee
+       { product_id: 'prod_setup_fee', quantity: 1 },
+       // Monthly subscription
+       { product_id: 'prod_monthly_plan', quantity: 1 }
+     ],
+     customer: {
+       email: 'customer@example.com',
+       name: 'Jane Doe'
+     },
+     return_url: 'https://yourapp.com/success'
+   });
+   ```
+
+   
+   <Check>
+   结果：一个单一的结账流程，处理一次性支付并启动订阅——减少摩擦并提高转化率。
+   </Check>
+   
+   <Info>
+   在混合产品类型时，一次性支付会立即收取，而订阅则遵循其配置的计费周期（包括您设置的任何试用期）。
+   </Info>
+   
+   了解更多：[结账会话](/developer-resources/checkout-session)
+
+2. **统一客户门户**  
+   
+   一个新的集中式客户门户，位于 [customer.dodopayments.com](https://customer.dodopayments.com)，客户可以在此查看和管理他们在 Dodo Payments 上不同商家的所有购买和订阅。
+   
+   <Frame>
+   <img src="/images/changelog/unified-customer-portal.png" alt="统一客户门户" />
+   </Frame>
+   
+   ### 门户功能
+   
+   - **跨商家可见性**：在一个地方查看所有使用 Dodo Payments 的商家的所有购买和订阅
+   - **集中式订阅管理**：从单一仪表板管理不同商家的订阅
+   - **统一账单历史**：访问所有购买的发票和支付历史
+   - **单点登录体验**：使用您的电子邮件一次登录，访问所有 Dodo Payments 商家的购买
+   
+   ### 工作原理
+   
+   客户只需访问 [customer.dodopayments.com](https://customer.dodopayments.com) 并输入他们的电子邮件地址。他们将收到一个安全的登录链接，允许访问他们在 Dodo Payments 生态系统中的所有购买。
+   
+   <Tip>
+   统一客户门户补充了特定于业务的客户门户。客户仍然可以访问单个商家的门户以获得品牌体验，或使用统一门户以获得综合视图。
+   </Tip>
+   
+   <Note>
+   统一门户使用与特定于业务的门户相同的基于电子邮件的身份验证，确保一致和安全的体验。
+   </Note>
+
+3. **支付响应中的发票 ID**  
+   支付响应现在包含一个 `invoice_id` 字段，使得与发票对账和与会计系统集成变得更加容易。
+   
+
+   ```json
+   {
+     "payment_id": "pay_2IjeQm4hqU6RA4Z4kwDee",
+     "status": "succeeded",
+     "invoice_id": "inv_2IsUnWGtRKFLxk7xAQeyt",
+     "amount": 9900,
+     "currency": "USD",
+     // ... other fields
+   }
+   ```
+
+   
+   ### 用例
+   
+   - **会计集成**：将支付直接链接到您会计软件中的发票
+   - **客户支持**：在处理支持请求时快速找到与支付相关的发票
+   - **对账**：通过编程将支付与发票匹配，简化财务对账
+   - **合规性**：保持准确的记录，将支付与其对应的税务发票链接
+   
+   <Info>
+   `invoice_id` 字段在可用时使用印度特定的发票 ID，确保符合当地发票要求。
+   </Info>
+   
+   了解更多：[获取支付详细信息 API](/api-reference/payments/get-payments-1)
+
+4. **常规错误修复和增强**  
+   此版本包括性能改进、用户界面优化，并解决了小错误，以提供更可靠、流畅的体验。

@@ -1,0 +1,113 @@
+---
+title: v1.67.0 (17. Dezember 2025)
+description: Gemischter Warenkorb-Checkout für Einmal- und Abonnementprodukte,
+  Vereinheitlichter Kundenportal, invoice_id in der Zahlungsantwort
+icon: arrows-turn-right
+---
+
+## Neue Funktionen 🚀
+
+1. **Gemischter Warenkorb-Checkout: Einmal- und Abonnementprodukte in einem Warenkorb**  
+   Der Checkout unterstützt jetzt die Kombination von sowohl Einmalzahlungsprodukten als auch Abonnementprodukten in einem einzigen Warenkorb, was leistungsstarke neue Abrechnungsanwendungen ermöglicht.
+   
+   <Frame>
+   <img src="/images/changelog/mixed-checkout.png" alt="Gemischter Checkout mit Einmal- und Abonnementprodukten" />
+   </Frame>
+   
+   ### Was dies ermöglicht
+   
+   - **Einrichtungsgebühren + Abonnements**: Erheben Sie eine einmalige Einrichtungsgebühr zusammen mit einem wiederkehrenden Abonnement in einem einzigen Checkout
+   - **Bundles mit wiederkehrenden Komponenten**: Verkaufen Sie ein physisches Produkt (einmalig) zusammen mit einem fortlaufenden Servicezugang (Abonnement)
+   - **Kurs + Mitgliedschaftskombinationen**: Bieten Sie den Kauf eines Kurses mit einem optionalen Community-Mitgliedschaftsabonnement an
+   - **Lebenslange + Zusatzabonnements**: Kombinieren Sie den Zugang zu einem lebenslangen Produkt mit optionalen wiederkehrenden Premiumfunktionen
+   
+   ### So funktioniert es
+   
+   Fügen Sie einfach sowohl Einmal- als auch Abonnementprodukte zu Ihrer Checkout-Sitzung hinzu:
+   
+
+   ```javascript
+   const session = await client.checkoutSessions.create({
+     product_cart: [
+       // One-time setup fee
+       { product_id: 'prod_setup_fee', quantity: 1 },
+       // Monthly subscription
+       { product_id: 'prod_monthly_plan', quantity: 1 }
+     ],
+     customer: {
+       email: 'customer@example.com',
+       name: 'Jane Doe'
+     },
+     return_url: 'https://yourapp.com/success'
+   });
+   ```
+
+   
+   <Check>
+   Ergebnis: Ein einzelner Checkout-Prozess, der die Einmalzahlung verarbeitet und das Abonnement initiiert – wodurch Reibungen verringert und die Konversionsraten erhöht werden.
+   </Check>
+   
+   <Info>
+   Bei der Mischung von Produkttypen wird die Einmalzahlung sofort belastet, während das Abonnement seinem konfigurierten Abrechnungszyklus folgt (einschließlich der von Ihnen festgelegten Testphase).
+   </Info>
+   
+   Erfahren Sie mehr: [Checkout-Sitzungen](/developer-resources/checkout-session)
+
+2. **Vereinheitlichter Kundenportal**  
+   
+   Ein neues zentrales Kundenportal unter [customer.dodopayments.com](https://customer.dodopayments.com), wo Kunden alle ihre Käufe und Abonnements über verschiedene Unternehmen bei Dodo Payments einsehen und verwalten können.
+   
+   <Frame>
+   <img src="/images/changelog/unified-customer-portal.png" alt="Vereinheitlichter Kundenportal" />
+   </Frame>
+   
+   ### Portal-Funktionen
+   
+   - **Sichtbarkeit über Unternehmen hinweg**: Sehen Sie alle Käufe und Abonnements von jedem Unternehmen, das Dodo Payments nutzt, an einem Ort
+   - **Zentralisierte Abonnementverwaltung**: Verwalten Sie Abonnements über verschiedene Händler von einem einzigen Dashboard aus
+   - **Vereinheitlichte Abrechnungshistorie**: Greifen Sie auf Rechnungen und Zahlungshistorie aller Ihrer Käufe zu
+   - **Single Sign-On-Erlebnis**: Melden Sie sich einmal mit Ihrer E-Mail an, um auf Käufe von allen Dodo Payments-Händlern zuzugreifen
+   
+   ### So funktioniert es
+   
+   Kunden besuchen einfach [customer.dodopayments.com](https://customer.dodopayments.com) und geben ihre E-Mail-Adresse ein. Sie erhalten einen sicheren Anmeldelink, der den Zugriff auf alle ihre Käufe im Dodo Payments-Ökosystem gewährt.
+   
+   <Tip>
+   Der vereinheitlichte Kundenportal ergänzt die unternehmensspezifischen Kundenportale. Kunden können weiterhin auf die einzelnen Händlerportale für ein markenspezifisches Erlebnis zugreifen oder das vereinheitlichte Portal für eine konsolidierte Ansicht nutzen.
+   </Tip>
+   
+   <Note>
+   Das vereinheitlichte Portal verwendet die gleiche E-Mail-basierte Authentifizierung wie die unternehmensspezifischen Portale, um ein konsistentes und sicheres Erlebnis zu gewährleisten.
+   </Note>
+
+3. **Rechnungs-ID in der Zahlungsantwort**  
+   Die Zahlungsantwort enthält jetzt ein `invoice_id` Feld, das die Abstimmung von Zahlungen mit Rechnungen und die Integration in Buchhaltungssysteme erleichtert.
+   
+
+   ```json
+   {
+     "payment_id": "pay_2IjeQm4hqU6RA4Z4kwDee",
+     "status": "succeeded",
+     "invoice_id": "inv_2IsUnWGtRKFLxk7xAQeyt",
+     "amount": 9900,
+     "currency": "USD",
+     // ... other fields
+   }
+   ```
+
+   
+   ### Anwendungsfälle
+   
+   - **Buchhaltungsintegration**: Verknüpfen Sie Zahlungen direkt mit Rechnungen in Ihrer Buchhaltungssoftware
+   - **Kundensupport**: Finden Sie schnell die Rechnung, die mit einer Zahlung verbunden ist, wenn Sie Supportanfragen bearbeiten
+   - **Abstimmung**: Vereinfachen Sie die finanzielle Abstimmung, indem Sie Zahlungen programmgesteuert mit Rechnungen abgleichen
+   - **Compliance**: Führen Sie genaue Aufzeichnungen, die Zahlungen mit den entsprechenden Steuerrechnungen verknüpfen
+   
+   <Info>
+   Das `invoice_id` Feld verwendet indien-spezifische Rechnungs-IDs, wenn verfügbar, um die Einhaltung lokaler Rechnungsanforderungen sicherzustellen.
+   </Info>
+   
+   Erfahren Sie mehr: [Get Payment Detail API](/api-reference/payments/get-payments-1)
+
+4. **Allgemeine Fehlerbehebungen und Verbesserungen**  
+   Diese Version umfasst Leistungsverbesserungen, UI-Optimierungen und behebt kleinere Fehler für ein zuverlässigeres, reibungsloseres Erlebnis.
