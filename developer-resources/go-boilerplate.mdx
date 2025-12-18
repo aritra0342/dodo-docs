@@ -1,0 +1,354 @@
+---
+sidebarTitle: "Go"
+title: Go Boilerplate
+description: Get started quickly with our minimal Go boilerplate for integrating Dodo Payments into your Go backend applications
+icon: "golang"
+tag: "NEW"
+---
+
+<Card title="GitHub Repository" icon="github" href="https://github.com/dodopayments/go-boilerplate">
+  Minimal Go + Dodo Payments boilerplate
+</Card>
+
+## Overview
+
+The Go boilerplate provides a production-ready starting point for integrating Dodo Payments with your Go backend. This template includes checkout session handling, webhook verification, customer portal integration, and follows Go best practices to help you start accepting payments quickly.
+
+<Info>
+This boilerplate uses Go 1.21+ with clean architecture patterns (`cmd`, `internal`, `templates`), HTML templates, and the `dodopayments-go` SDK for seamless API integration.
+</Info>
+
+### Features
+
+- **Quick Setup** - Get started in under 5 minutes
+- **Payment Integration** - Pre-configured checkout flow using `dodopayments-go` SDK
+- **Modern UI** - Clean, dark-themed pricing page with HTML templates
+- **Webhook Handling** - Securely verify and process payment events
+- **Customer Portal** - Self-serve subscription management
+- **Go Best Practices** - Clean architecture with `cmd`, `internal`, and `templates`
+- **Pre-filled Checkout** - Demonstrates passing customer data to improve UX
+
+## Prerequisites
+
+Before you begin, make sure you have:
+
+- **Go 1.21+**
+- **Dodo Payments account** (to access API and Webhook Keys from dashboard)
+
+## Quick Start
+
+<Steps>
+<Step title="Clone the Repository">
+
+```bash
+git clone https://github.com/dodopayments/go-boilerplate.git
+cd go-boilerplate
+```
+</Step>
+
+<Step title="Install Dependencies">
+
+```bash
+make install
+```
+
+Or manually:
+
+```bash
+go mod download
+```
+</Step>
+
+<Step title="Get API Credentials">
+Sign up at [Dodo Payments](https://dodopayments.com/) and get your credentials from the dashboard:
+
+- **API Key:** [Dashboard → Developer → API Keys](https://app.dodopayments.com/developer/api-keys)
+- **Webhook Key:** [Dashboard → Developer → Webhooks](https://app.dodopayments.com/developer/webhooks)
+
+<Tip>
+Make sure you're in **Test Mode** while developing!
+</Tip>
+</Step>
+
+<Step title="Configure Environment Variables">
+Create a `.env` file in the root directory:
+
+```bash
+cp .env.example .env
+```
+
+Update the values with your Dodo Payments credentials:
+
+```bash .env
+DODO_PAYMENTS_API_KEY=your_api_key_here
+DODO_PAYMENTS_WEBHOOK_KEY=your_webhook_signing_key_here
+DODO_PAYMENTS_RETURN_URL=http://localhost:8000
+DODO_PAYMENTS_ENVIRONMENT=test_mode
+```
+
+<Warning>
+Never commit your `.env` file to version control. It's already included in `.gitignore`.
+</Warning>
+</Step>
+
+<Step title="Add Your Products">
+Update `internal/lib/products.go` with your actual product IDs from Dodo Payments:
+
+```go
+var Products = []Product{
+    {
+        ProductID:   "pdt_001", // Replace with your product ID
+        Name:        "Basic Plan",
+        Description: "Get access to basic features and support",
+        Price:       9999, // in cents
+        Features: []string{
+            "Access to basic features",
+            "Email support",
+            "1 Team member",
+            "Basic analytics",
+        },
+    },
+    // ... add more products
+}
+```
+</Step>
+
+<Step title="Run the Development Server">
+
+```bash
+make run
+```
+
+Or manually:
+
+```bash
+go run cmd/server/main.go
+```
+
+Open [http://localhost:8000](http://localhost:8000) to see your pricing page!
+
+<Check>
+You should see a dark-themed pricing page with your products ready to purchase.
+</Check>
+</Step>
+</Steps>
+
+## Project Structure
+
+```text
+go-boilerplate/
+├── cmd/
+│   └── server/             # Application entry point
+├── internal/
+│   ├── api/                # API handlers (Checkout, Portal, Webhook)
+│   ├── core/               # Configuration and system core
+│   └── lib/                # Shared logic (Products, Customer utils)
+├── templates/              # HTML templates
+├── Makefile                # Build and run commands
+├── go.mod                  # Go module definition
+├── go.sum                  # Dependency checksums
+├── .env.example            # Environment template
+└── README.md
+```
+
+## API Endpoints
+
+The boilerplate includes the following pre-configured endpoints:
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/` | GET | Pricing page with product listing |
+| `/api/checkout` | POST | Create a new checkout session |
+| `/api/webhook` | POST | Handle Dodo Payments webhooks |
+| `/api/customer-portal` | POST | Generate customer portal URL |
+
+## Customization
+
+### Update Product Information
+
+Edit `internal/lib/products.go` to modify:
+- Product IDs (from your Dodo dashboard)
+- Pricing
+- Features
+- Descriptions
+
+```go
+var Products = []Product{
+    {
+        ProductID:   "pdt_001", // Replace with your product ID
+        Name:        "Basic Plan",
+        Description: "Get access to basic features and support",
+        Price:       9999,
+        Features: []string{
+            "Access to basic features",
+            "Email support",
+            "1 Team member",
+            "Basic analytics",
+        },
+    },
+}
+```
+
+### Pre-fill Customer Data
+
+In `templates/index.html`, replace the hardcoded customer data with your actual user data:
+
+```javascript
+const customerData = {
+    name: "John Doe",       // Replace with actual logged-in user's name
+    email: "john@example.com"  // Replace with actual logged-in user's email
+};
+```
+
+In a production app, you would dynamically inject these values from your authentication system.
+
+## Webhook Events
+
+The boilerplate demonstrates handling webhook events in `internal/api/webhook.go`. Supported events include:
+
+| Event | Description |
+|-------|-------------|
+| `subscription.active` | Triggered when a subscription becomes active |
+| `payment.succeeded` | Triggered when a payment is successful |
+
+Add your business logic inside the webhook handler to:
+- Update user permissions in your database
+- Send confirmation emails
+- Provision access to digital products
+- Track analytics and metrics
+
+## Testing Webhooks Locally
+
+For local development, use tools like [ngrok](https://ngrok.com/) to expose your local server:
+
+```bash
+ngrok http 8000
+```
+
+Update the webhook URL in your [Dodo Payments Dashboard](https://app.dodopayments.com/developer/webhooks):
+
+```
+https://your-ngrok-url.ngrok.io/api/webhook
+```
+
+## Deployment
+
+### Build for Production
+
+```bash
+make build
+```
+
+Or manually:
+
+```bash
+go build -o bin/server cmd/server/main.go
+./bin/server
+```
+
+### Deploy to Vercel
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/dodopayments/go-boilerplate)
+
+### Docker
+
+Create a `Dockerfile`:
+
+```dockerfile
+FROM golang:1.21-alpine AS builder
+
+WORKDIR /app
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+RUN go build -o bin/server cmd/server/main.go
+
+FROM alpine:latest
+WORKDIR /app
+COPY --from=builder /app/bin/server .
+COPY --from=builder /app/templates ./templates
+
+EXPOSE 8000
+CMD ["./server"]
+```
+
+Build and run:
+
+```bash
+docker build -t go-dodo .
+docker run -p 8000:8000 --env-file .env go-dodo
+```
+
+### Production Considerations
+
+<Warning>
+Before deploying to production:
+- Switch `DODO_PAYMENTS_ENVIRONMENT` to `live_mode`
+- Use production API keys from the dashboard
+- Update the webhook URL to your production domain
+- Enable HTTPS for all endpoints
+</Warning>
+
+## Troubleshooting
+
+<AccordionGroup>
+<Accordion title="Build errors or missing dependencies">
+Ensure Go modules are properly downloaded:
+
+```bash
+go mod tidy
+go mod download
+```
+</Accordion>
+
+<Accordion title="Checkout session creation fails">
+**Common causes:**
+- Invalid product ID - verify it exists in your Dodo dashboard
+- Wrong API key or environment setting in `.env`
+- Check the server logs for detailed error messages
+</Accordion>
+
+<Accordion title="Webhooks not receiving events">
+For local testing, use [ngrok](https://ngrok.com) to expose your server:
+
+```bash
+ngrok http 8000
+```
+
+Update the webhook URL in your [Dodo dashboard](https://app.dodopayments.com/developer/webhooks) to the ngrok URL. Make sure to update your `.env` file with the correct webhook verification key.
+</Accordion>
+
+<Accordion title="Templates not loading">
+Ensure you're running the server from the project root directory, or that the templates path is correctly configured in your code.
+</Accordion>
+</AccordionGroup>
+
+## Learn More
+
+<CardGroup cols={2}>
+<Card title="Go SDK" icon="golang" href="/developer-resources/sdks/go">
+  Complete Go SDK documentation
+</Card>
+
+<Card title="Webhooks Documentation" icon="webhook" href="/developer-resources/webhooks">
+  Learn about all webhook events and best practices
+</Card>
+
+<Card title="Checkout Sessions" icon="credit-card" href="/developer-resources/checkout-session">
+  Deep dive into checkout session configuration
+</Card>
+
+<Card title="API Reference" icon="book" href="/api-reference/introduction">
+  Complete Dodo Payments API documentation
+</Card>
+</CardGroup>
+
+## Support
+
+Need help with the boilerplate?
+
+- Join our [Discord community](https://discord.gg/bYqAp4ayYh) for questions and discussions
+- Check the [GitHub repository](https://github.com/dodopayments/go-boilerplate) for issues and updates
+- Contact our [support team](mailto:support@dodopayments.com) for assistance
+

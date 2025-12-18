@@ -1,0 +1,362 @@
+---
+sidebarTitle: Go
+title: Go Boilerplate
+description: Starten Sie schnell mit unserem minimalen Go-Boilerplate zur
+  Integration von Dodo Payments in Ihre Go-Backend-Anwendungen
+icon: golang
+tag: NEU
+---
+
+<Card title="GitHub Repository" icon="github" href="https://github.com/dodopayments/go-boilerplate">
+  Minimal Go + Dodo Payments Boilerplate
+</Card>
+
+## Übersicht
+
+Das Go-Boilerplate bietet einen produktionsbereiten Ausgangspunkt für die Integration von Dodo Payments in Ihr Go-Backend. Diese Vorlage umfasst die Handhabung von Checkout-Sitzungen, die Überprüfung von Webhooks, die Integration des Kundenportals und folgt den besten Praktiken von Go, um Ihnen zu helfen, schnell Zahlungen zu akzeptieren.
+
+<Info>
+Dieses Boilerplate verwendet Go 1.21+ mit sauberen Architekturmustern (`cmd`, `internal`, `templates`), HTML-Vorlagen und das `dodopayments-go` SDK für eine nahtlose API-Integration.
+</Info>
+
+### Funktionen
+
+- **Schnelle Einrichtung** - Starten Sie in weniger als 5 Minuten
+- **Zahlungsintegration** - Vorgefertigter Checkout-Flow mit dem `dodopayments-go` SDK
+- **Moderne UI** - Saubere, dunkel gestaltete Preisgestaltungseite mit HTML-Vorlagen
+- **Webhook-Verarbeitung** - Sicheres Überprüfen und Verarbeiten von Zahlungsereignissen
+- **Kundenportal** - Selbstbedienungs-Abonnementverwaltung
+- **Go-Best Practices** - Saubere Architektur mit `cmd`, `internal` und `templates`
+- **Vorab ausgefüllter Checkout** - Demonstriert das Übergeben von Kundendaten zur Verbesserung der Benutzererfahrung
+
+## Voraussetzungen
+
+Bevor Sie beginnen, stellen Sie sicher, dass Sie Folgendes haben:
+
+- **Go 1.21+**
+- **Dodo Payments-Konto** (um API- und Webhook-Keys vom Dashboard abzurufen)
+
+## Schnellstart
+
+<Steps>
+<Step title="Repository klonen">
+
+```bash
+git clone https://github.com/dodopayments/go-boilerplate.git
+cd go-boilerplate
+```
+
+</Step>
+
+<Step title="Abhängigkeiten installieren">
+
+```bash
+make install
+```
+
+Oder manuell:
+
+```bash
+go mod download
+```
+
+</Step>
+
+<Step title="API-Anmeldeinformationen abrufen">
+Melden Sie sich bei [Dodo Payments](https://dodopayments.com/) an und holen Sie sich Ihre Anmeldeinformationen vom Dashboard:
+
+- **API-Schlüssel:** [Dashboard → Entwickler → API-Schlüssel](https://app.dodopayments.com/developer/api-keys)
+- **Webhook-Schlüssel:** [Dashboard → Entwickler → Webhooks](https://app.dodopayments.com/developer/webhooks)
+
+<Tip>
+Stellen Sie sicher, dass Sie sich im **Testmodus** befinden, während Sie entwickeln!
+</Tip>
+</Step>
+
+<Step title="Umgebungsvariablen konfigurieren">
+Erstellen Sie eine `.env` Datei im Stammverzeichnis:
+
+```bash
+cp .env.example .env
+```
+
+Aktualisieren Sie die Werte mit Ihren Dodo Payments-Anmeldeinformationen:
+
+```bash .env
+DODO_PAYMENTS_API_KEY=your_api_key_here
+DODO_PAYMENTS_WEBHOOK_KEY=your_webhook_signing_key_here
+DODO_PAYMENTS_RETURN_URL=http://localhost:8000
+DODO_PAYMENTS_ENVIRONMENT=test_mode
+```
+
+<Warning>
+Verpflichten Sie niemals Ihre `.env` Datei zur Versionskontrolle. Sie ist bereits in `.gitignore` enthalten.
+</Warning>
+</Step>
+
+<Step title="Fügen Sie Ihre Produkte hinzu">
+Aktualisieren Sie `internal/lib/products.go` mit Ihren tatsächlichen Produkt-IDs von Dodo Payments:
+
+```go
+var Products = []Product{
+    {
+        ProductID:   "pdt_001", // Replace with your product ID
+        Name:        "Basic Plan",
+        Description: "Get access to basic features and support",
+        Price:       9999, // in cents
+        Features: []string{
+            "Access to basic features",
+            "Email support",
+            "1 Team member",
+            "Basic analytics",
+        },
+    },
+    // ... add more products
+}
+```
+
+</Step>
+
+<Step title="Entwicklungsserver starten">
+
+```bash
+make run
+```
+
+Oder manuell:
+
+```bash
+go run cmd/server/main.go
+```
+
+Öffnen Sie [http://localhost:8000](http://localhost:8000), um Ihre Preisgestaltungseite zu sehen!
+
+<Check>
+Sie sollten eine dunkel gestaltete Preisgestaltungseite mit Ihren Produkten sehen, die bereit zum Kauf sind.
+</Check>
+</Step>
+</Steps>
+
+## Projektstruktur
+
+```text
+go-boilerplate/
+├── cmd/
+│   └── server/             # Application entry point
+├── internal/
+│   ├── api/                # API handlers (Checkout, Portal, Webhook)
+│   ├── core/               # Configuration and system core
+│   └── lib/                # Shared logic (Products, Customer utils)
+├── templates/              # HTML templates
+├── Makefile                # Build and run commands
+├── go.mod                  # Go module definition
+├── go.sum                  # Dependency checksums
+├── .env.example            # Environment template
+└── README.md
+```
+
+## API-Endpunkte
+
+Das Boilerplate umfasst die folgenden vorkonfigurierten Endpunkte:
+
+| Endpunkt | Methode | Beschreibung |
+|----------|--------|-------------|
+| `/` | GET | Preisgestaltungseite mit Produktauflistung |
+| `/api/checkout` | POST | Erstellen Sie eine neue Checkout-Sitzung |
+| `/api/webhook` | POST | Verarbeiten Sie Dodo Payments-Webhooks |
+| `/api/customer-portal` | POST | Generieren Sie die URL des Kundenportals |
+
+## Anpassung
+
+### Produktinformationen aktualisieren
+
+Bearbeiten Sie `internal/lib/products.go`, um Folgendes zu ändern:
+- Produkt-IDs (aus Ihrem Dodo-Dashboard)
+- Preise
+- Funktionen
+- Beschreibungen
+
+```go
+var Products = []Product{
+    {
+        ProductID:   "pdt_001", // Replace with your product ID
+        Name:        "Basic Plan",
+        Description: "Get access to basic features and support",
+        Price:       9999,
+        Features: []string{
+            "Access to basic features",
+            "Email support",
+            "1 Team member",
+            "Basic analytics",
+        },
+    },
+}
+```
+
+### Kundendaten vorab ausfüllen
+
+In `templates/index.html` ersetzen Sie die fest codierten Kundendaten durch Ihre tatsächlichen Benutzerdaten:
+
+```javascript
+const customerData = {
+    name: "John Doe",       // Replace with actual logged-in user's name
+    email: "john@example.com"  // Replace with actual logged-in user's email
+};
+```
+
+In einer Produktionsanwendung würden Sie diese Werte dynamisch aus Ihrem Authentifizierungssystem einfügen.
+
+## Webhook-Ereignisse
+
+Das Boilerplate demonstriert die Verarbeitung von Webhook-Ereignissen in `internal/api/webhook.go`. Unterstützte Ereignisse sind:
+
+| Ereignis | Beschreibung |
+|-------|-------------|
+| `subscription.active` | Ausgelöst, wenn ein Abonnement aktiv wird |
+| `payment.succeeded` | Ausgelöst, wenn eine Zahlung erfolgreich ist |
+
+Fügen Sie Ihre Geschäftslogik innerhalb des Webhook-Handlers hinzu, um:
+- Benutzerberechtigungen in Ihrer Datenbank zu aktualisieren
+- Bestätigungs-E-Mails zu senden
+- Zugriff auf digitale Produkte bereitzustellen
+- Analysen und Metriken zu verfolgen
+
+## Webhooks lokal testen
+
+Für die lokale Entwicklung verwenden Sie Tools wie [ngrok](https://ngrok.com/), um Ihren lokalen Server freizugeben:
+
+```bash
+ngrok http 8000
+```
+
+Aktualisieren Sie die Webhook-URL in Ihrem [Dodo Payments Dashboard](https://app.dodopayments.com/developer/webhooks):
+
+```
+https://your-ngrok-url.ngrok.io/api/webhook
+```
+
+## Bereitstellung
+
+### Für die Produktion bauen
+
+```bash
+make build
+```
+
+Oder manuell:
+
+```bash
+go build -o bin/server cmd/server/main.go
+./bin/server
+```
+
+### Auf Vercel bereitstellen
+
+[
+
+![Mit Vercel bereitstellen](https://vercel.com/button)
+
+](https://vercel.com/new/clone?repository-url=https://github.com/dodopayments/go-boilerplate)
+
+### Docker
+
+Erstellen Sie eine `Dockerfile`:
+
+```dockerfile
+FROM golang:1.21-alpine AS builder
+
+WORKDIR /app
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+RUN go build -o bin/server cmd/server/main.go
+
+FROM alpine:latest
+WORKDIR /app
+COPY --from=builder /app/bin/server .
+COPY --from=builder /app/templates ./templates
+
+EXPOSE 8000
+CMD ["./server"]
+```
+
+Bauen und ausführen:
+
+```bash
+docker build -t go-dodo .
+docker run -p 8000:8000 --env-file .env go-dodo
+```
+
+### Produktionsüberlegungen
+
+<Warning>
+Bevor Sie in die Produktion gehen:
+- Wechseln Sie `DODO_PAYMENTS_ENVIRONMENT` zu `live_mode`
+- Verwenden Sie Produktions-API-Schlüssel aus dem Dashboard
+- Aktualisieren Sie die Webhook-URL auf Ihre Produktionsdomain
+- Aktivieren Sie HTTPS für alle Endpunkte
+</Warning>
+
+## Fehlersuche
+
+<AccordionGroup>
+<Accordion title="Build-Fehler oder fehlende Abhängigkeiten">
+Stellen Sie sicher, dass Go-Module ordnungsgemäß heruntergeladen werden:
+
+```bash
+go mod tidy
+go mod download
+```
+
+</Accordion>
+
+<Accordion title="Fehler beim Erstellen der Checkout-Sitzung">
+**Häufige Ursachen:**
+- Ungültige Produkt-ID - überprüfen Sie, ob sie in Ihrem Dodo-Dashboard vorhanden ist
+- Falscher API-Schlüssel oder Umgebungsparameter in `.env`
+- Überprüfen Sie die Serverprotokolle auf detaillierte Fehlermeldungen
+</Accordion>
+
+<Accordion title="Webhooks empfangen keine Ereignisse">
+Für lokale Tests verwenden Sie [ngrok](https://ngrok.com), um Ihren Server freizugeben:
+
+```bash
+ngrok http 8000
+```
+
+Aktualisieren Sie die Webhook-URL in Ihrem [Dodo-Dashboard](https://app.dodopayments.com/developer/webhooks) auf die ngrok-URL. Stellen Sie sicher, dass Sie Ihre `.env` Datei mit dem richtigen Webhook-Überprüfungsschlüssel aktualisieren.
+</Accordion>
+
+<Accordion title="Vorlagen werden nicht geladen">
+Stellen Sie sicher, dass Sie den Server aus dem Stammverzeichnis des Projekts ausführen oder dass der Vorlagenpfad in Ihrem Code korrekt konfiguriert ist.
+</Accordion>
+</AccordionGroup>
+
+## Erfahren Sie mehr
+
+<CardGroup cols={2}>
+<Card title="Go SDK" icon="golang" href="/developer-resources/sdks/go">
+  Vollständige Go SDK-Dokumentation
+</Card>
+
+<Card title="Webhook-Dokumentation" icon="webhook" href="/developer-resources/webhooks">
+  Erfahren Sie mehr über alle Webhook-Ereignisse und Best Practices
+</Card>
+
+<Card title="Checkout-Sitzungen" icon="credit-card" href="/developer-resources/checkout-session">
+  Detaillierte Informationen zur Konfiguration von Checkout-Sitzungen
+</Card>
+
+<Card title="API-Referenz" icon="book" href="/api-reference/introduction">
+  Vollständige Dodo Payments API-Dokumentation
+</Card>
+</CardGroup>
+
+## Unterstützung
+
+Brauchen Sie Hilfe mit dem Boilerplate?
+
+- Treten Sie unserer [Discord-Community](https://discord.gg/bYqAp4ayYh) für Fragen und Diskussionen bei
+- Überprüfen Sie das [GitHub-Repository](https://github.com/dodopayments/go-boilerplate) auf Probleme und Updates
+- Kontaktieren Sie unser [Support-Team](mailto:support@dodopayments.com) für Unterstützung

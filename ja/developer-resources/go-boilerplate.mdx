@@ -1,0 +1,361 @@
+---
+sidebarTitle: Go
+title: Go Boilerplate
+description: Dodo PaymentsをGoバックエンドアプリケーションに統合するための最小限のGoボイラープレートで迅速に始めましょう
+icon: golang
+tag: NEW
+---
+
+<Card title="GitHubリポジトリ" icon="github" href="https://github.com/dodopayments/go-boilerplate">
+  最小限のGo + Dodo Paymentsボイラープレート
+</Card>
+
+## 概要
+
+Goボイラープレートは、Dodo PaymentsをGoバックエンドに統合するための生産準備が整った出発点を提供します。このテンプレートには、チェックアウトセッションの処理、Webhookの検証、顧客ポータルの統合が含まれており、迅速に支払いを受け入れるためのGoのベストプラクティスに従っています。
+
+<Info>
+このボイラープレートは、クリーンアーキテクチャパターン（`cmd`、`internal`、`templates`）、HTMLテンプレート、およびシームレスなAPI統合のための`dodopayments-go` SDKを使用して、Go 1.21+で動作します。
+</Info>
+
+### 特徴
+
+- **クイックセットアップ** - 5分以内で始められます
+- **支払い統合** - `dodopayments-go` SDKを使用した事前設定されたチェックアウトフロー
+- **モダンUI** - HTMLテンプレートを使用したクリーンでダークテーマの価格ページ
+- **Webhook処理** - 支払いイベントを安全に検証および処理
+- **顧客ポータル** - 自己管理型のサブスクリプション管理
+- **Goのベストプラクティス** - `cmd`、`internal`、および`templates`を使用したクリーンアーキテクチャ
+- **事前入力されたチェックアウト** - UXを向上させるために顧客データを渡すデモ
+
+## 前提条件
+
+始める前に、次のものを用意してください：
+
+- **Go 1.21+**
+- **Dodo Paymentsアカウント**（ダッシュボードからAPIおよびWebhookキーにアクセスするため）
+
+## クイックスタート
+
+<Steps>
+<Step title="リポジトリをクローン">
+
+```bash
+git clone https://github.com/dodopayments/go-boilerplate.git
+cd go-boilerplate
+```
+
+</Step>
+
+<Step title="依存関係をインストール">
+
+```bash
+make install
+```
+
+または手動で：
+
+```bash
+go mod download
+```
+
+</Step>
+
+<Step title="API資格情報を取得">
+[Dodo Payments](https://dodopayments.com/)にサインアップし、ダッシュボードから資格情報を取得します：
+
+- **APIキー:** [ダッシュボード → 開発者 → APIキー](https://app.dodopayments.com/developer/api-keys)
+- **Webhookキー:** [ダッシュボード → 開発者 → Webhooks](https://app.dodopayments.com/developer/webhooks)
+
+<Tip>
+開発中は**テストモード**にいることを確認してください！
+</Tip>
+</Step>
+
+<Step title="環境変数を設定">
+ルートディレクトリに`.env`ファイルを作成します：
+
+```bash
+cp .env.example .env
+```
+
+Dodo Paymentsの資格情報で値を更新します：
+
+```bash .env
+DODO_PAYMENTS_API_KEY=your_api_key_here
+DODO_PAYMENTS_WEBHOOK_KEY=your_webhook_signing_key_here
+DODO_PAYMENTS_RETURN_URL=http://localhost:8000
+DODO_PAYMENTS_ENVIRONMENT=test_mode
+```
+
+<Warning>
+`.env`ファイルをバージョン管理にコミットしないでください。これはすでに`.gitignore`に含まれています。
+</Warning>
+</Step>
+
+<Step title="製品を追加">
+`internal/lib/products.go`をDodo Paymentsからの実際の製品IDで更新します：
+
+```go
+var Products = []Product{
+    {
+        ProductID:   "pdt_001", // Replace with your product ID
+        Name:        "Basic Plan",
+        Description: "Get access to basic features and support",
+        Price:       9999, // in cents
+        Features: []string{
+            "Access to basic features",
+            "Email support",
+            "1 Team member",
+            "Basic analytics",
+        },
+    },
+    // ... add more products
+}
+```
+
+</Step>
+
+<Step title="開発サーバーを実行">
+
+```bash
+make run
+```
+
+または手動で：
+
+```bash
+go run cmd/server/main.go
+```
+
+[http://localhost:8000](http://localhost:8000)を開いて、価格ページを確認してください！
+
+<Check>
+ダークテーマの価格ページが表示され、購入可能な製品が準備されているはずです。
+</Check>
+</Step>
+</Steps>
+
+## プロジェクト構造
+
+```text
+go-boilerplate/
+├── cmd/
+│   └── server/             # Application entry point
+├── internal/
+│   ├── api/                # API handlers (Checkout, Portal, Webhook)
+│   ├── core/               # Configuration and system core
+│   └── lib/                # Shared logic (Products, Customer utils)
+├── templates/              # HTML templates
+├── Makefile                # Build and run commands
+├── go.mod                  # Go module definition
+├── go.sum                  # Dependency checksums
+├── .env.example            # Environment template
+└── README.md
+```
+
+## APIエンドポイント
+
+ボイラープレートには、次の事前設定されたエンドポイントが含まれています：
+
+| エンドポイント | メソッド | 説明 |
+|----------|--------|-------------|
+| `/` | GET | 製品リスト付きの価格ページ |
+| `/api/checkout` | POST | 新しいチェックアウトセッションを作成 |
+| `/api/webhook` | POST | Dodo PaymentsのWebhookを処理 |
+| `/api/customer-portal` | POST | 顧客ポータルURLを生成 |
+
+## カスタマイズ
+
+### 製品情報の更新
+
+`internal/lib/products.go`を編集して、以下を変更します：
+- 製品ID（Dodoダッシュボードから）
+- 価格
+- 特徴
+- 説明
+
+```go
+var Products = []Product{
+    {
+        ProductID:   "pdt_001", // Replace with your product ID
+        Name:        "Basic Plan",
+        Description: "Get access to basic features and support",
+        Price:       9999,
+        Features: []string{
+            "Access to basic features",
+            "Email support",
+            "1 Team member",
+            "Basic analytics",
+        },
+    },
+}
+```
+
+### 顧客データの事前入力
+
+`templates/index.html`で、ハードコーディングされた顧客データを実際のユーザーデータに置き換えます：
+
+```javascript
+const customerData = {
+    name: "John Doe",       // Replace with actual logged-in user's name
+    email: "john@example.com"  // Replace with actual logged-in user's email
+};
+```
+
+本番アプリでは、これらの値を認証システムから動的に注入します。
+
+## Webhookイベント
+
+ボイラープレートは、`internal/api/webhook.go`でWebhookイベントの処理を示しています。サポートされているイベントは次のとおりです：
+
+| イベント | 説明 |
+|-------|-------------|
+| `subscription.active` | サブスクリプションがアクティブになるとトリガーされます |
+| `payment.succeeded` | 支払いが成功するとトリガーされます |
+
+Webhookハンドラー内にビジネスロジックを追加して：
+- データベース内のユーザー権限を更新
+- 確認メールを送信
+- デジタル製品へのアクセスを提供
+- 分析とメトリクスを追跡
+
+## Webhookをローカルでテスト
+
+ローカル開発には、[ngrok](https://ngrok.com/)のようなツールを使用してローカルサーバーを公開します：
+
+```bash
+ngrok http 8000
+```
+
+Webhook URLを[ダッシュボード](https://app.dodopayments.com/developer/webhooks)で更新します：
+
+```
+https://your-ngrok-url.ngrok.io/api/webhook
+```
+
+## デプロイメント
+
+### 本番用にビルド
+
+```bash
+make build
+```
+
+または手動で：
+
+```bash
+go build -o bin/server cmd/server/main.go
+./bin/server
+```
+
+### Vercelにデプロイ
+
+[
+
+![Vercelでデプロイ](https://vercel.com/button)
+
+](https://vercel.com/new/clone?repository-url=https://github.com/dodopayments/go-boilerplate)
+
+### Docker
+
+`Dockerfile`を作成します：
+
+```dockerfile
+FROM golang:1.21-alpine AS builder
+
+WORKDIR /app
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+RUN go build -o bin/server cmd/server/main.go
+
+FROM alpine:latest
+WORKDIR /app
+COPY --from=builder /app/bin/server .
+COPY --from=builder /app/templates ./templates
+
+EXPOSE 8000
+CMD ["./server"]
+```
+
+ビルドして実行します：
+
+```bash
+docker build -t go-dodo .
+docker run -p 8000:8000 --env-file .env go-dodo
+```
+
+### 本番環境での考慮事項
+
+<Warning>
+本番環境にデプロイする前に：
+- `DODO_PAYMENTS_ENVIRONMENT`を`live_mode`に切り替えます
+- ダッシュボードから本番APIキーを使用します
+- Webhook URLを本番ドメインに更新します
+- すべてのエンドポイントでHTTPSを有効にします
+</Warning>
+
+## トラブルシューティング
+
+<AccordionGroup>
+<Accordion title="ビルドエラーまたは依存関係が不足しています">
+Goモジュールが正しくダウンロードされていることを確認してください：
+
+```bash
+go mod tidy
+go mod download
+```
+
+</Accordion>
+
+<Accordion title="チェックアウトセッションの作成に失敗しました">
+**一般的な原因：**
+- 無効な製品ID - Dodoダッシュボードに存在することを確認してください
+- `.env`のAPIキーまたは環境設定が間違っています
+- 詳細なエラーメッセージについてサーバーログを確認してください
+</Accordion>
+
+<Accordion title="Webhookがイベントを受信していません">
+ローカルテストには、[ngrok](https://ngrok.com)を使用してサーバーを公開します：
+
+```bash
+ngrok http 8000
+```
+
+Webhook URLを[ダッシュボード](https://app.dodopayments.com/developer/webhooks)でngrokのURLに更新します。正しいWebhook検証キーで`.env`ファイルを更新することを忘れないでください。
+</Accordion>
+
+<Accordion title="テンプレートが読み込まれません">
+プロジェクトのルートディレクトリからサーバーを実行しているか、コード内でテンプレートパスが正しく設定されていることを確認してください。
+</Accordion>
+</AccordionGroup>
+
+## 詳細を学ぶ
+
+<CardGroup cols={2}>
+<Card title="Go SDK" icon="golang" href="/developer-resources/sdks/go">
+  完全なGo SDKドキュメント
+</Card>
+
+<Card title="Webhookドキュメント" icon="webhook" href="/developer-resources/webhooks">
+  すべてのWebhookイベントとベストプラクティスについて学ぶ
+</Card>
+
+<Card title="チェックアウトセッション" icon="credit-card" href="/developer-resources/checkout-session">
+  チェックアウトセッションの設定を詳しく見る
+</Card>
+
+<Card title="APIリファレンス" icon="book" href="/api-reference/introduction">
+  完全なDodo Payments APIドキュメント
+</Card>
+</CardGroup>
+
+## サポート
+
+ボイラープレートに関して助けが必要ですか？
+
+- 質問や議論のために[Discordコミュニティ](https://discord.gg/bYqAp4ayYh)に参加してください
+- 問題や更新については[GitHubリポジトリ](https://github.com/dodopayments/go-boilerplate)を確認してください
+- サポートが必要な場合は[サポートチーム](mailto:support@dodopayments.com)に連絡してください

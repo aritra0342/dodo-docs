@@ -1,0 +1,361 @@
+---
+sidebarTitle: Go
+title: Go 보일러플레이트
+description: Dodo Payments를 Go 백엔드 애플리케이션에 통합하기 위한 최소한의 Go 보일러플레이트로 빠르게 시작하세요.
+icon: golang
+tag: NEW
+---
+
+<Card title="GitHub Repository" icon="github" href="https://github.com/dodopayments/go-boilerplate">
+  최소한의 Go + Dodo Payments 보일러플레이트
+</Card>
+
+## 개요
+
+Go 보일러플레이트는 Dodo Payments를 Go 백엔드와 통합하기 위한 프로덕션 준비가 완료된 시작점을 제공합니다. 이 템플릿은 체크아웃 세션 처리, 웹훅 검증, 고객 포털 통합을 포함하며, 빠르게 결제를 수락할 수 있도록 Go 모범 사례를 따릅니다.
+
+<Info>
+이 보일러플레이트는 Go 1.21+를 사용하며, 클린 아키텍처 패턴(`cmd`, `internal`, `templates`), HTML 템플릿 및 원활한 API 통합을 위한 `dodopayments-go` SDK를 사용합니다.
+</Info>
+
+### 기능
+
+- **빠른 설정** - 5분 이내에 시작
+- **결제 통합** - `dodopayments-go` SDK를 사용한 사전 구성된 체크아웃 흐름
+- **모던 UI** - HTML 템플릿을 사용한 깔끔한 다크 테마의 가격 페이지
+- **웹훅 처리** - 결제 이벤트를 안전하게 검증하고 처리
+- **고객 포털** - 셀프 서비스 구독 관리
+- **Go 모범 사례** - `cmd`, `internal` 및 `templates`을 사용한 클린 아키텍처
+- **사전 채워진 체크아웃** - 고객 데이터를 전달하여 UX를 개선하는 방법을 보여줍니다.
+
+## 전제 조건
+
+시작하기 전에 다음을 확인하세요:
+
+- **Go 1.21+**
+- **Dodo Payments 계정** (대시보드에서 API 및 웹훅 키에 접근하기 위해)
+
+## 빠른 시작
+
+<Steps>
+<Step title="저장소 복제">
+
+```bash
+git clone https://github.com/dodopayments/go-boilerplate.git
+cd go-boilerplate
+```
+
+</Step>
+
+<Step title="종속성 설치">
+
+```bash
+make install
+```
+
+또는 수동으로:
+
+```bash
+go mod download
+```
+
+</Step>
+
+<Step title="API 자격 증명 받기">
+[Dodo Payments](https://dodopayments.com/)에 가입하고 대시보드에서 자격 증명을 받으세요:
+
+- **API 키:** [대시보드 → 개발자 → API 키](https://app.dodopayments.com/developer/api-keys)
+- **웹훅 키:** [대시보드 → 개발자 → 웹훅](https://app.dodopayments.com/developer/webhooks)
+
+<Tip>
+개발 중에는 **테스트 모드**에 있는지 확인하세요!
+</Tip>
+</Step>
+
+<Step title="환경 변수 구성">
+루트 디렉토리에 `.env` 파일을 생성하세요:
+
+```bash
+cp .env.example .env
+```
+
+Dodo Payments 자격 증명으로 값을 업데이트하세요:
+
+```bash .env
+DODO_PAYMENTS_API_KEY=your_api_key_here
+DODO_PAYMENTS_WEBHOOK_KEY=your_webhook_signing_key_here
+DODO_PAYMENTS_RETURN_URL=http://localhost:8000
+DODO_PAYMENTS_ENVIRONMENT=test_mode
+```
+
+<Warning>
+절대 `.env` 파일을 버전 관리에 커밋하지 마세요. 이미 `.gitignore`에 포함되어 있습니다.
+</Warning>
+</Step>
+
+<Step title="제품 추가">
+Dodo Payments에서 실제 제품 ID로 `internal/lib/products.go`를 업데이트하세요:
+
+```go
+var Products = []Product{
+    {
+        ProductID:   "pdt_001", // Replace with your product ID
+        Name:        "Basic Plan",
+        Description: "Get access to basic features and support",
+        Price:       9999, // in cents
+        Features: []string{
+            "Access to basic features",
+            "Email support",
+            "1 Team member",
+            "Basic analytics",
+        },
+    },
+    // ... add more products
+}
+```
+
+</Step>
+
+<Step title="개발 서버 실행">
+
+```bash
+make run
+```
+
+또는 수동으로:
+
+```bash
+go run cmd/server/main.go
+```
+
+[http://localhost:8000](http://localhost:8000)을 열어 가격 페이지를 확인하세요!
+
+<Check>
+어두운 테마의 가격 페이지가 표시되고 제품을 구매할 준비가 되어 있어야 합니다.
+</Check>
+</Step>
+</Steps>
+
+## 프로젝트 구조
+
+```text
+go-boilerplate/
+├── cmd/
+│   └── server/             # Application entry point
+├── internal/
+│   ├── api/                # API handlers (Checkout, Portal, Webhook)
+│   ├── core/               # Configuration and system core
+│   └── lib/                # Shared logic (Products, Customer utils)
+├── templates/              # HTML templates
+├── Makefile                # Build and run commands
+├── go.mod                  # Go module definition
+├── go.sum                  # Dependency checksums
+├── .env.example            # Environment template
+└── README.md
+```
+
+## API 엔드포인트
+
+보일러플레이트에는 다음과 같은 사전 구성된 엔드포인트가 포함되어 있습니다:
+
+| 엔드포인트 | 메서드 | 설명 |
+|----------|--------|-------------|
+| `/` | GET | 제품 목록이 있는 가격 페이지 |
+| `/api/checkout` | POST | 새로운 체크아웃 세션 생성 |
+| `/api/webhook` | POST | Dodo Payments 웹훅 처리 |
+| `/api/customer-portal` | POST | 고객 포털 URL 생성 |
+
+## 사용자 정의
+
+### 제품 정보 업데이트
+
+`internal/lib/products.go`를 편집하여 다음을 수정하세요:
+- 제품 ID (Dodo 대시보드에서)
+- 가격
+- 기능
+- 설명
+
+```go
+var Products = []Product{
+    {
+        ProductID:   "pdt_001", // Replace with your product ID
+        Name:        "Basic Plan",
+        Description: "Get access to basic features and support",
+        Price:       9999,
+        Features: []string{
+            "Access to basic features",
+            "Email support",
+            "1 Team member",
+            "Basic analytics",
+        },
+    },
+}
+```
+
+### 고객 데이터 사전 채우기
+
+`templates/index.html`에서 하드코딩된 고객 데이터를 실제 사용자 데이터로 교체하세요:
+
+```javascript
+const customerData = {
+    name: "John Doe",       // Replace with actual logged-in user's name
+    email: "john@example.com"  // Replace with actual logged-in user's email
+};
+```
+
+프로덕션 앱에서는 인증 시스템에서 이러한 값을 동적으로 주입해야 합니다.
+
+## 웹훅 이벤트
+
+보일러플레이트는 `internal/api/webhook.go`에서 웹훅 이벤트 처리를 보여줍니다. 지원되는 이벤트는 다음과 같습니다:
+
+| 이벤트 | 설명 |
+|-------|-------------|
+| `subscription.active` | 구독이 활성화될 때 트리거됨 |
+| `payment.succeeded` | 결제가 성공할 때 트리거됨 |
+
+웹훅 핸들러 내에 비즈니스 로직을 추가하여:
+- 데이터베이스에서 사용자 권한 업데이트
+- 확인 이메일 전송
+- 디지털 제품에 대한 접근 권한 제공
+- 분석 및 메트릭 추적
+
+## 웹훅을 로컬에서 테스트하기
+
+로컬 개발을 위해 [ngrok](https://ngrok.com/)와 같은 도구를 사용하여 로컬 서버를 노출하세요:
+
+```bash
+ngrok http 8000
+```
+
+[Dodo Payments 대시보드](https://app.dodopayments.com/developer/webhooks)에서 웹훅 URL을 업데이트하세요:
+
+```
+https://your-ngrok-url.ngrok.io/api/webhook
+```
+
+## 배포
+
+### 프로덕션 빌드
+
+```bash
+make build
+```
+
+또는 수동으로:
+
+```bash
+go build -o bin/server cmd/server/main.go
+./bin/server
+```
+
+### Vercel에 배포
+
+[
+
+![Vercel로 배포하기](https://vercel.com/button)
+
+](https://vercel.com/new/clone?repository-url=https://github.com/dodopayments/go-boilerplate)
+
+### Docker
+
+`Dockerfile` 파일을 생성하세요:
+
+```dockerfile
+FROM golang:1.21-alpine AS builder
+
+WORKDIR /app
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+RUN go build -o bin/server cmd/server/main.go
+
+FROM alpine:latest
+WORKDIR /app
+COPY --from=builder /app/bin/server .
+COPY --from=builder /app/templates ./templates
+
+EXPOSE 8000
+CMD ["./server"]
+```
+
+빌드 및 실행:
+
+```bash
+docker build -t go-dodo .
+docker run -p 8000:8000 --env-file .env go-dodo
+```
+
+### 프로덕션 고려 사항
+
+<Warning>
+프로덕션에 배포하기 전에:
+- `DODO_PAYMENTS_ENVIRONMENT`를 `live_mode`로 전환하세요.
+- 대시보드에서 프로덕션 API 키를 사용하세요.
+- 웹훅 URL을 프로덕션 도메인으로 업데이트하세요.
+- 모든 엔드포인트에 대해 HTTPS를 활성화하세요.
+</Warning>
+
+## 문제 해결
+
+<AccordionGroup>
+<Accordion title="빌드 오류 또는 누락된 종속성">
+Go 모듈이 제대로 다운로드되었는지 확인하세요:
+
+```bash
+go mod tidy
+go mod download
+```
+
+</Accordion>
+
+<Accordion title="체크아웃 세션 생성 실패">
+**일반적인 원인:**
+- 유효하지 않은 제품 ID - Dodo 대시보드에서 존재하는지 확인하세요.
+- `.env`의 잘못된 API 키 또는 환경 설정
+- 자세한 오류 메시지를 위해 서버 로그를 확인하세요.
+</Accordion>
+
+<Accordion title="웹훅이 이벤트를 수신하지 않음">
+로컬 테스트를 위해 [ngrok](https://ngrok.com)와 같은 도구를 사용하여 서버를 노출하세요:
+
+```bash
+ngrok http 8000
+```
+
+웹훅 URL을 [Dodo 대시보드](https://app.dodopayments.com/developer/webhooks)에서 ngrok URL로 업데이트하세요. 올바른 웹훅 검증 키로 `.env` 파일을 업데이트하세요.
+</Accordion>
+
+<Accordion title="템플릿이 로드되지 않음">
+서버를 프로젝트 루트 디렉토리에서 실행하고 있는지, 또는 코드에서 템플릿 경로가 올바르게 구성되어 있는지 확인하세요.
+</Accordion>
+</AccordionGroup>
+
+## 더 알아보기
+
+<CardGroup cols={2}>
+<Card title="Go SDK" icon="golang" href="/developer-resources/sdks/go">
+  완전한 Go SDK 문서
+</Card>
+
+<Card title="웹훅 문서" icon="webhook" href="/developer-resources/webhooks">
+  모든 웹훅 이벤트 및 모범 사례에 대해 알아보세요
+</Card>
+
+<Card title="체크아웃 세션" icon="credit-card" href="/developer-resources/checkout-session">
+  체크아웃 세션 구성에 대한 심층 분석
+</Card>
+
+<Card title="API 참조" icon="book" href="/api-reference/introduction">
+  완전한 Dodo Payments API 문서
+</Card>
+</CardGroup>
+
+## 지원
+
+보일러플레이트에 대한 도움이 필요하신가요?
+
+- 질문 및 토론을 위해 [Discord 커뮤니티](https://discord.gg/bYqAp4ayYh)에 참여하세요.
+- 문제 및 업데이트를 위해 [GitHub 저장소](https://github.com/dodopayments/go-boilerplate)를 확인하세요.
+- 지원이 필요하시면 [지원 팀](mailto:support@dodopayments.com)에게 연락하세요.
