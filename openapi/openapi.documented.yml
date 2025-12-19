@@ -5,7 +5,7 @@ info:
   license:
     name: Apache 2.0
     url: https://www.apache.org/licenses/LICENSE-2.0
-  version: 1.67.0
+  version: 1.68.4
 servers:
   - url: https://test.dodopayments.com/
     description: Test Mode Server Host
@@ -4315,6 +4315,34 @@ paths:
             payment = dodo_payments.invoices.payments.retrieve("payment_id")
 
             puts(payment)
+  /invoices/payouts/{payout_id}:
+    get:
+      tags:
+        - Invoices
+      operationId: get_payout_invoice_no_auth
+      parameters:
+        - name: payout_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: PDF document
+          content:
+            application/pdf:
+              schema:
+                type: array
+                items:
+                  type: integer
+                  format: int32
+                  minimum: 0
+        '404':
+          description: Payout invoice not found or payout not successful
+        '429':
+          description: Too Many Requests have been sent
+        '500':
+          description: Something went wrong :(
   /invoices/refunds/{refund_id}:
     get:
       tags:
@@ -7251,6 +7279,49 @@ paths:
             )
 
             puts(product)
+  /products/short_links:
+    get:
+      tags:
+        - Products
+      summary: Lists all short links created by the business.
+      operationId: list_all_short_links_handler
+      parameters:
+        - name: page_size
+          in: query
+          description: Page size default is 10 max is 100
+          required: false
+          schema:
+            type: integer
+            format: int32
+            minimum: 0
+          style: form
+        - name: page_number
+          in: query
+          description: Page number default is 0
+          required: false
+          schema:
+            type: integer
+            format: int32
+            minimum: 0
+          style: form
+        - name: product_id
+          in: query
+          description: Filter by product ID
+          required: false
+          schema:
+            type: string
+          style: form
+      responses:
+        '200':
+          description: Short URLs for the Business
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListShortLinksResponse'
+        '500':
+          description: Something went wrong :(
+      security:
+        - API_KEY: []
   /products/{id}:
     get:
       tags:
@@ -7845,6 +7916,42 @@ paths:
             image = dodo_payments.products.images.update("id")
 
             puts(image)
+  /products/{id}/short_links:
+    post:
+      tags:
+        - Products
+      summary: |-
+        Gives a Short Checkout URL with custom slug for a product.
+        Uses a Static Checkout URL under the hood.
+      operationId: create_short_link_handler
+      parameters:
+        - name: id
+          in: path
+          description: Product Id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateShortLinkRequest'
+        required: true
+      responses:
+        '200':
+          description: Short URL
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShortLinkResponse'
+        '404':
+          description: Product not found
+        '409':
+          description: Slug is already taken
+        '500':
+          description: Something went wrong :(
+      security:
+        - API_KEY: []
   /products/{id}/unarchive:
     post:
       tags:
@@ -11092,6 +11199,12 @@ components:
             By default email is used to find an existing customer to attach the session to
 
             Default is false
+        redirect_immediately:
+          type: boolean
+          description: |-
+            If true, redirects the customer immediately after payment completion
+
+            Default is false
     CheckoutTheme:
       type: string
       enum:
@@ -11475,6 +11588,11 @@ components:
             - string
             - 'null'
           description: The url to redirect after payment failure or success.
+        short_link:
+          type: boolean
+          description: |-
+            If true, returns a shortened checkout URL.
+            Defaults to false if not specified.
         show_saved_payment_methods:
           type: boolean
           description: Display saved payment methods of a returning customer False by default
@@ -11700,6 +11818,11 @@ components:
           items:
             $ref: '#/components/schemas/OneTimeProductCartItemReq'
           description: List of products in the cart. Must contain at least 1 and at most 100 items.
+        redirect_immediately:
+          type: boolean
+          description: |-
+            If true, redirects the customer immediately after payment completion
+            False by default
         return_url:
           type:
             - string
@@ -11707,6 +11830,13 @@ components:
           description: |-
             Optional URL to redirect the customer after payment.
             Must be a valid URL if provided.
+        short_link:
+          type:
+            - boolean
+            - 'null'
+          description: |-
+            If true, returns a shortened payment link.
+            Defaults to false if not specified.
         show_saved_payment_methods:
           type: boolean
           description: |-
@@ -11873,6 +12003,25 @@ components:
         session_id:
           type: string
           description: The ID of the created checkout session
+    CreateShortLinkRequest:
+      type: object
+      required:
+        - slug
+      properties:
+        slug:
+          type: string
+          description: Slug for the short link.
+        static_checkout_params:
+          type:
+            - object
+            - 'null'
+          description: |-
+            Static Checkout URL parameters to apply to the resulting
+            short URL.
+          additionalProperties:
+            type: string
+          propertyNames:
+            type: string
     CreateSubscriptionChargeRequest:
       type: object
       required:
@@ -12011,11 +12160,23 @@ components:
           format: int32
           description: Number of units to subscribe for. Must be at least 1.
           minimum: 0
+        redirect_immediately:
+          type: boolean
+          description: |-
+            If true, redirects the customer immediately after payment completion
+            False by default
         return_url:
           type:
             - string
             - 'null'
           description: Optional URL to redirect after successful subscription creation
+        short_link:
+          type:
+            - boolean
+            - 'null'
+          description: |-
+            If true, returns a shortened payment link.
+            Defaults to false if not specified.
         show_saved_payment_methods:
           type: boolean
           description: |-
@@ -13913,6 +14074,15 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/MeterResponse'
+    ListShortLinksResponse:
+      type: object
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ShortLinkItem'
     ListUsageHistoryQueryParams:
       type: object
       properties:
@@ -15349,6 +15519,39 @@ components:
         - failed
         - pending
         - review
+    ShortLinkItem:
+      type: object
+      required:
+        - product_id
+        - short_url
+        - full_url
+        - created_at
+      properties:
+        created_at:
+          type: string
+          format: date-time
+          description: When the short url was created
+        full_url:
+          type: string
+          description: Full URL the short url redirects to
+        product_id:
+          type: string
+          description: Product ID associated with the short link
+        short_url:
+          type: string
+          description: Short URL
+    ShortLinkResponse:
+      type: object
+      required:
+        - short_url
+        - full_url
+      properties:
+        full_url:
+          type: string
+          description: Full URL.
+        short_url:
+          type: string
+          description: Short URL.
     SubscriptionData:
       type: object
       title: Subscription Data

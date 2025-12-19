@@ -8,6 +8,8 @@ icon: server
 
 模型上下文协议 (MCP) 是一种开放标准，使 AI 应用能够安全地连接到外部数据源和 API。Dodo Payments MCP 服务器为像 Claude、Cursor 和其他兼容 MCP 的客户端提供结构化访问您的支付基础设施。
 
+Dodo Payments MCP 服务器是使用 [Stainless](https://www.stainless.com/) 构建的，并采用 **Code Mode** 架构，使 AI 代理能够在隔离的沙箱环境中编写和执行 TypeScript 代码，针对 Dodo Payments SDK。
+
 ### 关键功能
 
 - **支付操作**：创建、检索和管理支付和退款
@@ -16,6 +18,19 @@ icon: server
 - **产品目录**：创建和更新产品、定价和折扣
 - **许可证管理**：激活、验证和管理软件许可证
 - **基于使用的计费**：跟踪和计费计量使用情况
+
+## Code Mode 的工作原理
+
+Dodo Payments MCP 服务器使用 Code Mode，为您的 AI 代理提供两个强大的工具：
+
+1. **文档搜索工具**：查询有关 Dodo Payments API 和 SDK 的文档，以了解可用的操作和参数
+2. **代码执行工具**：编写针对 SDK 的 TypeScript 代码，该代码在没有网络或文件系统访问的安全沙箱环境中执行
+
+这种架构使 AI 代理能够以确定性和可重复的方式执行复杂的多步骤支付操作。
+
+<Tip>
+使用 Code Mode，代理可以链式调用多个 API，处理条件逻辑，并执行计算——所有这些都在一次工具调用中完成。
+</Tip>
 
 ## 安装
 
@@ -58,7 +73,7 @@ icon: server
 
 </Step>
 
-<Step title="身份验证和配置">
+<Step title="认证和配置">
     OAuth 流程将提示您：
     - 输入您的 Dodo Payments API 密钥
     - 选择您的环境（测试或生产）
@@ -86,8 +101,10 @@ icon: server
 <Tab title="NPX（无安装）">
 
 ```bash
-# Set your API key
+# Set your environment variables
 export DODO_PAYMENTS_API_KEY="dodo_test_..."
+export DODO_PAYMENTS_WEBHOOK_KEY="your_webhook_key"
+export DODO_PAYMENTS_ENVIRONMENT="live_mode"
 
 # Run the latest version
 npx -y dodopayments-mcp@latest
@@ -104,7 +121,9 @@ npx -y dodopayments-mcp@latest
       "command": "npx",
       "args": ["-y", "dodopayments-mcp@latest"],
       "env": {
-        "DODO_PAYMENTS_API_KEY": "dodo_test_..."
+        "DODO_PAYMENTS_API_KEY": "dodo_test_...",
+        "DODO_PAYMENTS_WEBHOOK_KEY": "your_webhook_key",
+        "DODO_PAYMENTS_ENVIRONMENT": "live_mode"
       }
     }
   }
@@ -115,7 +134,7 @@ npx -y dodopayments-mcp@latest
 </Tabs>
 
 <Tip>
-使用 `@latest` 始终拉取最新版本，或固定到特定版本，如 `@1.0.0` 以确保稳定性。
+使用 `@latest` 始终拉取最新版本，或固定到特定版本如 `@1.0.0` 以确保稳定性。
 </Tip>
 
 ### Docker
@@ -130,7 +149,8 @@ docker pull ghcr.io/dodopayments/mcp:latest
 
 # Run the container
 docker run -e DODO_PAYMENTS_API_KEY="dodo_test_..." \
-  -p 3000:3000 \
+  -e DODO_PAYMENTS_WEBHOOK_KEY="your_webhook_key" \
+  -e DODO_PAYMENTS_ENVIRONMENT="live_mode" \
   ghcr.io/dodopayments/mcp:latest
 ```
 
@@ -140,8 +160,8 @@ services:
     image: ghcr.io/dodopayments/mcp:latest
     environment:
       - DODO_PAYMENTS_API_KEY=dodo_test_...
-    ports:
-      - "3000:3000"
+      - DODO_PAYMENTS_WEBHOOK_KEY=your_webhook_key
+      - DODO_PAYMENTS_ENVIRONMENT=live_mode
     restart: unless-stopped
 ```
 
@@ -159,13 +179,27 @@ Docker 镜像可在 [GitHub Container Registry](https://github.com/orgs/dodopaym
 <Tab title="Cursor">
 在 Cursor 中设置 Dodo Payments MCP 服务器，以启用对您的支付数据的对话访问。
 
+**一键安装**
+
+使用下面的按钮直接在 Cursor 中安装 MCP 服务器：
+
+[
+
+![添加到 Cursor](https://cursor.com/deeplink/mcp-install-dark.svg)
+
+](https://cursor.com/en-US/install-mcp?name=dodopayments-mcp&config=eyJjb21tYW5kIjoibnB4IiwiYXJncyI6WyIteSIsImRvZG9wYXltZW50cy1tY3AiXSwiZW52Ijp7IkRPRE9fUEFZTUVOVFNfQVBJX0tFWSI6IlNldCB5b3VyIERPRE9fUEFZTUVOVFNfQVBJX0tFWSBoZXJlLiIsIkRPRE9fUEFZTUVOVFNfV0VCSE9PS19LRVkiOiJTZXQgeW91ciBET0RPX1BBWU1FTlRTX1dFQkhPT0tfS0VZIGhlcmUuIn19)
+
+点击后，在 Cursor 的 `mcp.json` 中设置您的环境变量，通过 **Cursor 设置** > **工具与 MCP** > **新建 MCP 服务器**。
+
+**手动配置**
+
 <Steps>
 <Step title="打开 Cursor 设置">
     导航到 **Cursor 设置** > **功能** > **模型上下文协议**，或按 `Cmd/Ctrl + Shift + P` 并搜索 "MCP 设置"。
 </Step>
 
 <Step title="编辑配置">
-    点击 **编辑配置** 以打开 `mcp_config.json` 文件。
+    点击 **编辑配置** 打开 `mcp_config.json` 文件。
 </Step>
 
 <Step title="添加 Dodo Payments 配置">
@@ -194,7 +228,8 @@ Docker 镜像可在 [GitHub Container Registry](https://github.com/orgs/dodopaym
           "command": "npx",
           "args": ["-y", "dodopayments-mcp@latest"],
           "env": {
-            "DODO_PAYMENTS_API_KEY": "dodo_test_..."
+            "DODO_PAYMENTS_API_KEY": "dodo_test_...",
+            "DODO_PAYMENTS_WEBHOOK_KEY": "your_webhook_key"
           }
         }
       }
@@ -207,7 +242,7 @@ Docker 镜像可在 [GitHub Container Registry](https://github.com/orgs/dodopaym
     保存配置文件并重启 Cursor。
     
     <Check>
-    通过询问 AI 助手有关您的 Dodo Payments 数据来验证连接。
+    通过询问 AI 助手您的 Dodo Payments 数据来验证连接。
     </Check>
 </Step>
 </Steps>
@@ -250,7 +285,8 @@ Docker 镜像可在 [GitHub Container Registry](https://github.com/orgs/dodopaym
           "command": "npx",
           "args": ["-y", "dodopayments-mcp@latest"],
           "env": {
-            "DODO_PAYMENTS_API_KEY": "dodo_test_..."
+            "DODO_PAYMENTS_API_KEY": "dodo_test_...",
+            "DODO_PAYMENTS_WEBHOOK_KEY": "your_webhook_key"
           }
         }
       }
@@ -265,6 +301,68 @@ Docker 镜像可在 [GitHub Container Registry](https://github.com/orgs/dodopaym
     <Tip>
     在 Claude Desktop 中查找 🔌 图标以确认 MCP 服务器已连接。
     </Tip>
+</Step>
+</Steps>
+</Tab>
+
+<Tab title="Claude Code">
+在 Claude Code CLI 中设置 Dodo Payments MCP 服务器。
+
+在终端中运行以下命令：
+
+```bash
+claude mcp add --transport stdio dodopayments_api \
+  --env DODO_PAYMENTS_API_KEY="dodo_test_..." \
+  DODO_PAYMENTS_WEBHOOK_KEY="your_webhook_key" \
+  -- npx -y dodopayments-mcp
+```
+
+配置将存储在您主目录的 `.claude.json` 文件中。
+
+<Tip>
+Claude Code 会自动从您的 shell 中获取环境变量，因此您也可以在运行命令之前导出它们。
+</Tip>
+</Tab>
+
+<Tab title="VS Code">
+在 VS Code 中设置 Dodo Payments MCP 服务器。
+
+**一键安装**
+
+[打开 VS Code](https://vscode.stainless.com/mcp/%7B%22name%22%3A%22dodopayments-mcp%22%2C%22command%22%3A%22npx%22%2C%22args%22%3A%5B%22-y%22%2C%22dodopayments-mcp%22%5D%2C%22env%22%3A%7B%22DODO_PAYMENTS_API_KEY%22%3A%22在此设置您的 DODO_PAYMENTS_API_KEY。%22%2C%22DODO_PAYMENTS_WEBHOOK_KEY%22%3A%22在此设置您的 DODO_PAYMENTS_WEBHOOK_KEY。%22%7D%7D)
+
+点击后，在 VS Code 的 `mcp.json` 中设置您的环境变量，通过 **命令面板** > **MCP：打开用户配置**。
+
+**手动配置**
+
+<Steps>
+<Step title="打开 MCP 配置">
+    打开命令面板（`Cmd/Ctrl + Shift + P`）并搜索 "MCP：打开用户配置"。
+</Step>
+
+<Step title="添加服务器配置">
+    添加 Dodo Payments MCP 服务器：
+    
+
+    ```json
+    {
+      "mcpServers": {
+        "dodopayments": {
+          "command": "npx",
+          "args": ["-y", "dodopayments-mcp@latest"],
+          "env": {
+            "DODO_PAYMENTS_API_KEY": "dodo_test_...",
+            "DODO_PAYMENTS_WEBHOOK_KEY": "your_webhook_key"
+          }
+        }
+      }
+    }
+    ```
+
+</Step>
+
+<Step title="重新加载窗口">
+    重新加载 VS Code (`Cmd/Ctrl + Shift + P` > "重新加载窗口") 以激活 MCP 服务器。
 </Step>
 </Steps>
 </Tab>
@@ -291,7 +389,8 @@ Docker 镜像可在 [GitHub Container Registry](https://github.com/orgs/dodopaym
           "command": "npx",
           "args": ["-y", "dodopayments-mcp@latest"],
           "env": {
-            "DODO_PAYMENTS_API_KEY": "dodo_test_..."
+            "DODO_PAYMENTS_API_KEY": "dodo_test_...",
+            "DODO_PAYMENTS_WEBHOOK_KEY": "your_webhook_key"
           }
         }
       }
@@ -324,7 +423,8 @@ Docker 镜像可在 [GitHub Container Registry](https://github.com/orgs/dodopaym
           "command": "npx",
           "args": ["-y", "dodopayments-mcp@latest"],
           "env": {
-            "DODO_PAYMENTS_API_KEY": "dodo_test_..."
+            "DODO_PAYMENTS_API_KEY": "dodo_test_...",
+            "DODO_PAYMENTS_WEBHOOK_KEY": "your_webhook_key"
           }
         }
       }
@@ -340,7 +440,7 @@ Docker 镜像可在 [GitHub Container Registry](https://github.com/orgs/dodopaym
 </Tab>
 
 <Tab title="其他客户端">
-在其他兼容 MCP 的客户端中设置 Dodo Payments MCP 服务器，以启用对您的支付数据的对话访问。
+在其他兼容 MCP 的客户端中设置 Dodo Payments MCP 服务器。
 
 **远程服务器（推荐）**
 
@@ -364,7 +464,8 @@ Docker 镜像可在 [GitHub Container Registry](https://github.com/orgs/dodopaym
       "command": "npx",
       "args": ["-y", "dodopayments-mcp@latest"],
       "env": {
-        "DODO_PAYMENTS_API_KEY": "dodo_test_..."
+        "DODO_PAYMENTS_API_KEY": "dodo_test_...",
+        "DODO_PAYMENTS_WEBHOOK_KEY": "your_webhook_key"
       }
     }
   }
@@ -377,9 +478,103 @@ Docker 镜像可在 [GitHub Container Registry](https://github.com/orgs/dodopaym
 </Tab>
 </Tabs>
 
+## 环境变量
+
+使用环境变量配置 MCP 服务器的行为。
+
+| 变量 | 描述 | 必需 |
+|----------|-------------|----------|
+| `DODO_PAYMENTS_API_KEY` | 您的 Dodo Payments API 密钥 | 是 |
+| `DODO_PAYMENTS_WEBHOOK_KEY` | 您的 webhook 签名密钥 | 否 |
+| `DODO_PAYMENTS_ENVIRONMENT` | 设置为 `live_mode` 用于生产 | 否 |
+
+## 远程运行
+
+将 MCP 服务器作为远程 HTTP 服务器部署，以供基于 Web 的客户端或代理工作流使用。
+
+```bash
+# Start as remote server
+npx -y dodopayments-mcp --transport=http
+
+# Specify a custom port
+npx -y dodopayments-mcp --transport=http --port=3000
+```
+
+### 远程服务器配置
+
+部署后，客户端可以使用服务器 URL 连接：
+
+```json
+{
+  "mcpServers": {
+    "dodopayments_api": {
+      "url": "http://localhost:3000",
+      "headers": {
+        "Authorization": "Bearer your_api_key"
+      }
+    }
+  }
+}
+```
+
+### 授权头
+
+远程服务器接受通过以下头进行身份验证：
+
+| 头 | 描述 |
+|--------|-------------|
+| `Authorization` | Bearer 令牌身份验证 |
+| `x-dodo-payments-api-key` | 直接 API 密钥头 |
+
+## 客户端能力
+
+不同的 MCP 客户端对 MCP 规范的支持程度不同。服务器可以自动调整工具架构以解决这些限制。
+
+```bash
+# Auto-detect client (default)
+npx dodopayments-mcp --client=infer
+
+# Configure for specific clients
+npx dodopayments-mcp --client=cursor
+npx dodopayments-mcp --client=claude
+npx dodopayments-mcp --client=claude-code
+npx dodopayments-mcp --client=openai-agents
+```
+
+### 可用客户端预设
+
+| 客户端 | 描述 |
+|--------|-------------|
+| `infer` | 自动检测客户端（默认） |
+| `cursor` | Cursor 编辑器 |
+| `claude` | Claude AI 网页或桌面 |
+| `claude-code` | Claude Code CLI |
+| `openai-agents` | OpenAI 代理平台 |
+
+### 手动能力配置
+
+对于未列出的客户端，手动配置能力：
+
+```bash
+# Disable $ref pointer support and set max tool name length
+npx dodopayments-mcp --no-capability=refs --capability=tool-name-length=40
+```
+
+可用能力：
+- `top-level-unions` - 支持顶级联合类型
+- `valid-json` - 正确的 JSON 字符串参数解析
+- `refs` - 支持架构中的 $ref 指针
+- `unions` - 支持联合类型（anyOf）
+- `formats` - 支持格式验证
+- `tool-name-length=N` - 最大工具名称长度
+
+<Tip>
+运行 `npx dodopayments-mcp --describe-capabilities` 获取详细的能力信息。
+</Tip>
+
 ## 工具过滤
 
-控制暴露给您的 AI 助手的 API 操作，以优化性能并维护安全性。
+控制哪些 API 操作暴露给您的 AI 助手，以优化性能并维护安全性。
 
 ### 按操作类型过滤
 
@@ -399,7 +594,7 @@ npx dodopayments-mcp --operation=write
 
 ### 按资源过滤
 
-将工具限制为特定的 API 资源。
+限制工具到特定的 API 资源。
 
 ```bash
 # Only expose payment-related tools
@@ -407,6 +602,9 @@ npx dodopayments-mcp --resource=payments
 
 # Expose multiple resources
 npx dodopayments-mcp --resource=payments --resource=customers
+
+# Use wildcards for resource groups
+npx dodopayments-mcp --resource=subscription*
 ```
 
 ### 包含或排除特定工具
@@ -420,6 +618,9 @@ npx dodopayments-mcp --tool=create_payments --tool=list_payments
 # Exclude specific tools
 npx dodopayments-mcp --no-tool=delete_products
 
+# Disable the docs search tool
+npx dodopayments-mcp --no-tools=docs
+
 # List all available tools
 npx dodopayments-mcp --list
 ```
@@ -431,6 +632,38 @@ npx dodopayments-mcp --list
 ```bash
 # Only payment and subscription read operations
 npx dodopayments-mcp --operation=read --resource=payments --resource=subscriptions
+```
+
+### URL 查询参数过滤（远程服务器）
+
+使用远程服务器时，通过 URL 查询参数应用过滤器：
+
+```
+https://mcp.dodopayments.com/?operation=read
+https://mcp.dodopayments.com/?resource=payments
+```
+
+## 动态工具模式
+
+对于大型 API，一次加载所有工具可能会使 AI 的上下文窗口不堪重负。动态工具模式提供了更高效的替代方案。
+
+```bash
+npx dodopayments-mcp --tools=dynamic
+```
+
+在动态模式下，三个元工具替代单个 API 工具：
+
+1. **`list_api_endpoints`** - 发现可用的方法并可选过滤
+2. **`get_api_endpoint_schema`** - 获取特定方法的详细架构
+3. **`invoke_api_endpoint`** - 执行任何方法并提供适当的参数
+
+<Info>
+对于具有超过 50 个方法的 API，动态工具会自动启用。使用 `--tools=all` 覆盖以包含所有工具。
+</Info>
+
+```bash
+# Use both dynamic tools and specific resources
+npx dodopayments-mcp --tools=dynamic --resource=payments
 ```
 
 ## 高级用法
@@ -521,7 +754,7 @@ echo "DODO_PAYMENTS_API_KEY=dodo_test_..." > .env
 <Accordion title="访问控制">
 **在生产中应用工具过滤**
 
-将暴露的操作限制为您的 AI 助手所需的操作。
+限制暴露的操作仅限于您的 AI 助手所需的操作。
 
 ```bash
 # Production: read-only access
@@ -531,9 +764,9 @@ npx dodopayments-mcp --operation=read
 npx dodopayments-mcp
 ```
 
-**为自定义端点实施身份验证**
+**为远程服务器实施身份验证**
 
-在您的自定义工具处理程序中验证请求并强制执行授权。
+在远程部署时，始终要求通过 `Authorization` 头或 `x-dodo-payments-api-key` 头进行身份验证。
 
 **监控 API 使用情况**
 
@@ -541,9 +774,9 @@ npx dodopayments-mcp
 </Accordion>
 
 <Accordion title="网络安全">
-**对远程服务器使用 HTTPS**
+**为远程服务器使用 HTTPS**
 
-始终在 HTTPS 端点后部署远程 MCP 服务器。
+始终在 HTTPS 端点后面部署远程 MCP 服务器。
 
 **实施速率限制**
 
@@ -581,11 +814,11 @@ curl -H "Authorization: Bearer dodo_test_..." \
 <Accordion title="身份验证错误">
 **确认 API 密钥环境**
 
-确保您在测试端点上使用测试密钥，并在生产端点上使用实时密钥。
+确保您在测试端点使用测试密钥，在生产端点使用生产密钥。
 
-**检查密钥权限**
+**检查环境变量**
 
-验证您的 API 密钥是否具有您尝试执行的操作的权限。
+验证 `DODO_PAYMENTS_ENVIRONMENT` 是否设置正确（`live_mode` 用于生产）。
 
 **重新生成凭据**
 
@@ -605,6 +838,20 @@ curl -H "Authorization: Bearer dodo_test_..." \
 
 验证在通过 curl 或 Postman 直接调用 Dodo Payments API 时操作是否有效。
 </Accordion>
+
+<Accordion title="客户端兼容性问题">
+**尝试不同的客户端预设**
+
+如果工具无法正常工作，请尝试明确指定您的客户端：
+
+```bash
+npx dodopayments-mcp --client=cursor
+```
+
+**检查能力支持**
+
+某些客户端不支持所有 JSON 架构特性。使用 `--describe-capabilities` 了解支持的内容。
+</Accordion>
 </AccordionGroup>
 
 ## 资源
@@ -616,5 +863,13 @@ curl -H "Authorization: Bearer dodo_test_..." \
 
 <Card title="MCP 协议" icon="link" href="https://modelcontextprotocol.io">
   了解有关模型上下文协议标准的更多信息
+</Card>
+
+<Card title="GitHub 仓库" icon="github" href="https://github.com/dodopayments/dodopayments-typescript/tree/main/packages/mcp-server">
+  查看 MCP 服务器源代码并贡献
+</Card>
+
+<Card title="NPM 包" icon="npm" href="https://www.npmjs.com/package/dodopayments-mcp">
+  从 NPM 安装 MCP 服务器
 </Card>
 </CardGroup>
