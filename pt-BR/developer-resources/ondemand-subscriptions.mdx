@@ -8,24 +8,20 @@ icon: bolt
 
 ## Visão Geral
 
-Assinaturas sob demanda permitem que você autorize o método de pagamento de um cliente uma vez e, em seguida, cobre valores variáveis sempre que precisar, em vez de em um cronograma fixo.
-
-<Info>
-Esse recurso pode precisar ser habilitado na sua conta. Entre em contato com o suporte se você não o vê no seu painel.
-</Info>
+As assinaturas sob demanda permitem que você autorize um método de pagamento de um cliente uma vez e, em seguida, cobre valores variáveis sempre que precisar, em vez de em um cronograma fixo.
 
 Use este guia para:
 - Criar uma assinatura sob demanda (autorizar um mandato com preço inicial opcional)
 - Acionar cobranças subsequentes com valores personalizados
 - Rastrear resultados usando webhooks
 
-Para uma configuração geral de assinatura, consulte o [Guia de Integração de Assinaturas](/developer-resources/subscription-integration-guide).
+Para uma configuração geral de assinatura, veja o [Guia de Integração de Assinaturas](/developer-resources/subscription-integration-guide).
 
 ## Pré-requisitos
 
-- Conta de comerciante Dodo Payments e chave API
-- Segredo de webhook configurado e um endpoint para receber eventos
-- Um produto de assinatura no seu catálogo
+- Conta de comerciante Dodo Payments e chave de API
+- Segredo do webhook configurado e um endpoint para receber eventos
+- Um produto de assinatura em seu catálogo
 
 <Tip>
 Se você quiser que o cliente aprove o mandato via checkout hospedado, defina `payment_link: true` e forneça um `return_url`.
@@ -62,7 +58,7 @@ Principais campos de solicitação (corpo):
   </ParamField>
 
   <ParamField body="payment_link" type="boolean" default="false">
-    Se verdadeiro, cria um link de checkout hospedado para autorização de mandato e pagamento inicial opcional.
+    Se verdadeiro, cria um link de checkout hospedado para autorização do mandato e pagamento inicial opcional.
   </ParamField>
 
   <ParamField body="return_url" type="string">
@@ -74,7 +70,7 @@ Principais campos de solicitação (corpo):
   </ParamField>
 
   <ParamField body="on_demand.product_price" type="integer">
-    Valor da cobrança inicial (na menor unidade monetária). Se especificado, esse valor substitui o preço original do produto definido durante a criação do produto. Se omitido, o preço armazenado do produto é usado. Exemplo: para cobrar $1,00, passe <code>100</code>.
+    Valor da cobrança inicial (na menor unidade monetária). Se especificado, este valor substitui o preço original do produto definido durante a criação do produto. Se omitido, o preço armazenado do produto é usado. Exemplo: para cobrar $1,00, passe <code>100</code>.
   </ParamField>
 
   <ParamField body="on_demand.product_currency" type="string">
@@ -368,34 +364,34 @@ Cobrar uma assinatura que não é sob demanda pode falhar. Certifique-se de que 
 
 ## Tentativas de pagamento
 
-Nosso sistema de detecção de fraudes pode bloquear padrões de retry agressivos (e pode sinalizá-los como testes de cartão potenciais). Siga uma política de retry segura.
+Nosso sistema de detecção de fraudes pode bloquear padrões de tentativas agressivas (e pode sinalizá-los como testes de cartão potenciais). Siga uma política de tentativas segura.
 
 <Warning>
-Padrões de retry em explosão podem ser sinalizados como fraudulentos ou suspeitos de teste de cartão pelos nossos sistemas de risco e processadores. Evite retries agrupados; siga o cronograma de backoff e as orientações de alinhamento de tempo abaixo.
+Padrões de tentativas em massa podem ser sinalizados como fraudulentos ou suspeitos de teste de cartão por nossos sistemas de risco e processadores. Evite tentativas agrupadas; siga o cronograma de recuo e as orientações de alinhamento de tempo abaixo.
 </Warning>
 
-### Princípios para políticas de retry seguras
+### Princípios para políticas de tentativas seguras
 
-- **Mecanismo de backoff**: Use backoff exponencial entre as tentativas.
-- **Limites de retry**: Limite o total de tentativas (máximo de 3–4 tentativas).
+- **Mecanismo de recuo**: Use recuo exponencial entre as tentativas.
+- **Limites de tentativas**: Limite o total de tentativas (3–4 tentativas no máximo).
 - **Filtragem inteligente**: Tente novamente apenas em falhas recuperáveis (por exemplo, erros de rede/emissor, fundos insuficientes); nunca tente novamente em recusas definitivas.
-- **Prevenção de teste de cartão**: Não tente novamente falhas como `DO_NOT_HONOR`, `STOLEN_CARD`, `LOST_CARD`, `PICKUP_CARD`, `FRAUDULENT`, `AUTHENTICATION_FAILURE`.
-- **Variar metadados (opcional)**: Se você mantiver seu próprio sistema de retry, diferencie as tentativas via metadados (por exemplo, `retry_attempt`).
+- **Prevenção de testes de cartão**: Não tente novamente falhas como `DO_NOT_HONOR`, `STOLEN_CARD`, `LOST_CARD`, `PICKUP_CARD`, `FRAUDULENT`, `AUTHENTICATION_FAILURE`.
+- **Variar metadados (opcional)**: Se você mantiver seu próprio sistema de tentativas, diferencie as tentativas por meio de metadados (por exemplo, `retry_attempt`).
 
-### Cronograma de retry sugerido (assinaturas)
+### Cronograma de tentativas sugerido (assinaturas)
 
-- **1ª tentativa**: Imediata quando você criar a cobrança
+- **1ª tentativa**: Imediata quando você cria a cobrança
 - **2ª tentativa**: Após 3 dias
 - **3ª tentativa**: Após mais 7 dias (10 dias no total)
 - **4ª tentativa (final)**: Após mais 7 dias (17 dias no total)
 
-Passo final: se ainda não pago, marque a assinatura como não paga ou cancele-a, com base na sua política. Notifique o cliente durante a janela para atualizar seu método de pagamento.
+Passo final: se ainda não pago, marque a assinatura como não paga ou cancele-a, com base em sua política. Notifique o cliente durante a janela para atualizar seu método de pagamento.
 
-### Evite retries em explosão; alinhe ao tempo de autorização
+### Evite tentativas em massa; alinhe-se ao horário de autorização
 
-- Ancore as tentativas ao timestamp de autorização original para evitar comportamento de "explosão" em seu portfólio.
-- Exemplo: Se o cliente iniciar um teste ou mandato às 13h10 de hoje, agende as tentativas de follow-up às 13h10 nos dias subsequentes conforme seu backoff (por exemplo, +3 dias → 13h10, +7 dias → 13h10).
-- Alternativamente, se você armazenar o último horário de pagamento bem-sucedido `T`, agende a próxima tentativa em `T + X days` para preservar o alinhamento do horário do dia.
+- Ancore as tentativas ao timestamp de autorização original para evitar comportamento de “explosão” em seu portfólio.
+- Exemplo: Se o cliente iniciar um teste ou mandato às 13h10 de hoje, agende tentativas de acompanhamento às 13h10 nos dias subsequentes conforme seu recuo (por exemplo, +3 dias → 13h10, +7 dias → 13h10).
+- Alternativamente, se você armazenar o horário do último pagamento bem-sucedido `T`, agende a próxima tentativa em `T + X days` para preservar o alinhamento do horário do dia.
 
 <Note>
 Fuso horário e DST: use um padrão de tempo consistente para agendamento e converta apenas para exibição para manter os intervalos.
@@ -411,22 +407,22 @@ Fuso horário e DST: use um padrão de tempo consistente para agendamento e conv
 - `LOST_CARD`
 
 <Note>
-Para uma lista abrangente de razões de recusa e se são corrigíveis pelo usuário, consulte a documentação de
+Para uma lista abrangente de razões de recusa e se são corrigíveis pelo usuário, veja a documentação de
 [Falhas de Transação](/api-reference/transaction-failures).
 </Note>
 
 <Tip>
-Tente novamente apenas em problemas temporários/suaves (por exemplo, `insufficient_funds`, `issuer_unavailable`, `processing_error`, timeouts de rede). Se a mesma recusa se repetir, pause novas tentativas.
+Tente novamente apenas em problemas suaves/temporários (por exemplo, `insufficient_funds`, `issuer_unavailable`, `processing_error`, timeouts de rede). Se a mesma recusa se repetir, pause novas tentativas.
 </Tip>
 
 ### Diretrizes de implementação (sem código)
 
 - Use um agendador/fila que persista timestamps precisos; calcule a próxima tentativa no exato deslocamento de horário (por exemplo, `T + 3 days` no mesmo HH:MM).
-- Mantenha e faça referência ao último timestamp de pagamento bem-sucedido `T` para calcular a próxima tentativa; não agrupe várias assinaturas no mesmo instante.
+- Mantenha e faça referência ao timestamp do último pagamento bem-sucedido `T` para calcular a próxima tentativa; não agrupe várias assinaturas no mesmo instante.
 - Sempre avalie a última razão de recusa; pare as tentativas para recusas definitivas na lista de exclusão acima.
 - Limite tentativas simultâneas por cliente e por conta para evitar picos acidentais.
 - Comunique-se proativamente: envie e-mail/SMS ao cliente para atualizar seu método de pagamento antes da próxima tentativa agendada.
-- Use metadados apenas para observabilidade (por exemplo, `retry_attempt`); nunca tente "evadir" sistemas de fraude/risco rotacionando campos irrelevantes.
+- Use metadados apenas para observabilidade (por exemplo, `retry_attempt`); nunca tente “evadir” sistemas de fraude/risco rotacionando campos irrelevantes.
 
 ## Rastrear resultados com webhooks
 
@@ -446,17 +442,17 @@ Para fluxos sob demanda, concentre-se em `payment.succeeded` e `payment.failed` 
 
 <Steps>
 <Step title="Criar em modo de teste">
-Use sua chave API de teste para criar a assinatura com `payment_link: true`, depois abra o link e conclua o mandato.
+Use sua chave de API de teste para criar a assinatura com `payment_link: true`, depois abra o link e conclua o mandato.
 </Step>
 <Step title="Acionar uma cobrança">
 Chame o endpoint de cobrança com um pequeno `product_price` (por exemplo, `100`) e verifique se você recebe `payment.succeeded`.
 </Step>
 <Step title="Ir ao vivo">
-Mude para sua chave API ao vivo uma vez que você tenha validado eventos e atualizações de estado interno.
+Mude para sua chave de API ao vivo assim que você tiver validado eventos e atualizações de estado interno.
 </Step>
 </Steps>
 
-## Resolução de Problemas
+## Solução de problemas
 
 - **422 Solicitação Inválida**: Certifique-se de que `on_demand.mandate_only` seja fornecido na criação e `product_price` seja fornecido para cobranças.
 - **Erros de moeda**: Se você substituir `product_currency`, confirme se é suportado para sua conta e cliente.

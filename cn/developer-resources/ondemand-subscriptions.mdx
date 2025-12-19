@@ -6,22 +6,18 @@ icon: bolt
 
 ## 概述
 
-按需订阅允许您一次性授权客户的支付方式，然后在需要时收取可变金额，而不是按照固定的时间表进行收费。
-
-<Info>
-此功能可能需要在您的帐户上启用。如果您在仪表板中看不到它，请联系支持。
-</Info>
+按需订阅允许您一次授权客户的支付方式，然后在需要时收取可变金额，而不是按照固定的时间表进行收费。
 
 使用本指南：
-- 创建按需订阅（授权授权并可选初始价格）
+- 创建按需订阅（授权一个可选的初始价格的授权）
 - 使用自定义金额触发后续收费
 - 使用 Webhook 跟踪结果
 
-有关一般订阅设置，请参阅 [订阅集成指南](/developer-resources/subscription-integration-guide)。
+有关一般订阅设置，请参见 [订阅集成指南](/developer-resources/subscription-integration-guide)。
 
 ## 先决条件
 
-- Dodo Payments 商户帐户和 API 密钥
+- Dodo Payments 商户账户和 API 密钥
 - 配置的 Webhook 密钥和接收事件的端点
 - 您目录中的订阅产品
 
@@ -31,7 +27,7 @@ icon: bolt
 
 ## 按需工作原理
 
-1. 您使用 `on_demand` 对象创建订阅以授权支付方式，并可选地收取初始费用。
+1. 您使用 `on_demand` 对象创建订阅以授权支付方式，并可选择收取初始费用。
 2. 之后，您使用专用收费端点针对该订阅创建自定义金额的收费。
 3. 您监听 Webhook（例如， `payment.succeeded`, `payment.failed`）以更新您的系统。
 
@@ -64,7 +60,7 @@ icon: bolt
   </ParamField>
 
   <ParamField body="return_url" type="string">
-    完成托管结账后重定向客户的地址。
+    完成托管结账后重定向客户的位置。
   </ParamField>
 
   <ParamField body="on_demand.mandate_only" type="boolean" required>
@@ -72,7 +68,7 @@ icon: bolt
   </ParamField>
 
   <ParamField body="on_demand.product_price" type="integer">
-    初始收费金额（以最小货币单位计）。如果指定，则此值将覆盖在产品创建期间设置的产品原始价格。如果省略，则使用产品存储的价格。示例：要收费 $1.00，请传递 <code>100</code>。
+    初始收费金额（以最小货币单位计）。如果指定，则此值将覆盖在产品创建期间设置的产品原始价格。如果省略，则使用产品存储的价格。示例：要收取 $1.00，请传递 <code>100</code>。
   </ParamField>
 
   <ParamField body="on_demand.product_currency" type="string">
@@ -257,7 +253,7 @@ curl -X POST "$DODO_API/subscriptions" \
 <AccordionGroup>
   <Accordion title="收费请求主体参数">
     <ParamField body="product_price" type="integer" required>
-      收费金额（以最小货币单位计）。示例：要收费 $25.00，请传递 <code>2500</code>。
+      收费金额（以最小货币单位计）。示例：要收取 $25.00，请传递 <code>2500</code>。
     </ParamField>
 
     <ParamField body="product_currency" type="string">
@@ -366,10 +362,10 @@ curl -X POST "$DODO_API/subscriptions/sub_123/charge" \
 
 ## 付款重试
 
-我们的欺诈检测系统可能会阻止激进的重试模式（并可能将其标记为潜在的卡片测试）。遵循安全重试策略。
+我们的欺诈检测系统可能会阻止激进的重试模式（并可能将其标记为潜在的卡片测试）。遵循安全的重试策略。
 
 <Warning>
-突发重试模式可能会被我们的风险系统和处理器标记为欺诈或可疑的卡片测试。避免集群重试；遵循下面的退避计划和时间对齐指导。
+突发重试模式可能会被我们的风险系统和处理器标记为欺诈或可疑的卡片测试。避免集中的重试；遵循下面的退避计划和时间对齐指导。
 </Warning>
 
 ### 安全重试策略的原则
@@ -382,7 +378,7 @@ curl -X POST "$DODO_API/subscriptions/sub_123/charge" \
 
 ### 建议的重试计划（订阅）
 
-- **第一次尝试**：在您创建收费时立即进行
+- **第一次尝试**：创建收费时立即进行
 - **第二次尝试**：3 天后
 - **第三次尝试**：再过 7 天（总共 10 天）
 - **第四次尝试（最终）**：再过 7 天（总共 17 天）
@@ -409,12 +405,12 @@ curl -X POST "$DODO_API/subscriptions/sub_123/charge" \
 - `LOST_CARD`
 
 <Note>
-有关拒绝原因的完整列表及其是否可由用户更正的信息，请参阅
+有关拒绝原因的完整列表及其是否可由用户更正的信息，请参见
 [交易失败](/api-reference/transaction-failures) 文档。
 </Note>
 
 <Tip>
-仅在软/临时问题（例如， `insufficient_funds`, `issuer_unavailable`, `processing_error`, 网络超时）时重试。如果同一拒绝重复，请暂停进一步重试。
+仅在软/临时问题（例如， `insufficient_funds`, `issuer_unavailable`, `processing_error`, 网络超时）时重试。如果相同的拒绝重复，请暂停进一步的重试。
 </Tip>
 
 ### 实施指南（无代码）
@@ -422,13 +418,13 @@ curl -X POST "$DODO_API/subscriptions/sub_123/charge" \
 - 使用持久化精确时间戳的调度程序/队列；在确切的时间偏移处计算下一次尝试（例如， `T + 3 days` 在相同的 HH:MM）。
 - 维护并引用最后一次成功付款时间戳 `T` 以计算下一次尝试；不要在同一时刻聚集多个订阅。
 - 始终评估最后一次拒绝原因；对于上述跳过列表中的硬拒绝停止重试。
-- 限制每个客户和每个帐户的并发重试，以防止意外激增。
-- 主动沟通：在下次计划的尝试之前，通过电子邮件/SMS 通知客户更新其支付方式。
+- 限制每个客户和每个账户的并发重试，以防止意外激增。
+- 主动沟通：在下次计划尝试之前，通过电子邮件/SMS 通知客户更新其支付方式。
 - 仅将元数据用于可观察性（例如， `retry_attempt`）；绝不要试图通过轮换无关字段来“规避”欺诈/风险系统。
 
 ## 使用 Webhook 跟踪结果
 
-实现 Webhook 处理以跟踪客户旅程。请参阅 [实现 Webhook](/developer-resources/integration-guide#implementing-webhooks)。
+实现 Webhook 处理以跟踪客户旅程。请参见 [实现 Webhook](/developer-resources/integration-guide#implementing-webhooks)。
 
 - **subscription.active**：授权的授权和激活的订阅
 - **subscription.failed**：创建失败（例如，授权失败）
@@ -437,7 +433,7 @@ curl -X POST "$DODO_API/subscriptions/sub_123/charge" \
 - **payment.failed**：收费失败
 
 <Tip>
-对于按需流程，专注于 `payment.succeeded` 和 `payment.failed` 以对账基于使用的收费。
+对于按需流程，关注 `payment.succeeded` 和 `payment.failed` 以对账基于使用的收费。
 </Tip>
 
 ## 测试和后续步骤
@@ -457,5 +453,5 @@ curl -X POST "$DODO_API/subscriptions/sub_123/charge" \
 ## 故障排除
 
 - **422 无效请求**：确保在创建时提供 `on_demand.mandate_only`，并在收费时提供 `product_price`。
-- **货币错误**：如果您覆盖 `product_currency`，请确认它对您的帐户和客户是支持的。
+- **货币错误**：如果您覆盖 `product_currency`，请确认它对您的账户和客户是支持的。
 - **未收到 Webhook**：验证您的 Webhook URL 和签名密钥配置.
