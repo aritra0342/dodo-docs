@@ -1,0 +1,280 @@
+---
+sidebarTitle: Prenumerationsmigration
+title: Prenumerationsmigration till Dodo Payments
+description: Lär dig hur du migrerar dina befintliga prenumeranter och
+  betalningsmetoder från din nuvarande betalningsprocessor till Dodo Payments.
+icon: file-import
+---
+
+## Vad är en prenumerationsmigration?
+
+En prenumerationsmigration överför dina befintliga prenumeranter från din gamla betalningsprocessor till Dodo Payments, vilket ger dig en enda källa för all din kunddata. Utan en migration förblir kunder som du har förvärvat hittills i ditt gamla system, och endast nya kunder skulle vara synliga i Dodo Payments.
+
+Migrationsprocessen säkerställer en sömlös faktureringsupplevelse för dina kunder—de behöver inte ange sina betalningsuppgifter på nytt eller uppleva några avbrott i sina prenumerationer.
+
+<Warning>
+För närvarande stöder vi endast migration av **korttoken**. Apple Pay, Google Pay och andra plånboksbetalningsmetoder kan inte överföras mellan betalningsprocessorer på grund av tokeniseringsbegränsningar som dessa leverantörer har infört.
+</Warning>
+
+## Översikt av migrationsprocessen
+
+Prenumerationsmigrationsprocessen består av tre nyckeldelar:
+
+1. **Överföring av betalningsmetod** — Säker överföring av känsliga kortdata från din nuvarande processor
+2. **Överföring av prenumerantdata** — Export av kunduppgifter, prenumerationsplaner och faktureringsscheman
+3. **Import och validering** — Sammanfoga betalningsmetoder och prenumerantdata i Dodo Payments
+
+<Note>
+För att påbörja en prenumerationsmigration, kontakta vårt [supportteam](mailto:support@dodopayments.com). De kommer att koppla dig till en dedikerad Solutions Engineer som kommer att vägleda dig genom hela processen.
+</Note>
+
+## Krav
+
+Innan du påbörjar en migration, se till att du uppfyller följande krav:
+
+<AccordionGroup>
+<Accordion title="Verifiering av PCI DSS-efterlevnad">
+Dodo Payments är PCI DSS nivå 1-kompatibel. För att uppfylla efterlevnadskrav kan vi endast ta emot kortdata från en annan PCI DSS nivå 1-kompatibel betalningsprocessor.
+
+Din nuvarande processor måste tillhandahålla:
+- Deras aktuella PCI Attestation of Compliance (AOC), eller deras listning på Visas globala register över tjänsteleverantörer
+- Bekräftelse på att de stöder säkra kortdataexporter
+
+Se vår [Attestation of Compliance (AOC)](/assets/dodo-payments-pci-dss-aoc.pdf) för att dela med din nuvarande processor.
+</Accordion>
+
+<Accordion title="Dodo Payments-integration">
+Slutför din Dodo Payments-integration och se till att alla nya kunder dirigeras till Dodo Payments-kassan innan du påbörjar migrationen. Detta förhindrar datainkonsekvenser under övergångsperioden.
+</Accordion>
+
+<Accordion title="Behörighet för dataåtkomst">
+Se till att du har nödvändig behörighet för att begära en dataexport från din nuvarande processor. Detta kräver vanligtvis:
+- Verifiering av kontoinnehavare
+- Skriftlig behörighet för åtkomst till känsliga data
+- Slutförande av din processors säkerhetsverifieringssteg
+</Accordion>
+</AccordionGroup>
+
+## Steg-för-steg migrationsguide
+
+<Steps>
+<Step title="Begär export av betalningsmetod från din nuvarande processor">
+Kontakta supportteamet för din nuvarande betalningsprocessor och skicka en formell begäran om en fullständig export av dina kunders korttoken.
+
+Du behöver:
+- Tillhandahålla verifiering av din identitet och behörighet
+- Begära att de krypterar exporten med Dodo Payments PGP offentliga nyckel (anges nedan)
+- Be dem att överföra den krypterade filen direkt till vår säkra SFTP-server
+
+<Info>
+Säkra överföringar görs direkt från server till server via SFTP. Din Solutions Engineer kommer att tillhandahålla SFTP-uppgifterna att dela med din nuvarande processor.
+</Info>
+
+I genomsnitt tar denna process cirka **2 veckor**, även om tidsramen varierar beroende på din nuvarande processors policyer och svarstider.
+</Step>
+
+<Step title="Förbered export av prenumerantdata">
+Medan överföringen av betalningsmetoden pågår, exportera dina prenumerantdata från ditt gamla system. Din Solutions Engineer kommer att tillhandahålla en CSV-mall och vägleda dig genom de nödvändiga fälten.
+
+### Nödvändig prenumerantdata
+
+| Fält | Beskrivning |
+|-------|-------------|
+| `customer_id` | Ditt interna kundidentifierare |
+| `email` | Kundens e-postadress |
+| `name` | Kundens fullständiga namn |
+| `country` | Tvåbokstavskod för land (ISO 3166-1 alpha-2) |
+| `currency` | Trebokstavskod för valuta (ISO 4217) |
+| `payment_amount` | Prenumerationsbelopp i minsta valutaenhet |
+| `payment_interval` | Faktureringsfrekvens (månatlig, årlig, etc.) |
+| `next_billing_date` | Nästa schemalagda faktureringsdatum (ISO 8601) |
+| `card_token` | Unik token från din nuvarande processor |
+
+<Warning>
+Fältet `card_token` är kritiskt—det används för att matcha prenumerantregister med deras betalningsmetoder under importen. Se till att detta matchar exakt med token i betalningsmetodens export.
+</Warning>
+
+### Exempel på dataformat
+
+```json
+{
+  "customers": [
+    {
+      "customer_id": "cus_abc123",
+      "email": "jane.doe@example.com",
+      "name": "Jane Doe",
+      "country": "US",
+      "currency": "USD",
+      "payment_amount": 2999,
+      "payment_interval": "monthly",
+      "next_billing_date": "2025-01-15T00:00:00Z",
+      "card_token": "tok_xyz789",
+      "metadata": {
+        "plan": "pro",
+        "signup_source": "website"
+      }
+    }
+  ]
+}
+```
+
+</Step>
+
+<Step title="Validering och testning">
+Innan importdatumet kommer vårt team att:
+
+- Verifiera filens integritet och kryptering av betalningsmetodens data
+- Validera din prenumerant-CSV för korrekt formatering
+- Köra en testimport i vår sandbox-miljö
+- Identifiera och lösa eventuella datakartläggningsproblem
+
+<Check>
+Du kommer att få en valideringsrapport som bekräftar att allt är klart för produktionsimporten.
+</Check>
+</Step>
+
+<Step title="Produktionsimport">
+På det överenskomna importdatumet kommer vårt ingenjörsteam att:
+
+1. Importera betalningsmetodens data till vårt PCI-kompatibla Card Vault
+2. Importera dina prenumerantdata
+3. Matcha prenumeranter med deras betalningsmetoder med hjälp av korttoken
+4. Aktivera alla migrerade prenumerationer
+
+<Info>
+Typisk behandlingstid är **2-3 arbetsdagar** för standardmigrationer, beroende på volymen av prenumeranter.
+</Info>
+</Step>
+
+<Step title="Verifiering efter migration">
+Efter att importen är slutförd kommer du att få:
+
+- En omfattande migrationsrapport
+- En CSV som kartlägger dina gamla prenumerations-ID:n till nya Dodo Payments-ID:n
+- Tillgång till alla migrerade kunder i din Dodo Payments-instrumentpanel
+
+Vi rekommenderar:
+- Att verifiera ett urval av migrerade prenumerationer i din instrumentpanel
+- Att testa några prenumerationsförnyelser i sandbox-läge
+- Att uppdatera dina interna databasreferenser med de nya ID:n
+- Att köra parallell övervakning under den första faktureringscykeln
+</Step>
+</Steps>
+
+## Migrerbar data
+
+Följande data kan överföras under en prenumerationsmigration:
+
+| Datatyp | Stöds | Anteckningar |
+|-----------|-----------|-------|
+| Kredit-/betalkortnummer | ✅ | Krypterat via PGP |
+| Kortets utgångsdatum | ✅ | |
+| Kortinnehavarens namn | ✅ | |
+| Faktureringsadresser | ✅ | |
+| Kundens e-postadresser | ✅ | |
+| Kundmetadata | ✅ | Anpassade nyckel-värdepar |
+| Prenumerationsdetaljer | ✅ | Plan, belopp, intervall |
+| Apple Pay-token | ❌ | Kan inte överföras |
+| Google Pay-token | ❌ | Kan inte överföras |
+| Andra plånbokstoken | ❌ | Kan inte överföras |
+| Betalningshistorik | ❌ | Exportera från din nuvarande processor |
+
+<Note>
+Betalningshistorik och transaktionsregister kan inte migreras. Vi rekommenderar att du exporterar dessa data från din nuvarande processor för dina register innan du slutför övergången.
+</Note>
+
+## PGP-kryptering
+
+För maximal säkerhet vid överföring av känsliga kortdata måste alla filer **krypteras** med vår PGP offentliga nyckel. Detta ger ett extra skydd utöver transportnivåkryptering.
+
+Dela denna nyckel med din nuvarande betalningsprocessor för att kryptera exporten av kortdata:
+
+<Accordion title="Dodo Payments PGP offentliga nyckel">
+
+```
+-----BEGIN PGP PUBLIC KEY BLOCK-----
+
+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
+1OSDhXaPYtJnVApUzaCrC5PJCXU=
+=nHcw
+-----END PGP PUBLIC KEY BLOCK-----
+
+```
+
+</Accordion>
+
+## Tidslinje för förväntningar
+
+| Fas | Varaktighet |
+|-------|----------|
+| Inledande installation och planering | 1-2 dagar |
+| Överföring av betalningsmetod | ~2 veckor |
+| Förberedelse av prenumerantdata | 3-5 dagar (parallellt) |
+| Validering och testning | 2-3 dagar |
+| Produktionsimport | 2-3 arbetsdagar |
+| Verifiering efter migration | 1-2 dagar |
+
+<Tip>
+Den totala migrationen tar vanligtvis **3-4 veckor** från början till slut. Att påbörja din förberedelse av prenumerantdata medan överföringen av betalningsmetoden pågår hjälper till att minimera den totala tidslinjen.
+</Tip>
+
+## Kom igång
+
+Redo att migrera dina prenumerationer till Dodo Payments? Kontakta vårt team för att påbörja processen:
+
+<CardGroup cols={2}>
+<Card title="Kontakta support" icon="envelope" href="mailto:support@dodopayments.com">
+Kontakta oss för att påbörja din migration och få kontakt med en Solutions Engineer.
+</Card>
+
+<Card title="API-dokumentation" icon="code" href="/api-reference">
+Utforska vår API för att förstå hur prenumerationer fungerar i Dodo Payments.
+</Card>
+</CardGroup>

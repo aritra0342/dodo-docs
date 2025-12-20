@@ -1,0 +1,163 @@
+---
+title: Tidsintervall Blåkopi
+description: Spåra resursförbrukning baserat på förfluten tid för beräkning,
+  serverlösa funktioner, containrar och körningsavgifter.
+icon: klocka
+---
+
+## Användningsfall
+
+Utforska vanliga scenarier som stöds av Tidsintervall Blåkopi:
+
+<CardGroup cols={2}>
+<Card title="Serverlösa Funktioner" icon="function">
+Avgift baserat på funktionens exekveringstid och minnesanvändning.
+</Card>
+<Card title="Container Körning" icon="container-storage">
+Spåra containerkörningstid för användningsbaserad fakturering.
+</Card>
+<Card title="Beräkningsinstanser" icon="server">
+Övervaka VM-körning och ta betalt per minut eller timme.
+</Card>
+<Card title="Bakgrundsjobb" icon="briefcase">
+Spåra bearbetningstid för dataexporter, rapporter och batchjobb.
+</Card>
+</CardGroup>
+
+<Info>
+Perfekt för fakturering baserat på beräkningstid, funktionens exekveringslängd, containerkörning eller någon tidsbaserad användning.
+</Info>
+
+## Snabbstart
+
+Spåra resursanvändning efter tidsperiod:
+
+<Steps>
+<Step title="Installera SDK">
+
+```bash
+npm install @dodopayments/ingestion-blueprints
+```
+
+</Step>
+
+<Step title="Hämta Ditt API-nycklar">
+- **Dodo Payments API-nyckel**: Hämta den från [Dodo Payments Dashboard](https://app.dodopayments.com/developer/api-keys)
+</Step>
+
+<Step title="Skapa en Mätare">
+Skapa en mätare i din [Dodo Payments Dashboard](https://app.dodopayments.com/):
+- **Händelsenamn**: `time_range_usage` (eller ditt föredragna namn)
+- **Aggregations Typ**: `sum` för att spåra total varaktighet
+- **Över Egenskap**: `durationSeconds`, `durationMinutes`, eller `durationMs`
+</Step>
+
+<Step title="Spåra Tidsanvändning">
+<CodeGroup>
+
+```javascript Serverless Functions
+import { Ingestion, trackTimeRange } from '@dodopayments/ingestion-blueprints';
+
+const ingestion = new Ingestion({
+  apiKey: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'test_mode',
+  eventName: 'function_execution'
+});
+
+// Track function execution time
+const startTime = Date.now();
+
+// Execute your function (example: image processing)
+const result = await yourImageProcessingLogic();
+
+const durationMs = Date.now() - startTime;
+
+await trackTimeRange(ingestion, {
+  customerId: 'customer_123',
+  durationMs: durationMs
+});
+```
+
+```javascript Container Runtime
+import { Ingestion, trackTimeRange } from '@dodopayments/ingestion-blueprints';
+
+const ingestion = new Ingestion({
+  apiKey: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'test_mode',
+  eventName: 'container_runtime'
+});
+
+// Track container runtime in seconds
+await trackTimeRange(ingestion, {
+  customerId: 'customer_456',
+  durationSeconds: 120
+});
+```
+
+```javascript VM Instance Runtime
+import { Ingestion, trackTimeRange } from '@dodopayments/ingestion-blueprints';
+
+const ingestion = new Ingestion({
+  apiKey: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'test_mode',
+  eventName: 'vm_runtime'
+});
+
+// Track VM runtime in minutes
+await trackTimeRange(ingestion, {
+  customerId: 'customer_789',
+  durationMinutes: 60
+});
+```
+
+</CodeGroup>
+</Step>
+</Steps>
+
+## Konfiguration
+
+### Ingestionskonfiguration
+
+<ParamField path="apiKey" type="string" required>
+Din Dodo Payments API-nyckel från instrumentpanelen.
+</ParamField>
+
+<ParamField path="environment" type="string" required>
+Miljöläge: `test_mode` eller `live_mode`.
+</ParamField>
+
+<ParamField path="eventName" type="string" required>
+Händelsenamn som matchar din mätarkonfiguration.
+</ParamField>
+
+### Spåra Tidsintervall Alternativ
+
+<ParamField path="customerId" type="string" required>
+Kund-ID för faktureringsattribution.
+</ParamField>
+
+<ParamField path="durationMs" type="number">
+Varaktighet i millisekunder. Använd för sub-sekund precision.
+</ParamField>
+
+<ParamField path="durationSeconds" type="number">
+Varaktighet i sekunder. Vanligast för funktionens exekvering och korta uppgifter.
+</ParamField>
+
+<ParamField path="durationMinutes" type="number">
+Varaktighet i minuter. Användbart för längre körande resurser som VM:er.
+</ParamField>
+
+<ParamField path="metadata" type="object">
+Valfri metadata om resursen som CPU, minne, region, etc.
+</ParamField>
+
+## Bästa Praxis
+
+<Tip>
+**Välj Rätt Enhet**: Använd millisekunder för korta operationer, sekunder för funktioner och minuter för längre körande resurser.
+</Tip>
+
+<Warning>
+**Noggrann Tidsmätning**: Använd `Date.now()` eller `performance.now()` för noggrann tidsmätning, särskilt för serverlösa funktioner.
+</Warning>

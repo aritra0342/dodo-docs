@@ -1,0 +1,119 @@
+---
+title: Stream Blueprint
+description: Spåra konsumtion av strömmande data för video, ljud, live-streams
+  och fakturering av realtidsdataöverföring.
+icon: tower-broadcast
+---
+
+## Användningsfall
+
+Utforska vanliga scenarier som stöds av Stream Blueprint:
+
+<CardGroup cols={2}>
+<Card title="Video Plattformar" icon="video">
+Fakturera kunder baserat på videobandbreddskonsumtion och streamingkvalitet.
+</Card>
+<Card title="Musikstreaming" icon="music">
+Spåra ljudstreaming-användning per användare för prenumerationsnivåer.
+</Card>
+<Card title="Live Evenemang" icon="signal-stream">
+Övervaka konsumtion av live-stream och ta betalt för bandbreddsanvändning.
+</Card>
+<Card title="Realtidsdata" icon="wave-pulse">
+Spåra realtidsdataöverföring för IoT- och telemetriapplikationer.
+</Card>
+</CardGroup>
+
+<Info>
+Perfekt för video-/ljudstreamingplattformar, live-streamingtjänster och realtidsdataapplikationer.
+</Info>
+
+## Snabbstart
+
+Spåra strömmande byte som konsumeras av dina kunder:
+
+<Steps>
+<Step title="Installera SDK:n">
+
+```bash
+npm install @dodopayments/ingestion-blueprints
+```
+
+</Step>
+
+<Step title="Få dina API-nycklar">
+- **Dodo Payments API-nyckel**: Hämta den från [Dodo Payments Dashboard](https://app.dodopayments.com/developer/api-keys)
+</Step>
+
+<Step title="Skapa en mätare">
+Skapa en mätare i din [Dodo Payments Dashboard](https://app.dodopayments.com/):
+- **Händelsenamn**: `stream_consumption` (eller ditt föredragna namn)
+- **Aggregations typ**: `sum` för att spåra totala byte som strömmas
+- **Över egenskap**: `bytes` för att fakturera baserat på bandbreddsanvändning
+</Step>
+
+<Step title="Spåra strömmande användning">
+<CodeGroup>
+
+```javascript Video Streaming
+import { Ingestion, trackStreamBytes } from '@dodopayments/ingestion-blueprints';
+
+const ingestion = new Ingestion({
+  apiKey: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'test_mode',
+  eventName: 'stream_consumption'
+});
+
+// Track video stream consumption
+await trackStreamBytes(ingestion, {
+  customerId: 'customer_123',
+  bytes: 10485760, // 10MB
+  metadata: {
+    stream_type: 'video',
+  }
+});
+```
+
+</CodeGroup>
+</Step>
+</Steps>
+
+## Konfiguration
+
+### Ingestionskonfiguration
+
+<ParamField path="apiKey" type="string" required>
+Din Dodo Payments API-nyckel från instrumentpanelen.
+</ParamField>
+
+<ParamField path="environment" type="string" required>
+Miljöläge: `test_mode` eller `live_mode`.
+</ParamField>
+
+<ParamField path="eventName" type="string" required>
+Händelsenamn som matchar din mätarkonfiguration.
+</ParamField>
+
+### Spåra strömmande byte alternativ
+
+<ParamField path="customerId" type="string" required>
+Kund-ID för faktureringsattribution.
+</ParamField>
+
+<ParamField path="bytes" type="number">
+Antal byte som konsumeras i strömmen. Krävs för fakturering baserat på bandbredd.
+</ParamField>
+
+<ParamField path="metadata" type="object">
+Valfri metadata om strömmen som strömtyp, kvalitet, sessionId, etc.
+</ParamField>
+
+## Bästa praxis
+
+<Tip>
+**Spåra per chunk**: För långa strömmar, spåra konsumtion i bitar istället för att vänta på att hela strömmen ska slutföras.
+</Tip>
+
+<Warning>
+**Noggrann byte-räkning**: Se till att byte-räkningarna inkluderar all overhead (huvuden, protokolloverhead) om du fakturerar för total bandbredd.
+</Warning>

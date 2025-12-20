@@ -1,0 +1,542 @@
+---
+title: Vercel Functions
+description: Distribuera DodoPayments webhooks till Vercel
+icon: triangle
+---
+
+<Card title="GitHub Repository" icon="github" href="https://github.com/dodopayments/cloud-functions/tree/main/vercel">
+  Komplett källkod och installationsguide
+</Card>
+
+## Snabb installation
+
+### 1. Förutsättningar
+- [Vercel-konto](https://vercel.com/signup)
+- [Neon-databas](https://neon.com) konto
+- DodoPayments API-nyckel från [dashboard](https://app.dodopayments.com/)
+
+### 2. Installera beroenden
+
+```bash
+npm install -g vercel
+vercel login
+git clone https://github.com/dodopayments/cloud-functions.git
+cd cloud-functions/vercel
+npm install
+```
+
+### 3. Databasinställning
+
+1. Registrera dig för [Neon](https://neon.com)
+2. Skapa ett nytt projekt
+3. Öppna SQL-redigeraren
+4. Kopiera och klistra in innehållet från [`schema.sql`](#database-schema)
+5. Kör frågan
+6. Hämta din anslutningssträng från Neon → Anslutningsdetaljer
+
+### 4. Ställ in initiala miljövariabler
+
+Via Vercel CLI:
+
+```bash
+vercel env add DATABASE_URL
+vercel env add DODO_PAYMENTS_API_KEY
+```
+
+> **Obs:** Vi kommer att ställa in `DODO_PAYMENTS_WEBHOOK_KEY` efter distribution när du har din webhook-URL.
+
+### 5. Distribuera
+
+```bash
+npm run deploy
+```
+
+### 6. Hämta din webhook-URL
+
+Din webhook-URL är:
+
+```
+https://[your-project].vercel.app/api/webhook
+```
+
+### 7. Registrera webhook i DodoPayments Dashboard
+
+1. Gå till [DodoPayments Dashboard](https://app.dodopayments.com) → Utvecklare → Webhooks
+2. Skapa en ny webhook-endpoint
+3. Konfigurera din webhook-URL som endpoint
+4. Aktivera dessa prenumerationsevenemang:
+   - `subscription.active`
+   - `subscription.cancelled`
+   - `subscription.renewed`
+5. Kopiera **Signing Secret**
+
+### 8. Ställ in webhook-nyckel och distribuera på nytt
+
+```bash
+vercel env add DODO_PAYMENTS_WEBHOOK_KEY
+npm run deploy
+```
+
+## Vad det gör
+
+Behandlar prenumerationsevenemang och lagrar dem i PostgreSQL:
+- **subscription.active** - Skapar/uppdaterar kund- och prenumerationsposter
+- **subscription.cancelled** - Markerar prenumerationen som avbruten
+- **subscription.renewed** - Uppdaterar nästa faktureringsdatum
+
+## Nyckelfunktioner
+
+✅ **Signaturverifiering** - Använder dodopayments-biblioteket  
+✅ **Idempotens** - Förhindrar duplicerad behandling med webhook-ID:n  
+✅ **Händelseloggar** - Komplett revisionsspår i `webhook_events` tabell  
+✅ **Felhantering** - Loggas och kan försöka igen
+
+> **Obs:** Denna implementation demonstrerar hantering av tre kärnprenumerationsevenemang (`subscription.active`, `subscription.cancelled`, `subscription.renewed`) med minimala fält. Du kan enkelt utöka den för att stödja ytterligare händelsetyper och fält baserat på dina krav.
+
+## Konfigurationsfiler
+
+<CodeGroup>
+
+  ```json package.json
+  {
+    "name": "dodo-webhook-vercel",
+    "version": "1.0.0",
+    "type": "module",
+    "description": "DodoPayments Webhook Handler for Vercel",
+    "scripts": {
+      "start": "vercel dev",
+      "deploy": "vercel --prod"
+    },
+    "dependencies": {
+      "@neondatabase/serverless": "^1.0.2",
+      "dodopayments": "^2.4.1"
+    },
+    "devDependencies": {
+      "typescript": "^5.9.3",
+      "vercel": "^48.4.1"
+    }
+  }
+  ```
+
+  ```json tsconfig.json
+  {
+    "compilerOptions": {
+      "target": "ES2022",
+      "module": "ES2022",
+      "lib": ["ES2022"],
+      "moduleResolution": "node",
+      "esModuleInterop": true,
+      "strict": true,
+      "skipLibCheck": true,
+      "resolveJsonModule": true,
+      "allowSyntheticDefaultImports": true,
+      "forceConsistentCasingInFileNames": true,
+      "isolatedModules": true,
+      "types": ["node"]
+    },
+    "include": ["api/**/*.ts"],
+    "exclude": ["node_modules"]
+  }
+  ```
+
+</CodeGroup>
+
+## Databasstruktur
+
+<CodeGroup>
+
+  ```sql schema.sql expandable
+  -- DodoPayments Webhook Database Schema
+  -- Compatible with PostgreSQL (Supabase, Neon, etc.)
+
+  -- Enable UUID extension (if not already enabled)
+  CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+  -- Customers table
+  CREATE TABLE IF NOT EXISTS customers (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    email TEXT NOT NULL,
+    name TEXT NOT NULL,
+    dodo_customer_id TEXT UNIQUE NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  );
+
+  -- Subscriptions table
+  CREATE TABLE IF NOT EXISTS subscriptions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    customer_id UUID NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+    dodo_subscription_id TEXT UNIQUE NOT NULL,
+    product_id TEXT NOT NULL,
+    status TEXT NOT NULL CHECK (status IN ('pending', 'active', 'on_hold', 'cancelled', 'failed', 'expired')),
+    billing_interval TEXT NOT NULL CHECK (billing_interval IN ('day', 'week', 'month', 'year')),
+    amount INTEGER NOT NULL,
+    currency TEXT NOT NULL,
+    next_billing_date TIMESTAMP WITH TIME ZONE NOT NULL,
+    cancelled_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  );
+
+  -- Webhook events log
+  CREATE TABLE IF NOT EXISTS webhook_events (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    webhook_id TEXT UNIQUE,
+    event_type TEXT NOT NULL,
+    data JSONB NOT NULL,
+    processed BOOLEAN DEFAULT FALSE,
+    error_message TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    processed_at TIMESTAMP WITH TIME ZONE,
+    attempts INTEGER DEFAULT 0
+  );
+
+  -- Indexes for better query performance
+  CREATE INDEX IF NOT EXISTS idx_customers_email ON customers(email);
+  CREATE INDEX IF NOT EXISTS idx_customers_dodo_id ON customers(dodo_customer_id);
+  CREATE INDEX IF NOT EXISTS idx_subscriptions_dodo_id ON subscriptions(dodo_subscription_id);
+  CREATE INDEX IF NOT EXISTS idx_subscriptions_customer_id ON subscriptions(customer_id);
+  CREATE INDEX IF NOT EXISTS idx_subscriptions_status ON subscriptions(status);
+  CREATE INDEX IF NOT EXISTS idx_webhook_events_processed ON webhook_events(processed, created_at);
+  CREATE INDEX IF NOT EXISTS idx_webhook_events_type ON webhook_events(event_type);
+  CREATE INDEX IF NOT EXISTS idx_webhook_events_created_at ON webhook_events(created_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_webhook_events_webhook_id ON webhook_events(webhook_id);
+
+  -- Function to automatically update updated_at timestamp
+  CREATE OR REPLACE FUNCTION update_updated_at_column()
+  RETURNS TRIGGER AS $$
+  BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+  END;
+  $$ LANGUAGE plpgsql;
+
+  -- Triggers to automatically update updated_at
+  CREATE TRIGGER update_customers_updated_at
+    BEFORE UPDATE ON customers
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+  CREATE TRIGGER update_subscriptions_updated_at
+    BEFORE UPDATE ON subscriptions
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+  -- Comments for documentation
+  COMMENT ON TABLE customers IS 'Stores customer information from DodoPayments';
+  COMMENT ON TABLE subscriptions IS 'Stores subscription data from DodoPayments';
+  COMMENT ON TABLE webhook_events IS 'Logs all incoming webhook events for audit and retry purposes';
+
+  COMMENT ON COLUMN customers.dodo_customer_id IS 'Unique customer ID from DodoPayments';
+  COMMENT ON COLUMN subscriptions.dodo_subscription_id IS 'Unique subscription ID from DodoPayments';
+  COMMENT ON COLUMN subscriptions.amount IS 'Amount in smallest currency unit (e.g., cents)';
+  COMMENT ON COLUMN subscriptions.currency IS 'Currency used for the subscription payments (e.g., USD, EUR, INR)';
+  COMMENT ON COLUMN webhook_events.attempts IS 'Number of processing attempts for failed webhooks';
+  COMMENT ON COLUMN webhook_events.data IS 'Full webhook payload as JSON';
+  ```
+
+</CodeGroup>
+
+**Skapade tabeller:**
+- **customers** - E-post, namn, dodo_customer_id
+- **subscriptions** - Status, belopp, next_billing_date, kopplad till kunder
+- **webhook_events** - Händelselogg med webhook_id för idempotens
+
+## Implementeringskod
+
+<CodeGroup>
+
+```typescript api/webhook/index.ts expandable
+import { neon, NeonQueryFunction } from '@neondatabase/serverless';
+import { DodoPayments } from 'dodopayments';
+
+interface WebhookPayload {
+  business_id: string;
+  type: string;
+  timestamp: string;
+  data: {
+    payload_type: "Payment" | "Subscription" | "Refund" | "Dispute" | "LicenseKey";
+    subscription_id: string;
+    customer: {
+      customer_id: string;
+      email: string;
+      name: string;
+    };
+    product_id: string;
+    status: string;
+    recurring_pre_tax_amount: number;
+    payment_frequency_interval: string;
+    created_at: string;
+    next_billing_date: string;
+    cancelled_at?: string | null;
+    currency: string;
+  };
+}
+
+// Disable body parsing to access raw body for webhook verification
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, webhook-id, webhook-signature, webhook-timestamp',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+};
+
+// Helper function for JSON responses
+function jsonResponse(data: unknown, status: number = 200) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+  });
+}
+
+// Handle subscription events
+async function handleSubscriptionEvent(sql: NeonQueryFunction<false, false>, payload: WebhookPayload, status: string) {
+  if (!payload.data.customer.customer_id || !payload.data.subscription_id) {
+    throw new Error('Missing required fields: customer_id or subscription_id');
+  }
+
+  console.log('🔄 Processing subscription event:', JSON.stringify(payload, null, 2));
+
+  const customer = payload.data.customer;
+
+  // Upsert customer (create if doesn't exist, otherwise use existing)
+  const customerResult = await sql`
+    INSERT INTO customers (email, name, dodo_customer_id, created_at)
+    VALUES (${customer.email}, ${customer.name}, ${customer.customer_id}, ${new Date().toISOString()})
+    ON CONFLICT (dodo_customer_id) 
+    DO UPDATE SET 
+      email = EXCLUDED.email,
+      name = EXCLUDED.name,
+      updated_at = ${new Date().toISOString()}
+    RETURNING id
+  `;
+
+  const customerId = customerResult[0].id;
+  console.log(`✅ Customer upserted with ID: ${customerId}`);
+
+  // Upsert subscription
+  await sql`
+    INSERT INTO subscriptions (
+      customer_id, dodo_subscription_id, product_id, status, 
+      billing_interval, amount, currency, created_at, next_billing_date, cancelled_at, updated_at
+    )
+    VALUES (
+      ${customerId}, ${payload.data.subscription_id},
+      ${payload.data.product_id}, ${status},
+      ${payload.data.payment_frequency_interval.toLowerCase()}, ${payload.data.recurring_pre_tax_amount},
+      ${payload.data.currency}, ${payload.data.created_at}, ${payload.data.next_billing_date},
+      ${payload.data.cancelled_at ?? null}, ${new Date().toISOString()}
+    )
+    ON CONFLICT (dodo_subscription_id) 
+    DO UPDATE SET 
+      customer_id = EXCLUDED.customer_id,
+      product_id = EXCLUDED.product_id,
+      status = EXCLUDED.status,
+      billing_interval = EXCLUDED.billing_interval,
+      amount = EXCLUDED.amount,
+      currency = EXCLUDED.currency,
+      created_at = EXCLUDED.created_at,
+      next_billing_date = EXCLUDED.next_billing_date,
+      cancelled_at = EXCLUDED.cancelled_at,
+      updated_at = EXCLUDED.updated_at
+  `;
+
+  console.log(`✅ Subscription upserted with ${status} status`)
+}
+
+// Handle CORS preflight
+export async function OPTIONS() {
+  return new Response('ok', { 
+    status: 200,
+    headers: corsHeaders 
+  });
+}
+
+// Handle webhook POST request
+export async function POST(req: Request) {
+  try {
+    // Get raw body for webhook signature verification
+    const rawBody = await req.text();
+    
+    console.log('📨 Webhook received');
+
+    const DATABASE_URL = process.env.DATABASE_URL;
+    const API_KEY = process.env.DODO_PAYMENTS_API_KEY;
+    const WEBHOOK_KEY = process.env.DODO_PAYMENTS_WEBHOOK_KEY;
+
+    if (!DATABASE_URL) {
+      console.error('❌ Missing DATABASE_URL environment variable');
+      return jsonResponse({ error: 'Server configuration error' }, 500);
+    }
+
+    // Verify required environment variables
+    if (!API_KEY) {
+      console.error('❌ DODO_PAYMENTS_API_KEY is not configured');
+      return jsonResponse({ error: 'API key not configured' }, 500);
+    }
+
+    if (!WEBHOOK_KEY) {
+      console.error('❌ DODO_PAYMENTS_WEBHOOK_KEY is not configured');
+      return jsonResponse({ error: 'Webhook verification key not configured' }, 500);
+    }
+
+    // Verify webhook signature (required for security)
+    const webhookHeaders = {
+      'webhook-id': req.headers.get('webhook-id') || '',
+      'webhook-signature': req.headers.get('webhook-signature') || '',
+      'webhook-timestamp': req.headers.get('webhook-timestamp') || '',
+    };
+
+    try {
+      const dodoPaymentsClient = new DodoPayments({
+        bearerToken: API_KEY,
+        webhookKey: WEBHOOK_KEY,
+      });
+      const unwrappedWebhook = dodoPaymentsClient.webhooks.unwrap(rawBody, { headers: webhookHeaders });
+      console.log('Unwrapped webhook:', unwrappedWebhook);
+      console.log('✅ Webhook signature verified');
+    } catch (error) {
+      console.error('❌ Webhook verification failed:', error);
+      return jsonResponse({ error: 'Webhook verification failed' }, 401);
+    }
+
+    // Initialize Neon client
+    const sql = neon(DATABASE_URL);
+
+    const payload: WebhookPayload = JSON.parse(rawBody);
+    const eventType = payload.type;
+    const eventData = payload.data;
+    const webhookId = req.headers.get('webhook-id') || '';
+
+    console.log(`📋 Webhook payload:`, JSON.stringify(payload, null, 2));
+
+    // Check for duplicate webhook-id (idempotency)
+    if (webhookId) {
+      const existingEvent = await sql`
+        SELECT id FROM webhook_events WHERE webhook_id = ${webhookId}
+      `;
+
+      if (existingEvent.length > 0) {
+        console.log(`⚠️ Webhook ${webhookId} already processed, skipping (idempotency)`);
+        return jsonResponse({ success: true, message: 'Webhook already processed' });
+      }
+    }
+
+    // Log webhook event with webhook_id for idempotency
+    const logResult = await sql`
+      INSERT INTO webhook_events (webhook_id, event_type, data, processed, created_at)
+      VALUES (${webhookId || null}, ${eventType}, ${JSON.stringify(eventData)}, ${false}, ${new Date().toISOString()})
+      RETURNING id
+    `;
+
+    const loggedEventId = logResult[0].id;
+    console.log('📝 Webhook event logged with ID:', loggedEventId);
+
+    console.log(`🔄 Processing: ${eventType} (${eventData.payload_type || 'unknown payload type'})`);
+
+    try {
+      switch (eventType) {
+        case 'subscription.active':
+          await handleSubscriptionEvent(sql, payload, 'active');
+          break;
+        case 'subscription.cancelled':
+          await handleSubscriptionEvent(sql, payload, 'cancelled');
+          break;
+        case 'subscription.renewed':
+          console.log('🔄 Subscription renewed - keeping active status and updating billing date');
+          await handleSubscriptionEvent(sql, payload, 'active');
+          break;
+        default:
+          console.log(`ℹ️ Event ${eventType} logged but not processed (no handler available)`);
+      }
+
+      await sql`
+        UPDATE webhook_events 
+        SET processed = ${true}, processed_at = ${new Date().toISOString()}
+        WHERE id = ${loggedEventId}
+      `;
+
+      console.log('✅ Webhook marked as processed');
+    } catch (processingError) {
+      console.error('❌ Error processing webhook event:', processingError);
+
+      await sql`
+        UPDATE webhook_events 
+        SET processed = ${false}, 
+            error_message = ${processingError instanceof Error ? processingError.message : 'Unknown error'},
+            processed_at = ${new Date().toISOString()}
+        WHERE id = ${loggedEventId}
+      `;
+
+      throw processingError;
+    }
+
+    console.log('✅ Webhook processed successfully');
+
+    return jsonResponse({
+      success: true,
+      event_type: eventType,
+      event_id: loggedEventId
+    });
+
+  } catch (error) {
+    console.error('❌ Webhook processing failed:', error);
+    return jsonResponse({
+      error: 'Webhook processing failed',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, 500);
+  }
+}
+```
+
+</CodeGroup>
+
+## Hur det fungerar
+
+Webhookhanteraren:
+1. **Inaktiverar kroppsparsing** - För att få tillgång till rå kropp för signaturverifiering
+2. **Verifierar signaturen** - Säkerställer att begäran kommer från DodoPayments med HMAC-SHA256
+3. **Kontrollerar dubbletter** - Använder webhook-ID för att förhindra att samma händelse behandlas två gånger
+4. **Loggar händelsen** - Lagrar rå webhook i `webhook_events` tabell för revisionsspår
+5. **Behandlar händelsen** - Skapar eller uppdaterar kunder och prenumerationer i Neon
+6. **Hanterar fel** - Loggar misslyckanden och markerar händelsen som obehandlad för försök igen
+
+## Testning
+
+**Lokal utveckling:**
+
+```bash
+npm start
+```
+
+**Visa loggar i Vercel Dashboard:**
+1. Välj ditt projekt
+2. Gå till **Distributioner** → senaste distribution
+3. Klicka på **Funktioner** → **Loggar**
+
+**Konfigurera i DodoPayments Dashboard:**
+1. Gå till Utvecklare → Webhooks
+2. Lägg till endpoint med din Vercel Functions-URL
+3. Aktivera: subscription.active, subscription.cancelled, subscription.renewed
+
+## Vanliga problem
+
+| Problem | Lösning |
+|-------|----------|
+| Verifiering misslyckades | Kontrollera att webhook-nyckeln är korrekt från DodoPayments dashboard |
+| Databasanslutningsfel | Verifiera Neon-anslutningssträngen och använd poolad anslutning |
+| Funktionsavbrott | Optimera frågor; Pro-planen har längre avbrott (60s) |
+| Miljövariabler inte tillgängliga | Ställ in i dashboard eller CLI, se till att alla miljöer är valda, distribuera på nytt |
+
+## Resurser
+
+- [Vercel Functions Docs](https://vercel.com/docs/functions)
+- [Vercel CLI](https://vercel.com/docs/cli)
+- [Neon Docs](https://neon.com/docs/)
+- [Webhook Events Guide](/developer-resources/webhooks/intents/webhook-events-guide)
+- [GitHub Repo](https://github.com/dodopayments/cloud-functions/tree/main/vercel)

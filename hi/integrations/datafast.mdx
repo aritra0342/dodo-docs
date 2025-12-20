@@ -1,0 +1,302 @@
+---
+title: DataFast
+description: DataFast एनालिटिक्स के साथ मार्केटिंग चैनलों को राजस्व सौंपें।
+  ट्रैक करें कि कौन से ट्रैफ़िक स्रोत भुगतान करने वाले ग्राहकों को लाते हैं और
+  अपनी वृद्धि को अनुकूलित करें।
+icon: chart-bar
+---
+
+## परिचय
+
+DataFast एक राजस्व-प्रथम एनालिटिक्स उपकरण है जो आपको यह पता लगाने में मदद करता है कि कौन से मार्केटिंग चैनल भुगतान करने वाले ग्राहकों को लाते हैं। DataFast के साथ Dodo Payments को एकीकृत करके, आप अपने ट्रैफ़िक स्रोतों को राजस्व सौंप सकते हैं, उच्च-मूल्य वाले ग्राहक खंडों की पहचान कर सकते हैं, और अपने व्यवसाय को बढ़ाने के लिए डेटा-संचालित निर्णय ले सकते हैं।
+
+<Info>
+इस एकीकरण के लिए आपके DataFast API कुंजी की आवश्यकता है, जिसे आप अपने [DataFast डैशबोर्ड](https://datafa.st/) से प्राप्त कर सकते हैं।
+</Info>
+
+## यह कैसे काम करता है
+
+DataFast आगंतुकों को एक अद्वितीय आगंतुक आईडी के माध्यम से ट्रैक करता है जो एक कुकी में संग्रहीत होती है। मार्केटिंग चैनलों को राजस्व सौंपने के लिए, आपको करना होगा:
+
+1. **DataFast की आगंतुक आईडी** को `datafast_visitor_id` कुकी से चेकआउट सत्र बनाते समय कैप्चर करें
+2. **आगंतुक आईडी** को अपने भुगतान मेटाडेटा में संग्रहीत करें
+3. **भुगतान डेटा DataFast को भेजें** जब भुगतान सफल होते हैं, उनके भुगतान API का उपयोग करके
+
+यह DataFast को सफल भुगतानों को मूल ट्रैफ़िक स्रोत से मिलाने की अनुमति देता है, जिससे आपको पूर्ण राजस्व सौंपने की जानकारी मिलती है।
+
+## प्रारंभ करना
+
+<Steps>
+<Step title="DataFast स्क्रिप्ट स्थापित करें">
+  सबसे पहले, अपने वेबसाइट पर DataFast ट्रैकिंग स्क्रिप्ट स्थापित करें। यह `datafast_visitor_id` कुकी बनाता है जो आपके आगंतुकों को ट्रैक करता है।
+  
+  अपने प्लेटफ़ॉर्म के लिए स्थापना निर्देशों के लिए [DataFast दस्तावेज़](https://datafa.st/docs) पर जाएं।
+</Step>
+
+<Step title="अपनी API कुंजी प्राप्त करें">
+  अपने [DataFast डैशबोर्ड](https://datafa.st/) में लॉग इन करें और अपनी वेबसाइट सेटिंग्स पर जाएं ताकि आप अपनी API कुंजी प्राप्त कर सकें।
+  
+  <Warning>
+  अपनी API कुंजी को सुरक्षित रखें और इसे कभी भी क्लाइंट-साइड कोड में उजागर न करें।
+  </Warning>
+</Step>
+
+<Step title="चेकआउट में आगंतुक आईडी कैप्चर करें">
+  चेकआउट सत्र बनाते समय, कुकी से DataFast आगंतुक आईडी को कैप्चर करें और इसे अपने भुगतान मेटाडेटा में जोड़ें।
+</Step>
+
+<Step title="Webhook के माध्यम से भुगतान डेटा भेजें">
+  भुगतान सफल होने पर DataFast के भुगतान API को भुगतान डेटा भेजने के लिए एक वेबहुक कॉन्फ़िगर करें।
+</Step>
+
+<Step title="हो गया!">
+  🎉 अब राजस्व डेटा आपके DataFast डैशबोर्ड में मार्केटिंग चैनलों के लिए पूर्ण सौंपने के साथ दिखाई देगा।
+</Step>
+</Steps>
+
+## कार्यान्वयन गाइड
+
+### चरण 1: चेकआउट मेटाडेटा में आगंतुक आईडी जोड़ें
+
+चेकआउट सत्र बनाते समय, कुकी से DataFast आगंतुक आईडी को कैप्चर करें और इसे अपने भुगतान मेटाडेटा में शामिल करें।
+
+<CodeGroup>
+
+```typescript Next.js
+import { cookies } from 'next/headers';
+import { dodopayments } from '@/lib/dodopayments';
+
+export async function createCheckout(productId: string) {
+  // Capture DataFast visitor ID from cookie
+  const datafastVisitorId = cookies().get('datafast_visitor_id')?.value;
+
+  const payment = await dodopayments.payments.create({
+    product_id: productId,
+    // ... other payment configuration
+    metadata: {
+      datafast_visitor_id: datafastVisitorId, // Store visitor ID in metadata
+    },
+  });
+
+  return payment;
+}
+```
+
+```javascript Express.js
+const express = require('express');
+const router = express.Router();
+
+router.post('/create-checkout', async (req, res) => {
+  // Capture DataFast visitor ID from cookie
+  const datafastVisitorId = req.cookies?.datafast_visitor_id;
+
+  const payment = await dodopayments.payments.create({
+    product_id: req.body.productId,
+    // ... other payment configuration
+    metadata: {
+      datafast_visitor_id: datafastVisitorId, // Store visitor ID in metadata
+    },
+  });
+
+  res.json({ payment });
+});
+```
+
+```javascript Other Frameworks
+// Capture DataFast visitor ID from cookie
+const datafastVisitorId = getCookie('datafast_visitor_id'); // Use your framework's cookie method
+
+const payment = await dodopayments.payments.create({
+  product_id: productId,
+  // ... other payment configuration
+  metadata: {
+    datafast_visitor_id: datafastVisitorId, // Store visitor ID in metadata
+  },
+});
+```
+
+</CodeGroup>
+
+### चरण 2: DataFast को भुगतान डेटा भेजें
+
+भुगतान सफल होने पर DataFast के भुगतान API को भुगतान डेटा भेजने के लिए एक वेबहुक एंडपॉइंट कॉन्फ़िगर करें।
+
+<Steps>
+<Step title="Webhook अनुभाग खोलें">
+  अपने Dodo Payments डैशबोर्ड में, <b>Webhooks → + Add Endpoint</b> पर जाएं और एकीकरण ड्रॉपडाउन का विस्तार करें।
+  <Frame>
+    <img src="/images/integrations/datafast/add.png" alt="एंडपॉइंट जोड़ें और एकीकरण ड्रॉपडाउन" />
+  </Frame>
+</Step>
+
+<Step title="DataFast का चयन करें">
+  <b>DataFast</b> एकीकरण कार्ड चुनें।
+</Step>
+
+<Step title="API कुंजी दर्ज करें">
+  कॉन्फ़िगरेशन फ़ील्ड में अपनी DataFast API कुंजी प्रदान करें।
+  <Frame>
+    <img src="/images/integrations/datafast/api-key.png" alt="API कुंजी जोड़ें" />
+  </Frame>
+</Step>
+
+<Step title="रूपांतरण कॉन्फ़िगर करें">
+  DataFast के भुगतान API के लिए भुगतान डेटा को प्रारूपित करने के लिए रूपांतरण कोड संपादित करें।
+</Step>
+
+<Step title="परीक्षण और बनाएँ">
+  नमूना पेलोड के साथ परीक्षण करें और एकीकरण को सक्रिय करने के लिए <b>Create</b> पर क्लिक करें।
+</Step>
+</Steps>
+
+## रूपांतरण कोड उदाहरण
+
+### बुनियादी भुगतान सौंपना
+
+```javascript basic_payment.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const payment = webhook.payload.data;
+    
+    // Only send to DataFast if visitor ID exists in metadata
+    if (payment.metadata?.datafast_visitor_id) {
+      webhook.url = "https://datafa.st/api/v1/payments";
+      webhook.payload = {
+        amount: payment.total_amount / 100, // Convert from cents to dollars
+        currency: payment.currency,
+        transaction_id: payment.payment_id,
+        datafast_visitor_id: payment.metadata.datafast_visitor_id,
+      };
+    } else {
+      // Skip if no visitor ID (prevents unnecessary API calls)
+      return null;
+    }
+  }
+  return webhook;
+}
+```
+
+### शून्य दशमलव मुद्राओं को संभालना
+
+कुछ मुद्राएँ (जैसे JPY) दशमलव स्थानों का उपयोग नहीं करती हैं। राशि की गणना को तदनुसार समायोजित करें:
+
+```javascript zero_decimal.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const payment = webhook.payload.data;
+    
+    if (payment.metadata?.datafast_visitor_id) {
+      // Zero decimal currencies: JPY, KRW, CLP, etc.
+      const zeroDecimalCurrencies = ['JPY', 'KRW', 'CLP', 'VND', 'UGX', 'MGA'];
+      const isZeroDecimal = zeroDecimalCurrencies.includes(payment.currency);
+      
+      webhook.url = "https://datafa.st/api/v1/payments";
+      webhook.payload = {
+        amount: isZeroDecimal 
+          ? payment.total_amount // Use amount as-is for zero decimal currencies
+          : payment.total_amount / 100, // Convert from cents for other currencies
+        currency: payment.currency,
+        transaction_id: payment.payment_id,
+        datafast_visitor_id: payment.metadata.datafast_visitor_id,
+      };
+    } else {
+      return null;
+    }
+  }
+  return webhook;
+}
+```
+
+### सदस्यता भुगतान
+
+आवर्ती सदस्यता भुगतानों के लिए, आप प्रत्येक भुगतान को ट्रैक कर सकते हैं:
+
+```javascript subscription_payment.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const payment = webhook.payload.data;
+    
+    // Check if this is a subscription payment
+    const isSubscription = payment.subscription_id !== null;
+    
+    if (payment.metadata?.datafast_visitor_id) {
+      webhook.url = "https://datafa.st/api/v1/payments";
+      webhook.payload = {
+        amount: payment.total_amount / 100,
+        currency: payment.currency,
+        transaction_id: payment.payment_id,
+        datafast_visitor_id: payment.metadata.datafast_visitor_id,
+        // Optional: Add subscription context
+        ...(isSubscription && {
+          subscription_id: payment.subscription_id,
+        }),
+      };
+    } else {
+      return null;
+    }
+  }
+  return webhook;
+}
+```
+
+## सर्वोत्तम प्रथाएँ
+
+<Tip>
+**आगंतुक आईडी जल्दी कैप्चर करें**: सुनिश्चित करें कि DataFast आगंतुक आईडी को आपके चेकआउट प्रवाह में यथाशीघ्र संग्रहीत किया जाए ताकि सटीक सौंपने को सुनिश्चित किया जा सके, भले ही उपयोगकर्ता दूर navigates और बाद में लौटे।
+</Tip>
+
+- **हमेशा मेटाडेटा में आगंतुक आईडी शामिल करें**: बिना आगंतुक आईडी के, DataFast राजस्व को मार्केटिंग चैनलों को सौंप नहीं सकता
+- **शून्य दशमलव मुद्राओं को संभालें**: कुछ मुद्राएँ (JPY, KRW, आदि) दशमलव स्थानों का उपयोग नहीं करती हैं—अपनी राशि की गणना को तदनुसार समायोजित करें
+- **नमूना भुगतानों के साथ परीक्षण करें**: सुनिश्चित करें कि एकीकरण सही ढंग से काम कर रहा है इससे पहले कि आप लाइव जाएं
+- **अपने DataFast डैशबोर्ड की निगरानी करें**: जांचें कि भुगतान सही ढंग से उचित सौंपने के साथ दिखाई दे रहे हैं
+- **Webhook पुनः प्रयासों का उपयोग करें**: DataFast का भुगतान API idempotent है, इसलिए यदि कोई वेबहुक विफल हो जाता है तो पुनः प्रयास सुरक्षित हैं
+
+## समस्या निवारण
+
+<AccordionGroup>
+<Accordion title="DataFast में भुगतान नहीं दिखाई दे रहे">
+- सुनिश्चित करें कि आपकी DataFast API कुंजी सही और सक्रिय है
+- जांचें कि `datafast_visitor_id` को भुगतान मेटाडेटा में कैप्चर और संग्रहीत किया जा रहा है
+- सुनिश्चित करें कि वेबहुक रूपांतरण सही ढंग से पेलोड को प्रारूपित कर रहा है
+- सुनिश्चित करें कि वेबहुक `payment.succeeded` घटनाओं पर ट्रिगर हो रहा है
+- DataFast डैशबोर्ड में किसी भी त्रुटि संदेश या API लॉग की जांच करें
+</Accordion>
+
+<Accordion title="राजस्व सौंपना काम नहीं कर रहा">
+- पुष्टि करें कि DataFast ट्रैकिंग स्क्रिप्ट आपके वेबसाइट पर स्थापित और कार्यशील है
+- सुनिश्चित करें कि `datafast_visitor_id` कुकी सही ढंग से सेट की जा रही है
+- जांचें कि चेकआउट निर्माण और भुगतान पूर्णता के बीच आगंतुक आईडी मेल खाती है
+- सुनिश्चित करें कि आप चेकआउट सत्र बनाने से पहले आगंतुक आईडी को कैप्चर कर रहे हैं
+- अतिरिक्त मार्गदर्शन के लिए DataFast के [भुगतान API दस्तावेज़](https://datafa.st/docs/payments-api) की समीक्षा करें
+</Accordion>
+
+<Accordion title="रूपांतरण त्रुटियाँ">
+- सत्यापित करें कि JSON संरचना DataFast के भुगतान API प्रारूप से मेल खाती है
+- सुनिश्चित करें कि सभी आवश्यक फ़ील्ड (`amount`, `currency`, `transaction_id`, `datafast_visitor_id`) मौजूद हैं
+- सुनिश्चित करें कि राशि सही ढंग से परिवर्तित की गई है (अधिकांश मुद्राओं के लिए 100 से विभाजित करें, सिवाय शून्य दशमलव मुद्राओं के)
+- सत्यापित करें कि API एंडपॉइंट URL सही है: `https://datafa.st/api/v1/payments`
+- नमूना वेबहुक पेलोड के साथ रूपांतरण का परीक्षण करें
+</Accordion>
+
+<Accordion title="मुद्रा रूपांतरण समस्याएँ">
+- शून्य दशमलव मुद्राओं (JPY, KRW, CLP, VND, UGX, MGA) के लिए, राशि को बिना 100 से विभाजित किए जैसे है वैसा ही भेजें
+- सभी अन्य मुद्राओं के लिए, राशि को 100 से विभाजित करें ताकि सेंट से मूल इकाई में परिवर्तित किया जा सके
+- सुनिश्चित करें कि मुद्रा कोड ISO 4217 प्रारूप (जैसे, "USD", "EUR", "JPY") से मेल खाता है
+</Accordion>
+</AccordionGroup>
+
+## अतिरिक्त संसाधन
+
+<CardGroup cols={2}>
+<Card title="DataFast दस्तावेज़" icon="book" href="https://datafa.st/docs/payments-api">
+  DataFast के भुगतान API और राजस्व सौंपने की सुविधाओं के बारे में अधिक जानें।
+</Card>
+
+<Card title="DataFast डैशबोर्ड" icon="chart-bar" href="https://datafa.st/">
+  राजस्व एनालिटिक्स और सौंपने के डेटा को देखने के लिए अपने DataFast डैशबोर्ड तक पहुँचें।
+</Card>
+</CardGroup>
+
+<Info>
+क्या आपको मदद चाहिए? एकीकरण के लिए सहायता के लिए Dodo Payments समर्थन से [support@dodopayments.com](mailto:support@dodopayments.com) पर संपर्क करें।
+</Info>

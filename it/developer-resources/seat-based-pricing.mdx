@@ -1,0 +1,479 @@
+---
+title: Prezzi basati sui posti con add-on e link di pagamento
+description: Scopri come creare add-on per prezzi basati sui posti e generare
+  link di pagamento con quantità di add-on personalizzate utilizzando Dodo
+  Payments
+icon: users
+---
+
+In questo tutorial, imparerai come implementare prezzi basati sui posti utilizzando gli add-on di Dodo Payments. Creeremo un prodotto in abbonamento con add-on per posti aggiuntivi e ti mostreremo come generare link di pagamento con quantità di add-on personalizzate.
+
+<Note>
+Questo tutorial fornisce codice di implementazione di esempio per un'applicazione Node.js/Express. Puoi modificare questo codice per il tuo framework specifico (Next.js, React, Vue, ecc.) e personalizzare l'interfaccia utente in base alle esigenze della tua applicazione.
+</Note>
+
+Alla fine di questo tutorial, saprai come:
+- Creare prodotti in abbonamento con prezzi basati sui posti
+- Configurare add-on per posti aggiuntivi
+- Generare link di pagamento con quantità di add-on personalizzate
+- Gestire sessioni di checkout con conteggi di posti dinamici
+
+## Cosa stiamo costruendo
+
+Creiamo un modello di prezzo basato sui posti:
+
+- **Piano Base**: $49/mese per un massimo di 5 membri del team
+- **Add-on per Posto**: $2/mese per ogni posto aggiuntivo
+- **Link di Pagamento**: Checkout dinamico con quantità di posti personalizzate
+
+<Info>
+Prima di iniziare, assicurati di avere:
+- Un account Dodo Payments
+- Familiarità di base con TypeScript/Node.js
+</Info>
+
+## Passo 1: Crea il tuo Add-On per Posti
+
+Ora dobbiamo creare un add-on che rappresenti posti aggiuntivi. Questo add-on sarà collegato al nostro abbonamento base e permetterà ai clienti di acquistare posti aggiuntivi.
+
+<Frame>
+  <img src="/images/cookbooks/seat-based/seat-based-addons-creation.png" alt="Creazione del prodotto in abbonamento base" />
+</Frame>
+
+<Tip>
+**Cosa stiamo costruendo**: Un add-on che costa $2/mese per posto e può essere aggiunto a qualsiasi abbonamento base.
+</Tip>
+
+<Steps>
+<Step title="Naviga a Add-Ons">
+1. Nel tuo dashboard di Dodo Payments, rimani nella sezione **Prodotti**
+2. Clicca sulla scheda **Add-Ons**
+3. Clicca su **Crea Add-On**
+
+Questo aprirà il modulo di creazione dell'add-on.
+</Step>
+
+<Step title="Inserisci i dettagli dell'add-on">
+Compila questi valori per il nostro add-on per posti:
+
+**Nome dell'Add-On**: `Additional Team Seat`
+
+**Descrizione**: `Add extra team members to your workspace with full access to all features`
+
+**Prezzo**: Inserisci → `2.00`
+
+**Valuta**: Deve corrispondere alla valuta del tuo abbonamento base
+
+**Categoria Fiscale**: Seleziona la categoria appropriata per il tuo prodotto.
+
+</Step>
+
+<Step title="Salva il tuo add-on">
+1. Rivedi tutte le tue impostazioni:
+   - Nome: Posto Aggiuntivo per il Team
+   - Prezzo: $2.00/mese
+2. Clicca su **Crea Add-On**
+
+<Check>
+**Add-on creato!** Il tuo add-on per posti è ora disponibile per essere allegato agli abbonamenti.
+</Check>
+</Step>
+</Steps>
+
+## Passo 2: Crea il tuo Prodotto in Abbonamento Base
+
+Iniziamo creando un prodotto in abbonamento base che include 5 membri del team. Questa sarà la base del nostro modello di prezzo basato sui posti.
+
+<Frame>
+  <img src="/images/cookbooks/seat-based/seat-based-subscription.png" alt="Creazione del prodotto in abbonamento base" />
+</Frame>
+
+<Steps>
+<Step title="Naviga a Prodotti">
+1. Accedi al tuo dashboard di Dodo Payments
+2. Clicca su **Prodotti** nella barra laterale sinistra
+3. Clicca sul pulsante **Crea Prodotto**
+4. Seleziona **Abbonamento** come tipo di prodotto
+
+Dovresti vedere un modulo dove configureremo il nostro abbonamento base.
+</Step>
+
+<Step title="Compila i dettagli dell'abbonamento">
+Ora inseriremo i dettagli specifici per il nostro piano base:
+
+**Nome del Prodotto**: `Motion`
+
+**Descrizione**: `Where your team's documentation lives.`
+
+**Prezzo Ricorrente**: Inserisci → `49.00`
+
+**Ciclo di Fatturazione**: Seleziona → `Monthly`
+
+**Valuta**: Seleziona la tua valuta preferita (es. `USD`)
+
+</Step>
+
+</Steps>
+
+## Passo 3: Collega l'Add-On all'Abbonamento
+
+Ora dobbiamo associare il nostro add-on per posti con l'abbonamento base in modo che i clienti possano acquistare posti aggiuntivi durante il checkout.
+
+<Steps>
+
+<Step title="Allega l'add-on per posti">
+
+<Frame>
+  <img src="/images/cookbooks/seat-based/seat-based-addons.png" alt="Allegare l'add-on all'abbonamento" />
+</Frame>
+
+1. Scorri verso il basso fino alla sezione **Add-Ons**
+2. Clicca su **Aggiungi Add-Ons**
+3. Dal menu a discesa, seleziona il tuo add-on per posti
+4. Conferma che appare nella configurazione del tuo abbonamento
+
+</Step>
+
+<Step title="Salva le modifiche all'abbonamento">
+1. Rivedi la tua configurazione completa dell'abbonamento:
+   - Piano base: $49/mese per 5 posti
+   - Add-on: $2/mese per ogni posto aggiuntivo
+   - Prova gratuita: 14 giorni
+2. Clicca su **Salva Modifiche**
+
+<Check>
+**Prezzi basati sui posti configurati!** I clienti possono ora acquistare il tuo piano base e aggiungere posti extra secondo necessità.
+</Check>
+</Step>
+</Steps>
+
+## Passo 4: Genera Link di Pagamento con Quantità di Add-On Personalizzate
+
+Ora creiamo un'applicazione Express.js che genera link di pagamento con quantità di add-on personalizzate. Qui entra in gioco il vero potere dei prezzi basati sui posti: puoi creare dinamicamente sessioni di checkout con qualsiasi numero di posti aggiuntivi.
+
+<Steps>
+<Step title="Imposta il tuo progetto">
+Crea un nuovo progetto Node.js e installa le dipendenze necessarie:
+
+```bash
+mkdir seat-based-pricing
+cd seat-based-pricing
+npm init -y
+npm install dodopayments express dotenv
+npm install -D @types/node @types/express typescript ts-node
+```
+
+Crea un file `tsconfig.json`:
+
+```json
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "commonjs",
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true
+  }
+}
+```
+
+</Step>
+
+<Step title="Crea il tuo file di ambiente">
+Crea un file `.env` con la tua chiave API di Dodo Payments:
+
+```bash
+DODO_PAYMENTS_API_KEY=your_actual_dodo_api_key_here
+```
+
+<Warning>
+Non impegnare mai la tua chiave API nel controllo di versione. Aggiungi `.env` al tuo file `.gitignore`.
+</Warning>
+</Step>
+
+<Step title="Implementa la creazione della sessione di checkout">
+Crea un file `src/server.ts` con il seguente codice:
+
+<CodeGroup>
+
+```typescript server.ts expandable
+// Add this new endpoint for dynamic seat quantities
+import 'dotenv/config';
+import DodoPayments from 'dodopayments';
+import express, { Request, Response } from 'express';
+
+const app = express();
+
+// Initialize the Dodo Payments client
+const client = new DodoPayments({
+  bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'test_mode'
+});
+
+async function createCheckoutSession(seatCount: number) {
+  try {
+    const session = await client.checkoutSessions.create({
+      // Products to sell - use IDs from your Dodo Payments dashboard
+      product_cart: [
+        {
+          product_id: 'pdt_7Rl9OWT2Mz4wwUTKz74iZ', // Replace with your actual product ID
+          quantity: 1,
+          addons: [
+            {
+              addon_id: 'adn_eKQbNakKrivDpaxmI8wKI', // Replace with your actual addon ID
+              quantity: seatCount
+            }
+          ]
+        }
+      ],
+      
+      // Pre-fill customer information to reduce friction
+      customer: {
+        email: 'steve@example.com',
+        name: 'Steve Irwin',
+      },
+      // Where to redirect after successful payment
+      return_url: 'https://example.com/checkout/success',
+    });
+
+    // Redirect your customer to this URL to complete payment
+    console.log('Checkout URL:', session.checkout_url);
+    console.log('Session ID:', session.session_id);
+    
+    return session;
+    
+  } catch (error) {
+    console.error('Failed to create checkout session:', error);
+    throw error;
+  }
+}
+
+// Example usage in an Express.js route
+app.post('/create-checkout/:seatCount', async (req: Request, res: Response) => {
+  try {
+    const seatCount = parseInt(req.params.seatCount);
+    const session = await createCheckoutSession(seatCount);
+    res.json({ checkout_url: session.checkout_url });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to create checkout session' });
+  }
+});
+
+// Add this line after your other middleware
+app.use(express.static('public'));
+
+// Add this route to serve the demo page
+app.get('/', (req, res) => {
+  res.sendFile(__dirname + '/../public/index.html');
+});
+
+app.listen(3000, () => {
+  console.log('Server is running on port 3000');
+});
+```
+
+</CodeGroup>
+
+</Step>
+
+<Step title="Aggiungi una semplice interfaccia web">
+Crea un file `public/index.html` per testare facilmente:
+
+<CodeGroup>
+
+```html index.html expandable
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Seat-Based Pricing Demo</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; }
+        .form-group { margin: 20px 0; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; }
+        button { background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        .result { margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <h1>Seat-Based Pricing Demo</h1>
+    <p>Generate checkout links with custom seat quantities:</p>
+    
+    <div class="form-group">
+        <label for="seatCount">Number of Additional Seats:</label>
+        <input type="number" id="seatCount" value="3" min="0" max="50">
+    </div>
+    
+    <button onclick="createCheckout()">Generate Checkout Link</button>
+    
+    <div id="result" class="result" style="display: none;">
+        <h3>Checkout Link Generated!</h3>
+        <p><strong>Seat Count:</strong> <span id="seatCountDisplay"></span></p>
+        <p><strong>Total Cost:</strong> $<span id="totalCost"></span>/month</p>
+        <p><strong>Checkout URL:</strong></p>
+        <a id="checkoutUrl" href="#" target="_blank">Click here to checkout</a>
+    </div>
+
+    <script>
+        async function createCheckout() {
+            const seatCount = document.getElementById('seatCount').value;
+            
+            try {
+                const response = await fetch(`/create-checkout/${seatCount}`, {
+                    method: 'POST'
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    document.getElementById('seatCountDisplay').textContent = seatCount;
+                    document.getElementById('totalCost').textContent = data.total_cost;
+                    document.getElementById('checkoutUrl').href = data.checkout_url;
+                    document.getElementById('result').style.display = 'block';
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            } catch (error) {
+                alert('Error creating checkout session');
+            }
+        }
+    </script>
+</body>
+</html>
+```
+
+</CodeGroup>
+
+<Check>
+**Interfaccia web creata!** Ora hai un'interfaccia semplice per testare diverse quantità di posti.
+</Check>
+</Step>
+
+<Step title="Servi file statici">
+Aggiungi questo al tuo `src/server.ts` per servire il file HTML:
+
+```typescript
+// Add this line after your other middleware
+app.use(express.static('public'));
+
+// Add this route to serve the demo page
+app.get('/', (req, res) => {
+  res.sendFile(__dirname + '/../public/index.html');
+});
+```
+
+<Check>
+**File statici configurati!** Visita `http://localhost:3000` per vedere la tua interfaccia demo.
+</Check>
+</Step>
+</Steps>
+
+## Passo 5: Testa la tua Implementazione
+
+Testiamo la nostra implementazione dei prezzi basati sui posti per assicurarci che tutto funzioni correttamente.
+
+<Steps>
+<Step title="Avvia il tuo server">
+1. Assicurati di avere il tuo file `.env` con la chiave API corretta
+2. Aggiorna gli ID del prodotto e dell'add-on nel tuo codice con i valori reali dal tuo dashboard di Dodo Payments
+3. Avvia il tuo server:
+
+```bash
+npm run dev
+```
+
+<Check>
+Il tuo server dovrebbe avviarsi correttamente e mostrare "Server in esecuzione su http://localhost:3000"
+</Check>
+</Step>
+
+<Step title="Testa l'interfaccia web">
+
+<Frame>
+  <img src="/images/cookbooks/seat-based/seat-based-billing-ui.png" alt="Creazione del prodotto in abbonamento base" />
+</Frame>
+
+1. Apri il tuo browser e vai a `http://localhost:3000`
+2. Dovresti vedere l'interfaccia demo dei prezzi basati sui posti
+3. Prova diverse quantità di posti (0, 3, 10, ecc.)
+4. Clicca su "Genera Link di Checkout" per ogni quantità
+5. Verifica che gli URL di checkout siano generati correttamente
+
+</Step>
+
+<Step title="Testa una sessione di checkout">
+1. Genera un link di checkout con 3 posti aggiuntivi
+2. Clicca sull'URL di checkout per aprire il checkout di Dodo Payments
+3. Verifica che il checkout mostri:
+   - Piano base: $49/mese
+   - Posti aggiuntivi: 3 × 2 dollari = $6/mese
+4. Completa l'acquisto di prova
+
+<Check>
+Il checkout dovrebbe visualizzare il corretto riepilogo dei prezzi e consentirti di completare l'acquisto.
+</Check>
+</Step>
+
+<Step title="Ascolta i webhook e aggiorna il tuo DB">
+Per mantenere il tuo database sincronizzato con le modifiche agli abbonamenti e ai posti, devi ascoltare gli eventi webhook da Dodo Payments. I webhook notificano il tuo backend quando un cliente completa il checkout, aggiorna il proprio abbonamento o cambia il conteggio dei posti.
+
+Segui la guida ufficiale ai webhook di Dodo Payments per istruzioni passo-passo su come impostare gli endpoint webhook e gestire gli eventi:
+
+<Card title="Documentazione Webhook di Dodo Payments" icon="bell" href="/developer-resources/webhooks">
+Scopri come ricevere e elaborare in modo sicuro gli eventi webhook per la gestione degli abbonamenti e dei posti.
+</Card>
+
+</Step>
+
+</Steps>
+
+## Risoluzione dei Problemi
+
+Problemi comuni e le loro soluzioni:
+
+<AccordionGroup>
+<Accordion title="Creazione del checkout non riuscita">
+**Possibili cause:**
+- ID prodotto o ID add-on non validi
+- La chiave API non ha autorizzazioni sufficienti
+- Add-on non correttamente associato all'abbonamento
+- Problemi di connettività di rete
+
+**Soluzioni:**
+1. Verifica che gli ID del prodotto e dell'add-on esistano nel tuo dashboard di Dodo Payments
+2. Controlla che l'add-on sia correttamente allegato all'abbonamento
+3. Assicurati che la chiave API abbia autorizzazioni per la creazione della sessione di checkout
+4. Testa la connettività API con una semplice richiesta GET
+</Accordion>
+
+</AccordionGroup>
+
+## Congratulazioni! Hai Implementato Prezzi Basati sui Posti
+
+Hai creato con successo un sistema di prezzi basati sui posti con Dodo Payments! Ecco cosa hai realizzato:
+
+<CardGroup cols={2}>
+<Card title="Abbonamento Base">
+Creato un prodotto in abbonamento con 5 posti inclusi a $49/mese
+</Card>
+
+<Card title="Add-on per Posti">
+Configurati add-on per posti aggiuntivi a $2/mese per posto
+</Card>
+
+<Card title="Checkout">
+Costruita un'API che genera sessioni di checkout con quantità di posti personalizzate
+</Card>
+
+<Card title="Interfaccia Web">
+Creata una semplice interfaccia web per testare diverse quantità di posti
+</Card>
+</CardGroup>
+
+<Info>
+Questo esempio dimostra solo un'implementazione minima dei prezzi basati sui posti. Per l'uso in produzione, dovresti aggiungere una gestione degli errori robusta, autenticazione, validazione dei dati, misure di sicurezza e adattare la logica per soddisfare i requisiti della tua applicazione.
+</Info>

@@ -1,0 +1,620 @@
+---
+title: मोबाइल इंटीग्रेशन गाइड
+icon: mobile
+description: एंड्रॉइड, iOS, React Native और Flutter मोबाइल अनुप्रयोगों में डोडो
+  पेमेंट्स को एकीकृत करने के लिए एकीकृत गाइड।
+---
+
+<CardGroup cols={2}>
+<Card title="त्वरित प्रारंभ" icon="rocket" href="#integration-workflow">
+  4 सरल चरणों में अपने मोबाइल भुगतान इंटीग्रेशन को चालू करें
+</Card>
+
+<Card title="प्लेटफ़ॉर्म उदाहरण" icon="code" href="#platform-specific-integration">
+  एंड्रॉइड, iOS, React Native, और Flutter के लिए पूर्ण कोड उदाहरण
+</Card>
+</CardGroup>
+
+## पूर्वापेक्षाएँ
+
+डोडो पेमेंट्स को अपने मोबाइल ऐप में एकीकृत करने से पहले, सुनिश्चित करें कि आपके पास हैं:
+
+- **डोडो पेमेंट्स खाता**: सक्रिय व्यापारी खाता जिसमें API पहुंच हो
+- **API क्रेडेंशियल्स**: अपने डैशबोर्ड से API कुंजी और वेबहुक गुप्त कुंजी
+- **मोबाइल ऐप प्रोजेक्ट**: एंड्रॉइड, iOS, React Native, या Flutter अनुप्रयोग
+- **बैकेंड सर्वर**: चेकआउट सत्र निर्माण को सुरक्षित रूप से संभालने के लिए
+
+## इंटीग्रेशन वर्कफ़्लो
+
+मोबाइल इंटीग्रेशन एक सुरक्षित 4-चरणीय प्रक्रिया का पालन करता है जहां आपका बैकेंड API कॉल को संभालता है और आपका मोबाइल ऐप उपयोगकर्ता अनुभव का प्रबंधन करता है।
+
+<Steps>
+<Step title="बैकेंड: चेकआउट सत्र बनाएं">
+<Card title="चेकआउट सत्र API दस्तावेज़" icon="book" href="/developer-resources/checkout-session">
+अपने बैकेंड में Node.js, Python, और अन्य का उपयोग करके चेकआउट सत्र बनाने के तरीके के बारे में जानें। समर्पित <strong>चेकआउट सत्र API</strong> दस्तावेज़ में पूर्ण उदाहरण और पैरामीटर संदर्भ देखें।
+</Card>
+<Note>
+**सुरक्षा**: चेकआउट सत्र आपके बैकेंड सर्वर पर बनाए जाने चाहिए, कभी भी मोबाइल ऐप में नहीं। यह आपकी API कुंजियों की सुरक्षा करता है और उचित मान्यता सुनिश्चित करता है।
+</Note>
+
+</Step>
+
+<Step title="मोबाइल: चेकआउट URL प्राप्त करें">
+
+आपका मोबाइल ऐप चेकआउट URL प्राप्त करने के लिए आपके बैकेंड को कॉल करता है:
+
+<Tabs>
+<Tab title="iOS (Swift)">
+
+```swift
+func getCheckoutURL(productId: String, customerEmail: String, customerName: String) async throws -> String {
+    let url = URL(string: "https://your-backend.com/api/create-checkout-session")!
+    var request = URLRequest(url: url)
+    request.httpMethod = "POST"
+    request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+    
+    let requestData: [String: Any] = [
+        "productId": productId,
+        "customerEmail": customerEmail,
+        "customerName": customerName
+    ]
+    request.httpBody = try JSONSerialization.data(withJSONObject: requestData)
+    
+    let (data, _) = try await URLSession.shared.data(for: request)
+    let response = try JSONDecoder().decode(CheckoutResponse.self, from: data)
+    return response.checkout_url
+}
+```
+
+</Tab>
+<Tab title="Android (Kotlin)">
+
+```kotlin
+suspend fun getCheckoutURL(productId: String, customerEmail: String, customerName: String): String {
+    val client = OkHttpClient()
+    val requestBody = JSONObject().apply {
+        put("productId", productId)
+        put("customerEmail", customerEmail)
+        put("customerName", customerName)
+    }.toString().toRequestBody("application/json".toMediaType())
+    
+    val request = Request.Builder()
+        .url("https://your-backend.com/api/create-checkout-session")
+        .post(requestBody)
+        .build()
+    
+    val response = client.newCall(request).execute()
+    val responseBody = response.body?.string()
+    val jsonResponse = JSONObject(responseBody ?: "")
+    return jsonResponse.getString("checkout_url")
+}
+```
+
+</Tab>
+<Tab title="React Native (JavaScript)">
+
+```javascript
+const getCheckoutURL = async (productId, customerEmail, customerName) => {
+  try {
+    const response = await fetch('https://your-backend.com/api/create-checkout-session', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        productId,
+        customerEmail,
+        customerName
+      })
+    });
+    
+    const data = await response.json();
+    return data.checkout_url;
+  } catch (error) {
+    console.error('Failed to get checkout URL:', error);
+    throw error;
+  }
+};
+```
+
+</Tab>
+</Tabs>
+<Note>
+**सुरक्षा**: मोबाइल ऐप केवल आपके बैकेंड के साथ संवाद करते हैं, कभी भी सीधे डोडो पेमेंट्स API के साथ नहीं।
+</Note>
+</Step>
+
+<Step title="मोबाइल: ब्राउज़र में चेकआउट खोलें">
+भुगतान प्रसंस्करण के लिए एक सुरक्षित इन-ऐप ब्राउज़र में चेकआउट URL खोलें।
+
+<Card 
+  title="प्लेटफ़ॉर्म-विशिष्ट इंटीग्रेशन उदाहरण देखें" 
+  icon="box" 
+  href="#platform-specific-integration"
+>
+  एंड्रॉइड, iOS, और Flutter मोबाइल भुगतानों के लिए पूर्ण कोड और सेटअप निर्देश देखें।
+</Card>
+
+</Step>
+
+<Step title="बैकेंड: भुगतान पूर्णता को संभालें">
+भुगतान स्थिति की पुष्टि करने के लिए वेबहुक और रीडायरेक्ट URLs के माध्यम से भुगतान पूर्णता को संसाधित करें।
+</Step>
+</Steps>
+
+## प्लेटफ़ॉर्म-विशिष्ट इंटीग्रेशन
+
+पूर्ण कार्यान्वयन उदाहरणों के लिए नीचे अपने मोबाइल प्लेटफ़ॉर्म का चयन करें:
+
+<Tabs>
+<Tab title="Android">
+
+### एंड्रॉइड इंटीग्रेशन
+
+#### क्रोम कस्टम टैब कार्यान्वयन
+
+```kotlin
+// Add Chrome Custom Tabs dependency to build.gradle
+implementation 'androidx.browser:browser:1.5.0'
+
+// In your Activity
+class PaymentActivity : AppCompatActivity() {
+    private var customTabsSession: CustomTabsSession? = null
+    private var customTabsClient: CustomTabsClient? = null
+    private var customTabsServiceConnection: CustomTabsServiceConnection? = null
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        // Initialize Custom Tabs
+        customTabsServiceConnection = object : CustomTabsServiceConnection() {
+            override fun onCustomTabsServiceConnected(name: ComponentName, client: CustomTabsClient) {
+                customTabsClient = client
+                customTabsClient?.warmup(0L)
+                customTabsSession = customTabsClient?.newSession(object : CustomTabsCallback() {
+                    override fun onNavigationEvent(navigationEvent: Int, extras: Bundle?) {
+                        // Handle navigation events
+                    }
+                })
+            }
+            override fun onServiceDisconnected(name: ComponentName) {
+                customTabsClient = null
+            }
+        }
+        CustomTabsClient.bindCustomTabsService(
+            this,
+            "com.android.chrome",
+            customTabsServiceConnection!!
+        )
+        // Get checkout URL from backend and launch
+        lifecycleScope.launch {
+            try {
+                val checkoutURL = getCheckoutURL("prod_123", "customer@example.com", "Customer Name")
+                val customTabsIntent = CustomTabsIntent.Builder(customTabsSession)
+                    .build()
+                customTabsIntent.launchUrl(this@PaymentActivity, Uri.parse(checkoutURL))
+            } catch (e: Exception) {
+                // Handle error
+                Log.e("PaymentActivity", "Failed to get checkout URL", e)
+            }
+        }
+    }
+}
+```
+
+</Tab>
+<Tab title="iOS">
+
+### iOS इंटीग्रेशन
+
+#### SFSafariViewController कार्यान्वयन
+
+```swift
+import SafariServices
+class PaymentViewController: UIViewController {
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        Task {
+            do {
+                let checkoutURL = try await getCheckoutURL(
+                    productId: "prod_123",
+                    customerEmail: "customer@example.com",
+                    customerName: "Customer Name"
+                )
+                if let url = URL(string: checkoutURL) {
+                    let safariVC = SFSafariViewController(url: url)
+                    present(safariVC, animated: true, completion: nil)
+                }
+            } catch {
+                // Handle error
+                print("Failed to get checkout URL: \(error)")
+            }
+        }
+    }
+}
+```
+
+#### डीप लिंक हैंडलिंग
+
+भुगतान पूर्णता रीडायरेक्ट को संभालने के लिए URL स्कीम कॉन्फ़िगर करें:
+
+**1. Info.plist में URL स्कीम सेट करें:**
+
+```xml
+<key>CFBundleURLTypes</key>
+<array>
+  <dict>
+    <key>CFBundleURLName</key>
+    <string>myapp</string>
+    <key>CFBundleURLSchemes</key>
+    <array>
+      <string>myapp</string>
+    </array>
+  </dict>
+</array>
+```
+
+**2. AppDelegate में रीडायरेक्ट को संभालें:**
+
+```swift
+func application(_ app: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey : Any] = [:]) -> Bool {
+    if url.scheme == "myapp" && url.host == "payment-status" {
+        NotificationCenter.default.post(name: .paymentCompleted, object: url)
+        return true
+    }
+    return false
+}
+```
+
+**3. भुगतान पूर्णता के लिए सुनें:**
+
+```swift
+NotificationCenter.default.addObserver(self, selector: #selector(handlePaymentCompletion(_:)), name: .paymentCompleted, object: nil)
+
+@objc func handlePaymentCompletion(_ notification: Notification) {
+    if let url = notification.object as? URL {
+        safariVC?.dismiss(animated: true)
+        // Parse payment status from URL parameters
+        let components = URLComponents(url: url, resolvingAgainstBaseURL: false)
+        let paymentId = components?.queryItems?.first(where: { $0.name == "payment_id" })?.value
+        let status = components?.queryItems?.first(where: { $0.name == "status" })?.value
+        // Handle payment completion
+    }
+}
+```
+
+</Tab>
+<Tab title="React Native">
+### React Native इंटीग्रेशन
+
+#### चेकआउट लिंक का उपयोग करना (InAppBrowser)
+
+डोडो के होस्टेड चेकआउट पृष्ठ को एक इन-ऐप ब्राउज़र में खोलें।
+
+##### InAppBrowser कार्यान्वयन
+
+```javascript
+import React from 'react';
+import { View, TouchableOpacity, Text, Alert } from 'react-native';
+import { InAppBrowser } from 'react-native-inappbrowser-reborn';
+
+const PaymentButton = ({ productId, onPaymentComplete }) => {
+  const openPaymentLink = async () => {
+    try {
+      // Get checkout URL from backend
+      const checkoutURL = await getCheckoutURL(
+        productId,
+        'customer@example.com',
+        'Customer Name'
+      );
+      
+      const result = await InAppBrowser.open(checkoutURL, {
+        // iOS options
+        dismissButtonStyle: 'cancel',
+        preferredBarTintColor: '#453AA4',
+        preferredControlTintColor: 'white',
+        readerMode: false,
+        animated: true,
+        modalPresentationStyle: 'fullScreen',
+        modalTransitionStyle: 'coverVertical',
+        modalEnabled: true,
+        enableBarCollapsing: false,
+        // Android options
+        showTitle: true,
+        toolbarColor: '#453AA4',
+        secondaryToolbarColor: 'black',
+        navigationBarColor: 'black',
+        navigationBarDividerColor: 'white',
+        enableUrlBarHiding: true,
+        enableDefaultShare: true,
+        forceCloseOnRedirection: false,
+        animations: {
+          startEnter: 'slide_in_right',
+          startExit: 'slide_out_left',
+          endEnter: 'slide_in_left',
+          endExit: 'slide_out_right'
+        },
+        headers: {
+          'my-custom-header': 'my custom header value'
+        }
+      });
+
+      // Handle payment completion based on result
+      if (result.type === 'dismiss') {
+        // User dismissed the browser
+        console.log('Payment browser dismissed');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to open payment page');
+      console.error('InAppBrowser error:', error);
+    }
+  };
+
+  return (
+    <View style={{ padding: 20 }}>
+      <TouchableOpacity
+        style={{
+          backgroundColor: '#007AFF',
+          padding: 15,
+          borderRadius: 8,
+          alignItems: 'center'
+        }}
+        onPress={openPaymentLink}
+      >
+        <Text style={{ color: 'white', fontSize: 16, fontWeight: 'bold' }}>
+          Pay Now
+        </Text>
+      </TouchableOpacity>
+    </View>
+  );
+};
+
+export default PaymentButton;
+```
+
+#### भुगतान कॉलबैक के लिए डीप लिंक हैंडलिंग
+
+```javascript
+// App.js or your main component
+import React, { useEffect } from 'react';
+import { Linking } from 'react-native';
+
+const App = () => {
+  useEffect(() => {
+    // Handle deep links when app is already running
+    const handleDeepLink = (url) => {
+      if (url.includes('payment-status')) {
+        const urlParams = new URLSearchParams(url.split('?')[1]);
+        const paymentId = urlParams.get('payment_id');
+        const status = urlParams.get('status');
+        
+        // Handle payment completion
+        handlePaymentCallback(paymentId, status);
+      }
+    };
+
+    // Listen for deep links
+    const subscription = Linking.addEventListener('url', ({ url }) => {
+      handleDeepLink(url);
+    });
+
+    // Handle deep link if app was opened from a link
+    Linking.getInitialURL().then((url) => {
+      if (url) {
+        handleDeepLink(url);
+      }
+    });
+
+    return () => subscription?.remove();
+  }, []);
+
+  const handlePaymentCallback = (paymentId, status) => {
+    if (status === 'succeeded') {
+      // Navigate to success screen or show success message
+      console.log('Payment successful:', paymentId);
+    } else {
+      // Handle payment failure
+      console.log('Payment failed:', paymentId);
+    }
+  };
+
+  // Your app components...
+};
+
+export default App;
+```
+
+#### पैकेज निर्भरताएँ
+
+इस निर्भरता को अपने `package.json` में जोड़ें:
+
+```json
+{
+  "dependencies": {
+    "react-native-inappbrowser-reborn": "^6.4.0"
+  }
+}
+```
+
+#### स्थापना आदेश
+
+```bash
+# Install InAppBrowser
+npm install react-native-inappbrowser-reborn
+cd ios && pod install
+```
+
+#### एंड्रॉइड कॉन्फ़िगरेशन
+
+`android/app/src/main/AndroidManifest.xml` में जोड़ें:
+
+```xml
+<activity
+  android:name="com.reactnativeinappbrowserreborn.InAppBrowserActivity"
+  android:theme="@style/Theme.AppCompat.Dialog"
+  android:exported="false" />
+```
+
+#### iOS कॉन्फ़िगरेशन
+
+`ios/YourApp/Info.plist` में जोड़ें:
+
+```xml
+<key>CFBundleURLTypes</key>
+<array>
+  <dict>
+    <key>CFBundleURLName</key>
+    <string>myapp</string>
+    <key>CFBundleURLSchemes</key>
+    <array>
+      <string>myapp</string>
+    </array>
+  </dict>
+</array>
+```
+
+<Tip>
+InAppBrowser का उपयोग करें ताकि मूल ब्राउज़र अनुभव हो सके। भुगतान कॉलबैक के लिए डीप लिंक को संभालें।
+</Tip>
+
+---
+
+#### वैकल्पिक: मूल भुगतान SDK
+
+एक अधिक एकीकृत भुगतान अनुभव के लिए जिसमें मूल UI और पूर्ण अनुकूलन हो, डोडो पेमेंट्स एक React Native SDK प्रदान करता है।
+
+<Warning>
+**क्षेत्रीय अनुपालन**: इन-ऐप भुगतान SDK में क्षेत्रीय प्रतिबंध होते हैं। **iOS** पर, मूल भुगतान SDK केवल **EU** (DMA शर्तों के तहत) में कानूनी हैं। **Android** पर, वे उपयोगकर्ता विकल्प बिलिंग (UCB) बाजारों में कानूनी हैं। अन्य क्षेत्रों के लिए, सुनिश्चित करें कि ऐप स्टोर और प्ले स्टोर अनुपालन के लिए ऊपर दिए गए चेकआउट लिंक दृष्टिकोण का उपयोग करें।
+</Warning>
+
+<Card 
+  title="React Native SDK इंटीग्रेशन गाइड" 
+  icon="mobile-screen" 
+  href="/developer-resources/react-native-integration"
+>
+  डोडो के React Native SDK को मूल भुगतान शीट, पूर्ण अनुकूलन विकल्पों, और सीधे भुगतान प्रबंधन के साथ एकीकृत करने के लिए पूर्ण गाइड। इसमें सेटअप, कार्यान्वयन, और परीक्षण निर्देश शामिल हैं।
+</Card>
+
+<Info>
+इन-ऐप भुगतान इंटीग्रेशन के लिए क्षेत्रीय अनुपालन आवश्यकताओं को समझने के लिए [ऐप स्टोर शुल्क बायपास गाइड](/features/bypassing-app-store-fees) की समीक्षा करें।
+</Info>
+
+</Tab>
+<Tab title="Flutter">
+
+### Flutter इंटीग्रेशन
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:webview_flutter/webview_flutter.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+
+Future<String> getCheckoutURL(String productId, String customerEmail, String customerName) async {
+  final response = await http.post(
+    Uri.parse('https://your-backend.com/api/create-checkout-session'),
+    headers: {'Content-Type': 'application/json'},
+    body: json.encode({
+      'productId': productId,
+      'customerEmail': customerEmail,
+      'customerName': customerName,
+    }),
+  );
+  
+  if (response.statusCode == 200) {
+    final data = json.decode(response.body);
+    return data['checkout_url'];
+  } else {
+    throw Exception('Failed to get checkout URL: ${response.statusCode}');
+  }
+}
+class PaymentScreen extends StatefulWidget {
+  @override
+  _PaymentScreenState createState() => _PaymentScreenState();
+}
+class _PaymentScreenState extends State<PaymentScreen> {
+  late WebViewController _controller;
+  String? checkoutURL;
+  
+  @override
+  void initState() {
+    super.initState();
+    _getCheckoutURL();
+  }
+  
+  Future<void> _getCheckoutURL() async {
+    try {
+      final url = await getCheckoutURL('prod_123', 'customer@example.com', 'Customer Name');
+      setState(() {
+        checkoutURL = url;
+      });
+    } catch (e) {
+      // Handle error
+      print('Failed to get checkout URL: $e');
+    }
+  }
+  
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text('Payment')),
+      body: checkoutURL == null 
+        ? Center(child: CircularProgressIndicator())
+        : WebView(
+        initialUrl: checkoutURL,
+        javascriptMode: JavascriptMode.unrestricted,
+        onWebViewCreated: (WebViewController webViewController) {
+          _controller = webViewController;
+        },
+        navigationDelegate: (NavigationRequest request) {
+          if (request.url.contains('payment_id') && request.url.contains('status')) {
+            // Handle payment completion
+            final uri = Uri.parse(request.url);
+            final paymentId = uri.queryParameters['payment_id'];
+            final status = uri.queryParameters['status'];
+            handlePaymentCompletion(paymentId, status);
+            return NavigationDecision.prevent;
+          }
+          return NavigationDecision.navigate;
+        },
+      ),
+    );
+  }
+  void handlePaymentCompletion(String? paymentId, String? status) {
+    if (status == 'succeeded') {
+      // Payment successful
+    } else {
+      // Payment failed
+    }
+  }
+}
+```
+
+<Tip>
+भुगतान लिंक के लिए WebView का उपयोग करें। भुगतान पूर्णता का पता लगाने के लिए रीडायरेक्ट URL को संभालें।
+</Tip>
+
+</Tab>
+</Tabs>
+
+## सर्वोत्तम प्रथाएँ
+
+- **सुरक्षा**: कभी भी अपने ऐप कोड में API कुंजियाँ न रखें। सुरक्षित भंडारण और SSL पिनिंग का उपयोग करें।
+- **उपयोगकर्ता अनुभव**: लोडिंग संकेतक दिखाएं, त्रुटियों को सुचारू रूप से संभालें, और स्पष्ट संदेश प्रदान करें।
+- **परीक्षण**: परीक्षण कार्ड का उपयोग करें, नेटवर्क त्रुटियों का अनुकरण करें, और विभिन्न उपकरणों पर परीक्षण करें।
+
+## समस्या निवारण
+### सामान्य मुद्दे
+
+- **WebView भुगतान लिंक नहीं खोल रहा है**: सुनिश्चित करें कि भुगतान लिंक मान्य है और HTTPS का उपयोग करता है।
+- **कॉलबैक प्राप्त नहीं हुआ**: अपने रिटर्न URL और वेबहुक कॉन्फ़िगरेशन की जांच करें।
+- **API कुंजी त्रुटियाँ**: सुनिश्चित करें कि आपकी API कुंजी सही है और आवश्यक अनुमतियाँ हैं।
+
+## अतिरिक्त संसाधन
+- [भुगतान इंटीग्रेशन गाइड](/developer-resources/integration-guide)
+- [वेबहुक दस्तावेज़](/developer-resources/webhooks/intents/webhook-events-guide)
+- [परीक्षण प्रक्रिया](/miscellaneous/testing-process)
+- [तकनीकी सामान्य प्रश्न](/api-reference/technical-faqs)
+
+<Check>
+प्रश्नों या सहायता के लिए, संपर्क करें <a href="mailto:support@dodopayments.com">support@dodopayments.com</a>।
+</Check>

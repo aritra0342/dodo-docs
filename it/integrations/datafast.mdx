@@ -1,0 +1,302 @@
+---
+title: DataFast
+description: Attribuisci il fatturato ai canali di marketing con l'analisi di
+  DataFast. Monitora quali fonti di traffico generano clienti paganti e
+  ottimizza la tua crescita.
+icon: chart-bar
+---
+
+## Introduzione
+
+DataFast è uno strumento di analisi focalizzato sul fatturato che ti aiuta a scoprire quali canali di marketing generano clienti paganti. Integrando Dodo Payments con DataFast, puoi attribuire il fatturato alle tue fonti di traffico, identificare segmenti di clienti ad alto valore e prendere decisioni basate sui dati per far crescere la tua attività.
+
+<Info>
+Questa integrazione richiede la tua chiave API di DataFast, che puoi ottenere dal tuo [dashboard di DataFast](https://datafa.st/).
+</Info>
+
+## Come Funziona
+
+DataFast traccia i visitatori attraverso un ID visitatore unico memorizzato in un cookie. Per attribuire il fatturato ai canali di marketing, devi:
+
+1. **Catturare l'ID visitatore di DataFast** dal `datafast_visitor_id` cookie quando crei sessioni di checkout
+2. **Memorizzare l'ID visitatore** nei tuoi metadati di pagamento
+3. **Inviare i dati di pagamento a DataFast** quando i pagamenti hanno successo utilizzando la loro Payment API
+
+Questo consente a DataFast di abbinare i pagamenti riusciti con la fonte di traffico originale, fornendoti un'attribuzione completa del fatturato.
+
+## Iniziare
+
+<Steps>
+<Step title="Installa lo Script di DataFast">
+  Prima di tutto, installa lo script di tracciamento di DataFast sul tuo sito web. Questo crea il cookie `datafast_visitor_id` che traccia i tuoi visitatori.
+  
+  Visita la [documentazione di DataFast](https://datafa.st/docs) per le istruzioni di installazione specifiche per la tua piattaforma.
+</Step>
+
+<Step title="Ottieni la tua Chiave API">
+  Accedi al tuo [dashboard di DataFast](https://datafa.st/) e naviga nelle impostazioni del tuo sito web per ottenere la tua chiave API.
+  
+  <Warning>
+  Tieni al sicuro la tua chiave API e non esporla mai nel codice lato client.
+  </Warning>
+</Step>
+
+<Step title="Cattura l'ID Visitatore nel Checkout">
+  Quando crei una sessione di checkout, cattura l'ID visitatore di DataFast dal cookie e aggiungilo ai tuoi metadati di pagamento.
+</Step>
+
+<Step title="Invia Dati di Pagamento tramite Webhook">
+  Configura un webhook per inviare i dati di pagamento all'API di pagamento di DataFast quando i pagamenti hanno successo.
+</Step>
+
+<Step title="Fatto!">
+  🎉 I dati di fatturato appariranno ora nel tuo dashboard di DataFast con piena attribuzione ai canali di marketing.
+</Step>
+</Steps>
+
+## Guida all'Implementazione
+
+### Passo 1: Aggiungi l'ID Visitatore ai Metadati del Checkout
+
+Quando crei una sessione di checkout, cattura l'ID visitatore di DataFast dal cookie e includilo nei tuoi metadati di pagamento.
+
+<CodeGroup>
+
+```typescript Next.js
+import { cookies } from 'next/headers';
+import { dodopayments } from '@/lib/dodopayments';
+
+export async function createCheckout(productId: string) {
+  // Capture DataFast visitor ID from cookie
+  const datafastVisitorId = cookies().get('datafast_visitor_id')?.value;
+
+  const payment = await dodopayments.payments.create({
+    product_id: productId,
+    // ... other payment configuration
+    metadata: {
+      datafast_visitor_id: datafastVisitorId, // Store visitor ID in metadata
+    },
+  });
+
+  return payment;
+}
+```
+
+```javascript Express.js
+const express = require('express');
+const router = express.Router();
+
+router.post('/create-checkout', async (req, res) => {
+  // Capture DataFast visitor ID from cookie
+  const datafastVisitorId = req.cookies?.datafast_visitor_id;
+
+  const payment = await dodopayments.payments.create({
+    product_id: req.body.productId,
+    // ... other payment configuration
+    metadata: {
+      datafast_visitor_id: datafastVisitorId, // Store visitor ID in metadata
+    },
+  });
+
+  res.json({ payment });
+});
+```
+
+```javascript Other Frameworks
+// Capture DataFast visitor ID from cookie
+const datafastVisitorId = getCookie('datafast_visitor_id'); // Use your framework's cookie method
+
+const payment = await dodopayments.payments.create({
+  product_id: productId,
+  // ... other payment configuration
+  metadata: {
+    datafast_visitor_id: datafastVisitorId, // Store visitor ID in metadata
+  },
+});
+```
+
+</CodeGroup>
+
+### Passo 2: Invia Dati di Pagamento a DataFast
+
+Configura un endpoint webhook per inviare i dati di pagamento all'API di pagamento di DataFast quando i pagamenti hanno successo.
+
+<Steps>
+<Step title="Apri la Sezione Webhook">
+  Nel tuo dashboard di Dodo Payments, naviga su <b>Webhooks → + Aggiungi Endpoint</b> ed espandi il menu a discesa delle integrazioni.
+  <Frame>
+    <img src="/images/integrations/datafast/add.png" alt="Aggiungi Endpoint e menu a discesa delle integrazioni" />
+  </Frame>
+</Step>
+
+<Step title="Seleziona DataFast">
+  Scegli la scheda di integrazione <b>DataFast</b>.
+</Step>
+
+<Step title="Inserisci la Chiave API">
+  Fornisci la tua chiave API di DataFast nel campo di configurazione.
+  <Frame>
+    <img src="/images/integrations/datafast/api-key.png" alt="Aggiungi Chiave API" />
+  </Frame>
+</Step>
+
+<Step title="Configura la Trasformazione">
+  Modifica il codice di trasformazione per formattare i dati di pagamento per l'API di pagamento di DataFast.
+</Step>
+
+<Step title="Testa e Crea">
+  Testa con payload di esempio e clicca <b>Crea</b> per attivare l'integrazione.
+</Step>
+</Steps>
+
+## Esempi di Codice di Trasformazione
+
+### Attribuzione di Pagamento di Base
+
+```javascript basic_payment.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const payment = webhook.payload.data;
+    
+    // Only send to DataFast if visitor ID exists in metadata
+    if (payment.metadata?.datafast_visitor_id) {
+      webhook.url = "https://datafa.st/api/v1/payments";
+      webhook.payload = {
+        amount: payment.total_amount / 100, // Convert from cents to dollars
+        currency: payment.currency,
+        transaction_id: payment.payment_id,
+        datafast_visitor_id: payment.metadata.datafast_visitor_id,
+      };
+    } else {
+      // Skip if no visitor ID (prevents unnecessary API calls)
+      return null;
+    }
+  }
+  return webhook;
+}
+```
+
+### Gestisci Valute Senza Decimali
+
+Alcune valute (come JPY) non utilizzano i decimali. Regola di conseguenza il calcolo dell'importo:
+
+```javascript zero_decimal.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const payment = webhook.payload.data;
+    
+    if (payment.metadata?.datafast_visitor_id) {
+      // Zero decimal currencies: JPY, KRW, CLP, etc.
+      const zeroDecimalCurrencies = ['JPY', 'KRW', 'CLP', 'VND', 'UGX', 'MGA'];
+      const isZeroDecimal = zeroDecimalCurrencies.includes(payment.currency);
+      
+      webhook.url = "https://datafa.st/api/v1/payments";
+      webhook.payload = {
+        amount: isZeroDecimal 
+          ? payment.total_amount // Use amount as-is for zero decimal currencies
+          : payment.total_amount / 100, // Convert from cents for other currencies
+        currency: payment.currency,
+        transaction_id: payment.payment_id,
+        datafast_visitor_id: payment.metadata.datafast_visitor_id,
+      };
+    } else {
+      return null;
+    }
+  }
+  return webhook;
+}
+```
+
+### Pagamenti in Abbonamento
+
+Per i pagamenti ricorrenti in abbonamento, puoi tracciare ogni pagamento:
+
+```javascript subscription_payment.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const payment = webhook.payload.data;
+    
+    // Check if this is a subscription payment
+    const isSubscription = payment.subscription_id !== null;
+    
+    if (payment.metadata?.datafast_visitor_id) {
+      webhook.url = "https://datafa.st/api/v1/payments";
+      webhook.payload = {
+        amount: payment.total_amount / 100,
+        currency: payment.currency,
+        transaction_id: payment.payment_id,
+        datafast_visitor_id: payment.metadata.datafast_visitor_id,
+        // Optional: Add subscription context
+        ...(isSubscription && {
+          subscription_id: payment.subscription_id,
+        }),
+      };
+    } else {
+      return null;
+    }
+  }
+  return webhook;
+}
+```
+
+## Migliori Pratiche
+
+<Tip>
+**Cattura l'ID visitatore presto**: Memorizza l'ID visitatore di DataFast il prima possibile nel tuo flusso di checkout per garantire un'attribuzione accurata, anche se l'utente naviga via e torna in seguito.
+</Tip>
+
+- **Includi sempre l'ID visitatore nei metadati**: Senza l'ID visitatore, DataFast non può attribuire il fatturato ai canali di marketing
+- **Gestisci le valute senza decimali**: Alcune valute (JPY, KRW, ecc.) non utilizzano i decimali: regola di conseguenza il calcolo dell'importo
+- **Testa con pagamenti di esempio**: Verifica che l'integrazione funzioni correttamente prima di andare in produzione
+- **Monitora il tuo dashboard di DataFast**: Controlla che i pagamenti appaiano correttamente con l'attribuzione adeguata
+- **Utilizza i retry dei webhook**: L'API di pagamento di DataFast è idempotente, quindi i retry sono sicuri se un webhook fallisce
+
+## Risoluzione dei Problemi
+
+<AccordionGroup>
+<Accordion title="I pagamenti non appaiono in DataFast">
+- Verifica che la tua chiave API di DataFast sia corretta e attiva
+- Controlla che il `datafast_visitor_id` venga catturato e memorizzato nei metadati di pagamento
+- Assicurati che la trasformazione del webhook formatti correttamente il payload
+- Verifica che il webhook venga attivato sugli eventi `payment.succeeded`
+- Controlla il dashboard di DataFast per eventuali messaggi di errore o log API
+</Accordion>
+
+<Accordion title="L'attribuzione del fatturato non funziona">
+- Conferma che lo script di tracciamento di DataFast sia installato e funzionante sul tuo sito web
+- Verifica che il cookie `datafast_visitor_id` venga impostato correttamente
+- Controlla che gli ID visitatori corrispondano tra la creazione del checkout e il completamento del pagamento
+- Assicurati di catturare l'ID visitatore prima di creare la sessione di checkout
+- Rivedi la [documentazione dell'API di pagamento di DataFast](https://datafa.st/docs/payments-api) per ulteriori indicazioni
+</Accordion>
+
+<Accordion title="Errori di trasformazione">
+- Valida che la struttura JSON corrisponda al formato dell'API di pagamento di DataFast
+- Controlla che tutti i campi richiesti (`amount`, `currency`, `transaction_id`, `datafast_visitor_id`) siano presenti
+- Assicurati che l'importo sia correttamente convertito (dividi per 100 per la maggior parte delle valute, eccetto le valute senza decimali)
+- Verifica che l'URL dell'endpoint API sia corretto: `https://datafa.st/api/v1/payments`
+- Testa la trasformazione con payload di webhook di esempio
+</Accordion>
+
+<Accordion title="Problemi di conversione delle valute">
+- Per le valute senza decimali (JPY, KRW, CLP, VND, UGX, MGA), invia l'importo così com'è senza dividerlo per 100
+- Per tutte le altre valute, dividi l'importo per 100 per convertire da centesimi all'unità base
+- Controlla che il codice valuta corrisponda al formato ISO 4217 (ad es., "USD", "EUR", "JPY")
+</Accordion>
+</AccordionGroup>
+
+## Risorse Aggiuntive
+
+<CardGroup cols={2}>
+<Card title="Documentazione di DataFast" icon="book" href="https://datafa.st/docs/payments-api">
+  Scopri di più sull'API di pagamento di DataFast e sulle funzionalità di attribuzione del fatturato.
+</Card>
+
+<Card title="Dashboard di DataFast" icon="chart-bar" href="https://datafa.st/">
+  Accedi al tuo dashboard di DataFast per visualizzare le analisi del fatturato e i dati di attribuzione.
+</Card>
+</CardGroup>
+
+<Info>
+Hai bisogno di aiuto? Contatta il supporto di Dodo Payments all'indirizzo [support@dodopayments.com](mailto:support@dodopayments.com) per assistenza con l'integrazione.
+</Info>

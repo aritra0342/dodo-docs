@@ -1,0 +1,741 @@
+---
+title: Guida all'integrazione della fatturazione basata sull'uso
+description: Scopri come configurare i contatori e inviare eventi di utilizzo
+  per abilitare una fatturazione basata sull'uso accurata con Dodo Payments.
+icon: arrow-trend-up
+---
+
+<CardGroup cols={2}>
+<Card title="API Reference - Ingestione degli eventi" icon="code" href="/api-reference/usage-events/ingest-events">
+  Accedi alla documentazione API completa per l'ingestione degli eventi di utilizzo e testa interattivamente le richieste e le risposte di ingestione degli eventi.
+</Card>
+
+<Card title="API Reference - Creazione dei contatori" icon="code" href="/api-reference/meters/create-meter">
+  Esplora la documentazione API completa per la creazione dei contatori e testa interattivamente le richieste e le risposte di creazione dei contatori.
+</Card>
+</CardGroup>
+
+## Creazione di un contatore
+
+I contatori definiscono come gli eventi di utilizzo vengono aggregati e misurati ai fini della fatturazione.
+
+Prima di creare un contatore, pianifica la tua strategia di tracciamento dell'uso:
+- Identifica quali eventi di utilizzo desideri monitorare
+- Determina come gli eventi devono essere aggregati (conteggio, somma, ecc.)
+- Definisci eventuali requisiti di filtraggio per casi d'uso specifici
+
+### Procedura passo-passo per la creazione di un contatore
+
+Segui questa guida completa per configurare il tuo contatore di utilizzo:
+
+<Steps>
+<Step title="Configura informazioni di base">
+Imposta i dettagli fondamentali per il tuo contatore.
+
+<ParamField path="Nome del contatore" type="string" required>
+Scegli un nome chiaro e descrittivo che identifichi cosa monitora questo contatore.
+
+Esempi: "Token", "Chiamate API", "Utilizzo dello storage", "Ore di calcolo"
+</ParamField>
+
+<ParamField path="Descrizione" type="string">
+Fornisci una spiegazione dettagliata di cosa misura questo contatore.
+
+Esempio: "Conta ogni richiesta POST /v1/orders effettuata dal cliente"
+</ParamField>
+
+<ParamField path="Nome dell'evento" type="string" required>
+Specifica l'identificatore dell'evento che attiverà questo contatore.
+
+Esempi: "token", "api.call", "storage.usage", "compute.session"
+</ParamField>
+
+<Info>
+Il nome dell'evento deve corrispondere esattamente a ciò che invii nei tuoi eventi di utilizzo. I nomi degli eventi sono case-sensitive.
+</Info>
+</Step>
+
+<Step title="Configura le impostazioni di aggregazione">
+Definisci come il contatore calcola l'uso dai tuoi eventi.
+
+<ParamField path="Tipo di aggregazione" type="string" required>
+Seleziona come gli eventi devono essere aggregati:
+
+<Tabs>
+<Tab title="Conteggio">
+Conta semplicemente il numero di eventi ricevuti.
+
+Caso d'uso: chiamate API, visualizzazioni di pagina, caricamenti di file
+
+Calcolo: numero totale di eventi
+</Tab>
+
+<Tab title="Somma">
+Somma i valori da una proprietà specifica nei tuoi eventi.
+
+Caso d'uso: trasferimento dati, consumo di storage, tempo di elaborazione
+
+Calcolo: somma di tutti i valori delle proprietà
+</Tab>
+
+<Tab title="Massimo">
+Registra il valore più alto di una proprietà specifica durante il periodo di fatturazione.
+
+Caso d'uso: utenti simultanei di picco, massimo storage utilizzato, massima larghezza di banda
+
+Calcolo: valore massimo della proprietà osservato
+</Tab>
+
+<Tab title="Ultimo">
+Utilizza il valore più recente di una proprietà specifica.
+
+Caso d'uso: livello attuale del piano, ultima impostazione di configurazione
+
+Calcolo: ultimo valore registrato della proprietà
+</Tab>
+</Tabs>
+</ParamField>
+
+<ParamField path="Su proprietà" type="string">
+Il nome della proprietà dai metadati dell'evento su cui aggregare.
+
+<Warning>
+Questo campo è obbligatorio quando si utilizzano i tipi di aggregazione Somma, Massimo o Ultimo.
+</Warning>
+</ParamField>
+
+<ParamField path="Unità di misura" type="string" required>
+Definisci l'etichetta dell'unità per scopi di visualizzazione nei report e nella fatturazione.
+
+Esempi: "chiamate", "GB", "ore", "token"
+</ParamField>
+</Step>
+
+<Step title="Configura il filtraggio degli eventi (opzionale)">
+Imposta criteri per controllare quali eventi sono inclusi nel contatore.
+
+<Info>
+Il filtraggio degli eventi ti consente di creare regole sofisticate che determinano quali eventi contribuiscono ai tuoi calcoli di utilizzo. Questo è utile per escludere eventi di test, filtrare per livelli utente o concentrarsi su azioni specifiche.
+</Info>
+
+**Abilita il filtraggio degli eventi**
+
+Attiva **Abilita il filtraggio degli eventi** per attivare l'elaborazione condizionale degli eventi.
+
+**Scegli la logica di filtro**
+
+Seleziona come vengono valutate più condizioni:
+
+<Tabs>
+<Tab title="Logica AND">
+Tutte le condizioni devono essere vere affinché un evento venga conteggiato. Usa questo quando hai bisogno che gli eventi soddisfino più criteri rigorosi contemporaneamente.
+
+**Esempio:** Conta le chiamate API dove `user_tier = "premium"` E `endpoint = "/api/v2/users"`
+</Tab>
+
+<Tab title="Logica OR">
+Almeno una condizione deve essere vera affinché un evento venga conteggiato. Usa questo quando vuoi includere eventi che soddisfano uno qualsiasi di diversi criteri.
+
+**Esempio:** Conta gli eventi dove `method = "POST"` O `method = "PUT"` O `method = "DELETE"`
+</Tab>
+</Tabs>
+
+**Impostazione delle condizioni di filtro**
+
+<Steps>
+<Step title="Aggiungi condizione">
+Clicca su **Aggiungi condizione** per creare una nuova regola di filtro.
+</Step>
+
+<Step title="Configura la chiave della proprietà">
+Specifica il nome della proprietà dai metadati del tuo evento.
+</Step>
+
+<Step title="Seleziona il comparatore">
+Scegli tra gli operatori disponibili:
+- `equals` - Corrispondenza esatta
+- `not equals` - Filtro di esclusione
+- `greater than` - Confronto numerico  
+- `greater than or equals` - Confronto numerico (inclusivo)
+- `less than` - Confronto numerico
+- `less than or equals` - Confronto numerico (inclusivo)
+- `contains` - La stringa contiene una sottostringa
+- `does not contain` - Filtro di esclusione della stringa
+</Step>
+
+<Step title="Imposta il valore di confronto">
+Imposta il valore target per il confronto.
+</Step>
+
+<Step title="Aggiungi gruppi">
+Usa **Aggiungi gruppo** per creare gruppi di condizioni aggiuntivi per una logica complessa.
+</Step>
+</Steps>
+
+<Warning>
+Le proprietà filtrate devono essere incluse nei metadati del tuo evento affinché le condizioni funzionino correttamente. Gli eventi privi di proprietà richieste saranno esclusi dal conteggio.
+</Warning>
+</Step>
+
+<Step title="Crea contatore">
+Rivedi la configurazione del tuo contatore e clicca su **Crea contatore**.
+
+<Check>
+Il tuo contatore è ora pronto a ricevere e aggregare eventi di utilizzo.
+</Check>
+
+</Step>
+</Steps>
+
+## Collegare il contatore a un prodotto
+
+Una volta creato il tuo contatore, devi collegarlo a un prodotto per abilitare la fatturazione basata sull'uso. Questo processo collega i dati di utilizzo del tuo contatore alle regole di prezzo per la fatturazione dei clienti.
+
+Collegare i contatori ai prodotti stabilisce la connessione tra il tracciamento dell'uso e la fatturazione:
+- I prodotti definiscono le regole di prezzo e il comportamento di fatturazione
+- I contatori forniscono dati di utilizzo per i calcoli di fatturazione
+- Più contatori possono essere collegati a un singolo prodotto per scenari di fatturazione complessi
+
+### Processo di configurazione del prodotto
+
+Trasforma i tuoi dati di utilizzo in addebiti fatturabili configurando correttamente le impostazioni del tuo prodotto:
+
+<Steps>
+<Step title="Scegli il tipo di prodotto basato sull'uso">
+Naviga alla pagina di creazione o modifica del tuo prodotto e seleziona **Basato sull'uso** come tipo di prodotto.
+
+</Step>
+
+<Step title="Seleziona il contatore associato">
+Clicca su **Contatore associato** per aprire il pannello di selezione del contatore dal lato.
+
+Questo pannello ti consente di configurare quali contatori monitoreranno l'uso per questo prodotto.
+</Step>
+
+<Step title="Aggiungi il tuo contatore">
+Nel pannello di selezione del contatore:
+
+1. Clicca su **Aggiungi contatori** per visualizzare i contatori disponibili
+2. Seleziona il contatore che hai creato dall'elenco a discesa
+3. Il contatore selezionato apparirà nella configurazione del tuo prodotto
+
+</Step>
+
+<Step title="Configura il prezzo per unità">
+Imposta il prezzo per ogni unità di utilizzo monitorata dal tuo contatore.
+
+<ParamField path="Prezzo per unità" type="number" required>
+Definisci quanto addebitare per ogni unità misurata dal tuo contatore.
+
+**Esempio**: Impostare `$0.50` per unità significa:
+- 1.000 unità consumate = 1.000 × $0,50 = 500,00 addebitati
+- 500 unità consumate = 500 × $0,50 = 250,00 addebitati
+- 100 unità consumate = 100 × $0,50 = 50,00 addebitati
+</ParamField>
+
+</Step>
+
+<Step title="Imposta la soglia gratuita (opzionale)">
+Configura un'agevolazione per l'uso gratuito prima che inizi la fatturazione.
+
+<ParamField path="Soglia gratuita" type="number">
+Numero di unità che i clienti possono consumare senza addebiti prima che inizi il calcolo dell'uso a pagamento.
+
+**Come funziona**:
+- Soglia gratuita: 100 unità
+- Prezzo per unità: $0,50
+- Utilizzo del cliente: 250 unità
+- **Calcolo**: (250 - 100) × $0,50 = **$75,00** addebitati
+</ParamField>
+
+<Info>
+Le soglie gratuite sono ideali per modelli freemium, periodi di prova o per fornire ai clienti un'agevolazione di base inclusa nel loro piano.
+</Info>
+
+<Check>
+La soglia gratuita si applica a ciascun ciclo di fatturazione, dando ai clienti nuove agevolazioni mensili o secondo il tuo programma di fatturazione.
+</Check>
+</Step>
+
+<Step title="Salva configurazione">
+Rivedi la configurazione del tuo contatore e del prezzo, quindi clicca su **Salva modifiche** per finalizzare la configurazione.
+
+<Check>
+Il tuo prodotto è ora configurato per la fatturazione basata sull'uso e addebiterà automaticamente i clienti in base al loro consumo misurato.
+</Check>
+
+**Cosa succede dopo**:
+- Gli eventi di utilizzo inviati al tuo contatore saranno monitorati e aggregati
+- I calcoli di fatturazione applicheranno automaticamente le tue regole di prezzo
+- I clienti saranno addebitati in base al consumo effettivo durante ciascun ciclo di fatturazione
+</Step>
+</Steps>
+
+<Note>
+Ricorda che puoi aggiungere fino a 10 contatori per prodotto, abilitando un tracciamento dell'uso sofisticato su più dimensioni come chiamate API, storage, tempo di calcolo e metriche personalizzate.
+</Note>
+
+## Invio di eventi di utilizzo
+
+Una volta configurato il tuo contatore, puoi iniziare a inviare eventi di utilizzo dalla tua applicazione per monitorare l'uso dei clienti.
+
+### Struttura dell'evento
+
+Ogni evento di utilizzo deve includere questi campi obbligatori:
+
+<ParamField body="event_id" type="string" required>
+Identificatore unico per questo specifico evento. Deve essere unico tra tutti gli eventi.
+</ParamField>
+
+<ParamField body="customer_id" type="string" required>
+L'ID cliente di Dodo Payments a cui attribuire questo utilizzo.
+</ParamField>
+
+<ParamField body="event_name" type="string" required>
+Il nome dell'evento che corrisponde alla configurazione del tuo contatore. I nomi degli eventi attivano il contatore appropriato.
+</ParamField>
+
+<ParamField body="timestamp" type="string">
+Timestamp ISO 8601 quando si è verificato l'evento. Predefinito all'ora corrente se non fornito.
+</ParamField>
+
+<ParamField body="metadata" type="object">
+Proprietà aggiuntive per il filtraggio e l'aggregazione. Includi eventuali valori riferiti alla "Proprietà" del tuo contatore o alle condizioni di filtraggio.
+</ParamField>
+
+### Esempi di API per eventi di utilizzo
+
+Invia eventi di utilizzo ai tuoi contatori configurati utilizzando l'API degli eventi:
+
+<CodeGroup>
+
+```javascript Node.js
+const response = await fetch('https://test.dodopayments.com/events/ingest', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${process.env.DODO_API_KEY}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    events: [
+      {
+        event_id: "api_call_1234",
+        customer_id: "cus_atXa1lklCRRzMicTqfiw2", 
+        event_name: "api.call",
+        timestamp: new Date().toISOString(),
+        metadata: {
+          endpoint: "/v1/orders",
+          method: "POST",
+          response_size: 1024
+        }
+      }
+    ]
+  })
+});
+```
+
+```python Python
+import requests
+from datetime import datetime
+
+response = requests.post(
+    'https://test.dodopayments.com/events/ingest',
+    headers={
+        'Authorization': f'Bearer {api_key}',
+        'Content-Type': 'application/json'
+    },
+    json={
+        'events': [
+            {
+                'event_id': 'api_call_1234',
+                'customer_id': 'cus_atXa1lklCRRzMicTqfiw2',
+                'event_name': 'api.call',
+                'timestamp': datetime.now().isoformat(),
+                'metadata': {
+                    'endpoint': '/v1/orders',
+                    'method': 'POST',
+                    'response_size': 1024
+                }
+            }
+        ]
+    }
+)
+```
+
+```curl cURL
+curl -X POST 'https://test.dodopayments.com/events/ingest' \
+  -H 'Authorization: Bearer YOUR_API_KEY' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "events": [
+      {
+        "event_id": "api_call_1234",
+        "customer_id": "cus_atXa1lklCRRzMicTqfiw2",
+        "event_name": "api.call", 
+        "timestamp": "2024-01-15T10:30:00Z",
+        "metadata": {
+          "endpoint": "/v1/orders",
+          "method": "POST",
+          "response_size": 1024
+        }
+      }
+    ]
+  }'
+```
+
+</CodeGroup>
+
+## Analisi della fatturazione basata sull'uso
+
+Monitora e analizza i tuoi dati di fatturazione basata sull'uso con un dashboard analitico completo. Monitora i modelli di consumo dei clienti, le prestazioni dei contatori e le tendenze di fatturazione per ottimizzare la tua strategia di prezzo e comprendere i comportamenti di utilizzo.
+
+### Analisi panoramica
+
+La scheda Panoramica fornisce una visione completa delle prestazioni della tua fatturazione basata sull'uso:
+
+#### Metriche di attività
+
+Monitora le statistiche chiave di utilizzo su diversi periodi di tempo:
+
+<ParamField path="Mese corrente" type="metric">
+Mostra l'attività di utilizzo per il periodo di fatturazione corrente, aiutandoti a comprendere i modelli di consumo mensili.
+</ParamField>
+
+<ParamField path="Tutti i tempi" type="metric">
+Visualizza le statistiche cumulative di utilizzo da quando hai iniziato a monitorare, fornendo approfondimenti sulla crescita a lungo termine.
+</ParamField>
+
+<Tip>
+Usa il selettore del periodo di tempo per confrontare l'uso su diversi mesi e identificare tendenze stagionali o modelli di crescita.
+</Tip>
+
+#### Grafico delle quantità dei contatori
+
+<Frame>
+<img src="/images/guides/usage-based-billing/meter-quantities-chart.png" alt="Grafico delle quantità dei contatori che mostra le tendenze di utilizzo nel tempo con visualizzazione a gradiente viola" />
+</Frame>
+
+Il grafico delle quantità dei contatori visualizza le tendenze di utilizzo nel tempo con le seguenti caratteristiche:
+
+- **Visualizzazione temporale**: Monitora i modelli di utilizzo su giorni, settimane o mesi
+- **Supporto per più contatori**: Visualizza i dati di diversi contatori simultaneamente
+- **Analisi delle tendenze**: Identifica picchi di utilizzo, modelli e traiettorie di crescita
+
+<Info>
+Il grafico si scala automaticamente in base al volume di utilizzo e all'intervallo di tempo selezionato, fornendo una chiara visibilità sia su piccole fluttuazioni che su grandi cambiamenti di utilizzo.
+</Info>
+
+### Analisi degli eventi
+
+<Frame>
+<img src="/images/guides/usage-based-billing/events-table.png" alt="Tabella degli eventi che mostra nomi degli eventi, ID e controlli di paginazione per un'analisi dettagliata degli eventi" />
+</Frame>
+
+La scheda Eventi fornisce visibilità granulare sugli eventi di utilizzo individuali:
+
+#### Visualizzazione delle informazioni sugli eventi
+
+La tabella degli eventi fornisce una chiara visione degli eventi di utilizzo individuali con le seguenti colonne:
+
+- **Nome dell'evento**: L'azione o il trigger specifico che ha generato l'evento di utilizzo
+- **ID evento**: Identificatore unico per ogni istanza di evento
+- **ID cliente**: Il cliente associato all'evento
+- **Timestamp**: Quando si è verificato l'evento
+
+<Info>
+Questa visualizzazione ti consente di monitorare e controllare eventi di utilizzo individuali nel tuo portafoglio clienti, fornendo trasparenza nei calcoli di fatturazione e nei modelli di utilizzo.
+</Info>
+
+### Analisi dei clienti
+
+La scheda Clienti fornisce una vista tabellare dettagliata dei dati di utilizzo dei clienti con le seguenti informazioni:
+
+#### Colonne di dati disponibili
+
+<ParamField path="Email cliente" type="string">
+Indirizzo email del cliente per identificazione.
+</ParamField>
+
+<ParamField path="ID abbonamento" type="string">
+Identificatore unico per l'abbonamento del cliente.
+</ParamField>
+
+<ParamField path="Soglia gratuita" type="number">
+Numero di unità gratuite incluse nel piano del cliente prima che si applichino addebiti.
+</ParamField>
+
+<ParamField path="Prezzo per unità" type="currency">
+Il costo per unità per l'uso oltre la soglia gratuita.
+</ParamField>
+
+<ParamField path="Ultimo evento" type="timestamp">
+Timestamp dell'evento di utilizzo più recente del cliente.
+</ParamField>
+
+<ParamField path="Prezzo totale" type="currency">
+Importo totale addebitato al cliente per la fatturazione basata sull'uso.
+</ParamField>
+
+<ParamField path="Unità consumate" type="number">
+Numero totale di unità consumate dal cliente.
+</ParamField>
+
+<ParamField path="Unità addebitabili" type="number">
+Numero di unità che superano la soglia gratuita e vengono addebitate.
+</ParamField>
+
+#### Caratteristiche della tabella
+
+- **Filtraggio delle colonne**: Usa la funzione "Modifica colonne" per mostrare/nascondere colonne di dati specifiche
+- **Aggiornamenti in tempo reale**: I dati di utilizzo riflettono le metriche di consumo più attuali
+
+## Esempi di aggregazione
+
+Ecco esempi pratici di come funzionano i diversi tipi di aggregazione:
+
+### Comprendere i tipi di aggregazione
+
+Diversi tipi di aggregazione servono a diversi scenari di fatturazione. Scegli il tipo giusto in base a come desideri misurare e addebitare per l'uso.
+
+### Esempi di implementazione pratica
+
+Questi esempi dimostrano applicazioni reali di ciascun tipo di aggregazione con eventi di esempio e risultati attesi.
+
+<AccordionGroup>
+<Accordion title="Aggregazione per conteggio - Chiamate API">
+Scenario: Monitora il numero totale di richieste API
+
+Configurazione del contatore:
+- Nome dell'evento: `api.call`
+- Tipo di aggregazione: Conteggio
+- Unità di misura: `calls`
+
+**Eventi di esempio**:
+
+```json
+{
+  "events": [
+    {"event_id": "call_1", "customer_id": "cus_123", "event_name": "api.call"},
+    {"event_id": "call_2", "customer_id": "cus_123", "event_name": "api.call"},
+    {"event_id": "call_3", "customer_id": "cus_123", "event_name": "api.call"}
+  ]
+}
+```
+
+Risultato: 3 chiamate addebitate al cliente
+</Accordion>
+
+<Accordion title="Aggregazione per somma - Trasferimento dati">
+Scenario: Addebita in base al totale di byte trasferiti
+
+Configurazione del contatore:
+- Nome dell'evento: `data.transfer`
+- Tipo di aggregazione: Somma
+- Su proprietà: `bytes`
+- Unità di misura: `GB`
+
+**Eventi di esempio**:
+
+```json
+{
+  "events": [
+    {
+      "event_id": "transfer_1",
+      "customer_id": "cus_123", 
+      "event_name": "data.transfer",
+      "metadata": {"bytes": 1073741824}
+    },
+    {
+      "event_id": "transfer_2",
+      "customer_id": "cus_123",
+      "event_name": "data.transfer", 
+      "metadata": {"bytes": 536870912}
+    }
+  ]
+}
+```
+
+Risultato: 1,5 GB di trasferimento totale addebitati al cliente
+</Accordion>
+
+<Accordion title="Aggregazione per massimo - Utenti simultanei di picco">
+Scenario: Addebita in base al numero massimo di utenti simultanei
+
+Configurazione del contatore:
+- Nome dell'evento: `concurrent.users`
+- Tipo di aggregazione: Massimo
+- Su proprietà: `count`
+- Unità di misura: `users`
+
+**Eventi di esempio**:
+
+```json
+{
+  "events": [
+    {
+      "event_id": "peak_1",
+      "customer_id": "cus_123",
+      "event_name": "concurrent.users", 
+      "metadata": {"count": 15}
+    },
+    {
+      "event_id": "peak_2",
+      "customer_id": "cus_123",
+      "event_name": "concurrent.users",
+      "metadata": {"count": 23}
+    },
+    {
+      "event_id": "peak_3",
+      "customer_id": "cus_123",
+      "event_name": "concurrent.users",
+      "metadata": {"count": 18}
+    }
+  ]
+}
+```
+
+Risultato: 23 utenti simultanei di picco addebitati al cliente
+</Accordion>
+</AccordionGroup>
+
+### Esempi di filtraggio degli eventi
+
+<Tabs>
+<Tab title="Filtra per endpoint API">
+Conta solo le chiamate API a endpoint specifici:
+
+Configurazione del filtro:
+- Proprietà: `endpoint`
+- Comparatore: `equals`
+- Valore: `/v1/orders`
+
+Evento di esempio:
+
+```json
+{
+  "event_id": "call_1",
+  "customer_id": "cus_123",
+  "event_name": "api.call",
+  "metadata": {
+    "endpoint": "/v1/orders",
+    "method": "POST"
+  }
+}
+```
+
+Risultato: Gli eventi che corrispondono ai criteri di filtro verrebbero conteggiati. Gli eventi con endpoint diversi verrebbero ignorati.
+</Tab>
+
+<Tab title="Filtra per intervallo di valori">
+Conta solo i caricamenti di file di grandi dimensioni:
+
+Configurazione del filtro:
+- Proprietà: `file_size`
+- Comparatore: `greater_than`
+- Valore: `1048576` (1MB in byte)
+
+Evento di esempio:
+
+```json
+{
+  "event_id": "upload_1",
+  "customer_id": "cus_123", 
+  "event_name": "file.upload",
+  "metadata": {
+    "file_size": 5242880,
+    "file_type": "image"
+  }
+}
+```
+
+Risultato: I file più grandi di 1MB verrebbero conteggiati. I file più piccoli verrebbero ignorati.
+</Tab>
+
+<Tab title="Filtri complessi a più condizioni">
+Conta le chiamate API premium durante l'orario lavorativo:
+
+Configurazione del filtro (utilizzando la logica AND):
+- Proprietà: `plan_type`, Comparatore: `equals`, Valore: `premium`
+- Proprietà: `hour`, Comparatore: `greater_than_or_equal`, Valore: `9`
+- Proprietà: `hour`, Comparatore: `less_than`, Valore: `17`
+
+Evento di esempio:
+
+```json
+{
+  "event_id": "call_1",
+  "customer_id": "cus_123",
+  "event_name": "api.call",
+  "metadata": {
+    "plan_type": "premium",
+    "hour": 14,
+    "endpoint": "/v1/analytics"
+  }
+}
+```
+
+Risultato: Le chiamate API premium durante l'orario lavorativo (9 AM - 5 PM) verrebbero conteggiate.
+</Tab>
+</Tabs>
+
+## Risoluzione dei problemi
+
+Risolvi i problemi comuni con l'implementazione della fatturazione basata sull'uso e assicurati un tracciamento e una fatturazione accurati.
+
+### Problemi comuni
+
+La maggior parte dei problemi di fatturazione basata sull'uso rientra in queste categorie:
+- Problemi di consegna e elaborazione degli eventi
+- Problemi di configurazione del contatore
+- Errori di tipo di dati e formattazione
+- Problemi di ID cliente e autenticazione
+
+### Passi per il debug
+
+Quando risolvi i problemi della fatturazione basata sull'uso:
+1. Verifica la consegna degli eventi nella scheda analitica degli eventi
+2. Controlla che la configurazione del contatore corrisponda alla struttura del tuo evento
+3. Valida gli ID cliente e l'autenticazione API
+4. Rivedi le condizioni di filtraggio e le impostazioni di aggregazione
+
+### Soluzioni e correzioni
+
+<AccordionGroup>
+<Accordion title="Eventi non visualizzati nel contatore">
+Cause comuni:
+- Il nome dell'evento non corrisponde esattamente alla configurazione del contatore
+- Le condizioni di filtraggio degli eventi escludono i tuoi eventi
+- L'ID cliente non esiste nel tuo account Dodo Payments
+- Il timestamp dell'evento è al di fuori del periodo di fatturazione corrente
+
+Soluzioni:
+- Verifica l'ortografia e la sensibilità al maiuscolo del nome dell'evento
+- Rivedi e testa le tue condizioni di filtraggio
+- Conferma che l'ID cliente sia valido e attivo
+- Controlla che i timestamp degli eventi siano recenti e formattati correttamente
+</Accordion>
+
+<Accordion title="L'aggregazione non funziona come previsto">
+Cause comuni:
+- Il nome della proprietà non corrisponde alle chiavi dei metadati dell'evento
+- I valori dei metadati sono di tipo di dati errato (stringa vs numero)
+- Proprietà di metadati richieste mancanti
+
+Soluzioni:
+- Assicurati che le chiavi dei metadati corrispondano esattamente alle impostazioni della tua proprietà
+- Converti i numeri in formato stringa in numeri reali nei tuoi eventi
+- Includi tutte le proprietà richieste in ogni evento
+</Accordion>
+
+<Accordion title="Il filtraggio non funziona">
+Cause comuni:
+- I nomi delle proprietà di filtro non corrispondono ai metadati dell'evento
+- Comparatore errato per il tipo di dati (stringa vs numero)
+- Sensibilità al maiuscolo nei confronti delle stringhe
+
+Soluzioni:
+- Controlla che i nomi delle proprietà corrispondano esattamente
+- Usa comparatori appropriati per i tuoi tipi di dati
+- Considera la sensibilità al maiuscolo quando filtri le stringhe
+</Accordion>
+</AccordionGroup>

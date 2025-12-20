@@ -1,0 +1,164 @@
+---
+title: Resend
+description: Dodo Payments घटनाओं के आधार पर उच्च डिलीवरबिलिटी के साथ Resend के
+  माध्यम से लेनदेन ईमेल भेजें।
+icon: envelope
+---
+
+## परिचय
+
+भुगतान घटनाओं के होने पर स्वचालित रूप से पेशेवर लेनदेन ईमेल भेजें। Resend के विश्वसनीय ईमेल बुनियादी ढांचे और उत्कृष्ट डिलीवरबिलिटी दरों के साथ भुगतान पुष्टिकरण, सदस्यता अपडेट और महत्वपूर्ण सूचनाएं भेजें।
+
+<Info>
+इस एकीकरण के लिए प्रमाणीकरण के लिए आपका Resend API कुंजी आवश्यक है।
+</Info>
+
+## प्रारंभ करना
+
+<Steps>
+<Step title="Webhook अनुभाग खोलें">
+  अपने Dodo Payments डैशबोर्ड में, <b>Webhooks → + Add Endpoint</b> पर जाएं और एकीकरण ड्रॉपडाउन का विस्तार करें।
+  <Frame>
+    <img src="/images/integrations/resend.png" alt="Add Endpoint और एकीकरण ड्रॉपडाउन" />
+  </Frame>
+</Step>
+
+<Step title="Resend चुनें">
+  <b>Resend</b> एकीकरण कार्ड चुनें।
+</Step>
+
+<Step title="API कुंजी दर्ज करें">
+  कॉन्फ़िगरेशन में अपनी Resend API कुंजी प्रदान करें।
+</Step>
+
+<Step title="रूपांतरण कॉन्फ़िगर करें">
+  Resend के API के लिए ईमेल प्रारूपित करने के लिए रूपांतरण कोड संपादित करें।
+</Step>
+
+<Step title="परीक्षण और बनाएं">
+  नमूना पेलोड के साथ परीक्षण करें और ईमेल भेजने को सक्रिय करने के लिए <b>Create</b> पर क्लिक करें।
+</Step>
+
+<Step title="हो गया!">
+  🎉 भुगतान घटनाएं अब स्वचालित रूप से Resend के माध्यम से लेनदेन ईमेल को ट्रिगर करेंगी।
+</Step>
+</Steps>
+
+## रूपांतरण कोड उदाहरण
+
+### भुगतान पुष्टिकरण ईमेल
+
+```javascript payment_confirmation.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.url = "https://api.resend.com/emails";
+    webhook.payload = {
+      from: "payments@yourdomain.com",
+      to: [p.customer.email],
+      subject: "Payment Confirmation - $" + (p.total_amount / 100).toFixed(2),
+      html: `
+        <h2>Payment Successful!</h2>
+        <p>Hi ${p.customer.name},</p>
+        <p>Your payment of $${(p.total_amount / 100).toFixed(2)} has been processed successfully.</p>
+        <ul>
+          <li><strong>Payment ID:</strong> ${p.payment_id}</li>
+          <li><strong>Amount:</strong> $${(p.total_amount / 100).toFixed(2)}</li>
+          <li><strong>Date:</strong> ${new Date(webhook.payload.timestamp).toLocaleDateString()}</li>
+          <li><strong>Method:</strong> ${p.payment_method || "Unknown"}</li>
+        </ul>
+        <p>Thank you for your business!</p>
+      `,
+      text: `Payment Successful! Your payment of $${(p.total_amount / 100).toFixed(2)} has been processed. Payment ID: ${p.payment_id}`
+    };
+  }
+  return webhook;
+}
+```
+
+### सदस्यता स्वागत ईमेल
+
+```javascript subscription_welcome.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "subscription.active") {
+    const s = webhook.payload.data;
+    webhook.url = "https://api.resend.com/emails";
+    webhook.payload = {
+      from: "welcome@yourdomain.com",
+      to: [s.customer.email],
+      subject: "Welcome to Your Subscription!",
+      html: `
+        <h2>Welcome to Your Subscription!</h2>
+        <p>Hi ${s.customer.name},</p>
+        <p>Your subscription has been activated successfully.</p>
+        <ul>
+          <li><strong>Subscription ID:</strong> ${s.subscription_id}</li>
+          <li><strong>Product:</strong> ${s.product_id}</li>
+          <li><strong>Amount:</strong> $${(s.recurring_pre_tax_amount / 100).toFixed(2)}/${s.payment_frequency_interval}</li>
+          <li><strong>Next Billing:</strong> ${new Date(s.next_billing_date).toLocaleDateString()}</li>
+        </ul>
+        <p>You can manage your subscription anytime from your account dashboard.</p>
+      `,
+      text: `Welcome! Your subscription is now active. Amount: $${(s.recurring_pre_tax_amount / 100).toFixed(2)}/${s.payment_frequency_interval}`
+    };
+  }
+  return webhook;
+}
+```
+
+### भुगतान विफलता सूचना
+
+```javascript payment_failure.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.failed") {
+    const p = webhook.payload.data;
+    webhook.url = "https://api.resend.com/emails";
+    webhook.payload = {
+      from: "support@yourdomain.com",
+      to: [p.customer.email],
+      subject: "Payment Failed - Action Required",
+      html: `
+        <h2>Payment Failed</h2>
+        <p>Hi ${p.customer.name},</p>
+        <p>We were unable to process your payment of $${(p.total_amount / 100).toFixed(2)}.</p>
+        <ul>
+          <li><strong>Payment ID:</strong> ${p.payment_id}</li>
+          <li><strong>Amount:</strong> $${(p.total_amount / 100).toFixed(2)}</li>
+          <li><strong>Error:</strong> ${p.error_message || "Payment processing failed"}</li>
+        </ul>
+        <p>Please update your payment method or contact support for assistance.</p>
+        <a href="https://yourdomain.com/update-payment">Update Payment Method</a>
+      `,
+      text: `Payment Failed: We couldn't process your $${(p.total_amount / 100).toFixed(2)} payment. Please update your payment method.`
+    };
+  }
+  return webhook;
+}
+```
+
+## सुझाव
+
+- बेहतर डिलीवरबिलिटी के लिए सत्यापित प्रेषक डोमेन का उपयोग करें
+- ईमेल के लिए HTML और टेक्स्ट दोनों संस्करण शामिल करें
+- ग्राहक डेटा के साथ सामग्री को व्यक्तिगत बनाएं
+- स्पष्ट, क्रियाशील विषय पंक्तियाँ शामिल करें
+- अनुपालन के लिए अनसब्सक्राइब लिंक शामिल करें
+- लाइव जाने से पहले ईमेल टेम्पलेट का परीक्षण करें
+
+## समस्या निवारण
+
+<AccordionGroup>
+<Accordion title="ईमेल नहीं भेजे जा रहे हैं">
+- सत्यापित करें कि API कुंजी सही और सक्रिय है
+- जांचें कि प्रेषक डोमेन Resend में सत्यापित है
+- सुनिश्चित करें कि प्राप्तकर्ता ईमेल पते मान्य हैं
+- Resend भेजने की सीमाओं और कोटा की समीक्षा करें
+</Accordion>
+
+<Accordion title="रूपांतरण त्रुटियाँ">
+- सत्यापित करें कि JSON संरचना Resend API प्रारूप से मेल खाती है
+- सुनिश्चित करें कि सभी आवश्यक फ़ील्ड मौजूद हैं
+- सुनिश्चित करें कि HTML सामग्री सही ढंग से प्रारूपित है
+- सत्यापित करें कि प्रेषक ईमेल पता सत्यापित है
+</Accordion>
+</AccordionGroup>

@@ -1,0 +1,116 @@
+---
+title: Close CRM
+description: Synkronisera Dodo Payments-data med Close CRM för att spåra leads
+  och hantera försäljningspipeline.
+icon: handshake
+---
+
+## Introduktion
+
+Anslut dina betalningsdata direkt till Close CRM för sömlös hantering av leads och försäljningsspårning. Skapa automatiskt kontakter och möjligheter från framgångsrika betalningar, så att ditt försäljningsteam hålls informerat om intäktsgenererande aktiviteter.
+
+<Info>
+Denna integration kräver en Close CRM API-nyckel med lämpliga behörigheter.
+</Info>
+
+## Komma igång
+
+<Steps>
+<Step title="Öppna Webhook-sektionen">
+  I din Dodo Payments-instrumentpanel, navigera till <b>Webhooks → + Lägg till slutpunkt</b> och expandera integrationsrullgardinsmenyn.
+  <Frame>
+    <img src="/images/integrations/close-crm.png" alt="Lägg till slutpunkt och integrationsrullgardinsmeny" />
+  </Frame>
+</Step>
+
+<Step title="Välj Close CRM">
+  Välj <b>Close CRM</b> integrationskortet.
+</Step>
+
+<Step title="Ange API-nyckel">
+  Ange din Close CRM API-nyckel i konfigurationen.
+</Step>
+
+<Step title="Konfigurera transformation">
+  Redigera transformationskoden för att mappa betalningsdata till Close CRM-objekt.
+</Step>
+
+<Step title="Testa & Skapa">
+  Testa med exempelpayloads och klicka på <b>Skapa</b> för att aktivera synkroniseringen.
+</Step>
+
+<Step title="Klart!">
+  🎉 Betalningsevenemang kommer nu automatiskt att skapa/uppdatera poster i Close CRM.
+</Step>
+</Steps>
+
+## Exempel på transformationskod
+
+### Skapa kontakt från betalning
+
+```javascript create_contact.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.url = "https://api.close.com/api/v1/contact/";
+    webhook.payload = {
+      name: p.customer.name,
+      emails: [p.customer.email],
+      phones: [p.customer.phone || ''],
+      custom: {
+        payment_amount: (p.total_amount / 100).toFixed(2),
+        payment_method: p.payment_method || '',
+        dodo_customer_id: p.customer.customer_id
+      }
+    };
+  }
+  return webhook;
+}
+```
+
+### Skapa möjlighet från prenumeration
+
+```javascript create_opportunity.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "subscription.active") {
+    const s = webhook.payload.data;
+    webhook.url = "https://api.close.com/api/v1/opportunity/";
+    webhook.payload = {
+      lead_id: s.customer.customer_id,
+      value: (s.recurring_pre_tax_amount / 100).toFixed(2),
+      value_period: s.payment_frequency_interval,
+      title: `Subscription - ${s.product_id}`,
+      custom: {
+        subscription_id: s.subscription_id,
+        billing_frequency: s.payment_frequency_interval,
+        next_billing: s.next_billing_date
+      }
+    };
+  }
+  return webhook;
+}
+```
+
+## Tips
+
+- Använd Close CRMs API-dokumentation för att förstå fältmappningar
+- Inkludera anpassade fält för betalningsspecifik data
+- Mappa prenumerationsbelopp till möjlighetsvärden
+- Använd kund-ID:n för korrekt lead-association
+
+## Felsökning
+
+<AccordionGroup>
+<Accordion title="Poster skapades inte i Close CRM">
+- Verifiera att API-nyckeln har skrivbehörigheter
+- Kontrollera att nödvändiga fält är inkluderade
+- Se till att e-postformatet är giltigt
+- Granska Close CRM API-hastighetsgränser
+</Accordion>
+
+<Accordion title="Transformationsfel">
+- Validera att JSON-strukturen matchar Close CRM API-formatet
+- Kontrollera att alla nödvändiga fält är närvarande
+- Se till att fältnamnen matchar Close CRM-schemat exakt
+</Accordion>
+</AccordionGroup>

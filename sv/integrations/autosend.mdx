@@ -1,0 +1,211 @@
+---
+title: AutoSend
+description: Lär dig hur du använder AutoSend's e-post-API för att skicka
+  automatiserade transaktionse-postmeddelanden för dina Dodo
+  Payments-transaktioner, återbetalningar och betalningsevenemang.
+icon: paper-plane
+---
+
+## Introduktion
+
+Integrationen mellan AutoSend och Dodo Payments gör det möjligt för dig att automatiskt skicka realtids e-postmeddelanden för alla betalningsevenemang, från framgångsrika transaktioner till misslyckade försök och bekräftelser av återbetalningar.
+
+Skicka transaktionse-postmeddelanden för betalningsevenemang med AutoSend's kraftfulla e-post-API.
+
+<Info>
+Denna integration kräver din AutoSend API-nyckel för autentisering. Du kan hitta din API-nyckel i AutoSend-instrumentpanelen under Inställningar > API-nycklar.
+</Info>
+
+## Komma igång
+
+Följ dessa steg för att integrera AutoSend med Dodo Payments:
+
+<Steps>
+<Step title="Öppna Webhook-sektionen">
+  Navigera till Webhooks-sektionen i din Dodo Payments-instrumentpanel.
+  
+  <Frame>
+    <img src="/images/integrations/autosend.png" alt="Lägg till slutpunkt och integrationsrullgardinsmeny" />
+  </Frame>
+</Step>
+
+<Step title="Välj AutoSend-integration">
+  Välj AutoSend från listan över tillgängliga integrationer.
+</Step>
+
+<Step title="Ange API-nyckel">
+  Ange din AutoSend API-nyckel för autentisering. Du kan hitta din API-nyckel i AutoSend-instrumentpanelen under Inställningar > API-nycklar.
+  
+  <Card title="Lär dig hur du skapar och hanterar API-nycklar" icon="key" href="https://docs.autosend.com/api-keys">
+    Besök AutoSend-dokumentationen för detaljerade instruktioner om hur du skapar och hanterar API-nycklar.
+  </Card>
+</Step>
+
+<Step title="Konfigurera transformation">
+  Ställ in JavaScript-transformationshanterare för att anpassa e-postinnehållet baserat på betalningsevenemang.
+</Step>
+
+<Step title="Testa & Skapa">
+  Testa din webhook-konfiguration för att säkerställa att e-postmeddelanden skickas korrekt, och skapa sedan integrationen.
+</Step>
+
+<Step title="Aktivering klar">
+  🎉 Din AutoSend-integration är nu aktiv och kommer automatiskt att skicka e-postmeddelanden för de konfigurerade betalningsevenemangen.
+</Step>
+</Steps>
+
+## Kodexempel
+
+### Bekräftelse-e-post för betalning
+
+Skicka ett bekräftelse-e-postmeddelande när en betalning har behandlats framgångsrikt:
+
+```javascript payment_confirmation.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.url = "https://api.autosend.com/v1/mails/send";
+    webhook.payload = {
+      to: {
+        email: p.customer.email,
+        name: p.customer.name,
+      },
+      from: {
+        email: "payments@mail.yourdomain.com",
+        name: "Your Company",
+      },
+      subject: "Payment Successful - Thank you for your purchase!",
+      templateId: "A-61522f2xxxxxxxxx",
+      dynamicData: {
+        customerName: p.customer.name,
+        amount: p.amount,
+        currency: p.currency,
+        paymentId: p.payment_id,
+        paymentDate: new Date(p.created_at).toLocaleDateString(),
+      },
+      replyTo: {
+        email: "support@yourdomain.com",
+        name: "Support Team",
+      },
+    };
+  }
+  return webhook;
+}
+```
+
+### Välkomst-e-post för prenumeration
+
+Skicka ett välkomst-e-postmeddelande när en ny prenumeration skapas:
+
+```javascript subscription_welcome.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "subscription.created") {
+    const s = webhook.payload.data;
+    webhook.url = "https://api.autosend.com/v1/mails/send";
+    webhook.payload = {
+      to: {
+        email: s.customer.email,
+        name: s.customer.name,
+      },
+      from: {
+        email: "subscriptions@mail.yourdomain.com",
+        name: "Your Company",
+      },
+      subject: "Welcome to your subscription!",
+      templateId: "A-61522f2xxxxxxxxx",
+      dynamicData: {
+        customerName: s.customer.name,
+        planName: s.plan.name,
+        billingInterval: s.billing_interval,
+        nextBillingDate: new Date(s.next_billing_at).toLocaleDateString(),
+        subscriptionId: s.subscription_id,
+      },
+      replyTo: {
+        email: "support@yourdomain.com",
+        name: "Support Team",
+      },
+    };
+  }
+  return webhook;
+}
+```
+
+### Meddelande om betalningsfel
+
+Skicka ett meddelande-e-post när en betalning misslyckas:
+
+```javascript payment_failure.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.failed") {
+    const p = webhook.payload.data;
+    webhook.url = "https://api.autosend.com/v1/mails/send";
+    webhook.payload = {
+      to: {
+        email: p.customer.email,
+        name: p.customer.name,
+      },
+      from: {
+        email: "billing@mail.yourdomain.com",
+        name: "Your Company Billing",
+      },
+      subject: "Payment Failed - Action Required",
+      templateId: "A-61522f2xxxxxxxxx",
+      dynamicData: {
+        customerName: p.customer.name,
+        amount: p.amount,
+        currency: p.currency,
+        failureReason: p.failure_reason,
+        paymentId: p.payment_id,
+        retryUrl: `https://yourdomain.com/billing/retry/${p.payment_id}`,
+      },
+      replyTo: {
+        email: "billing@yourdomain.com",
+        name: "Billing Support",
+      },
+    };
+  }
+  return webhook;
+}
+```
+
+## Bästa praxis
+
+- **Verifiera din avsändardomän**: Se till att din avsändar-e-postdomän är verifierad i AutoSend för att förbättra leveransförmågan och undvika autentiseringsproblem. Verifierade domäner hjälper till att förhindra att e-post hamnar i skräppostmappar.
+
+- **Använd dynamiska data för personalisering**: Använd `dynamicData` fältet för att anpassa e-postmeddelanden med kundspecifik information som namn, betalningsbelopp och prenumerationsdetaljer. Personliga e-postmeddelanden har högre engagemangsgrader.
+
+- **Skriv tydliga ämnesrader**: Skriv beskrivande ämnesrader som tydligt anger e-postens syfte. Undvik ord som kan utlösa skräppostfilter och håll ämnen korta (under 50 tecken).
+
+- **Testa innan produktion**: Testa alltid dina e-postmeddelanden innan du skickar dem i produktion. Detta säkerställer att ditt e-postinnehåll visas korrekt och att all dynamisk data är korrekt mappad.
+
+## API-referens
+
+För fullständiga detaljer om AutoSend API, inklusive alla tillgängliga parametrar och felkoder, besök [AutoSend API-dokumentationen](https://docs.autosend.com/api-reference/mails/send).
+
+## Felsökning
+
+<AccordionGroup>
+<Accordion title="E-postmeddelanden skickas inte">
+- Verifiera att API-nyckeln är korrekt och aktiv
+- Kontrollera att avsändardomänen är verifierad i AutoSend
+- Se till att mottagarens e-postadresser är giltiga
+- Granska AutoSend:s sändningsgränser och kvoter
+- Verifiera att API-slutpunkts-URL:en är korrekt: `https://api.autosend.com/v1/mails/send`
+- Kontrollera att nödvändiga parametrar finns i payloaden
+</Accordion>
+
+<Accordion title="Transformationsfel">
+- Validera att JSON-strukturen matchar AutoSend API-formatet
+- Kontrollera att alla nödvändiga fält finns (`to`, `from`, `templateId` eller `html`/`text`)
+- Se till att e-postadresser är korrekt formaterade
+- Verifiera att `templateId` är giltig om du använder mallar
+- Kontrollera att `dynamicData` nycklar matchar dina mallvariabler
+</Accordion>
+
+<Accordion title="Mallproblem">
+- Verifiera att din mall-ID är korrekt och aktiv i AutoSend
+- Se till att `dynamicData` nycklar matchar de variabler som används i din mall
+- Kontrollera att alla nödvändiga mallvariabler tillhandahålls
+- Testa din mall oberoende i AutoSend-instrumentpanelen
+</Accordion>
+</AccordionGroup>

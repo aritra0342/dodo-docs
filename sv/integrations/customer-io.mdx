@@ -1,0 +1,174 @@
+---
+title: Customer.io
+description: Skicka Dodo Payments-händelser till Customer.io för att utlösa
+  e-postautomatiseringar och kundresor.
+icon: chart-area
+---
+
+## Introduktion
+
+Utlösa personliga e-postkampanjer och kundresor baserat på betalningshändelser. Skicka välkomstmejl till nya kunder, abonnemangsuppdateringar och meddelanden om betalningsfel automatiskt via Customer.io.
+
+<Info>
+Denna integration kräver ditt Customer.io Site ID och API-nyckel.
+</Info>
+
+## Komma igång
+
+<Steps>
+<Step title="Öppna Webhook-sektionen">
+  I din Dodo Payments-instrumentpanel, navigera till <b>Webhooks → + Lägg till slutpunkt</b> och expandera integrationsrullgardinsmenyn.
+  <Frame>
+    <img src="/images/integrations/customer-io.png" alt="Lägg till slutpunkt och integrationsrullgardinsmeny" />
+  </Frame>
+</Step>
+
+<Step title="Välj Customer.io">
+  Välj <b>Customer.io</b> integrationskortet.
+</Step>
+
+<Step title="Ange autentiseringsuppgifter">
+  Ange ditt Customer.io Site ID och API-nyckel i konfigurationen.
+</Step>
+
+<Step title="Konfigurera transformation">
+  Redigera transformationskoden för att formatera händelser för Customer.io:s Track API.
+</Step>
+
+<Step title="Testa & Skapa">
+  Testa med exempelpayloads och klicka på <b>Skapa</b> för att aktivera synkroniseringen.
+</Step>
+
+<Step title="Klart!">
+  🎉 Betalningshändelser kommer nu att utlösa Customer.io e-postautomatiseringar.
+</Step>
+</Steps>
+
+## Exempel på transformationskod
+
+### Spåra betalningshändelser
+
+```javascript track_payments.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.url = "https://track.customer.io/api/v2/entity";
+    webhook.payload = {
+      type: "person",
+      identifiers: {
+        id: p.customer.customer_id
+      },
+      action: "payment_completed",
+      name: "Payment Completed",
+      attributes: {
+        email: p.customer.email,
+        name: p.customer.name,
+        payment_amount: (p.total_amount / 100).toFixed(2),
+        payment_method: p.payment_method || "unknown",
+        payment_id: p.payment_id,
+        currency: p.currency || "USD"
+      }
+    };
+  }
+  return webhook;
+}
+```
+
+### Spåra abonnemangets livscykel
+
+```javascript track_subscriptions.js icon="js" expandable
+function handler(webhook) {
+  const s = webhook.payload.data;
+  switch (webhook.eventType) {
+    case "subscription.active":
+      webhook.url = "https://track.customer.io/api/v2/entity";
+      webhook.payload = {
+        type: "person",
+        identifiers: {
+          id: s.customer.customer_id
+        },
+        action: "subscription_started",
+        name: "Subscription Started",
+        attributes: {
+          email: s.customer.email,
+          subscription_id: s.subscription_id,
+          product_id: s.product_id,
+          amount: (s.recurring_pre_tax_amount / 100).toFixed(2),
+          frequency: s.payment_frequency_interval,
+          next_billing: s.next_billing_date
+        }
+      };
+      break;
+    case "subscription.cancelled":
+      webhook.url = "https://track.customer.io/api/v2/entity";
+      webhook.payload = {
+        type: "person",
+        identifiers: {
+          id: s.customer.customer_id
+        },
+        action: "subscription_cancelled",
+        name: "Subscription Cancelled",
+        attributes: {
+          email: s.customer.email,
+          subscription_id: s.subscription_id,
+          cancelled_at: s.cancelled_at,
+          cancel_at_next_billing: s.cancel_at_next_billing_date
+        }
+      };
+      break;
+  }
+  return webhook;
+}
+```
+
+### Spåra kundattribut
+
+```javascript track_attributes.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.url = "https://track.customer.io/api/v2/entity";
+    webhook.payload = {
+      type: "person",
+      identifiers: {
+        id: p.customer.customer_id
+      },
+      action: "identify",
+      name: "Customer Identified",
+      attributes: {
+        email: p.customer.email,
+        name: p.customer.name,
+        total_spent: (p.total_amount / 100).toFixed(2),
+        payment_method: p.payment_method || "unknown",
+        last_payment_date: webhook.payload.timestamp,
+        customer_since: webhook.payload.timestamp
+      }
+    };
+  }
+  return webhook;
+}
+```
+
+## Tips
+
+- Använd konsekventa händelsenamn som matchar dina Customer.io-kampanjer
+- Inkludera relevanta attribut för personalisering
+- Sätt korrekta kundidentifierare för noggrann spårning
+- Använd meningsfulla händelsenamn för kampanjuppmaningar
+
+## Felsökning
+
+<AccordionGroup>
+<Accordion title="Händelser utlöser inte kampanjer">
+- Verifiera att Site ID och API-nyckel är korrekta
+- Kontrollera att händelsenamn matchar dina Customer.io-kampanjer
+- Se till att kundidentifierare är korrekt inställda
+- Granska Customer.io API:s hastighetsbegränsningar
+</Accordion>
+
+<Accordion title="Transformationsfel">
+- Validera att JSON-strukturen matchar Customer.io API-formatet
+- Kontrollera att alla obligatoriska fält är närvarande
+- Se till att händelsenamn och attribut är korrekt formaterade
+</Accordion>
+</AccordionGroup>

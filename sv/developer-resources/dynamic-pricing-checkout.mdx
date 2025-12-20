@@ -1,0 +1,530 @@
+---
+sidebarTitle: Dynamisk Prissättning Kassa
+title: Dynamisk Prissättning Kassa med Betala Vad Du Vill
+description: Skapa flexibla kassa-länkar med variabel prissättning med hjälp av
+  en enda produkt. Aktivera Betala Vad Du Vill för att låta kunder välja sitt
+  pris eller ställa in dynamiska belopp programatiskt.
+icon: tags
+---
+
+**Dynamisk prissättning** gör att du kan erbjuda variabel prissättning för dina produkter utan att skapa flera produktinlägg. Genom att aktivera **Betala Vad Du Vill (PWYW)** på en enda produkt kan du ställa in minimala och maximala prisgränser, och sedan skicka dynamiska belopp när du skapar kassa-sessionlänkar.
+
+Denna metod är idealisk när du behöver:
+- **Variabel prissättning** utan att hantera flera produkter
+- **Kunddriven prissättning** där köpare väljer sitt belopp
+- **Programmatisk prisstyrning** där du ställer in beloppet dynamiskt via API
+- **Flexibla prissättningsmodeller** för digitala produkter, donationer eller experimentella lanseringar
+
+<Warning>
+Betala Vad Du Vill är endast tillgängligt för **Engångsbetalning** (engångs) produkter. Det kan inte användas med prenumerationsprodukter.
+</Warning>
+
+## Hur Det Fungerar
+
+Med Betala Vad Du Vill aktiverat kan du:
+
+1. **Ställa in prisgränser**: Definiera ett minimipris (obligatoriskt) och eventuellt ett maximipris
+2. **Skicka dynamiska belopp**: Inkludera ett `amount` fält i produktkorgen när du skapar kassa-sessioner
+3. **Låta kunder välja**: Om inget belopp anges kan kunder ange sitt eget pris (inom dina gränser)
+
+<Info>
+När du skickar ett `amount` i produktkorgen används det beloppet för kassan. Om du utelämnar `amount` fältet kan kunder välja sitt eget pris under kassan (underkastat dina minimala/maximala inställningar).
+</Info>
+
+## Steg 1: Skapa en Produkt med Betala Vad Du Vill
+
+Först, skapa en engångsprodukt i din Dodo Payments-instrumentpanel och aktivera Betala Vad Du Vill-prissättning.
+
+<Steps>
+<Step title="Skapa en ny produkt">
+Navigera till **Produkter** i din Dodo Payments-instrumentpanel och klicka på **Lägg till produkt**.
+</Step>
+
+<Step title="Konfigurera produktinformation">
+Fyll i den obligatoriska produktinformationen:
+- **Produktnamn**: Visningsnamn för din produkt
+- **Produktbeskrivning**: Tydlig beskrivning av vad kunder köper
+- **Produktbild**: Ladda upp en bild (PNG/JPG/WebP, upp till 3 MB)
+- **Skattekategori**: Välj den lämpliga skattekategorin
+</Step>
+
+<Step title="Ställ in prissättningstyp">
+Välj **Prissättningstyp** som **Engångsbetalning** (engångsbetalning).
+</Step>
+
+<Step title="Aktivera Betala Vad Du Vill">
+I **Prissättning**-sektionen, aktivera **Betala Vad Du Vill**-knappen.
+</Step>
+
+<Step title="Ställ in minimipris">
+Ange det **Minimipris** som kunder måste betala. Detta är obligatoriskt och säkerställer att du upprätthåller en intäktsgolv.
+
+**Exempel**: Om ditt minimum är $5.00, ange `5.00` (eller `500` cent).
+</Step>
+
+<Step title="Ställ in maximipris (valfritt)">
+Valfritt, ställ in ett **Maximipris** för att begränsa det belopp kunder kan betala.
+</Step>
+
+<Step title="Ställ in föreslaget pris (valfritt)">
+Valfritt, ange ett **Föreslaget pris** som kommer att visas för att vägleda kunder. Detta hjälper till att ankra förväntningar och kan förbättra genomsnittligt ordervärde.
+</Step>
+
+<Step title="Spara produkten">
+Klicka på **Lägg till produkt** för att spara. Notera ditt produkt-ID (t.ex. `pdt_123abc456def`) för användning i kassa-sessioner.
+</Step>
+</Steps>
+
+<Tip>
+Du kan hitta ditt produkt-ID i instrumentpanelen under **Produkter** → **Visa detaljer**, eller genom att använda [List Products API](/api-reference/products/get-products).
+</Tip>
+
+## Steg 2: Skapa Kassa-sessioner med Dynamisk Prissättning
+
+När din produkt är konfigurerad med Betala Vad Du Vill kan du skapa kassa-sessioner med dynamiska belopp. `amount` fältet i produktkorgen gör att du kan ställa in priset programatiskt för varje kassa-session.
+
+### Förstå Beloppsfältet
+
+När du skapar en kassa-session kan du inkludera ett `amount` fält i varje produktkorgsobjekt:
+
+- **Om `amount` anges**: Kassan använder detta exakta belopp (måste vara inom dina minimala/maximala gränser)
+- **Om `amount` utelämnas**: Kunder kan ange sitt eget pris under kassan (inom dina gränser)
+
+<Warning>
+`amount` fältet är endast tillämpligt för Betala Vad Du Vill-produkter. För vanliga produkter ignoreras detta fält.
+</Warning>
+
+### Kodexempel
+
+<CodeGroup>
+
+```typescript TypeScript
+import DodoPayments from 'dodopayments';
+
+// Initialize the Dodo Payments client
+const client = new DodoPayments({
+  bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+});
+
+async function createDynamicPricingCheckout(
+  productId: string,
+  amountInCents: number,
+  returnUrl: string
+) {
+  try {
+    const session = await client.checkoutSessions.create({
+      product_cart: [
+        {
+          product_id: productId,
+          quantity: 1,
+          // Dynamic amount in cents (e.g., 1500 = $15.00)
+          amount: amountInCents
+        }
+      ],
+      return_url: returnUrl,
+      // Optional: Pre-fill customer information
+      customer: {
+        email: 'customer@example.com',
+        name: 'John Doe'
+      },
+      // Optional: Add metadata for tracking
+      metadata: {
+        order_id: 'order_123',
+        pricing_tier: 'custom'
+      }
+    });
+
+    console.log('Checkout URL:', session.checkout_url);
+    console.log('Session ID:', session.session_id);
+    
+    return session;
+  } catch (error) {
+    console.error('Failed to create checkout session:', error);
+    throw error;
+  }
+}
+
+// Example: Create checkout with $25.00 (2500 cents)
+const session = await createDynamicPricingCheckout(
+  'prod_123abc456def',
+  2500, // $25.00 in cents
+  'https://yoursite.com/checkout/success'
+);
+
+// Example: Create checkout with $10.00 (1000 cents)
+const session2 = await createDynamicPricingCheckout(
+  'prod_123abc456def',
+  1000, // $10.00 in cents
+  'https://yoursite.com/checkout/success'
+);
+```
+
+```python Python
+import os
+from dodopayments import DodoPayments
+
+# Initialize the Dodo Payments client
+client = DodoPayments(
+    bearer_token=os.environ.get("DODO_PAYMENTS_API_KEY"),
+)
+
+def create_dynamic_pricing_checkout(
+    product_id: str,
+    amount_in_cents: int,
+    return_url: str
+):
+    """
+    Create a checkout session with dynamic pricing.
+    
+    Args:
+        product_id: The product ID with Pay What You Want enabled
+        amount_in_cents: The amount in cents (e.g., 2500 for $25.00)
+        return_url: URL to redirect after payment completion
+    
+    Returns:
+        Session object with checkout_url and session_id
+    """
+    try:
+        session = client.checkout_sessions.create(
+            product_cart=[
+                {
+                    "product_id": product_id,
+                    "quantity": 1,
+                    # Dynamic amount in cents (e.g., 1500 = $15.00)
+                    "amount": amount_in_cents
+                }
+            ],
+            return_url=return_url,
+            # Optional: Pre-fill customer information
+            customer={
+                "email": "customer@example.com",
+                "name": "John Doe"
+            },
+            # Optional: Add metadata for tracking
+            metadata={
+                "order_id": "order_123",
+                "pricing_tier": "custom"
+            }
+        )
+        
+        print(f"Checkout URL: {session.checkout_url}")
+        print(f"Session ID: {session.session_id}")
+        
+        return session
+    except Exception as error:
+        print(f"Failed to create checkout session: {error}")
+        raise error
+
+# Example: Create checkout with $25.00 (2500 cents)
+session = create_dynamic_pricing_checkout(
+    "prod_123abc456def",
+    2500,  # $25.00 in cents
+    "https://yoursite.com/checkout/success"
+)
+
+# Example: Create checkout with $10.00 (1000 cents)
+session2 = create_dynamic_pricing_checkout(
+    "prod_123abc456def",
+    1000,  # $10.00 in cents
+    "https://yoursite.com/checkout/success"
+)
+```
+
+</CodeGroup>
+
+<Note>
+**Beloppsformat**: `amount` fältet måste vara i den lägsta enheten av valutan. För USD betyder detta cent (t.ex. $25.00 = `2500`). För andra valutor, använd den minsta enheten (t.ex. paise för INR).
+</Note>
+
+## Steg 3: Låt Kunder Välja Deras Pris
+
+Om du vill att kunder ska välja sitt eget pris under kassan, utelämna helt enkelt `amount` fältet från produktkorgen. Kassasidan kommer att visa ett inmatningsfält där kunder kan ange vilket belopp som helst inom dina minimala och maximala gränser.
+
+<CodeGroup>
+
+```typescript TypeScript
+async function createCustomerChoiceCheckout(
+  productId: string,
+  returnUrl: string
+) {
+  try {
+    const session = await client.checkoutSessions.create({
+      product_cart: [
+        {
+          product_id: productId,
+          quantity: 1
+          // No amount field - customer will choose their price
+        }
+      ],
+      return_url: returnUrl,
+      customer: {
+        email: 'customer@example.com',
+        name: 'John Doe'
+      }
+    });
+
+    return session;
+  } catch (error) {
+    console.error('Failed to create checkout session:', error);
+    throw error;
+  }
+}
+```
+
+```python Python
+def create_customer_choice_checkout(
+    product_id: str,
+    return_url: str
+):
+    """
+    Create a checkout session where customers choose their own price.
+    """
+    try:
+        session = client.checkout_sessions.create(
+            product_cart=[
+                {
+                    "product_id": product_id,
+                    "quantity": 1
+                    # No amount field - customer will choose their price
+                }
+            ],
+            return_url=return_url,
+            customer={
+                "email": "customer@example.com",
+                "name": "John Doe"
+            }
+        )
+        
+        return session
+    except Exception as error:
+        print(f"Failed to create checkout session: {error}")
+        raise error
+```
+
+</CodeGroup>
+
+## Vanliga Användningsfall
+
+### Användningsfall 1: Tiers Prissättning Baserat på Användartyp
+
+Erbjud olika priser till olika kundsegment med samma produkt:
+
+```typescript
+// Student discount: $10.00
+const studentSession = await createDynamicPricingCheckout(
+  'prod_123abc456def',
+  1000, // $10.00
+  'https://yoursite.com/success'
+);
+
+// Regular price: $25.00
+const regularSession = await createDynamicPricingCheckout(
+  'prod_123abc456def',
+  2500, // $25.00
+  'https://yoursite.com/success'
+);
+
+// Premium price: $50.00
+const premiumSession = await createDynamicPricingCheckout(
+  'prod_123abc456def',
+  5000, // $50.00
+  'https://yoursite.com/success'
+);
+```
+
+### Användningsfall 2: Dynamisk Prissättning Baserat på Kvantitet
+
+Justera priset baserat på köpt kvantitet:
+
+```typescript
+async function createQuantityBasedCheckout(
+  productId: string,
+  quantity: number
+) {
+  // Base price: $20.00 per unit
+  // Discount: 10% for 2+ items, 20% for 5+ items
+  const basePrice = 2000; // $20.00 in cents
+  let discount = 0;
+  
+  if (quantity >= 5) {
+    discount = 0.20; // 20% off
+  } else if (quantity >= 2) {
+    discount = 0.10; // 10% off
+  }
+  
+  const totalAmount = Math.round(basePrice * quantity * (1 - discount));
+  
+  const session = await client.checkoutSessions.create({
+    product_cart: [
+      {
+        product_id: productId,
+        quantity: quantity,
+        amount: totalAmount
+      }
+    ],
+    return_url: 'https://yoursite.com/success'
+  });
+  
+  return session;
+}
+```
+
+### Användningsfall 3: Tidsbaserad eller Kampanjprissättning
+
+Tillämpa kampanjprissättning under specifika perioder:
+
+```typescript
+async function createPromotionalCheckout(productId: string) {
+  const isPromoActive = checkIfPromotionActive(); // Your logic
+  const regularPrice = 3000; // $30.00
+  const promoPrice = 2000; // $20.00
+  
+  const amount = isPromoActive ? promoPrice : regularPrice;
+  
+  const session = await client.checkoutSessions.create({
+    product_cart: [
+      {
+        product_id: productId,
+        quantity: 1,
+        amount: amount
+      }
+    ],
+    return_url: 'https://yoursite.com/success',
+    metadata: {
+      pricing_type: isPromoActive ? 'promotional' : 'regular'
+    }
+  });
+  
+  return session;
+}
+```
+
+## Bästa Praxis
+
+<CardGroup cols={2}>
+<Card title="Ställ Rimliga Gränser" icon="sliders">
+Välj ett minimipris som täcker dina kostnader samtidigt som det förblir tillgängligt. Använd ett föreslaget pris för att vägleda kundernas förväntningar.
+</Card>
+
+<Card title="Validera Belopp" icon="shield-check">
+Validera alltid att dynamiska belopp ligger inom produktens minimala och maximala gränser innan du skapar kassa-sessioner.
+</Card>
+
+<Card title="Spåra Prissättningsbeslut" icon="chart-line">
+Använd metadata för att spåra varför specifika belopp valdes (t.ex. `pricing_tier`, `discount_code`, `user_segment`).
+</Card>
+
+<Card title="Hantera Gränsfall" icon="exclamation-triangle">
+Säkerställ att din applikation hanterar fall där belopp överskrider maximala gränser eller faller under minimala gränser på ett smidigt sätt.
+</Card>
+</CardGroup>
+
+## Validering och Felhantering
+
+Validera alltid belopp mot produktens minimala och maximala inställningar:
+
+<CodeGroup>
+
+```typescript TypeScript
+async function createValidatedCheckout(
+  productId: string,
+  amountInCents: number,
+  minAmount: number,
+  maxAmount: number | null
+) {
+  // Validate minimum
+  if (amountInCents < minAmount) {
+    throw new Error(
+      `Amount ${amountInCents} is below minimum ${minAmount}`
+    );
+  }
+  
+  // Validate maximum (if set)
+  if (maxAmount !== null && amountInCents > maxAmount) {
+    throw new Error(
+      `Amount ${amountInCents} exceeds maximum ${maxAmount}`
+    );
+  }
+  
+  // Create checkout session
+  return await client.checkoutSessions.create({
+    product_cart: [
+      {
+        product_id: productId,
+        quantity: 1,
+        amount: amountInCents
+      }
+    ],
+    return_url: 'https://yoursite.com/success'
+  });
+}
+```
+
+```python Python
+def create_validated_checkout(
+    product_id: str,
+    amount_in_cents: int,
+    min_amount: int,
+    max_amount: int | None
+):
+    """
+    Create a checkout session with amount validation.
+    """
+    # Validate minimum
+    if amount_in_cents < min_amount:
+        raise ValueError(
+            f"Amount {amount_in_cents} is below minimum {min_amount}"
+        )
+    
+    # Validate maximum (if set)
+    if max_amount is not None and amount_in_cents > max_amount:
+        raise ValueError(
+            f"Amount {amount_in_cents} exceeds maximum {max_amount}"
+        )
+    
+    # Create checkout session
+    return client.checkout_sessions.create(
+        product_cart=[
+            {
+                "product_id": product_id,
+                "quantity": 1,
+                "amount": amount_in_cents
+            }
+        ],
+        return_url="https://yoursite.com/success"
+    )
+```
+
+</CodeGroup>
+
+## API Referens
+
+<CardGroup cols={2}>
+
+<Card title="Betala Vad Du Vill Funktion" icon="dollar-sign" href="/features/pay-what-you-want">
+Läs mer om Betala Vad Du Vill-prissättningsmodellen och dess funktioner.
+</Card>
+
+<Card title="Kassa-sessioner Guide" icon="cart-shopping" href="/developer-resources/checkout-session">
+Utforska avancerade funktioner och anpassningsalternativ för kassa-sessioner.
+</Card>
+</CardGroup>
+
+## Felsökning
+
+<AccordionGroup>
+<Accordion title="Belopp ignoreras">
+Om ditt `amount` fält ignoreras, verifiera att:
+- Produkten har **Betala Vad Du Vill** aktiverat i instrumentpanelen
+- Produkten är en **Engångsbetalning** (engångs) produkt, inte en prenumeration
+- Beloppet är i rätt format (lägsta valutaenhet, t.ex. cent för USD)
+</Accordion>
+
+<Accordion title="Belopp överskrider maximalt eller är under minimalt">
+API:et kommer att avvisa kassa-sessioner där beloppet bryter mot produktens prisgränser. Validera alltid belopp innan du skapar kassa-sessioner, eller låt kunder välja sitt pris genom att utelämna `amount` fältet.
+</Accordion>
+
+<Accordion title="Kund kan inte ange sitt eget pris">
+Om kunder inte ser inmatningsfältet för pris, se till att du har utelämnat `amount` fältet från produktkorgen. När `amount` anges, använder kassan det exakta beloppet.
+</Accordion>
+</AccordionGroup>

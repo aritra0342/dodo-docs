@@ -1,0 +1,249 @@
+---
+title: CLI
+description: अपने टर्मिनल से Dodo Payments API के साथ इंटरैक्ट करने के लिए
+  कमांड-लाइन इंटरफेस
+icon: terminal
+---
+
+## स्थापना
+
+### गो इंस्टॉल करें
+
+```bash
+go install github.com/dodopayments/dodopayments-cli/cmd/dodopayments@latest
+```
+
+### स्रोत से
+
+```bash
+git clone https://github.com/dodopayments/dodopayments-cli.git
+cd dodopayments-cli
+go install ./cmd/dodopayments
+```
+
+## त्वरित प्रारंभ
+
+अपनी API कुंजी सेट करें:
+
+```bash
+export DODO_PAYMENTS_API_KEY=your_api_key_here
+```
+
+बुनियादी कमांड संरचना:
+
+```bash
+dodopayments [resource] [command] [flags]
+```
+
+चेकआउट सत्र बनाएं:
+
+```bash
+dodopayments checkout-sessions create \
+  --product-cart.product_id prod_123 \
+  --product-cart.quantity 1 \
+  --return-url https://yourdomain.com/return
+```
+
+## वैश्विक ध्वज
+
+| ध्वज | विवरण |
+|------|-------------|
+| `--format` | आउटपुट प्रारूप: `auto`, `json`, `yaml`, `pretty`, `explore` |
+| `--transform` | gjson सिंटैक्स का उपयोग करके प्रतिक्रिया को फ़िल्टर करें |
+| `--debug` | विस्तृत लॉगिंग सक्षम करें |
+| `--version`, `-v` | CLI संस्करण प्रदर्शित करें |
+
+## सामान्य कमांड
+
+### भुगतान
+
+```bash
+# List payments
+dodopayments payments list --limit 20 --format json
+
+# Retrieve payment
+dodopayments payments retrieve pay_123
+
+# Get line items
+dodopayments payments line-items pay_123
+```
+
+### ग्राहक
+
+```bash
+# Create customer
+dodopayments customers create \
+  --email customer@example.com \
+  --name "John Doe"
+
+# List customers
+dodopayments customers list
+
+# Update customer
+dodopayments customers update cus_123 --name "Jane Doe"
+```
+
+### सदस्यताएँ
+
+```bash
+# Create subscription
+dodopayments subscriptions create \
+  --customer-id cus_123 \
+  --product-id prod_456
+
+# List subscriptions
+dodopayments subscriptions list
+
+# Get usage history
+dodopayments subscriptions usage-history sub_123
+```
+
+### उत्पाद
+
+```bash
+# Create product
+dodopayments products create \
+  --name "Premium Plan" \
+  --price.amount 2999 \
+  --price.currency USD
+
+# List products
+dodopayments products list
+```
+
+## उपयोग-आधारित बिलिंग
+
+### इवेंट्स को इन्गेस्ट करें
+
+```bash
+dodopayments usage-events ingest \
+  --events.event_id api_call_12345 \
+  --events.customer_id cus_abc123 \
+  --events.event_name api_request \
+  --events.timestamp 2024-01-15T10:30:00Z \
+  --events.metadata.endpoint /api/v1/users
+```
+
+### मीटर प्रबंधित करें
+
+```bash
+# Create meter
+dodopayments meters create \
+  --name "API Requests" \
+  --event-name api_request \
+  --aggregation count
+
+# List meters
+dodopayments meters list
+```
+
+## आउटपुट प्रारूप
+
+### JSON (स्क्रिप्टिंग के लिए)
+
+```bash
+dodopayments payments list --format json | jq '.data[] | {id, amount}'
+```
+
+### सुंदर (पढ़ने के लिए)
+
+```bash
+dodopayments payments retrieve pay_123 --format pretty
+```
+
+### इंटरैक्टिव अन्वेषण
+
+```bash
+dodopayments payments list --format explore
+```
+
+### gjson के साथ रूपांतरित करें
+
+```bash
+# Extract all payment IDs
+dodopayments payments list --transform "data.#.id"
+
+# Filter and extract
+dodopayments payments list --transform "data.#(amount>5000)#.id"
+```
+
+<Tip>
+शेल स्क्रिप्ट में शक्तिशाली डेटा प्रोसेसिंग के लिए `--format json` का उपयोग करें `jq` के साथ।
+</Tip>
+
+## स्क्रिप्टिंग उदाहरण
+
+```bash
+#!/bin/bash
+
+# Export all payments to CSV
+dodopayments payments list --format json | \
+  jq -r '.data[] | [.id, .amount, .currency, .status] | @csv' > payments.csv
+
+# Create customers from file
+while IFS=',' read -r email name; do
+  dodopayments customers create \
+    --email "$email" \
+    --name "$name" \
+    --format json
+done < customers.csv
+```
+
+## शेल पूर्णता
+
+स्वतः पूर्णता सक्षम करें:
+
+```bash
+# Bash
+eval "$(dodopayments completion bash)"
+
+# Zsh
+eval "$(dodopayments completion zsh)"
+
+# Fish
+dodopayments completion fish | source
+```
+
+## उपलब्ध संसाधन
+
+CLI 24 संसाधन श्रेणियों के लिए कमांड प्रदान करता है:
+
+- `checkout-sessions` - चेकआउट सत्र प्रबंधन
+- `payments` - भुगतान संचालन
+- `subscriptions` - आवर्ती बिलिंग
+- `customers` - ग्राहक खाते
+- `products` - उत्पाद कैटलॉग
+- `licenses` - सॉफ़्टवेयर लाइसेंसिंग
+- `refunds` - भुगतान रिफंड
+- `disputes` - भुगतान विवाद
+- `webhooks` - इवेंट वेबहुक
+- `meters` - उपयोग मीटर
+- `usage-events` - उपयोग ट्रैकिंग
+- `discounts` - छूट कोड
+- `payouts` - विक्रेता भुगतान
+- `brands` - मल्टी-ब्रांड प्रबंधन
+- और 10 अतिरिक्त संसाधन
+
+<Info>
+सभी उपलब्ध संसाधनों को देखने के लिए `dodopayments --help` का उपयोग करें और संसाधन-विशिष्ट कमांड के लिए `dodopayments [resource] --help` का उपयोग करें।
+</Info>
+
+## संसाधन
+
+<CardGroup cols={2}>
+<Card title="GitHub रिपॉजिटरी" icon="github" href="https://github.com/dodopayments/dodopayments-cli">
+  स्रोत कोड और रिलीज़ देखें
+</Card>
+
+<Card title="API संदर्भ" icon="book" href="/api-reference/introduction">
+  पूर्ण API दस्तावेज़ीकरण
+</Card>
+</CardGroup>
+
+## समर्थन
+
+क्या आपको CLI के साथ मदद चाहिए?
+
+- **डिस्कॉर्ड**: हमारे [समुदाय सर्वर](https://discord.gg/bYqAp4ayYh) में शामिल हों
+- **ईमेल**: हमें support@dodopayments.com पर संपर्क करें
+- **गिटहब**: [रिपॉजिटरी](https://github.com/dodopayments/dodopayments-cli) पर एक मुद्दा खोलें

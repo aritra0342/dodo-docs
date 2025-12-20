@@ -1,0 +1,610 @@
+---
+title: Hono Adaptor
+description: Lär dig hur du integrerar Dodo Payments med ditt Hono App
+  Router-projekt med hjälp av vår NextJS Adaptor. Täcker checkout, kundportal,
+  webhooks och säker miljöinställning.
+icon: code-merge
+---
+
+<CardGroup cols={2}>
+<Card title="Checkout Handler" icon="cart-shopping" href="#checkout-route-handler">
+    Integrera Dodo Payments checkout i din Hono-app.
+</Card>
+<Card title="Customer Portal" icon="user" href="#customer-portal-route-handler">
+    Låt kunder hantera prenumerationer och detaljer.
+</Card>
+<Card title="Webhooks" icon="bell" href="#webhook-route-handler">
+    Ta emot och bearbeta Dodo Payments webhook-händelser.
+</Card>
+</CardGroup>
+
+## Installation
+
+<Steps>
+<Step title="Installera paketet">
+Kör följande kommando i din projektrot:
+
+```bash
+npm install @dodopayments/hono
+```
+
+</Step>
+<Step title="Ställ in miljövariabler">
+Skapa en <code>.env</code> fil i din projektrot:
+
+```env expandable
+DODO_PAYMENTS_API_KEY=your-api-key
+DODO_PAYMENTS_RETURN_URL=https://yourapp.com/success
+DODO_PAYMENTS_WEBHOOK_KEY=your-webhook-secret
+DODO_PAYMENTS_ENVIRONMENT="test_mode" or "live_mode""
+```
+
+<Warning>
+Kom ihåg att aldrig committa din <code>.env</code> fil eller hemligheter till versionskontroll.
+</Warning>
+</Step>
+</Steps>
+
+## Exempel på Route Handlers
+
+<Info>
+Alla exempel förutsätter att du använder Hono App Router.
+</Info>
+
+<Tabs>
+<Tab title="Checkout Handler">
+  <Info>
+  Använd denna handler för att integrera Dodo Payments checkout i din Hono-app. Stöder statiska (GET), dynamiska (POST) och sessions (POST) flöden.
+  </Info>
+  <CodeGroup>
+
+  ```typescript Hono Route Handler expandable
+    // route.ts
+    import { Checkout } from '@dodopayments/hono';
+    import Hono from 'hono'
+
+    const app = new Hono()
+
+    app.get(
+    "/api/checkout",
+    Checkout({
+        bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+        environment: process.env.DODO_PAYMENTS_ENVIRONMENT,
+        returnUrl: process.env.DODO_PAYMENTS_RETURN_URL,
+        type: 'static'
+    })
+    );
+
+    app.post(
+    "/api/checkout",
+    Checkout({
+        bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+        environment: process.env.DODO_PAYMENTS_ENVIRONMENT,
+        returnUrl: process.env.DODO_PAYMENTS_RETURN_URL,
+        type: 'dynamic'
+    })
+    );
+    
+    app.post(
+    "/api/checkout",
+    Checkout({
+        bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+        environment: process.env.DODO_PAYMENTS_ENVIRONMENT,
+        returnUrl: process.env.DODO_PAYMENTS_RETURN_URL,
+        type: 'session'
+    })
+    );
+    ```
+
+  </CodeGroup>
+  <CodeGroup>
+
+  ```curl Static Checkout Curl example expandable
+  curl --request GET \
+  --url 'https://example.com/api/checkout?productId=pdt_fqJhl7pxKWiLhwQR042rh' \
+  --header 'User-Agent: insomnia/11.2.0' \
+  --cookie mode=test
+  ```
+
+  </CodeGroup>
+  <CodeGroup>
+
+  ```curl Dynamic Checkout Curl example expandable
+  curl --request POST \
+  --url https://example.com/api/checkout \
+  --header 'Content-Type: application/json' \
+  --header 'User-Agent: insomnia/11.2.0' \
+  --cookie mode=test \
+  --data '{
+  "billing": {
+    "city": "Texas",
+    "country": "US",
+    "state": "Texas",
+    "street": "56, hhh",
+    "zipcode": "560000"
+  },
+  "customer": {
+    "email": "test@example.com",
+		"name": "test"
+  },
+  "metadata": {},
+  "payment_link": true,
+	"product_id": "pdt_QMDuvLkbVzCRWRQjLNcs",
+	"quantity": 1,
+	"billing_currency": "USD",
+	"discount_code": "IKHZ23M9GQ",
+    "return_url": "https://example.com",
+	"trial_period_days": 10
+}'
+  ```
+
+  </CodeGroup>
+  <CodeGroup>
+
+  ```curl Checkout Session Curl example expandable
+  curl --request POST \
+  --url https://example.com/api/checkout \
+  --header 'Content-Type: application/json' \
+  --header 'User-Agent: insomnia/11.2.0' \
+  --cookie mode=test \
+  --data '{
+  "product_cart": [
+    {
+      "product_id": "pdt_QMDuvLkbVzCRWRQjLNcs",
+      "quantity": 1
+    }
+  ],
+  "customer": {
+    "email": "test@example.com",
+    "name": "test"
+  },
+  "return_url": "https://example.com/success"
+}'
+  ```
+
+  </CodeGroup>
+
+</Tab>
+<Tab title="Customer Portal Handler">
+  <Info>
+  Använd denna handler för att låta kunder hantera sina prenumerationer och detaljer via Dodo Payments kundportal.
+  </Info>
+  <CodeGroup>
+
+    ```typescript Hono Route Handler expandable
+    // route.ts
+    import { Checkout } from '@dodopayments/hono';
+    import Hono from 'hono'
+
+    const app = new Hono()
+    app.get(
+        "/api/customer-portal",
+        CustomerPortal({
+            bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+            environment: process.env.DODO_PAYMENTS_ENVIRONMENT
+        })
+    );
+    ```
+
+  </CodeGroup>
+  <CodeGroup>
+
+  ```curl Customer Portal Curl example expandable
+  curl --request GET \
+  --url 'https://example.com/api/customer-portal?customer_id=cus_9VuW4K7O3GHwasENg31m&send_email=true' \
+  --header 'User-Agent: insomnia/11.2.0' \
+  --cookie mode=test
+  ```
+
+  </CodeGroup>
+</Tab>
+<Tab title="Webhook Handler">
+  <Info>
+  Använd denna handler för att ta emot och bearbeta Dodo Payments webhook-händelser säkert i din Hono-app.
+  </Info>
+  <CodeGroup>
+
+    ```typescript Hono Route Handler expandable
+    // route.ts
+    import Hono from 'hono'
+    import { Webhooks } from '@dodopayments/hono'
+
+    const app = new Hono()
+    app.post(
+    "/api/webhooks",
+        Webhooks({
+            webhookKey: process.env.DODO_PAYMENTS_WEBHOOK_KEY,
+            onPayload: async (payload) => {
+            // Handle Payload Here
+            console.log(payload)
+            }
+        })
+    );
+
+    ```
+
+  </CodeGroup>
+</Tab>
+</Tabs>
+
+## Checkout Route Handler
+
+<Info>
+Dodo Payments stöder tre typer av betalningsflöden för att integrera betalningar på din webbplats, denna adaptor stöder alla typer av betalningsflöden.
+</Info>
+
+- **Statiska betalningslänkar:** Omedelbart delbara URL:er för snabb, kodfri insamling av betalningar.
+- **Dynamiska betalningslänkar:** Programmatisk generering av betalningslänkar med anpassade detaljer med hjälp av API eller SDK:er.
+- **Checkout-sessioner:** Skapa säkra, anpassningsbara checkout-upplevelser med förkonfigurerade produktvagnar och kunddetaljer.
+
+<AccordionGroup>
+<Accordion title="Statisk Checkout (GET)">
+
+### Stödda frågeparametrar
+<ParamField query="productId" type="string" required>
+Produktidentifierare (t.ex. <code>?productId=pdt_nZuwz45WAs64n3l07zpQR</code>).
+</ParamField>
+<ParamField query="quantity" type="integer">
+Antal av produkten.
+</ParamField>
+<ParamField query="fullName" type="string">
+Kundens fullständiga namn.
+</ParamField>
+<ParamField query="firstName" type="string">
+Kundens förnamn.
+</ParamField>
+<ParamField query="lastName" type="string">
+Kundens efternamn.
+</ParamField>
+<ParamField query="email" type="string">
+Kundens e-postadress.
+</ParamField>
+<ParamField query="country" type="string">
+Kundens land.
+</ParamField>
+<ParamField query="addressLine" type="string">
+Kundens adressrad.
+</ParamField>
+<ParamField query="city" type="string">
+Kundens stad.
+</ParamField>
+<ParamField query="state" type="string">
+Kundens stat/provins.
+</ParamField>
+<ParamField query="zipCode" type="string">
+Kundens postnummer.
+</ParamField>
+<ParamField query="disableFullName" type="boolean">
+Inaktivera fältet för fullständigt namn.
+</ParamField>
+<ParamField query="disableFirstName" type="boolean">
+Inaktivera fältet för förnamn.
+</ParamField>
+<ParamField query="disableLastName" type="boolean">
+Inaktivera fältet för efternamn.
+</ParamField>
+<ParamField query="disableEmail" type="boolean">
+Inaktivera fältet för e-post.
+</ParamField>
+<ParamField query="disableCountry" type="boolean">
+Inaktivera fältet för land.
+</ParamField>
+<ParamField query="disableAddressLine" type="boolean">
+Inaktivera fältet för adressrad.
+</ParamField>
+<ParamField query="disableCity" type="boolean">
+Inaktivera fältet för stad.
+</ParamField>
+<ParamField query="disableState" type="boolean">
+Inaktivera fältet för stat.
+</ParamField>
+<ParamField query="disableZipCode" type="boolean">
+Inaktivera fältet för postnummer.
+</ParamField>
+<ParamField query="paymentCurrency" type="string">
+Specificera betalningsvalutan (t.ex. <code>USD</code>).
+</ParamField>
+<ParamField query="showCurrencySelector" type="boolean">
+Visa valutaväljare.
+</ParamField>
+<ParamField query="paymentAmount" type="integer">
+Specificera betalningsbeloppet (t.ex. <code>1000</code> för $10.00).
+</ParamField>
+<ParamField query="showDiscounts" type="boolean">
+Visa rabattfält.
+</ParamField>
+<ParamField query="metadata_*" type="string">
+Eventuella frågeparametrar som börjar med <code>metadata_</code> kommer att skickas som metadata.
+</ParamField>
+
+<Warning>
+Om <code>productId</code> saknas returnerar handlern ett 400-svar. Ogiltiga frågeparametrar resulterar också i ett 400-svar.
+</Warning>
+
+### Svarsformat
+Statisk checkout returnerar ett JSON-svar med checkout-URL:en:
+
+```json
+{
+  "checkout_url": "https://checkout.dodopayments.com/..."
+}
+```
+
+</Accordion>
+<Accordion title="Dynamisk Checkout (POST)">
+- Skicka parametrar som en JSON-kropp i en POST-förfrågan.
+- Stöder både engångs- och återkommande betalningar.
+- För en komplett lista över stödda POST-kroppsfält, se:
+  - [Begäran kropp för en engångsbetalning](https://docs.dodopayments.com/api-reference/payments/post-payments)
+  - [Begäran kropp för en prenumerationsprodukt](https://docs.dodopayments.com/api-reference/subscriptions/post-subscriptions)
+
+### Svarsformat
+Dynamisk checkout returnerar ett JSON-svar med checkout-URL:en:
+
+```json
+{
+  "checkout_url": "https://checkout.dodopayments.com/..."
+}
+```
+
+</Accordion>
+<Accordion title="Checkout-sessioner (POST)">
+Checkout-sessioner ger en mer säker, värd checkout-upplevelse som hanterar hela betalningsflödet för både engångsköp och prenumerationer med full anpassningskontroll.
+
+Se [Checkout Sessions Integration Guide](https://docs.dodopayments.com/developer-resources/checkout-session) för mer information och en komplett lista över stödda fält.
+
+### Svarsformat
+Checkout-sessioner returnerar ett JSON-svar med checkout-URL:en:
+
+```json
+{
+  "checkout_url": "https://checkout.dodopayments.com/session/..."
+}
+```
+
+</Accordion>
+</AccordionGroup>
+
+## Customer Portal Route Handler
+
+Customer Portal Route Handler gör det möjligt för dig att sömlöst integrera Dodo Payments kundportal i din Hono-applikation.
+
+### Frågeparametrar
+<ParamField query="customer_id" type="string" required>
+Kund-ID för portal-sessionen (t.ex. <code>?customer_id=cus_123</code>).
+</ParamField>
+<ParamField query="send_email" type="boolean">
+Om inställt på <code>true</code>, skickar ett e-postmeddelande till kunden med portal-länken.
+</ParamField>
+
+<Warning>
+Returnerar 400 om <code>customer_id</code> saknas.
+</Warning>
+
+## Webhook Route Handler
+
+- **Metod:** Endast POST-förfrågningar stöds. Andra metoder returnerar 405.
+- **Signaturverifiering:** Verifierar webhook-signaturen med hjälp av <code>webhookKey</code>. Returnerar 401 om verifieringen misslyckas.
+- **Payload-validering:** Valideras med Zod. Returnerar 400 för ogiltiga payloads.
+- **Felhantering:**
+  - 401: Ogiltig signatur
+  - 400: Ogiltig payload
+  - 500: Intern fel under verifiering
+- **Händelse-routing:** Anropar den lämpliga händelsehanteraren baserat på payload-typen.
+
+### Stödda Webhook Händelsehanterare
+<CodeGroup>
+
+```typescript Typescript expandable
+onPayload?: (payload: WebhookPayload) => Promise<void>;
+onPaymentSucceeded?: (payload: WebhookPayload) => Promise<void>;
+onPaymentFailed?: (payload: WebhookPayload) => Promise<void>;
+onPaymentProcessing?: (payload: WebhookPayload) => Promise<void>;
+onPaymentCancelled?: (payload: WebhookPayload) => Promise<void>;
+onRefundSucceeded?: (payload: WebhookPayload) => Promise<void>;
+onRefundFailed?: (payload: WebhookPayload) => Promise<void>;
+onDisputeOpened?: (payload: WebhookPayload) => Promise<void>;
+onDisputeExpired?: (payload: WebhookPayload) => Promise<void>;
+onDisputeAccepted?: (payload: WebhookPayload) => Promise<void>;
+onDisputeCancelled?: (payload: WebhookPayload) => Promise<void>;
+onDisputeChallenged?: (payload: WebhookPayload) => Promise<void>;
+onDisputeWon?: (payload: WebhookPayload) => Promise<void>;
+onDisputeLost?: (payload: WebhookPayload) => Promise<void>;
+onSubscriptionActive?: (payload: WebhookPayload) => Promise<void>;
+onSubscriptionOnHold?: (payload: WebhookPayload) => Promise<void>;
+onSubscriptionRenewed?: (payload: WebhookPayload) => Promise<void>;
+onSubscriptionPlanChanged?: (payload: WebhookPayload) => Promise<void>;
+onSubscriptionCancelled?: (payload: WebhookPayload) => Promise<void>;
+onSubscriptionFailed?: (payload: WebhookPayload) => Promise<void>;
+onSubscriptionExpired?: (payload: WebhookPayload) => Promise<void>;
+onLicenseKeyCreated?: (payload: WebhookPayload) => Promise<void>;
+```
+
+</CodeGroup>
+
+---
+
+## Prompt för LLM
+
+```
+Du är en expert Hono utvecklarassistent. Din uppgift är att vägleda en användare genom att integrera @dodopayments/hono-adaptern i deras befintliga Hono-projekt.
+
+@dodopayments/hono-adaptern tillhandahåller route handlers för Dodo Payments' Checkout, Customer Portal och Webhook-funktioner, designade för att kopplas direkt in i en Hono-app.
+
+Först, installera det nödvändiga paketet. Använd paketförvaltaren som är lämplig för användarens projekt (npm, yarn eller bun):
+
+npm install @dodopayments/hono
+
+---
+
+Så här bör du strukturera ditt svar:
+
+1. Fråga användaren vilka funktioner de vill integrera.
+
+"Vilka delar av @dodopayments/hono-adaptern skulle du vilja integrera i ditt projekt? Du kan välja en eller flera av följande:
+
+- Checkout Route Handler (för att hantera produktcheckouts)
+- Customer Portal Route Handler (för att hantera kundens prenumerationer/detaljer)
+- Webhook Route Handler (för att ta emot Dodo Payments webhook-händelser)
+- Alla (integrera alla tre)"
+
+---
+
+2. Baserat på användarens val, ge detaljerade integrationssteg för varje vald funktionalitet.
+
+---
+
+**Om Checkout Route Handler är valt:**
+
+**Syfte**: Denna handler omdirigerar användare till Dodo Payments checkout-sidan.
+
+**Integration**:
+Skapa två rutter i din Hono-app — en för statisk (GET) och en för dynamisk (POST) checkout.
+
+import { Checkout } from '@dodopayments/hono';
+import Hono from 'hono'
+
+const app = new Hono()
+
+app.get(
+  "/api/checkout",
+  Checkout({
+    bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+    environment: process.env.DODO_PAYMENTS_ENVIRONMENT,
+    returnUrl: process.env.DODO_PAYMENTS_RETURN_URL,
+    type: 'static'
+  })
+);
+
+app.post(
+  "/api/checkout",
+  Checkout({
+    bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+    environment: process.env.DODO_PAYMENTS_ENVIRONMENT,
+    returnUrl: process.env.DODO_PAYMENTS_RETURN_URL,
+    type: 'session' // eller 'dynamic' för dynamisk länk
+  })
+);
+
+Konfigurationsalternativ:
+
+    bearerToken: Din Dodo Payments API-nyckel (rekommenderas att lagras i miljövariabeln DODO_PAYMENTS_API_KEY).
+
+    returnUrl (valfritt): URL för att omdirigera användaren efter en lyckad checkout.
+
+    environment: "test_mode" eller "live_mode"
+
+    type: "static" (GET) eller "dynamic" (POST) eller "session" (POST)
+
+GET (statisk checkout) förväntar sig frågeparametrar:
+
+    productId (obligatorisk)
+
+    quantity, kundfält (fullName, email, etc.), och metadata (metadata_*) är valfria.
+
+POST (dynamisk checkout) förväntar sig en JSON-kropp med betalningsdetaljer (engångs- eller prenumeration). Referera till dokumentationen för hela POST-schemat:
+
+    Engångsbetalningar: https://docs.dodopayments.com/api-reference/payments/post-payments
+
+    Prenumerationer: https://docs.dodopayments.com/api-reference/subscriptions/post-subscriptions
+
+POST (checkout-sessioner) - (Rekommenderas) En mer anpassningsbar checkout-upplevelse. Returnerar JSON med checkout_url: Parametrar skickas som en JSON-kropp. Stöder både engångs- och återkommande betalningar. Returnerar: {"checkout_url": "https://checkout.dodopayments.com/session/..."}. För en komplett lista över stödda fält, se:
+
+  Checkout Sessions Integration Guide: https://docs.dodopayments.com/developer-resources/checkout-session
+
+Om Customer Portal Route Handler är valt:
+
+Syfte: Denna rutt låter kunder hantera sina prenumerationer via Dodo Payments-portalen.
+
+Integration:
+
+import { Checkout } from '@dodopayments/hono';
+import Hono from 'hono'
+
+const app = new Hono()
+app.get(
+  "/api/customer-portal",
+  CustomerPortal({
+    bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+    environment: process.env.DODO_PAYMENTS_ENVIRONMENT
+  })
+);
+
+Frågeparametrar:
+
+    customer_id (obligatorisk): t.ex. ?customer_id=cus_123
+
+    send_email (valfritt): om sant, får kunden ett e-postmeddelande med portal-länken
+
+Returnerar 400 om customer_id saknas.
+
+Om Webhook Route Handler är valt:
+
+Syfte: Bearbetar inkommande webhook-händelser från Dodo Payments för att utlösa händelser i din app.
+
+Integration:
+
+import Hono from 'hono'
+import { Webhooks } from '@dodopayments/hono'
+
+const app = new Hono()
+app.post(
+  "/api/webhooks",
+  Webhooks({
+    webhookKey: process.env.DODO_PAYMENTS_WEBHOOK_KEY,
+    onPayload: async (payload) => {
+      // Hantera payload här
+      console.log(payload)
+    }
+  })
+);
+
+Funktioner:
+
+    Endast POST-metod är tillåten — andra returnerar 405
+
+    Signaturverifiering utförs med hjälp av webhookKey. Returnerar 401 om ogiltig.
+
+    Zod-baserad payload-validering. Returnerar 400 om ogiltig schema.
+
+    Alla handlers är asynkrona funktioner.
+
+Stödda Webhook Händelsehanterare:
+
+Du kan skicka in någon av följande handlers:
+
+    onPayload
+
+    onPaymentSucceeded
+
+    onPaymentFailed
+
+    onPaymentProcessing
+
+    onPaymentCancelled
+
+    onRefundSucceeded
+
+    onRefundFailed
+
+    onDisputeOpened, onDisputeExpired, onDisputeAccepted, onDisputeCancelled, onDisputeChallenged, onDisputeWon, onDisputeLost
+
+    onSubscriptionActive, onSubscriptionOnHold, onSubscriptionRenewed, onSubscriptionPaused, onSubscriptionPlanChanged, onSubscriptionCancelled, onSubscriptionFailed, onSubscriptionExpired
+
+    onLicenseKeyCreated
+
+Inställning av miljövariabler:
+
+Se till att definiera dessa miljövariabler i ditt projekt:
+
+DODO_PAYMENTS_API_KEY=din-api-nyckel
+DODO_PAYMENTS_RETURN_URL=https://yourapp.com/success
+DODO_PAYMENTS_WEBHOOK_KEY=din-webhook-hemlighet
+DODO_PAYMENTS_ENVIRONMENT="test_mode" eller "live_mode""
+
+Använd dessa i din kod som:
+
+process.env.DODO_PAYMENTS_API_KEY
+process.env.DODO_PAYMENTS_WEBHOOK_KEY
+
+Säkerhetsnotering: Kom ihåg att INTE committa hemligheter till versionskontroll. Använd .env-filer lokalt och hemlighetsförvaltare i distributionsmiljöer (t.ex. AWS, Vercel, Heroku, etc.).

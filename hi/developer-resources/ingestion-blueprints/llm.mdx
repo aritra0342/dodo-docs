@@ -1,0 +1,879 @@
+---
+title: LLM ब्लूप्रिंट
+description: स्वचालित रूप से Dodo Payments में स्वचालित इनजेशन के साथ
+  उपयोग-आधारित बिलिंग के लिए LLM टोकन उपयोग को आसानी से ट्रैक करें। AI SDK,
+  OpenAI, Anthropic, OpenRouter, Groq, और Google Gemini के साथ काम करता है।
+icon: brain-circuit
+---
+
+<CardGroup cols={2}>
+<Card title="क्विक स्टार्ट" icon="rocket" href="#quick-start">
+  स्वचालित टोकन ट्रैकिंग के साथ 2 मिनट में शुरू करें।
+</Card>
+<Card title="API संदर्भ - इवेंट इनजेशन" icon="code" href="/api-reference/usage-events/ingest-events">
+  उपयोग इवेंट्स को इनजेस्ट करने के लिए पूर्ण API दस्तावेज़।
+</Card>
+<Card title="API संदर्भ - मीटर" icon="gauge" href="/api-reference/meters/create-meter">
+  बिलिंग के लिए मीटर बनाने और कॉन्फ़िगर करने के तरीके के बारे में जानें।
+</Card>
+<Card title="उपयोग-आधारित बिलिंग गाइड" icon="arrow-trend-up" href="/developer-resources/usage-based-billing-guide">
+  मीटर के साथ उपयोग-आधारित बिलिंग के लिए व्यापक गाइड।
+</Card>
+</CardGroup>
+
+<Info>
+SaaS ऐप्स, AI चैटबॉट्स, सामग्री निर्माण उपकरण, और किसी भी LLM-संचालित एप्लिकेशन के लिए आदर्श जो उपयोग-आधारित बिलिंग की आवश्यकता है।
+</Info>
+
+## क्विक स्टार्ट
+
+स्वचालित LLM टोकन ट्रैकिंग के साथ केवल 2 मिनट में शुरू करें:
+
+<Steps>
+<Step title="SDK स्थापित करें">
+Dodo Payments इनजेशन ब्लूप्रिंट स्थापित करें:
+
+```bash
+npm install @dodopayments/ingestion-blueprints
+```
+
+</Step>
+
+<Step title="अपने API कुंजी प्राप्त करें">
+आपको दो API कुंजी की आवश्यकता होगी:
+
+- **Dodo Payments API कुंजी**: इसे [Dodo Payments डैशबोर्ड](https://app.dodopayments.com/developer/api-keys) से प्राप्त करें
+- **LLM प्रदाता API कुंजी**: AI SDK, OpenAI, Anthropic, Groq, आदि से।
+
+<Tip>
+अपनी API कुंजियों को सुरक्षित रूप से पर्यावरण चर में स्टोर करें। इन्हें कभी भी संस्करण नियंत्रण में न डालें।
+</Tip>
+</Step>
+
+<Step title="Dodo Payments में मीटर बनाएं">
+उपयोग को ट्रैक करने से पहले, अपने Dodo Payments डैशबोर्ड में एक मीटर बनाएं:
+
+1. **लॉगिन करें** [Dodo Payments डैशबोर्ड](https://app.dodopayments.com/)
+2. **नेविगेट करें** उत्पाद → मीटर
+3. **क्लिक करें** "मीटर बनाएं"
+4. **अपने मीटर को कॉन्फ़िगर करें**:
+   - **मीटर नाम**: एक वर्णनात्मक नाम चुनें (जैसे, "LLM टोकन उपयोग")
+   - **इवेंट नाम**: एक अद्वितीय इवेंट पहचानकर्ता सेट करें (जैसे, `llm.chat_completion`)
+   - **संघटन प्रकार**: टोकन की गिनती जोड़ने के लिए `sum` का चयन करें
+   - **ओवर प्रॉपर्टी**: ट्रैक करने के लिए चुनें:
+     - `inputTokens` - इनपुट/प्रॉम्प्ट टोकन ट्रैक करें
+     - `outputTokens` - आउटपुट/पूर्णता टोकन ट्रैक करें (जब लागू हो, तो तर्क टोकन शामिल हैं)
+     - `totalTokens` - संयुक्त इनपुट + आउटपुट टोकन ट्रैक करें
+
+<Info>
+यहां सेट किया गया **इवेंट नाम** ठीक उसी से मेल खाना चाहिए जो आप SDK को पास करते हैं (केस-संवेदनशील)।
+</Info>
+
+विस्तृत निर्देशों के लिए, [उपयोग-आधारित बिलिंग गाइड](/developer-resources/usage-based-billing-guide) देखें।
+</Step>
+
+<Step title="टोकन उपयोग ट्रैक करें">
+अपने LLM क्लाइंट को लपेटें और स्वचालित रूप से ट्रैक करना शुरू करें:
+
+<CodeGroup>
+
+```javascript AI SDK
+import { createLLMTracker } from '@dodopayments/ingestion-blueprints';
+import { generateText } from 'ai';
+import { google } from '@ai-sdk/google';
+
+const llmTracker = createLLMTracker({
+  apiKey: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'test_mode',
+  eventName: 'aisdk.usage',
+});
+
+const client = llmTracker.wrap({
+  client: { generateText },
+  customerId: 'customer_123'
+});
+
+const response = await client.generateText({
+  model: google('gemini-2.0-flash'),
+  prompt: 'Hello!',
+  maxOutputTokens: 500
+});
+
+console.log('Usage:', response.usage);
+```
+
+```javascript OpenRouter
+import { createLLMTracker } from '@dodopayments/ingestion-blueprints';
+import OpenAI from 'openai';
+
+const openrouter = new OpenAI({
+  baseURL: 'https://openrouter.ai/api/v1',
+  apiKey: process.env.OPENROUTER_API_KEY
+});
+
+const llmTracker = createLLMTracker({
+  apiKey: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'test_mode',
+  eventName: 'openrouter.usage'
+});
+
+const client = llmTracker.wrap({
+  client: openrouter,
+  customerId: 'customer_123'
+});
+
+const response = await client.chat.completions.create({
+  model: 'qwen/qwen3-max',
+  messages: [{ role: 'user', content: 'Hello!' }],
+  max_tokens: 500
+});
+
+console.log('Response:', response.choices[0].message.content);
+console.log('Usage:', response.usage);
+```
+
+```javascript OpenAI
+import { createLLMTracker } from '@dodopayments/ingestion-blueprints';
+import OpenAI from 'openai';
+
+// 1. Create your LLM client (normal way)
+const openai = new OpenAI({ 
+  apiKey: process.env.OPENAI_API_KEY 
+});
+
+// 2. Create tracker ONCE at startup
+const tracker = createLLMTracker({
+  apiKey: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'test_mode', // Use 'live_mode' for production
+  eventName: 'llm.chat_completion' // Match your meter's event name
+});
+
+// 3. Wrap & use - automatic tracking!
+const client = tracker.wrap({ 
+  client: openai, 
+  customerId: 'customer_123' 
+});
+
+// Every API call is now automatically tracked
+const response = await client.chat.completions.create({
+  model: 'gpt-4',
+  messages: [{ role: 'user', content: 'Hello!' }]
+});
+
+// ✨ Usage automatically sent to Dodo Payments!
+console.log('Tokens used:', response.usage);
+```
+
+```javascript Anthropic
+import { createLLMTracker } from '@dodopayments/ingestion-blueprints';
+import Anthropic from '@anthropic-ai/sdk';
+
+const anthropic = new Anthropic({ 
+  apiKey: process.env.ANTHROPIC_API_KEY 
+});
+
+const tracker = createLLMTracker({
+  apiKey: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'test_mode',
+  eventName: 'anthropic.usage'
+});
+
+const client = tracker.wrap({ 
+  client: anthropic, 
+  customerId: 'customer_123' 
+});
+
+const response = await client.messages.create({
+  model: 'claude-sonnet-4-0',
+  max_tokens: 1024,
+  messages: [{ role: 'user', content: 'Hello Claude!' }]
+});
+
+console.log('Tokens used:', response.usage);
+```
+
+```javascript Groq
+import { createLLMTracker } from '@dodopayments/ingestion-blueprints';
+import Groq from 'groq-sdk';
+
+const groq = new Groq({ 
+  apiKey: process.env.GROQ_API_KEY 
+});
+
+const tracker = createLLMTracker({
+  apiKey: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'test_mode',
+  eventName: 'groq.usage'
+});
+
+const client = tracker.wrap({ 
+  client: groq, 
+  customerId: 'customer_123' 
+});
+
+const response = await client.chat.completions.create({
+  model: 'llama-3.1-8b-instant',
+  messages: [{ role: 'user', content: 'Hello!' }]
+});
+
+console.log('Tokens:', response.usage);
+```
+
+```javascript Google Gemini
+import { createLLMTracker } from '@dodopayments/ingestion-blueprints';
+import { GoogleGenAI } from '@google/genai';
+
+const googleGenai = new GoogleGenAI({
+  apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY
+});
+
+const llmTracker = createLLMTracker({
+  apiKey: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'test_mode',
+  eventName: 'gemini.usage'
+});
+
+const client = llmTracker.wrap({
+  client: googleGenai,
+  customerId: 'customer_123'
+});
+
+const response = await client.models.generateContent({
+  model: 'gemini-2.5-flash',
+  contents: 'Why is the sky blue?'
+});
+
+console.log('Response:', response.text);
+console.log('Usage:', response.usageMetadata);
+```
+
+</CodeGroup>
+
+<Check>
+बस इतना ही! अब हर API कॉल स्वचालित रूप से टोकन उपयोग को ट्रैक करती है और बिलिंग के लिए Dodo Payments को इवेंट भेजती है।
+</Check>
+</Step>
+</Steps>
+
+---
+
+## कॉन्फ़िगरेशन
+
+### ट्रैकर कॉन्फ़िगरेशन
+
+इन आवश्यक पैरामीटर के साथ एप्लिकेशन स्टार्टअप पर एक ट्रैकर बनाएं:
+
+<ParamField path="apiKey" type="string" required>
+आपकी Dodo Payments API कुंजी। इसे [API कुंजी पृष्ठ](https://app.dodopayments.com/developer/api-keys) से प्राप्त करें।
+
+```javascript
+apiKey: process.env.DODO_PAYMENTS_API_KEY
+```
+
+</ParamField>
+
+<ParamField path="environment" type="string" required>
+ट्रैकर के लिए वातावरण मोड।
+
+- `test_mode` - विकास और परीक्षण के लिए उपयोग करें
+- `live_mode` - उत्पादन के लिए उपयोग करें
+
+```javascript
+environment: 'test_mode' // or 'live_mode'
+```
+
+<Warning>
+विकास के दौरान हमेशा `test_mode` का उपयोग करें ताकि उत्पादन मैट्रिक्स को प्रभावित न करें।
+</Warning>
+</ParamField>
+
+<ParamField path="eventName" type="string" required>
+इवेंट नाम जो आपके मीटर को ट्रिगर करता है। यह आपकी Dodo Payments मीटर में कॉन्फ़िगर की गई चीज़ से ठीक मेल खाना चाहिए (केस-संवेदनशील)।
+
+```javascript
+eventName: 'llm.chat_completion'
+```
+
+<Info>
+यह इवेंट नाम आपके ट्रैक किए गए उपयोग को बिलिंग गणनाओं के लिए सही मीटर से जोड़ता है।
+</Info>
+</ParamField>
+
+### रैपर कॉन्फ़िगरेशन
+
+जब अपने LLM क्लाइंट को लपेटते हैं, तो इन पैरामीटर को प्रदान करें:
+
+<ParamField path="client" type="object" required>
+आपका LLM क्लाइंट उदाहरण (OpenAI, Anthropic, Groq, आदि)।
+
+```javascript
+client: openai
+```
+
+</ParamField>
+
+<ParamField path="customerId" type="string" required>
+बिलिंग के लिए अद्वितीय ग्राहक पहचानकर्ता। यह आपके Dodo Payments में ग्राहक ID से मेल खाना चाहिए।
+
+```javascript
+customerId: 'customer_123'
+```
+
+<Tip>
+सटीक बिलिंग सुनिश्चित करने के लिए अपने एप्लिकेशन के उपयोगकर्ता ID या ग्राहक ID का उपयोग करें।
+</Tip>
+</ParamField>
+
+<ParamField path="metadata" type="object">
+ट्रैकिंग इवेंट से संलग्न करने के लिए वैकल्पिक अतिरिक्त डेटा। फ़िल्टरिंग और विश्लेषण के लिए उपयोगी।
+
+```javascript
+metadata: {
+  feature: 'chat',
+  userTier: 'premium',
+  sessionId: 'session_123',
+  modelVersion: 'gpt-4'
+}
+```
+
+</ParamField>
+
+### पूर्ण कॉन्फ़िगरेशन उदाहरण
+
+<CodeGroup>
+
+```javascript Full Configuration
+import { createLLMTracker } from "@dodopayments/ingestion-blueprints";
+import { generateText } from "ai";
+import { google } from "@ai-sdk/google";
+import "dotenv/config";
+
+async function aiSdkExample() {
+  console.log("🤖 AI SDK Simple Usage Example\n");
+
+  try {
+    // 1. Create tracker
+    const llmTracker = createLLMTracker({
+      apiKey: process.env.DODO_PAYMENTS_API_KEY!,
+      environment: "test_mode",
+      eventName: "your_meter_event_name",
+    });
+
+    // 2. Wrap the ai-sdk methods
+    const client = llmTracker.wrap({
+      client: { generateText },
+      customerId: "customer_123",
+      metadata: {
+        provider: "ai-sdk",
+      },
+    });
+
+    // 3. Use the wrapped function
+    const response = await client.generateText({
+      model: google("gemini-2.5-flash"),
+      prompt: "Hello, I am a cool guy! Tell me a fun fact.",
+      maxOutputTokens: 500,
+    });
+
+    console.log(response);
+    console.log(response.usage);
+    console.log("✅ Automatically tracked for customer\n");
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+aiSdkExample().catch(console.error);
+```
+
+</CodeGroup>
+
+<Info>
+**स्वचालित ट्रैकिंग:** SDK स्वचालित रूप से बैकग्राउंड में टोकन उपयोग को ट्रैक करता है बिना प्रतिक्रिया को संशोधित किए। आपका कोड साफ और मूल प्रदाता SDKs के उपयोग के समान रहता है।
+</Info>
+
+---
+
+## समर्थित प्रदाता
+
+LLM ब्लूप्रिंट सभी प्रमुख LLM प्रदाताओं और एग्रीगेटर्स के साथ निर्बाध रूप से काम करता है:
+
+<AccordionGroup>
+<Accordion title="AI SDK (Vercel)" icon="code">
+सार्वभौमिक LLM समर्थन के लिए Vercel AI SDK के साथ उपयोग को ट्रैक करें।
+
+<CodeGroup>
+
+```javascript AI SDK Integration
+import { createLLMTracker } from '@dodopayments/ingestion-blueprints';
+import { generateText } from 'ai';
+import { google } from '@ai-sdk/google';
+
+const llmTracker = createLLMTracker({
+  apiKey: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'test_mode',
+  eventName: 'aisdk.usage',
+});
+
+const client = llmTracker.wrap({
+  client: { generateText },
+  customerId: 'customer_123',
+  metadata: {
+    model: 'gemini-2.0-flash',
+    feature: 'chat'
+  }
+});
+
+const response = await client.generateText({
+  model: google('gemini-2.0-flash'),
+  prompt: 'Explain neural networks',
+  maxOutputTokens: 500
+});
+
+console.log('Usage:', response.usage);
+```
+
+</CodeGroup>
+
+**ट्रैक किए गए मैट्रिक्स:**
+- `inputTokens` → `inputTokens`
+- `outputTokens` + `reasoningTokens` → `outputTokens`
+- `totalTokens` → `totalTokens`
+- मॉडल का नाम
+
+<Note>
+AI SDK के माध्यम से तर्क करने में सक्षम मॉडलों का उपयोग करते समय (जैसे Google का Gemini 2.5 फ्लैश सोचने के मोड के साथ), तर्क टोकन स्वचालित रूप से `outputTokens` गिनती में शामिल होते हैं ताकि सटीक बिलिंग हो सके।
+</Note>
+</Accordion>
+
+<Accordion title="OpenRouter" icon="route">
+OpenRouter के एकीकृत API के माध्यम से 200+ मॉडलों में टोकन उपयोग ट्रैक करें।
+
+<CodeGroup>
+
+```javascript OpenRouter Integration
+import { createLLMTracker } from '@dodopayments/ingestion-blueprints';
+import OpenAI from 'openai';
+
+// OpenRouter uses OpenAI-compatible API
+const openrouter = new OpenAI({
+  baseURL: 'https://openrouter.ai/api/v1',
+  apiKey: process.env.OPENROUTER_API_KEY
+});
+
+const tracker = createLLMTracker({
+  apiKey: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'test_mode',
+  eventName: 'openrouter.usage'
+});
+
+const client = tracker.wrap({ 
+  client: openrouter, 
+  customerId: 'user_123',
+  metadata: { provider: 'openrouter' }
+});
+
+const response = await client.chat.completions.create({
+  model: 'qwen/qwen3-max',
+  messages: [{ role: 'user', content: 'What is machine learning?' }],
+  max_tokens: 500
+});
+
+console.log('Response:', response.choices[0].message.content);
+console.log('Usage:', response.usage);
+```
+
+</CodeGroup>
+
+**ट्रैक किए गए मैट्रिक्स:**
+- `prompt_tokens` → `inputTokens`
+- `completion_tokens` → `outputTokens`
+- `total_tokens` → `totalTokens`
+- मॉडल का नाम
+
+<Tip>
+OpenRouter एकल API के माध्यम से OpenAI, Anthropic, Google, Meta, और कई अन्य प्रदाताओं से मॉडलों तक पहुंच प्रदान करता है।
+</Tip>
+</Accordion>
+
+<Accordion title="OpenAI" icon="robot">
+OpenAI के GPT मॉडलों से स्वचालित रूप से टोकन उपयोग ट्रैक करें।
+
+<CodeGroup>
+
+```javascript OpenAI Integration
+import { createLLMTracker } from '@dodopayments/ingestion-blueprints';
+import OpenAI from 'openai';
+
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+const tracker = createLLMTracker({
+  apiKey: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'test_mode',
+  eventName: 'openai.usage'
+});
+
+const client = tracker.wrap({ 
+  client: openai, 
+  customerId: 'user_123' 
+});
+
+// All OpenAI methods work automatically
+const response = await client.chat.completions.create({
+  model: 'gpt-4',
+  messages: [{ role: 'user', content: 'Explain quantum computing' }]
+});
+
+console.log('Total tokens:', response.usage.total_tokens);
+```
+
+</CodeGroup>
+
+**ट्रैक किए गए मैट्रिक्स:**
+- `prompt_tokens` → `inputTokens`
+- `completion_tokens` → `outputTokens`
+- `total_tokens` → `totalTokens`
+- मॉडल का नाम
+</Accordion>
+
+<Accordion title="Anthropic Claude" icon="robot">
+Anthropic के Claude मॉडलों से टोकन उपयोग ट्रैक करें।
+
+<CodeGroup>
+
+```javascript Anthropic Integration
+import { createLLMTracker } from '@dodopayments/ingestion-blueprints';
+import Anthropic from '@anthropic-ai/sdk';
+
+const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+const tracker = createLLMTracker({
+  apiKey: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'test_mode',
+  eventName: 'anthropic.usage'
+});
+
+const client = tracker.wrap({ 
+  client: anthropic, 
+  customerId: 'user_123' 
+});
+
+const response = await client.messages.create({
+  model: 'claude-sonnet-4-0',
+  max_tokens: 1024,
+  messages: [{ role: 'user', content: 'Explain machine learning' }]
+});
+
+console.log('Input tokens:', response.usage.input_tokens);
+console.log('Output tokens:', response.usage.output_tokens);
+```
+
+</CodeGroup>
+
+**ट्रैक किए गए मैट्रिक्स:**
+- `input_tokens` → `inputTokens`
+- `output_tokens` → `outputTokens`
+- गणना की गई `totalTokens`
+- मॉडल का नाम
+</Accordion>
+
+<Accordion title="Groq" icon="gauge-high">
+Groq के साथ अल्ट्रा-फास्ट LLM इनफेरेंस ट्रैक करें।
+
+<CodeGroup>
+
+```javascript Groq Integration
+import { createLLMTracker } from '@dodopayments/ingestion-blueprints';
+import Groq from 'groq-sdk';
+
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+
+const tracker = createLLMTracker({
+  apiKey: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'test_mode',
+  eventName: 'groq.usage'
+});
+
+const client = tracker.wrap({ 
+  client: groq, 
+  customerId: 'user_123' 
+});
+
+const response = await client.chat.completions.create({
+  model: 'llama-3.1-8b-instant',
+  messages: [{ role: 'user', content: 'What is AI?' }]
+});
+
+console.log('Tokens:', response.usage);
+```
+
+</CodeGroup>
+
+**ट्रैक किए गए मैट्रिक्स:**
+- `prompt_tokens` → `inputTokens`
+- `completion_tokens` → `outputTokens`
+- `total_tokens` → `totalTokens`
+- मॉडल का नाम
+</Accordion>
+
+<Accordion title="Google Gemini" icon="sparkles">
+Google के Gemini मॉडलों से टोकन उपयोग ट्रैक करें Google GenAI SDK के माध्यम से।
+
+<CodeGroup>
+
+```javascript Google Gemini Integration
+import { createLLMTracker } from '@dodopayments/ingestion-blueprints';
+import { GoogleGenAI } from '@google/genai';
+
+const googleGenai = new GoogleGenAI({ 
+  apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY 
+});
+
+const tracker = createLLMTracker({
+  apiKey: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'test_mode',
+  eventName: 'gemini.usage'
+});
+
+const client = tracker.wrap({ 
+  client: googleGenai, 
+  customerId: 'user_123' 
+});
+
+const response = await client.models.generateContent({
+  model: 'gemini-2.5-flash',
+  contents: 'Explain quantum computing'
+});
+
+console.log('Response:', response.text);
+console.log('Usage:', response.usageMetadata);
+```
+
+</CodeGroup>
+
+**ट्रैक किए गए मैट्रिक्स:**
+- `promptTokenCount` → `inputTokens`
+- `candidatesTokenCount` + `thoughtsTokenCount` → `outputTokens`
+- `totalTokenCount` → `totalTokens`
+- मॉडल संस्करण
+
+<Note>
+**जेमिनी थिंकिंग मोड:** जब सोचने/तर्क करने की क्षमताओं वाले जेमिनी मॉडलों का उपयोग करते हैं (जैसे जेमिनी 2.5 प्रो), SDK स्वचालित रूप से `thoughtsTokenCount` (तर्क टोकन) को `outputTokens` में शामिल करता है ताकि पूर्ण गणनात्मक लागत को सटीक रूप से दर्शाया जा सके।
+</Note>
+</Accordion>
+</AccordionGroup>
+
+---
+
+## उन्नत उपयोग
+
+### कई प्रदाता
+
+अलग-अलग ट्रैकर्स के साथ विभिन्न LLM प्रदाताओं के बीच उपयोग ट्रैक करें:
+
+<CodeGroup>
+
+```javascript Multiple Provider Setup
+import { createLLMTracker } from '@dodopayments/ingestion-blueprints';
+import OpenAI from 'openai';
+import Groq from 'groq-sdk';
+import Anthropic from '@anthropic-ai/sdk';
+import { GoogleGenAI } from '@google/genai';
+
+// Create separate trackers for different providers
+const openaiTracker = createLLMTracker({
+  apiKey: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'live_mode',
+  eventName: 'openai.usage'
+});
+
+const groqTracker = createLLMTracker({
+  apiKey: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'live_mode',
+  eventName: 'groq.usage'
+});
+
+const anthropicTracker = createLLMTracker({
+  apiKey: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'live_mode',
+  eventName: 'anthropic.usage'
+});
+
+const geminiTracker = createLLMTracker({
+  apiKey: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'live_mode',
+  eventName: 'gemini.usage'
+});
+
+const openrouterTracker = createLLMTracker({
+  apiKey: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'live_mode',
+  eventName: 'openrouter.usage'
+});
+
+// Initialize clients
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const googleGenai = new GoogleGenAI({ apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY });
+const openrouter = new OpenAI({ 
+  baseURL: 'https://openrouter.ai/api/v1',
+  apiKey: process.env.OPENROUTER_API_KEY 
+});
+
+// Wrap clients
+const trackedOpenAI = openaiTracker.wrap({ client: openai, customerId: 'user_123' });
+const trackedGroq = groqTracker.wrap({ client: groq, customerId: 'user_123' });
+const trackedAnthropic = anthropicTracker.wrap({ client: anthropic, customerId: 'user_123' });
+const trackedGemini = geminiTracker.wrap({ client: googleGenai, customerId: 'user_123' });
+const trackedOpenRouter = openrouterTracker.wrap({ client: openrouter, customerId: 'user_123' });
+
+// Use whichever provider you need
+const response = await trackedOpenAI.chat.completions.create({...});
+// or
+const geminiResponse = await trackedGemini.models.generateContent({...});
+// or
+const openrouterResponse = await trackedOpenRouter.chat.completions.create({...});
+```
+
+</CodeGroup>
+
+<Tip>
+अलग-अलग प्रदाताओं के लिए अलग-अलग इवेंट नामों का उपयोग करें ताकि आपके मीटर में उपयोग को अलग से ट्रैक किया जा सके।
+</Tip>
+
+### Express.js API एकीकरण
+
+Express.js API में LLM ट्रैकिंग को एकीकृत करने का पूरा उदाहरण:
+
+<CodeGroup>
+
+```javascript Express.js Server
+import express from 'express';
+import { createLLMTracker } from '@dodopayments/ingestion-blueprints';
+import OpenAI from 'openai';
+
+const app = express();
+app.use(express.json());
+
+// Initialize OpenAI client
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+// Create tracker once at startup
+const tracker = createLLMTracker({
+  apiKey: process.env.DODO_PAYMENTS_API_KEY,
+  environment: process.env.NODE_ENV === 'production' ? 'live_mode' : 'test_mode',
+  eventName: 'api.chat_completion'
+});
+
+// Chat endpoint with automatic tracking
+app.post('/api/chat', async (req, res) => {
+  try {
+    const { message, userId } = req.body;
+    
+    // Validate input
+    if (!message || !userId) {
+      return res.status(400).json({ error: 'Missing message or userId' });
+    }
+    
+    // Wrap client for this specific user
+    const trackedClient = tracker.wrap({
+      client: openai,
+      customerId: userId,
+      metadata: { 
+        endpoint: '/api/chat',
+        timestamp: new Date().toISOString()
+      }
+    });
+    
+    // Make LLM request - automatically tracked
+    const response = await trackedClient.chat.completions.create({
+      model: 'gpt-4',
+      messages: [{ role: 'user', content: message }],
+      temperature: 0.7
+    });
+    
+    const completion = response.choices[0].message.content;
+    
+    res.json({ 
+      message: completion,
+      usage: response.usage
+    });
+  } catch (error) {
+    console.error('Chat error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.listen(3000, () => {
+  console.log('Server running on port 3000');
+});
+```
+
+</CodeGroup>
+
+---
+
+## क्या ट्रैक किया जाता है
+
+हर LLM API कॉल स्वचालित रूप से Dodo Payments को निम्नलिखित संरचना के साथ एक उपयोग इवेंट भेजता है:
+
+<CodeGroup>
+
+```json Event Structure
+{
+  "event_id": "llm_1673123456_abc123",
+  "customer_id": "customer_123",
+  "event_name": "llm.chat_completion",
+  "timestamp": "2024-01-08T10:30:00Z",
+  "metadata": {
+    "inputTokens": 10,
+    "outputTokens": 25,
+    "totalTokens": 35,
+    "model": "gpt-4",
+  }
+}
+```
+
+</CodeGroup>
+
+### इवेंट फ़ील्ड्स
+
+<ParamField path="event_id" type="string">
+इस विशेष इवेंट के लिए अद्वितीय पहचानकर्ता। SDK द्वारा स्वचालित रूप से उत्पन्न।
+
+फॉर्मेट: `llm_[timestamp]_[random]`
+</ParamField>
+
+<ParamField path="customer_id" type="string">
+ग्राहक ID जिसे आपने क्लाइंट को लपेटते समय प्रदान किया था। बिलिंग के लिए उपयोग किया जाता है।
+</ParamField>
+
+<ParamField path="event_name" type="string">
+इवेंट नाम जो आपके मीटर को ट्रिगर करता है। आपके ट्रैकर कॉन्फ़िगरेशन से मेल खाता है।
+</ParamField>
+
+<ParamField path="timestamp" type="string">
+ISO 8601 टाइमस्टैम्प जब इवेंट हुआ।
+</ParamField>
+
+<ParamField path="metadata" type="object">
+टोकन उपयोग और अतिरिक्त ट्रैकिंग डेटा:
+
+- `inputTokens` - उपयोग किए गए इनपुट/प्रॉम्प्ट टोकनों की संख्या
+- `outputTokens` - उपयोग किए गए आउटपुट/पूर्णता टोकनों की संख्या (जब लागू हो, तो तर्क टोकन शामिल हैं)
+- `totalTokens` - कुल टोकन (इनपुट + आउटपुट)
+- `model` - उपयोग किया गया LLM मॉडल (जैसे, "gpt-4")
+- `provider` - LLM प्रदाता (यदि रैपर मेटाडेटा में शामिल है)
+- कोई भी कस्टम मेटाडेटा जो आपने क्लाइंट को लपेटते समय प्रदान किया था
+
+<Note>
+**तर्क टोकन:** तर्क करने की क्षमताओं वाले मॉडलों के लिए, `outputTokens` स्वचालित रूप से पूर्णता टोकनों और तर्क टोकनों दोनों को शामिल करता है।
+</Note>
+</ParamField>
+
+<Info>
+आपका Dodo Payments मीटर `metadata` फ़ील्ड्स (विशेष रूप से `inputTokens`, `outputTokens` या `totalTokens`) का उपयोग करके उपयोग और बिलिंग की गणना करता है।
+</Info>
+
+---

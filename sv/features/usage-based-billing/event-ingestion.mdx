@@ -1,0 +1,207 @@
+---
+sidebarTitle: Event Ingestion
+title: Event Ingestion
+description: Skicka användningsevenemang från din applikation för att spåra
+  kundkonsumtion och driva fakturering.
+icon: bolt
+---
+
+Evenemang är grunden för användningsbaserad fakturering. Skicka evenemang när fakturerbara åtgärder inträffar, och mätare aggregerar dem till avgifter.
+
+<Card title="API Reference - Events Ingestion" icon="code" href="/api-reference/usage-events/ingest-events">
+Fullständig API-dokumentation med exempel och svarskoder.
+</Card>
+
+## Eventstruktur
+
+<Accordion title="Obligatoriska fält">
+<ParamField body="event_id" type="string" required>
+Unik identifierare. Använd UUID:er eller kombinera kund-ID + tidsstämpel + åtgärd.
+</ParamField>
+
+<ParamField body="customer_id" type="string" required>
+Dodo Payments kund-ID. Måste vara en giltig befintlig kund.
+</ParamField>
+
+<ParamField body="event_name" type="string" required>
+Evenemangstyp som matchar din mätarens evenemangsnamn (skiftlägeskänslig). Exempel: `api.call`, `image.generated`
+</ParamField>
+</Accordion>
+
+<Accordion title="Valfria fält">
+
+<ParamField body="timestamp" type="string">
+ISO 8601 tidsstämpel. Standardvärde är serverns tid om den utelämnas. Inkludera för noggrann fakturering med fördröjda/batch-evenemang.
+</ParamField>
+
+<ParamField body="metadata" type="object">
+Ytterligare egenskaper för aggregering och filtrering:
+- Numeriska värden: `bytes`, `tokens`, `duration_ms`
+- Filter: `endpoint`, `method`, `quality`
+
+```javascript
+metadata: {
+  endpoint: "/v1/orders",
+  method: "POST",
+  tokens: 1024
+}
+```
+
+</ParamField>
+</Accordion>
+
+## Skicka evenemang
+
+<CodeGroup>
+
+```javascript Single Event
+await fetch('https://test.dodopayments.com/events/ingest', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${process.env.DODO_API_KEY}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    events: [{
+      event_id: "api_call_1234",
+      customer_id: "cus_abc123",
+      event_name: "api.call",
+      metadata: { endpoint: "/v1/orders" }
+    }]
+  })
+});
+```
+
+```javascript Batch Events
+await fetch('https://test.dodopayments.com/events/ingest', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${process.env.DODO_API_KEY}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    events: [
+      { event_id: "call_1", customer_id: "cus_abc", event_name: "api.call" },
+      { event_id: "call_2", customer_id: "cus_abc", event_name: "api.call" },
+      { event_id: "call_3", customer_id: "cus_abc", event_name: "api.call" }
+    ]
+  })
+});
+```
+
+```python Python
+import requests
+
+requests.post(
+    'https://test.dodopayments.com/events/ingest',
+    headers={'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'},
+    json={'events': [{'event_id': 'call_1', 'customer_id': 'cus_abc', 'event_name': 'api.call'}]}
+)
+```
+
+```curl cURL
+curl -X POST 'https://test.dodopayments.com/events/ingest' \
+  -H 'Authorization: Bearer YOUR_API_KEY' \
+  -H 'Content-Type: application/json' \
+  -d '{"events": [{"event_id": "call_1", "customer_id": "cus_abc", "event_name": "api.call"}]}'
+```
+
+</CodeGroup>
+
+<Tip>
+Batcha upp till 100 evenemang per begäran för bättre prestanda.
+</Tip>
+
+## Ingestionsmönster
+
+Färdiga evenemangsmönster för vanliga användningsfall. Börja med ett beprövat mönster istället för att bygga från grunden.
+
+<CardGroup cols={2}>
+<Card title="LLM Blueprint" icon="brain-circuit" href="/developer-resources/ingestion-blueprints/llm">
+Spåra AI-tokenanvändning över OpenAI, Anthropic, Groq, Gemini och mer.
+</Card>
+
+<Card title="API Gateway Blueprint" icon="cloud" href="/developer-resources/ingestion-blueprints/api-gateway">
+Mät API-begärningar med slutpunktsfiltrering och stöd för hastighetsbegränsning.
+</Card>
+
+<Card title="Object Storage Blueprint" icon="box-archive" href="/developer-resources/ingestion-blueprints/object-storage">
+Spåra filuppladdningar och lagringskonsumtion för molnlagringstjänster.
+</Card>
+
+<Card title="Stream Blueprint" icon="tower-broadcast" href="/developer-resources/ingestion-blueprints/stream">
+Mät streamingbandbredd för video, ljud och realtidsdata.
+</Card>
+
+<Card title="Time Range Blueprint" icon="clock" href="/developer-resources/ingestion-blueprints/time-range">
+Fakturera efter förfluten tid för serverlösa funktioner och beräkningsinstanser.
+</Card>
+
+<Card title="View All Blueprints" icon="copy" href="/features/usage-based-billing/ingestion-blueprints">
+Se alla tillgängliga mönster med detaljerade implementationsguider.
+</Card>
+</CardGroup>
+
+## Bästa praxis
+
+<AccordionGroup>
+<Accordion title="Använd unika evenemangs-ID:n">
+Använd deterministiska ID:n för att förhindra dubbletter: `${customerId}_${action}_${timestamp}`
+</Accordion>
+
+<Accordion title="Implementera omförsök">
+Försök igen vid 5xx-fel med exponentiell backoff. Försök inte igen vid 4xx-fel.
+</Accordion>
+
+<Accordion title="Inkludera tidsstämplar">
+Uteslut för realtids-evenemang. Inkludera för fördröjda/batch-evenemang för noggrannhet.
+</Accordion>
+
+<Accordion title="Övervaka leverans">
+Spåra framgångsfrekvenser och köa misslyckade evenemang för omförsök.
+</Accordion>
+</AccordionGroup>
+
+## Felsökning
+
+<AccordionGroup>
+<Accordion title="Evenemang visas inte">
+- Evenemangsnamnet måste exakt matcha mätaren (skiftlägeskänslig)
+- Kund-ID måste finnas
+- Kontrollera att mätarens filter inte utesluter evenemang
+- Verifiera att tidsstämplarna är aktuella
+</Accordion>
+
+<Accordion title="Autentiseringsfel (401)">
+Verifiera att API-nyckeln är korrekt och använd format: `Bearer YOUR_API_KEY`
+</Accordion>
+
+<Accordion title="Valideringsfel (400)">
+Säkerställ att alla obligatoriska fält är närvarande: `event_id`, `customer_id`, `event_name`
+</Accordion>
+
+<Accordion title="Metadata aggregeras inte">
+- Metadata-nycklar måste matcha mätarens "Över egenskap" exakt
+- Använd siffror, inte strängar: `tokens: 150` inte `tokens: "150"`
+</Accordion>
+</AccordionGroup>
+
+## Nästa steg
+
+<CardGroup cols={2}>
+<Card title="Skapa mätare" icon="sliders" href="/features/usage-based-billing/meters">
+Definiera hur dina evenemang aggregeras till fakturerbara kvantiteter med filter och aggregeringsfunktioner.
+</Card>
+
+<Card title="Ingestionsmönster" icon="copy" href="/features/usage-based-billing/ingestion-blueprints">
+Använd färdiga mönster för vanliga användningsfall som LLM-spårning, API-gateways och lagring.
+</Card>
+
+<Card title="Fullständig handledning" icon="code" href="/developer-resources/usage-based-billing-build-ai-image-generator">
+Bygg en fullständig AI-bildgenerator med användningsbaserad fakturering från grunden.
+</Card>
+
+<Card title="API-referens" icon="terminal" href="/api-reference/usage-events/ingest-events">
+Fullständig API-dokumentation med alla parametrar, svarskoder och interaktiv testning.
+</Card>
+</CardGroup>

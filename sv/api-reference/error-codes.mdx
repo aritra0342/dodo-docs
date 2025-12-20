@@ -1,0 +1,377 @@
+---
+title: Felkoder
+description: Lär dig mer om felkoder och hur du löser dem i Dodo Payments API.
+icon: triangle-exclamation
+---
+
+## Översikt
+
+Dodo Payments API använder standard HTTP-statuskoder och anpassade felkoder för att indikera framgång eller misslyckande av API-förfrågningar. När ett fel inträffar returnerar API:et en lämplig HTTP-statuskod och ett JSON-svar som innehåller detaljerad information om felet.
+
+Varje felrespons inkluderar:
+- En HTTP-statuskod som indikerar den allmänna kategorin av felet
+- En specifik felkod som identifierar den exakta naturen av felet
+- Ett mänskligt läsbart felmeddelande som förklarar vad som gick fel
+- Ytterligare detaljer om felet när det är tillämpligt
+
+Att förstå dessa felkoder och deras betydelser är avgörande för:
+- Felsökning av integrationsproblem
+- Implementering av korrekt felhantering i din applikation
+- Att ge meningsfull feedback till slutanvändare
+- Att upprätthålla ett robust betalningsbehandlingssystem
+
+Följande avsnitt ger detaljerad information om standard HTTP-statuskoder och specifika felkoder som du kan stöta på när du använder Dodo Payments API.
+
+## Standard API Felkoder
+
+| Felkod | HTTP Status | Beskrivning |
+|--------|-------------|-------------|
+| **400** | Bad Request | Förfrågan var felaktig eller innehöll ogiltiga parametrar |
+| **401** | Unauthorized | Autentisering misslyckades eller API-nyckeln är ogiltig |
+| **403** | Forbidden | API-nyckeln har inte behörighet att få åtkomst till den begärda resursen |
+| **404** | Not Found | Den begärda resursen finns inte |
+| **405** | Method Not Allowed | HTTP-metoden stöds inte för denna slutpunkt |
+| **409** | Conflict | Förfrågan krockar med det aktuella tillståndet för resursen |
+| **422** | Unprocessable Entity | Förfrågan var välformulerad men innehöll semantiska fel |
+| **429** | Too Many Requests | Överskridit hastighetsgränsen |
+| **500** | Internal Server Error | Ett oväntat fel inträffade på våra servrar |
+| **502** | Bad Gateway | Servern fick ett ogiltigt svar från en upstream-server |
+| **503** | Service Unavailable | Tjänsten är tillfälligt otillgänglig |
+| **504** | Gateway Timeout | Servern tidsbegränsades medan den väntade på ett upstream-svar |
+
+## Felresponsformat
+
+När ett fel inträffar returnerar API:et ett JSON-svar med följande struktur:
+
+```json
+{
+  "code": "UNSUPPORTED_COUNTRY",
+  "message": "Country AI currently not supported"
+}
+```
+
+## Felkodsreferens
+
+- `ACTIVATION_LIMIT_LESS_THAN_CURRENT_AMOUNT`
+  - **Trigger:** Aktivering av licensnycklar: ny gräns < befintligt instansantal
+  - **Message:** Ny aktiveringsgräns kan inte vara mindre än nuvarande instansantal
+
+- `ADDONS_IN_USAGE_BASED_BILLING_NOT_SUPPORTED`
+  - **Trigger:** Försök att lägga till tillägg till användningsbaserade abonnemang
+  - **Message:** Tillägg i abonnemang stöds inte för användningsbaserad fakturering
+
+- `ADDONS_NOT_ALLOWED_FOR_ON_DEMAND`
+  - **Trigger:** Försök att lägga till tillägg till on-demand-abonnemang
+  - **Message:** Tillägg är inte tillåtna för on-demand-abonnemang
+
+- `BRAND_MISMATCH`
+  - **Trigger:** Varor i kundvagnen tillhör olika varumärken
+  - **Message:** Alla varor i produktvagnen ska tillhöra samma varumärke
+
+- `BRAND_NOT_ENABLED`
+  - **Trigger:** Varumärket är inaktiverat eller inte aktivt
+  - **Message:** Det angivna varumärket är inte aktiverat
+
+- `BRAND_SUBMISSION_NOT_ENABLED`
+  - **Trigger:** Funktion för återinlämning av varumärkesverifiering är inte aktiverad
+  - **Message:** Återinlämning av varumärkesverifiering är inte aktiverad
+
+- `CHARGE_NOT_ALLOWED_FOR_SCHEDULED_CANCELLATION`
+  - **Trigger:** Försök att debitera abonnemang som är schemalagt för avbokning
+  - **Message:** Abonnemanget är schemalagt för avbokning
+
+- `CHECKOUT_SESSION_CONSUMED`
+  - **Trigger:** Utcheckningssession har redan genererat en betalning
+  - **Message:** Utcheckningssession har redan använts
+
+- `DISCOUNT_CODE_ALREADY_EXISTS`
+  - **Trigger:** Duplicering av rabattkod
+  - **Message:** Rabattkod finns redan
+
+- `DISCOUNT_CODE_EXPIRED`
+  - **Trigger:** Rabattkod passerad `expires_at` datum
+  - **Message:** Rabattkod har gått ut
+
+- `DISCOUNT_CODE_USAGE_LIMIT_EXCEEDED`
+  - **Trigger:** Rabatt återanvänds efter `usage_limit` nått
+  - **Message:** Användningsgränsen kan inte vara mindre än times_used / Rabattkod har nått användningsgränsen
+
+- `DISCOUNT_NOT_AVAILABLE_FOR_ON_DEMAND`
+  - **Trigger:** Kod tillämpad på on-demand-abonnemang
+  - **Message:** Rabattkupong är inte tillgänglig för on-demand-abonnemang
+
+- `DISCOUNT_NOT_AVAILABLE_FOR_PRODUCT`
+  - **Trigger:** Kod tillämpad på orelaterade produkt(er)
+  - **Message:** Rabattkupong är inte tillgänglig för denna produkt
+
+- `DUPLICATE_LINE_ITEMS_IN_REQUEST`
+  - **Trigger:** Samma `item_id` visas två gånger i `items[]`
+  - **Message:** Duplicerade item_ids angivna i items-arrayen
+
+- `DUPLICATE_METER_IDS_IN_REQUEST`
+  - **Trigger:** Samma mätar-ID visas flera gånger i förfrågan
+  - **Message:** Duplicerade mätar-ID:n är inte tillåtna
+
+- `EXCHANGE_RATE_NOT_FOUND`
+  - **Trigger:** Ingen FX-kurs för `from → to` valutapar
+  - **Message:** Växelkurs hittades inte för att konvertera från Valuta till Valuta
+
+- `EXISTING_REFUND_REQUEST_PROCESSING`
+  - **Trigger:** Tidigare återbetalningsbegäran bearbetas fortfarande
+  - **Message:** En återbetalningsbegäran med status "Pending" bearbetas fortfarande
+
+- `INACTIVE_LICENSE_KEY`
+  - **Trigger:** Nyckelstatus ≠ `ACTIVE`
+  - **Message:** Licensnyckeln är inte aktiv
+
+- `INACTIVE_SUBSCRIPTION_PLAN_CHANGE_NOT_SUPPORTED`
+  - **Trigger:** Planändring på inaktivt abonnemang
+  - **Message:** Ändring av planer stöds inte för inaktiva abonnemang
+
+- `INSUFFICIENT_WALLET_FUNDS`
+  - **Trigger:** Plånboksbalans < debiteringsbelopp
+  - **Message:** Otillräckliga medel i plånboken
+
+- `INTEGER_CONVERSION_FAILURE`
+  - **Trigger:** Allt heltal ↔ sträng/decimal konvertering som misslyckas server-side
+  - **Message:** Heltalskonverteringsfel
+
+- `INTERNAL_SERVER_ERROR`
+  - **Trigger:** Ouppfyllda undantag; du bör logga detaljer server-side
+  - **Message:** *Inget offentligt meddelande (generisk 500)*
+
+- `INVALID_DISCOUNT_CODE`
+  - **Trigger:** Koden existerar inte / är inte tillämplig
+  - **Message:** Ogiltig rabattkod / Rabattkod kan inte tillämpas på någon produkt i kundvagnen
+
+- `INVALID_PERCENTAGE`
+  - **Trigger:** Procentbelopp > 100% (eller 10 000 baspunkter)
+  - **Message:** Procentbeloppet kan inte vara mer än 10000 / Rabattkodens belopp kan inte vara mer än 100%
+
+- `INVALID_QUANTITY`
+  - **Trigger:** Ogiltig kvantitet angiven för användningsbaserad prissättning
+  - **Message:** Endast 1 kvantitet tillåten i användningsbaserade prisprodukter
+
+- `INVALID_QUERY_PARAMS`
+  - **Trigger:** Ömsesidigt uteslutande / felaktiga frågeparametrar
+  - **Message:** Frågeparametrar bör endast innehålla antingen time_frame eller (start, end)
+
+- `INVALID_REQUEST_BODY`
+  - **Trigger:** Felaktig JSON eller schemaöverträdelser
+  - **Message:** Din begäran är ogiltig. Kontrollera dina begärningshuvuden och objekt.
+
+- `INVALID_REQUEST_PARAMETERS`
+  - **Trigger:** Semantik fel (t.ex. datum i det förflutna)
+  - **Message:** Kan inte ändra next_billing_date till förfluten tid
+
+- `INVALID_SUGGESTED_PRICE`
+  - **Trigger:** PWYW-pris < minimi tillåtna pris
+  - **Message:** Föreslaget pris kan inte vara lägre än minimipriset. Vid pay what you want, betraktas priset som det minimi accepterade beloppet
+
+- `INVALID_TAX_ID`
+  - **Trigger:** VAT/GST/TIN misslyckad validering
+  - **Message:** Skatte-ID är ogiltigt
+
+- `LICENSE_KEY_LIMIT_REACHED`
+  - **Trigger:** Aktiveringar = gräns
+  - **Message:** Licensnyckelns aktiveringsgräns nådd
+
+- `LICENSE_KEY_NOT_FOUND`
+  - **Trigger:** Instans-ID eller nyckel-ID ogiltig
+  - **Message:** Licensnyckelinstans hittades inte eller tillhör inte denna licensnyckel
+
+- `LINE_ITEM_FULLY_REFUNDED`
+  - **Trigger:** Försök att återbetala redan helt återbetald radpost
+  - **Message:** Radpost {id} har blivit helt återbetald och kan inte återbetalas ytterligare.
+
+- `LINE_ITEM_NOT_FOUND`
+  - **Trigger:** Artikel-ID är inte en del av den refererade betalningen
+  - **Message:** Radpost {id} hittades inte i betalningen
+
+- `LINE_ITEM_PRORATED`
+  - **Trigger:** Återbetalning eller uppdatering försökt på en proraterad rad
+  - **Message:** Radpost {id} kan inte återbetalas eftersom den är proraterad
+
+- `LINE_ITEM_REFUND_AMOUNT_TOO_HIGH`
+  - **Trigger:** Återbetalningsbelopp > betalat belopp (inkl. skatt)
+  - **Message:** Radpost {id} begärda återbetalningsbelopp inklusive skatt är {amount} vilket är över det betalda beloppet {amount}
+
+- `LINE_ITEM_REFUND_AMOUNT_TOO_LOW`
+  - **Trigger:** Återbetalningsbelopp under minimigräns
+  - **Message:** Radpost {id} begärda återbetalningsbelopp är {amount} vilket är för lågt
+
+- `MAXIMUM_KEYS_REACHED`
+  - **Trigger:** Metadata / anpassade fält överskrider 50 par
+  - **Message:** Överskrider 50 nyckel-värde-par
+
+- `MERCHANT_NOT_LIVE`
+  - **Trigger:** Företaget är fortfarande i test/sandbox-läge
+  - **Message:** Handlaren är inte aktiv
+
+- `METER_IS_DELETED`
+  - **Trigger:** Försök att använda raderad mätare
+  - **Message:** Mätaren har redan raderats
+
+- `MISSING_ADDON_IDS`
+  - **Trigger:** `addon_id` lista tom eller okända ID:n
+  - **Message:** En eller flera produkt-ID:n existerar inte: {id}
+
+- `MISSING_METER_IDS`
+  - **Trigger:** Mätar-ID-lista tom eller innehåller ogiltiga ID:n
+  - **Message:** En eller flera mätar-ID:n existerar inte: {id}
+
+- `MISSING_PRODUCT_INFORMATION`
+  - **Trigger:** Produkten existerar men obligatorisk information saknas
+  - **Message:** Produkten {id} existerar men annan obligatorisk information saknas eller är ogiltig
+
+- `NEGATIVE_BALANCE_ADJUSTMENT`
+  - **Trigger:** Försök att göra plånboksbalansen negativ
+  - **Message:** Plånboksbalansen får inte göras negativ
+
+- `NO_ELIGIBLE_PAYMENT_METHODS`
+  - **Trigger:** Efter filtrering, inget kvar
+  - **Message:** Inga berättigade betalningsmetoder hittades
+
+- `NO_EXPIRY_ON_SUBSCRIPTION_LICENSE_KEYS`
+  - **Trigger:** Försök att ställa in utgångsdatum på abonnemangsbaserad nyckel
+  - **Message:** Kan inte ställa in utgångsdatum för abonnemangsbaserad licensnyckel
+
+- `NOT_FOUND`
+  - **Trigger:** Generisk 404 för alla saknade resurser
+  - **Message:** Objektet hittades inte *(eller mer specifikt)*
+
+- `ON_DEMAND_PLAN_CHANGE_NOT_SUPPORTED`
+  - **Trigger:** Planbyte inte tillåtet för on-demand
+  - **Message:** Ändring av planer stöds inte för on-demand-abonnemang
+
+- `ON_DEMAND_SUBSCRIPTIONS_NOT_ENABLED`
+  - **Trigger:** Företaget har funktionsflagga avstängd
+  - **Message:** On-demand-abonnemang är inte aktiverade för detta företag
+
+- `ON_DEMAND_USAGE_BASED_BILLING_NOT_SUPPORTED`
+  - **Trigger:** Försök att använda on-demand med användningsbaserad fakturering
+  - **Message:** On-demand-abonnemang stöds inte för användningsbaserad fakturering
+
+- `PAY_AS_YOU_WANT_AMOUNT_REQUIRED`
+  - **Trigger:** Pris saknas för PWYW-produkt
+  - **Message:** Belopp är obligatoriskt för pay as you want-produkt
+
+- `PAYMENT_ALREADY_REFUNDED`
+  - **Trigger:** Duplicerad återbetalning
+  - **Message:** Denna betalning har redan återbetalats
+
+- `PAYMENT_HAS_BEEN_REFUNDED`
+  - **Trigger:** Betalningen har blivit helt återbetald
+  - **Message:** Betalnings-ID:t har blivit helt återbetalt.
+
+- `PAYMENT_NOT_SUCCEEDED`
+  - **Trigger:** Försök att återbetala/bearbeta misslyckad betalning
+  - **Message:** Den angivna betalningen har inte lyckats
+
+- `PLAN_CHANGE_NOT_ALLOWED_FOR_SCHEDULED_CANCELLATION`
+  - **Trigger:** Planändring försökt på abonnemang som är schemalagt för avbokning
+  - **Message:** Abonnemanget är schemalagt för avbokning
+
+- `PREVIOUS_PAYMENT_PENDING`
+  - **Trigger:** Försök att skapa avgift medan föregående är i icke-terminalt tillstånd
+  - **Message:** Kan inte skapa ny avgift eftersom föregående betalning ännu inte är lyckad
+
+- `PRODUCT_CART_EMPTY`
+  - **Trigger:** Tom produktvagn skickad
+  - **Message:** produktvagn är tom
+
+- `PRODUCT_IS_DELETED`
+  - **Trigger:** Produkt mjukt raderad
+  - **Message:** *Inga meddelanden*
+
+- `REFUND_AMOUNT_EXCEEDS_PAID_AMOUNT`
+  - **Trigger:** Sammanlagd återbetalningsbelopp > betalat belopp
+  - **Message:** Det beräknade återbetalningsbeloppet är större än det betalda beloppet
+
+- `REFUND_WINDOW_EXPIRED`
+  - **Trigger:** Utanför tillåten återbetalningsfönster
+  - **Message:** Återbetalningar kan inte initieras {days} dagar efter betalningens skapelse. Kontakta support@dodopayments.com.
+
+- `REQUEST_AMOUNT_BELOW_MINIMUM`
+  - **Trigger:** Belopp < produktens minimi
+  - **Message:** Beloppet kan inte vara mindre än det minimi belopp som anges för produkten
+
+- `SUBSCRIPTION_EXPIRED`
+  - **Trigger:** Fakturering förbi `ends_at`
+  - **Message:** Abonnemanget har gått ut, kan inte skapa nya avgifter
+
+- `SUBSCRIPTION_INACTIVE`
+  - **Trigger:** Status ≠ `ACTIVE`
+  - **Message:** Abonnemanget är inte aktivt
+
+- `SUBSCRIPTION_NOT_ON_DEMAND`
+  - **Trigger:** Förväntad on-demand men fick fast intervall
+  - **Message:** Abonnemanget är redan inte on-demand
+
+- `SUBSCRIPTION_PAYMENT_RETRY_LIMIT_EXCEEDED`
+  - **Trigger:** Abonnemangsbetalningsåterförsök överskrider maximala försök
+  - **Message:** Maximala återförsöksgränsen på 10 försök överskriden för detta abonnemang
+
+- `TOO_MANY_REQUESTS`
+  - **Trigger:** 429 hastighetsgräns
+  - **Message:** *Inga meddelanden*
+
+- `TOTAL_PAYMENT_AMOUNT_BELOW_MINIMUM_AMOUNT`
+  - **Trigger:** Sammanlagd kundvagnssumma < gateway minimum
+  - **Message:** Minimi belopp av {display_str} krävs för att behandla betalning
+
+- `UNABLE_TO_EDIT_PRIMARY_BRAND`
+  - **Trigger:** Försök att uppdatera primärt varumärke via vanlig API
+  - **Message:** Primärt varumärke kan inte uppdateras via denna API-slutpunkt.
+
+- `UNAUTHORIZED`
+  - **Trigger:** Ingen API-nyckel eller ogiltig token / omfattning
+  - **Message:** Du är inte auktoriserad att utföra denna åtgärd
+
+- `UNSUPPORTED_ACTION`
+  - **Trigger:** Stöds inte åtgärd för resurstyp
+  - **Message:** Ändring av planer för användningsbaserade abonnemang stöds inte
+
+- `UNSUPPORTED_BILLING_CURRENCY`
+  - **Trigger:** Abonnemang begränsade till USD
+  - **Message:** Icke-USD faktureringsvaluta stöds inte för abonnemang
+
+- `UNSUPPORTED_COUNTRY`
+  - **Trigger:** Geo stöds ännu inte
+  - **Message:** Land {country_name} stöds för närvarande inte
+
+- `UNSUPPORTED_CURRENCY`
+  - **Trigger:** Produkt eller tillägg valuta ogiltig
+  - **Message:** Valuta stöds för närvarande inte / Endast USD och INR produkter stöds för närvarande / Endast USD och INR stöds för tilläggspris / Kan endast begära USD eller INR för faktureringsvaluta / Valuta stöds inte / Oväntad valuta för indiska kortabonnemang
+
+- `UNSUPPORTED_DISCOUNT_TYPE`
+  - **Trigger:** Rabatt på fast belopp, etc., inte ännu aktiverad
+  - **Message:** Endast procentuella rabattkoder stöds för tillfället
+
+- `UNSUPPORTED_PAYMENT_CURRENCY`
+  - **Trigger:** Betalningsvaluta blockerad för anslutning
+  - **Message:** INR-transaktion stöds inte för denna transaktion
+
+- `UNSUPPORTED_TAX_CATEGORY`
+  - **Trigger:** Skattekategori sträng inte i enum
+  - **Message:** Kategori {category} stöds för närvarande inte
+
+- `UNSUCCESSFUL_PAYMENT_ID`
+  - **Trigger:** Betalnings-ID refererar till misslyckad betalning
+  - **Message:** Betalnings-ID:t har en misslyckad status.
+
+- `ZERO_AMOUNT_PAYMENT_REFUND_NOT_ALLOWED`
+  - **Trigger:** Försök att återbetala betalning med nollbelopp
+  - **Message:** Kan inte återbetala en betalning med nollvaluta belopp
+
+## Bästa praxis
+
+1. Hantera alltid fel på ett smidigt sätt i din applikation
+2. Implementera korrekt felregistrering
+3. Använd lämpliga felmeddelanden för slutanvändare
+4. Implementera återförsökslogik för tillfälliga fel
+5. Kontakta supporten för olösta problem
+
+## Support
+
+För ytterligare hjälp med felkoder eller integrationsproblem, vänligen kontakta vårt supportteam på support@dodopayments.com.

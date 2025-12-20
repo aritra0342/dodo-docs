@@ -1,0 +1,394 @@
+---
+title: Go
+description: Integra Dodo Payments nelle tue applicazioni Go con un SDK
+  idiomatico e performante
+icon: golang
+---
+
+L'SDK Go fornisce un'interfaccia Go pulita e idiomatica per integrare Dodo Payments nelle tue applicazioni. Offre supporto per il contesto, risposte fortemente tipizzate, capacità di middleware ed è sicuro per l'uso concorrente.
+
+## Installazione
+
+Installa l'SDK utilizzando i moduli Go:
+
+```bash
+go get github.com/dodopayments/dodopayments-go
+```
+
+<Info>
+L'SDK supporta Go 1.18 e versioni successive, sfruttando le funzionalità moderne di Go per prestazioni ottimali.
+</Info>
+
+## Inizio Veloce
+
+Inizializza il client e crea la tua prima sessione di checkout:
+
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"log"
+
+	"github.com/dodopayments/dodopayments-go"
+	"github.com/dodopayments/dodopayments-go/option"
+)
+
+func main() {
+	client := dodopayments.NewClient(
+		option.WithBearerToken("My Bearer Token"), // defaults to os.LookupEnv("DODO_PAYMENTS_API_KEY")
+		option.WithEnvironmentTestMode(),          // defaults to option.WithEnvironmentLiveMode()
+	)
+	
+	checkoutSessionResponse, err := client.CheckoutSessions.New(context.TODO(), dodopayments.CheckoutSessionNewParams{
+		CheckoutSessionRequest: dodopayments.CheckoutSessionRequestParam{
+			ProductCart: dodopayments.F([]dodopayments.CheckoutSessionRequestProductCartParam{{
+				ProductID: dodopayments.F("product_id"),
+				Quantity:  dodopayments.F(int64(1)),
+			}}),
+		},
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("Session ID: %s\n", checkoutSessionResponse.SessionID)
+}
+```
+
+<Warning>
+Conserva sempre le tue chiavi API in modo sicuro utilizzando variabili d'ambiente. Non codificarle mai nel tuo codice sorgente.
+</Warning>
+
+## Caratteristiche Principali
+
+<CardGroup cols={2}>
+<Card title="Supporto per il Contesto" icon="clock">
+  Supporto completo per context.Context per cancellazione e timeout
+</Card>
+
+<Card title="Tipizzazione Forte" icon="shield-check">
+  Richieste e risposte fortemente tipizzate per sicurezza a tempo di compilazione
+</Card>
+
+<Card title="Middleware" icon="layer-group">
+  Supporto middleware estensibile per logging, metriche e logica personalizzata
+</Card>
+
+<Card title="Sicuro per Goroutine" icon="bolt">
+  Client thread-safe progettato per operazioni concorrenti
+</Card>
+</CardGroup>
+
+## Configurazione
+
+### Contesto e Timeout
+
+Sfrutta il contesto di Go per timeout e cancellazione:
+
+```go
+import (
+	"context"
+	"time"
+	
+	"github.com/dodopayments/dodopayments-go"
+	"github.com/dodopayments/dodopayments-go/option"
+)
+
+// Create a context with timeout
+ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+defer cancel()
+
+payment, err := client.Payments.Create(ctx, dodopayments.PaymentCreateParams{
+	Amount:     5000,
+	Currency:   "USD",
+	CustomerID: "cus_123",
+})
+if err != nil {
+	if ctx.Err() == context.DeadlineExceeded {
+		log.Println("Request timed out")
+	} else {
+		log.Fatal(err)
+	}
+}
+```
+
+### Configurazione del Retry
+
+Configura il comportamento di retry automatico:
+
+```go
+// Configure default for all requests (default is 2)
+client := dodopayments.NewClient(
+	option.WithMaxRetries(0), // disable retries
+)
+
+// Override per-request
+client.CheckoutSessions.New(
+	context.TODO(),
+	dodopayments.CheckoutSessionNewParams{
+		CheckoutSessionRequest: dodopayments.CheckoutSessionRequestParam{
+			ProductCart: dodopayments.F([]dodopayments.CheckoutSessionRequestProductCartParam{{
+				ProductID: dodopayments.F("product_id"),
+				Quantity:  dodopayments.F(int64(0)),
+			}}),
+		},
+	},
+	option.WithMaxRetries(5),
+)
+```
+
+## Operazioni Comuni
+
+### Crea una Sessione di Checkout
+
+Genera una sessione di checkout:
+
+```go
+session, err := client.CheckoutSessions.New(ctx, dodopayments.CheckoutSessionNewParams{
+	CheckoutSessionRequest: dodopayments.CheckoutSessionRequestParam{
+		ProductCart: dodopayments.F([]dodopayments.CheckoutSessionRequestProductCartParam{{
+			ProductID: dodopayments.F("prod_123"),
+			Quantity:  dodopayments.F(int64(1)),
+		}}),
+		ReturnURL: dodopayments.F("https://yourdomain.com/return"),
+	},
+})
+if err != nil {
+	log.Fatal(err)
+}
+
+fmt.Printf("Checkout URL: %s\n", session.URL)
+```
+
+### Gestisci i Clienti
+
+Crea e recupera informazioni sui clienti:
+
+```go
+// Create a customer
+customer, err := client.Customers.New(ctx, dodopayments.CustomerNewParams{
+	Email: dodopayments.F("customer@example.com"),
+	Name:  dodopayments.F("John Doe"),
+	Metadata: dodopayments.F(map[string]string{
+		"user_id": "12345",
+	}),
+})
+if err != nil {
+	log.Fatal(err)
+}
+
+// Retrieve customer
+customer, err = client.Customers.Get(ctx, "cus_123")
+if err != nil {
+	log.Fatal(err)
+}
+
+fmt.Printf("Customer: %s (%s)\n", customer.Name, customer.Email)
+```
+
+### Gestisci Abbonamenti
+
+Crea e gestisci abbonamenti ricorrenti:
+
+```go
+// Create a subscription
+subscription, err := client.Subscriptions.New(ctx, dodopayments.SubscriptionNewParams{
+	CustomerID: dodopayments.F("cus_123"),
+	ProductID:  dodopayments.F("prod_456"),
+	PriceID:    dodopayments.F("price_789"),
+})
+if err != nil {
+	log.Fatal(err)
+}
+
+// Get usage history
+usageHistory, err := client.Subscriptions.GetUsageHistory(
+	ctx,
+	subscription.ID,
+	dodopayments.SubscriptionGetUsageHistoryParams{
+		StartDate: dodopayments.F("2024-01-01T00:00:00Z"),
+		EndDate:   dodopayments.F("2024-03-31T23:59:59Z"),
+	},
+)
+if err != nil {
+	log.Fatal(err)
+}
+```
+
+## Fatturazione Basata sull'Uso
+
+### Ingestione di Eventi di Utilizzo
+
+Monitora eventi personalizzati:
+
+```go
+import "github.com/dodopayments/dodopayments-go"
+
+response, err := client.UsageEvents.Ingest(ctx, dodopayments.UsageEventIngestParams{
+	Events: dodopayments.F([]dodopayments.UsageEventIngestParamsEvent{{
+		EventID:    dodopayments.F("api_call_12345"),
+		CustomerID: dodopayments.F("cus_abc123"),
+		EventName:  dodopayments.F("api_request"),
+		Timestamp:  dodopayments.F("2024-01-15T10:30:00Z"),
+		Metadata: dodopayments.F(map[string]string{
+			"endpoint":     "/api/v1/users",
+			"method":       "GET",
+			"tokens_used":  "150",
+		}),
+	}}),
+})
+if err != nil {
+	log.Fatal(err)
+}
+```
+
+### Elenca Eventi di Utilizzo
+
+```go
+// List events with filters
+params := dodopayments.UsageEventListParams{
+	CustomerID: dodopayments.F("cus_abc123"),
+	EventName:  dodopayments.F("api_request"),
+}
+
+events, err := client.UsageEvents.List(ctx, params)
+if err != nil {
+	log.Fatal(err)
+}
+
+for _, event := range events.Data {
+	fmt.Printf("Event %s: %s at %s\n", event.EventID, event.EventName, event.Timestamp)
+}
+```
+
+## Gestione degli Errori
+
+Gestisci tipi di errore specifici:
+
+```go
+payment, err := client.Payments.Create(ctx, dodopayments.PaymentCreateParams{
+	Amount:   5000,
+	Currency: "USD",
+})
+if err != nil {
+	if apiErr, ok := err.(*dodopayments.APIError); ok {
+		fmt.Printf("API Error: %s\n", apiErr.Message)
+		fmt.Printf("Status Code: %d\n", apiErr.StatusCode)
+		fmt.Printf("Request ID: %s\n", apiErr.RequestID)
+		
+		// Handle specific error types
+		switch apiErr.Type {
+		case dodopayments.ErrorTypeAuthentication:
+			log.Println("Authentication failed")
+		case dodopayments.ErrorTypeInvalidRequest:
+			log.Println("Invalid request parameters")
+		case dodopayments.ErrorTypeRateLimit:
+			log.Println("Rate limit exceeded")
+		default:
+			log.Printf("API error: %s\n", apiErr.Message)
+		}
+	} else {
+		log.Fatal(err)
+	}
+}
+```
+
+## Middleware
+
+Aggiungi middleware personalizzati per logging o metriche:
+
+```go
+func Logger(req *http.Request, next option.MiddlewareNext) (res *http.Response, err error) {
+	// Before the request
+	start := time.Now()
+	log.Printf("Request: %s %s\n", req.Method, req.URL)
+
+	// Forward the request to the next handler
+	res, err = next(req)
+
+	// After the request
+	end := time.Now()
+	log.Printf("Response: %d in %v\n", res.StatusCode, end.Sub(start))
+
+	return res, err
+}
+
+client := dodopayments.NewClient(
+	option.WithMiddleware(Logger),
+)
+```
+
+## Concorrenza
+
+Il client è sicuro per l'uso concorrente:
+
+```go
+package main
+
+import (
+	"context"
+	"sync"
+	"log"
+
+	"github.com/dodopayments/dodopayments-go"
+)
+
+func main() {
+	client := dodopayments.NewClient()
+	
+	var wg sync.WaitGroup
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go func(idx int) {
+			defer wg.Done()
+			
+			payment, err := client.Payments.Create(context.Background(), dodopayments.PaymentCreateParams{
+				Amount:     1000,
+				Currency:   "USD",
+				CustomerID: "cus_123",
+			})
+			if err != nil {
+				log.Printf("Failed to create payment %d: %v", idx, err)
+				return
+			}
+			
+			log.Printf("Created payment %d: %s", idx, payment.ID)
+		}(i)
+	}
+	
+	wg.Wait()
+}
+```
+
+## Risorse
+
+<CardGroup cols={2}>
+<Card title="Repository GitHub" icon="github" href="https://github.com/dodopayments/dodopayments-go">
+  Visualizza il codice sorgente e contribuisci
+</Card>
+
+<Card title="Riferimento API" icon="book" href="/api-reference/introduction">
+  Documentazione API completa
+</Card>
+
+<Card title="Comunità Discord" icon="discord" href="https://discord.gg/bYqAp4ayYh">
+  Ricevi aiuto e connettiti con gli sviluppatori
+</Card>
+
+<Card title="Segnala Problemi" icon="bug" href="https://github.com/dodopayments/dodopayments-go/issues">
+  Segnala bug o richiedi funzionalità
+</Card>
+</CardGroup>
+
+## Supporto
+
+Hai bisogno di aiuto con l'SDK Go?
+
+- **Discord**: Unisciti al nostro [server della comunità](https://discord.gg/bYqAp4ayYh) per supporto in tempo reale
+- **Email**: Contattaci a support@dodopayments.com
+- **GitHub**: Apri un problema nel [repository](https://github.com/dodopayments/dodopayments-go)
+
+## Contribuire
+
+Accogliamo con favore i contributi! Controlla le [linee guida per i contributi](https://github.com/dodopayments/dodopayments-go/blob/main/CONTRIBUTING.md) per iniziare.

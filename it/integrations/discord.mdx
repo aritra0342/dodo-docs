@@ -1,0 +1,142 @@
+---
+title: Discord
+description: Invia notifiche in tempo reale dei pagamenti Dodo ai tuoi canali Discord.
+icon: discord
+---
+
+## Introduzione
+
+Tieni il tuo team informato dove già collaborano. L'integrazione di Discord invia eventi di pagamento, abbonamento, controversia e altri eventi importanti direttamente a qualsiasi canale tu scelga—senza necessità di polling o dashboard.
+
+<Info>
+Questa guida presuppone che tu abbia accesso alla sezione Integrazioni del dashboard di Dodo Payments.
+</Info>
+
+## Iniziare
+
+<Steps>
+<Step title="Apri la Sezione Webhook">
+  Nel tuo dashboard di Dodo Payments, apri <b>Webhook → + Aggiungi Endpoint</b> e espandi il menu a discesa per rivelare le integrazioni.
+  <Frame>
+    <img src="/images/integrations/discord.png" alt="Aggiungi Endpoint e menu a discesa delle integrazioni" />
+  </Frame>
+</Step>
+
+<Step title="Seleziona Discord">
+  Scegli la scheda <b>Discord</b> e poi clicca su <b>Collega il tuo workspace Discord</b>.
+</Step>
+
+<Step title="Autorizza il Bot">
+  Concedi i permessi richiesti affinché il bot possa inviare messaggi nel tuo canale selezionato.
+</Step>
+
+<Step title="Modifica il Codice di Trasformazione">
+  Adatta il mapping del payload → embed alle tue esigenze—oppure inizia con i modelli qui sotto.
+</Step>
+
+<Step title="Testa & Crea">
+  Usa payload di esempio per visualizzare l'embed, poi clicca su <b>Crea</b>.
+</Step>
+
+<Step title="Fatto!">
+  🎉 Il tuo canale Discord riceverà ora aggiornamenti live sui pagamenti Dodo.
+</Step>
+</Steps>
+
+## Esempi di Codice di Trasformazione
+
+### Embed di Pagamento Minimo
+
+```javascript payment_embed.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.payload = {
+      embeds: [{
+        title: "✅ Payment Successful",
+        description: `**Amount:** $${(p.total_amount / 100).toFixed(2)}\n**Customer:** ${p.customer.email}`,
+        color: 0x2ecc71 // green
+      }]
+    };
+  }
+  return webhook;
+}
+```
+
+### Eventi di Abbonamento
+
+```javascript subscription_embed.js icon="js" expandable
+function handler(webhook) {
+  const s = webhook.payload.data;
+  switch (webhook.eventType) {
+    case "subscription.active":
+      webhook.payload = {
+        embeds: [{
+          title: "📄 Subscription Activated",
+          fields: [
+            { name: "Customer", value: s.customer.email, inline: true },
+            { name: "Product", value: s.product_id, inline: true },
+            { name: "Next Billing", value: new Date(s.next_billing_date).toLocaleDateString(), inline: true }
+          ],
+          color: 0x2ecc71
+        }]
+      };
+      break;
+    case "subscription.cancelled":
+      webhook.payload = {
+        embeds: [{
+          title: "⚠️ Subscription Cancelled",
+          fields: [
+            { name: "Customer", value: s.customer.email, inline: true },
+            { name: "Product", value: s.product_id, inline: true }
+          ],
+          color: 0xf1c40f
+        }]
+      };
+      break;
+  }
+  return webhook;
+}
+```
+
+### Avvisi di Controversia
+
+```javascript dispute_embed.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType.startsWith("dispute.")) {
+    const d = webhook.payload.data;
+    webhook.payload = {
+      embeds: [{
+        title: d.dispute_status === "won" ? "🏆 Dispute Won" : d.dispute_status === "lost" ? "❌ Dispute Lost" : "🚨 Dispute Update",
+        fields: [
+          { name: "Payment ID", value: d.payment_id, inline: true },
+          { name: "Amount", value: `$${(d.amount / 100).toFixed(2)}`, inline: true },
+          { name: "Status", value: d.dispute_status, inline: true }
+        ],
+        color: d.dispute_status === "won" ? 0x2ecc71 : d.dispute_status === "lost" ? 0xe74c3c : 0xe67e22
+      }]
+    };
+  }
+  return webhook;
+}
+```
+
+## Suggerimenti
+
+- Preferisci gli embed per una formattazione ricca e colori.
+- Mantieni i titoli brevi; metti i dettagli nei campi.
+- Usa colori intuitivi: verde (successo), rosso (errore), arancione (avvisi).
+
+## Risoluzione dei Problemi
+
+<AccordionGroup>
+<Accordion title="Nessun messaggio in Discord">
+- Conferma che il bot abbia accesso al canale.
+- Controlla che la trasformazione restituisca un oggetto JSON con `embeds`.
+</Accordion>
+
+<Accordion title="Errori di Trasformazione">
+- Valida il tuo codice nell'editor – errori di sintassi bloccheranno la consegna.
+- Assicurati che i nomi dei campi corrispondano alla struttura del payload del webhook.
+</Accordion>
+</AccordionGroup>

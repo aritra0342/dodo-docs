@@ -1,0 +1,161 @@
+---
+title: सेगमेंट
+description: विश्लेषण और ग्राहक डेटा प्लेटफ़ॉर्म एकीकरण के लिए Dodo Payments
+  घटनाओं को सेगमेंट पर भेजें।
+icon: चार्ट-लाइन
+---
+
+## परिचय
+
+सेगमेंट में भुगतान घटनाओं को ट्रैक करें ताकि आपके विश्लेषण, मार्केटिंग ऑटोमेशन, और ग्राहक डेटा प्लेटफ़ॉर्म को शक्ति मिल सके। भुगतान, सदस्यता, और ग्राहक जीवनचक्र की घटनाओं को 300+ डाउनस्ट्रीम टूल्स पर स्वचालित रूप से भेजें।
+
+<Info>
+इस एकीकरण के लिए आपके सेगमेंट कार्यक्षेत्र से एक सेगमेंट लिखने की कुंजी की आवश्यकता है।
+</Info>
+
+## प्रारंभ करना
+
+<Steps>
+<Step title="Webhook अनुभाग खोलें">
+  अपने Dodo Payments डैशबोर्ड में, <b>Webhooks → + Add Endpoint</b> पर जाएं और एकीकरण ड्रॉपडाउन का विस्तार करें।
+  <Frame>
+    <img src="/images/integrations/segment.png" alt="एंडपॉइंट जोड़ें और एकीकरण ड्रॉपडाउन" />
+  </Frame>
+</Step>
+
+<Step title="सेगमेंट चुनें">
+  <b>सेगमेंट</b> एकीकरण कार्ड चुनें।
+</Step>
+
+<Step title="लिखने की कुंजी दर्ज करें">
+  कॉन्फ़िगरेशन में अपनी सेगमेंट लिखने की कुंजी प्रदान करें।
+</Step>
+
+<Step title="रूपांतरण कॉन्फ़िगर करें">
+  सेगमेंट के ट्रैक एपीआई के लिए घटनाओं को स्वरूपित करने के लिए रूपांतरण कोड संपादित करें।
+</Step>
+
+<Step title="परीक्षण और बनाएँ">
+  नमूना पेलोड के साथ परीक्षण करें और समन्वय सक्रिय करने के लिए <b>बनाएँ</b> पर क्लिक करें।
+</Step>
+
+<Step title="हो गया!">
+  🎉 भुगतान घटनाएँ अब सेगमेंट में ट्रैक की जाएंगी और आपके जुड़े टूल्स पर भेजी जाएंगी।
+</Step>
+</Steps>
+
+## रूपांतरण कोड उदाहरण
+
+### भुगतान घटनाओं को ट्रैक करें
+
+```javascript track_payments.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.url = "https://api.segment.io/v1/track";
+    webhook.payload = {
+      userId: p.customer.customer_id,
+      event: "Payment Completed",
+      properties: {
+        amount: (p.total_amount / 100).toFixed(2),
+        currency: p.currency || "USD",
+        payment_method: p.payment_method || "unknown",
+        payment_id: p.payment_id,
+        customer_email: p.customer.email,
+        customer_name: p.customer.name
+      },
+      timestamp: webhook.payload.timestamp
+    };
+  }
+  return webhook;
+}
+```
+
+### सदस्यता जीवनचक्र को ट्रैक करें
+
+```javascript track_subscriptions.js icon="js" expandable
+function handler(webhook) {
+  const s = webhook.payload.data;
+  switch (webhook.eventType) {
+    case "subscription.active":
+      webhook.url = "https://api.segment.io/v1/track";
+      webhook.payload = {
+        userId: s.customer.customer_id,
+        event: "Subscription Started",
+        properties: {
+          subscription_id: s.subscription_id,
+          product_id: s.product_id,
+          amount: (s.recurring_pre_tax_amount / 100).toFixed(2),
+          frequency: s.payment_frequency_interval,
+          next_billing: s.next_billing_date,
+          customer_email: s.customer.email
+        },
+        timestamp: webhook.payload.timestamp
+      };
+      break;
+    case "subscription.cancelled":
+      webhook.url = "https://api.segment.io/v1/track";
+      webhook.payload = {
+        userId: s.customer.customer_id,
+        event: "Subscription Cancelled",
+        properties: {
+          subscription_id: s.subscription_id,
+          product_id: s.product_id,
+          cancelled_at: s.cancelled_at,
+          cancel_at_next_billing: s.cancel_at_next_billing_date,
+          customer_email: s.customer.email
+        },
+        timestamp: webhook.payload.timestamp
+      };
+      break;
+  }
+  return webhook;
+}
+```
+
+### ग्राहक गुणों की पहचान करें
+
+```javascript identify_customer.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.url = "https://api.segment.io/v1/identify";
+    webhook.payload = {
+      userId: p.customer.customer_id,
+      traits: {
+        email: p.customer.email,
+        name: p.customer.name,
+        total_spent: (p.total_amount / 100).toFixed(2),
+        payment_method: p.payment_method || "unknown",
+        last_payment_date: webhook.payload.timestamp,
+        customer_since: webhook.payload.timestamp
+      }
+    };
+  }
+  return webhook;
+}
+```
+
+## सुझाव
+
+- अपने एकीकरण में लगातार घटना नामों का उपयोग करें
+- विश्लेषण और विभाजन के लिए प्रासंगिक गुण शामिल करें
+- सटीक घटना ट्रैकिंग के लिए उचित समय मुहैया करें
+- उचित उपयोगकर्ता पहचान के लिए ग्राहक आईडी को userId के रूप में उपयोग करें
+
+## समस्या निवारण
+
+<AccordionGroup>
+<Accordion title="सेगमेंट में घटनाएँ नहीं दिख रही हैं">
+- सुनिश्चित करें कि लिखने की कुंजी सही और सक्रिय है
+- जांचें कि घटना नाम सेगमेंट नामकरण मानकों का पालन करते हैं
+- सुनिश्चित करें कि उपयोगकर्ता पहचान के लिए userId सही ढंग से सेट है
+- सेगमेंट एपीआई दर सीमाओं की समीक्षा करें
+</Accordion>
+
+<Accordion title="रूपांतरण त्रुटियाँ">
+- सत्यापित करें कि JSON संरचना सेगमेंट एपीआई प्रारूप से मेल खाती है
+- सुनिश्चित करें कि सभी आवश्यक फ़ील्ड मौजूद हैं
+- सुनिश्चित करें कि घटना नाम स्ट्रिंग हैं, वस्तुएँ नहीं
+</Accordion>
+</AccordionGroup>

@@ -1,0 +1,151 @@
+---
+title: HubSpot
+description: Dodo Payments घटनाओं से HubSpot में संपर्क, कंपनियों और सौदों को
+  स्वचालित रूप से बनाएं और अपडेट करें।
+icon: hubspot
+---
+
+## परिचय
+
+अपने भुगतान डेटा को सीधे HubSpot CRM में समन्वयित करें। सफल भुगतानों से संपर्क बनाएं, सदस्यता जीवनचक्र को ट्रैक करें, और व्यापक ग्राहक प्रोफाइल बनाएं—सभी स्वचालित रूप से Dodo Payments घटनाओं द्वारा ट्रिगर किए गए।
+
+<Info>
+इस एकीकरण के लिए OAuth स्कोप और API अनुमतियों को कॉन्फ़िगर करने के लिए HubSpot प्रशासनिक पहुंच की आवश्यकता है।
+</Info>
+
+## प्रारंभ करना
+
+<Steps>
+<Step title="Webhook अनुभाग खोलें">
+  अपने Dodo Payments डैशबोर्ड में, <b>Webhooks → + Add Endpoint</b> पर जाएं और एकीकरण ड्रॉपडाउन का विस्तार करें।
+  <Frame>
+    <img src="/images/integrations/hubspot.png" alt="Add Endpoint and integrations dropdown" />
+  </Frame>
+</Step>
+
+<Step title="HubSpot चुनें">
+  <b>HubSpot</b> एकीकरण कार्ड चुनें।
+</Step>
+
+<Step title="HubSpot से कनेक्ट करें">
+  <b>HubSpot से कनेक्ट करें</b> पर क्लिक करें और आवश्यक OAuth स्कोप को अधिकृत करें।
+</Step>
+
+<Step title="परिवर्तन कॉन्फ़िगर करें">
+  भुगतान डेटा को HubSpot CRM वस्तुओं से मैप करने के लिए परिवर्तन कोड संपादित करें।
+</Step>
+
+<Step title="परीक्षण और बनाएं">
+  नमूना पेलोड के साथ परीक्षण करें और समन्वय सक्रिय करने के लिए <b>बनाएं</b> पर क्लिक करें।
+</Step>
+
+<Step title="हो गया!">
+  🎉 भुगतान घटनाएँ अब स्वचालित रूप से आपके HubSpot CRM में रिकॉर्ड बनाएंगी/अपडेट करेंगी।
+</Step>
+</Steps>
+
+## परिवर्तन कोड उदाहरण
+
+### भुगतान से संपर्क बनाएं
+
+```javascript create_contact.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.url = "https://api.hubapi.com/crm/v3/objects/contacts";
+    webhook.payload = {
+      properties: {
+        email: p.customer.email,
+        firstname: p.customer.name.split(' ')[0] || '',
+        lastname: p.customer.name.split(' ').slice(1).join(' ') || '',
+        phone: p.customer.phone || '',
+        company: p.customer.company || '',
+        amount: (p.total_amount / 100).toString(),
+        payment_method: p.payment_method || '',
+        currency: p.currency || 'USD'
+      }
+    };
+  }
+  return webhook;
+}
+```
+
+### सदस्यता के साथ संपर्क अपडेट करें
+
+```javascript update_contact.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "subscription.active") {
+    const s = webhook.payload.data;
+    webhook.url = `https://api.hubapi.com/crm/v3/objects/contacts/${s.customer.customer_id}`;
+    webhook.method = "PATCH";
+    webhook.payload = {
+      properties: {
+        subscription_status: "active",
+        subscription_amount: (s.recurring_pre_tax_amount / 100).toString(),
+        subscription_frequency: s.payment_frequency_interval,
+        next_billing_date: s.next_billing_date,
+        product_id: s.product_id
+      }
+    };
+  }
+  return webhook;
+}
+```
+
+### भुगतान से सौदा बनाएं
+
+```javascript create_deal.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.url = "https://api.hubapi.com/crm/v3/objects/deals";
+    webhook.payload = {
+      properties: {
+        dealname: `Payment - ${p.customer.email}`,
+        amount: (p.total_amount / 100).toString(),
+        dealstage: "closedwon",
+        closedate: new Date().toISOString(),
+        hs_currency: p.currency || "USD"
+      },
+      associations: [
+        {
+          to: {
+            id: p.customer.customer_id
+          },
+          types: [
+            {
+              associationCategory: "HUBSPOT_DEFINED",
+              associationTypeId: 3
+            }
+          ]
+        }
+      ]
+    };
+  }
+  return webhook;
+}
+```
+
+## सुझाव
+
+- वस्तु निर्माण का परीक्षण करने के लिए HubSpot के API एक्सप्लोरर का उपयोग करें
+- भुगतान राशियों को HubSpot मुद्रा क्षेत्रों से मैप करें
+- उचित संघों के लिए ग्राहक आईडी शामिल करें
+- भुगतान स्थिति के आधार पर उचित सौदा चरण सेट करें
+
+## समस्या निवारण
+
+<AccordionGroup>
+<Accordion title="HubSpot में रिकॉर्ड नहीं बने">
+- सत्यापित करें कि OAuth स्कोप में लिखने की अनुमतियाँ शामिल हैं
+- जांचें कि आवश्यक HubSpot गुण मौजूद हैं
+- सुनिश्चित करें कि ग्राहक ईमेल मान्य और अद्वितीय है
+- HubSpot API दर सीमाओं की समीक्षा करें
+</Accordion>
+
+<Accordion title="परिवर्तन त्रुटियाँ">
+- सत्यापित करें कि JSON संरचना HubSpot API प्रारूप से मेल खाती है
+- जांचें कि सभी आवश्यक गुण शामिल हैं
+- सुनिश्चित करें कि गुण नाम HubSpot फ़ील्ड नामों से बिल्कुल मेल खाते हैं
+</Accordion>
+</AccordionGroup>

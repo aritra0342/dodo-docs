@@ -1,0 +1,142 @@
+---
+title: Discord
+description: Skicka realtidsnotifikationer från Dodo Payments till dina Discord-kanaler.
+icon: discord
+---
+
+## Introduktion
+
+Håll ditt team informerat där de redan samarbetar. Discord-integrationen levererar betalningar, prenumerationer, tvister och andra viktiga händelser direkt till valfri kanal du väljer—ingen polling eller instrumentpaneler krävs.
+
+<Info>
+Denna guide förutsätter att du har tillgång till avsnittet Integreringar i Dodo Payments-instrumentpanelen.
+</Info>
+
+## Komma igång
+
+<Steps>
+<Step title="Öppna Webhook-avsnittet">
+  I din Dodo Payments-instrumentpanel, öppna <b>Webhooks → + Lägg till slutpunkt</b> och expandera rullgardinsmenyn för att avslöja integrationer.
+  <Frame>
+    <img src="/images/integrations/discord.png" alt="Lägg till slutpunkt och integrationsrullgardinsmeny" />
+  </Frame>
+</Step>
+
+<Step title="Välj Discord">
+  Välj <b>Discord</b>-kortet och klicka sedan på <b>Anslut din Discord-arbetsyta</b>.
+</Step>
+
+<Step title="Auktorisera Botten">
+  Ge de begärda behörigheterna så att botten kan posta meddelanden i din valda kanal.
+</Step>
+
+<Step title="Redigera Transformationskod">
+  Anpassa payload → embed-mappningen efter dina behov—eller börja med mallarna nedan.
+</Step>
+
+<Step title="Testa & Skapa">
+  Använd exempelpayloads för att förhandsgranska embed, och tryck sedan på <b>Skapa</b>.
+</Step>
+
+<Step title="Klart!">
+  🎉 Din Discord-kanal kommer nu att ta emot liveuppdateringar från Dodo Payments.
+</Step>
+</Steps>
+
+## Exempel på Transformationskod
+
+### Minimal Betalnings-Embed
+
+```javascript payment_embed.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.payload = {
+      embeds: [{
+        title: "✅ Payment Successful",
+        description: `**Amount:** $${(p.total_amount / 100).toFixed(2)}\n**Customer:** ${p.customer.email}`,
+        color: 0x2ecc71 // green
+      }]
+    };
+  }
+  return webhook;
+}
+```
+
+### Prenumerationshändelser
+
+```javascript subscription_embed.js icon="js" expandable
+function handler(webhook) {
+  const s = webhook.payload.data;
+  switch (webhook.eventType) {
+    case "subscription.active":
+      webhook.payload = {
+        embeds: [{
+          title: "📄 Subscription Activated",
+          fields: [
+            { name: "Customer", value: s.customer.email, inline: true },
+            { name: "Product", value: s.product_id, inline: true },
+            { name: "Next Billing", value: new Date(s.next_billing_date).toLocaleDateString(), inline: true }
+          ],
+          color: 0x2ecc71
+        }]
+      };
+      break;
+    case "subscription.cancelled":
+      webhook.payload = {
+        embeds: [{
+          title: "⚠️ Subscription Cancelled",
+          fields: [
+            { name: "Customer", value: s.customer.email, inline: true },
+            { name: "Product", value: s.product_id, inline: true }
+          ],
+          color: 0xf1c40f
+        }]
+      };
+      break;
+  }
+  return webhook;
+}
+```
+
+### Tvistvarningar
+
+```javascript dispute_embed.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType.startsWith("dispute.")) {
+    const d = webhook.payload.data;
+    webhook.payload = {
+      embeds: [{
+        title: d.dispute_status === "won" ? "🏆 Dispute Won" : d.dispute_status === "lost" ? "❌ Dispute Lost" : "🚨 Dispute Update",
+        fields: [
+          { name: "Payment ID", value: d.payment_id, inline: true },
+          { name: "Amount", value: `$${(d.amount / 100).toFixed(2)}`, inline: true },
+          { name: "Status", value: d.dispute_status, inline: true }
+        ],
+        color: d.dispute_status === "won" ? 0x2ecc71 : d.dispute_status === "lost" ? 0xe74c3c : 0xe67e22
+      }]
+    };
+  }
+  return webhook;
+}
+```
+
+## Tips
+
+- Föredra embeds för rik formatering och färger.
+- Håll titlar korta; lägg detaljer i fälten.
+- Använd intuitiva färger: grön (framgång), röd (misslyckande), orange (varningar).
+
+## Felsökning
+
+<AccordionGroup>
+<Accordion title="Inga meddelanden i Discord">
+- Bekräfta att botten har tillgång till kanalen.
+- Kontrollera att transformationen returnerar ett JSON-objekt med `embeds`.
+</Accordion>
+
+<Accordion title="Transformationsfel">
+- Validera din kod i redigeraren – syntaxfel blockerar leverans.
+- Se till att fältnamn matchar webhook-payloadstrukturen.
+</Accordion>
+</AccordionGroup>

@@ -1,0 +1,741 @@
+---
+title: Integrationsguide för användningsbaserad fakturering
+description: Lär dig hur du ställer in mätare och skickar användningsevenemang
+  för att möjliggöra korrekt användningsbaserad fakturering med Dodo Payments.
+icon: arrow-trend-up
+---
+
+<CardGroup cols={2}>
+<Card title="API-referens - Händelseinmatning" icon="code" href="/api-reference/usage-events/ingest-events">
+  Få tillgång till den kompletta API-dokumentationen för att mata in användningsevenemang och testa händelseinmatningsförfrågningar och svar interaktivt.
+</Card>
+
+<Card title="API-referens - Skapande av mätare" icon="code" href="/api-reference/meters/create-meter">
+  Utforska den fullständiga API-dokumentationen för att skapa mätare och interaktivt testa förfrågningar och svar för skapande av mätare.
+</Card>
+</CardGroup>
+
+## Skapa en mätare
+
+Mätare definierar hur dina användningsevenemang aggregeras och mäts för faktureringsändamål.
+
+Innan du skapar en mätare, planera din strategi för användningsspårning:
+- Identifiera vilka användningsevenemang du vill spåra
+- Bestäm hur händelser ska aggregeras (antal, summa, etc.)
+- Definiera eventuella filtreringskrav för specifika användningsfall
+
+### Steg-för-steg skapande av mätare
+
+Följ denna omfattande guide för att ställa in din användningsmätare:
+
+<Steps>
+<Step title="Konfigurera grundläggande information">
+Ställ in de grundläggande detaljerna för din mätare.
+
+<ParamField path="Mätarnamn" type="string" required>
+Välj ett tydligt, beskrivande namn som identifierar vad denna mätare spårar.
+
+Exempel: "Tokens", "API-anrop", "Lagringsanvändning", "Beräkningstimmar"
+</ParamField>
+
+<ParamField path="Beskrivning" type="string">
+Ge en detaljerad förklaring av vad denna mätare mäter.
+
+Exempel: "Räknar varje POST /v1/orders-förfrågan som görs av kunden"
+</ParamField>
+
+<ParamField path="Händelsenamn" type="string" required>
+Specificera händelseidentifieraren som kommer att utlösa denna mätare.
+
+Exempel: "token", "api.call", "storage.usage", "compute.session"
+</ParamField>
+
+<Info>
+Händelsenamnet måste matcha exakt vad du skickar i dina användningsevenemang. Händelsenamn är skiftlägeskänsliga.
+</Info>
+</Step>
+
+<Step title="Konfigurera aggregeringsinställningar">
+Definiera hur mätaren beräknar användning från dina händelser.
+
+<ParamField path="Aggregeringstyp" type="string" required>
+Välj hur händelser ska aggregeras:
+
+<Tabs>
+<Tab title="Antal">
+Räknar helt enkelt antalet mottagna händelser.
+
+Användningsfall: API-anrop, sidvisningar, filuppladdningar
+
+Beräkning: Totalt antal händelser
+</Tab>
+
+<Tab title="Summa">
+Lägger ihop värden från en specifik egenskap i dina händelser.
+
+Användningsfall: Datatransfer, lagringskonsumtion, bearbetningstid
+
+Beräkning: Summa av alla egenskapsvärden
+</Tab>
+
+<Tab title="Max">
+Registrerar det högsta värdet av en specifik egenskap under faktureringsperioden.
+
+Användningsfall: Maximalt antal samtidiga användare, högsta lagring som används, högsta bandbredd
+
+Beräkning: Maximalt observerat egenskapsvärde
+</Tab>
+
+<Tab title="Senaste">
+Använder det senaste värdet av en specifik egenskap.
+
+Användningsfall: Aktuell plan nivå, senaste konfigurationsinställning
+
+Beräkning: Senast registrerade egenskapsvärde
+</Tab>
+</Tabs>
+</ParamField>
+
+<ParamField path="Över egenskap" type="string">
+Egenskapsnamnet från händelsemetadata att aggregera över.
+
+<Warning>
+Detta fält krävs när du använder aggregeringstyperna Summa, Max eller Senaste.
+</Warning>
+</ParamField>
+
+<ParamField path="Mätningsenhet" type="string" required>
+Definiera enhetsnamnet för visningsändamål i rapporter och fakturering.
+
+Exempel: "anrop", "GB", "timmar", "tokens"
+</ParamField>
+</Step>
+
+<Step title="Konfigurera händelsefiltrering (valfritt)">
+Ställ in kriterier för att kontrollera vilka händelser som ingår i mätaren.
+
+<Info>
+Händelsefiltrering gör att du kan skapa sofistikerade regler som avgör vilka händelser som bidrar till dina användningsberäkningar. Detta är användbart för att utesluta testhändelser, filtrera efter användarnivåer eller fokusera på specifika åtgärder.
+</Info>
+
+**Aktivera händelsefiltrering**
+
+Växla **Aktivera händelsefiltrering** för att aktivera villkorlig händelsebehandling.
+
+**Välj filtreringslogik**
+
+Välj hur flera villkor utvärderas:
+
+<Tabs>
+<Tab title="OCH-logik">
+Alla villkor måste vara sanna för att en händelse ska räknas. Använd detta när du behöver att händelser ska uppfylla flera strikta kriterier samtidigt.
+
+**Exempel:** Räkna API-anrop där `user_tier = "premium"` OCH `endpoint = "/api/v2/users"`
+</Tab>
+
+<Tab title="ELLER-logik">
+Minst ett villkor måste vara sant för att en händelse ska räknas. Använd detta när du vill inkludera händelser som uppfyller något av flera kriterier.
+
+**Exempel:** Räkna händelser där `method = "POST"` ELLER `method = "PUT"` ELLER `method = "DELETE"`
+</Tab>
+</Tabs>
+
+**Ställa in filtreringsvillkor**
+
+<Steps>
+<Step title="Lägg till villkor">
+Klicka på **Lägg till villkor** för att skapa en ny filtreringsregel.
+</Step>
+
+<Step title="Konfigurera egenskapsnyckel">
+Specificera egenskapsnamnet från din händelsemetadata.
+</Step>
+
+<Step title="Välj jämförare">
+Välj bland tillgängliga operatörer:
+- `equals` - Exakt matchning
+- `not equals` - Uteslutningsfilter
+- `greater than` - Numerisk jämförelse  
+- `greater than or equals` - Numerisk jämförelse (inkluderande)
+- `less than` - Numerisk jämförelse
+- `less than or equals` - Numerisk jämförelse (inkluderande)
+- `contains` - Sträng innehåller delsträng
+- `does not contain` - Sträng uteslutningsfilter
+</Step>
+
+<Step title="Ställ in jämförelsevärde">
+Ställ in målvärdet för jämförelse.
+</Step>
+
+<Step title="Lägg till grupper">
+Använd **Lägg till grupp** för att skapa ytterligare villkorsgrupper för komplex logik.
+</Step>
+</Steps>
+
+<Warning>
+Filtrerade egenskaper måste ingå i din händelsemetadata för att villkoren ska fungera korrekt. Händelser som saknar nödvändiga egenskaper kommer att uteslutas från räkningen.
+</Warning>
+</Step>
+
+<Step title="Skapa mätare">
+Granska din mätarkonfiguration och klicka på **Skapa mätare**.
+
+<Check>
+Din mätare är nu redo att ta emot och aggregera användningsevenemang.
+</Check>
+
+</Step>
+</Steps>
+
+## Länka mätare i en produkt
+
+När du har skapat din mätare måste du länka den till en produkt för att möjliggöra användningsbaserad fakturering. Denna process kopplar din mätares användningsdata till prissättningsregler för kundfakturering.
+
+Att länka mätare till produkter etablerar kopplingen mellan användningsspårning och fakturering:
+- Produkter definierar prissättningsregler och faktureringsbeteende
+- Mätare tillhandahåller användningsdata för faktureringsberäkningar
+- Flera mätare kan länkas till en enda produkt för komplexa faktureringsscenarier
+
+### Produktkonfigurationsprocess
+
+Transformera dina användningsdata till fakturerbara avgifter genom att korrekt konfigurera dina produktinställningar:
+
+<Steps>
+<Step title="Välj produktkategori för användningsbaserad fakturering">
+Navigera till din produkt skapande eller redigeringssida och välj **Användningsbaserad** som produkttyp.
+
+</Step>
+
+<Step title="Välj associerad mätare">
+Klicka på **Associerad mätare** för att öppna mätarvalspanelen från sidan.
+
+Denna panel gör att du kan konfigurera vilka mätare som kommer att spåra användning för denna produkt.
+</Step>
+
+<Step title="Lägg till din mätare">
+I mätarvalspanelen:
+
+1. Klicka på **Lägg till mätare** för att se tillgängliga mätare
+2. Välj den mätare du skapade från rullgardinslistan
+3. Den valda mätaren kommer att visas i din produktkonfiguration
+
+</Step>
+
+<Step title="Konfigurera pris per enhet">
+Ställ in prissättningen för varje enhet av användning som spåras av din mätare.
+
+<ParamField path="Pris per enhet" type="number" required>
+Definiera hur mycket som ska debiteras för varje enhet som mäts av din mätare.
+
+**Exempel**: Att ställa in `$0.50` per enhet innebär:
+- 1 000 enheter förbrukade = 1 000 × $0.50 = 500,00 debiterat
+- 500 enheter förbrukade = 500 × $0.50 = 250,00 debiterat
+- 100 enheter förbrukade = 100 × $0.50 = 50,00 debiterat
+</ParamField>
+
+</Step>
+
+<Step title="Ställ in gratis tröskel (valfritt)">
+Konfigurera en gratis användningsgräns innan faktureringen börjar.
+
+<ParamField path="Gratis tröskel" type="number">
+Antal enheter kunder kan förbruka utan kostnad innan beräkningen av betald användning börjar.
+
+**Hur det fungerar**:
+- Gratis tröskel: 100 enheter
+- Pris per enhet: $0.50
+- Kundens användning: 250 enheter
+- **Beräkning**: (250 - 100) × $0.50 = **$75.00** debiterat
+</ParamField>
+
+<Info>
+Gratiströsklar är idealiska för freemium-modeller, provperioder eller för att ge kunder en grundläggande tilldelning som ingår i deras plan.
+</Info>
+
+<Check>
+Gratiströskeln gäller för varje faktureringscykel, vilket ger kunderna nya tilldelningar varje månad eller enligt din faktureringsschema.
+</Check>
+</Step>
+
+<Step title="Spara konfiguration">
+Granska din mätare och prissättningskonfiguration, klicka sedan på **Spara ändringar** för att slutföra inställningen.
+
+<Check>
+Din produkt är nu konfigurerad för användningsbaserad fakturering och kommer automatiskt att debitera kunder baserat på deras mätta konsumtion.
+</Check>
+
+**Vad som händer härnäst**:
+- Användningsevenemang som skickas till din mätare kommer att spåras och aggregeras
+- Faktureringsberäkningar kommer automatiskt att tillämpa dina prissättningsregler
+- Kunder kommer att debiteras baserat på faktisk konsumtion under varje faktureringscykel
+</Step>
+</Steps>
+
+<Note>
+Kom ihåg att du kan lägga till upp till 10 mätare per produkt, vilket möjliggör sofistikerad användningsspårning över flera dimensioner som API-anrop, lagring, beräkningstid och anpassade mätvärden.
+</Note>
+
+## Skicka användningsevenemang
+
+När din mätare är konfigurerad kan du börja skicka användningsevenemang från din applikation för att spåra kundens användning.
+
+### Händelsestruktur
+
+Varje användningsevenemang måste inkludera dessa obligatoriska fält:
+
+<ParamField body="event_id" type="string" required>
+Unik identifierare för detta specifika evenemang. Måste vara unik över alla händelser.
+</ParamField>
+
+<ParamField body="customer_id" type="string" required>
+Dodo Payments kund-ID som denna användning ska tillskrivas.
+</ParamField>
+
+<ParamField body="event_name" type="string" required>
+Händelsenamnet som matchar din mätarkonfiguration. Händelsenamn utlöser den lämpliga mätaren.
+</ParamField>
+
+<ParamField body="timestamp" type="string">
+ISO 8601-tidsstämpel när händelsen inträffade. Standardvärde är aktuell tid om det inte anges.
+</ParamField>
+
+<ParamField body="metadata" type="object">
+Ytterligare egenskaper för filtrering och aggregering. Inkludera alla värden som refereras i din mätare "Över egenskap" eller filtreringsvillkor.
+</ParamField>
+
+### Exempel på användningsevenemangs-API
+
+Skicka användningsevenemang till dina konfigurerade mätare med hjälp av Events API:
+
+<CodeGroup>
+
+```javascript Node.js
+const response = await fetch('https://test.dodopayments.com/events/ingest', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${process.env.DODO_API_KEY}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    events: [
+      {
+        event_id: "api_call_1234",
+        customer_id: "cus_atXa1lklCRRzMicTqfiw2", 
+        event_name: "api.call",
+        timestamp: new Date().toISOString(),
+        metadata: {
+          endpoint: "/v1/orders",
+          method: "POST",
+          response_size: 1024
+        }
+      }
+    ]
+  })
+});
+```
+
+```python Python
+import requests
+from datetime import datetime
+
+response = requests.post(
+    'https://test.dodopayments.com/events/ingest',
+    headers={
+        'Authorization': f'Bearer {api_key}',
+        'Content-Type': 'application/json'
+    },
+    json={
+        'events': [
+            {
+                'event_id': 'api_call_1234',
+                'customer_id': 'cus_atXa1lklCRRzMicTqfiw2',
+                'event_name': 'api.call',
+                'timestamp': datetime.now().isoformat(),
+                'metadata': {
+                    'endpoint': '/v1/orders',
+                    'method': 'POST',
+                    'response_size': 1024
+                }
+            }
+        ]
+    }
+)
+```
+
+```curl cURL
+curl -X POST 'https://test.dodopayments.com/events/ingest' \
+  -H 'Authorization: Bearer YOUR_API_KEY' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "events": [
+      {
+        "event_id": "api_call_1234",
+        "customer_id": "cus_atXa1lklCRRzMicTqfiw2",
+        "event_name": "api.call", 
+        "timestamp": "2024-01-15T10:30:00Z",
+        "metadata": {
+          "endpoint": "/v1/orders",
+          "method": "POST",
+          "response_size": 1024
+        }
+      }
+    ]
+  }'
+```
+
+</CodeGroup>
+
+## Analys av användningsbaserad fakturering
+
+Övervaka och analysera dina data för användningsbaserad fakturering med en omfattande analysinstrumentpanel. Spåra kundens konsumtionsmönster, mätarens prestanda och faktureringstrender för att optimera din prissättningsstrategi och förstå användningsbeteenden.
+
+### Översiktsanalys
+
+Översiktsfliken ger en omfattande vy av din prestanda för användningsbaserad fakturering:
+
+#### Aktivitetsmått
+
+Spåra viktiga användningsstatistik över olika tidsperioder:
+
+<ParamField path="Aktuell månad" type="metric">
+Visar användningsaktivitet för den aktuella faktureringsperioden, vilket hjälper dig att förstå månatliga konsumtionsmönster.
+</ParamField>
+
+<ParamField path="All tid" type="metric">
+Visar kumulativa användningsstatistik sedan du började spåra, vilket ger insikter om långsiktig tillväxt.
+</ParamField>
+
+<Tip>
+Använd tidsperiodsvalet för att jämföra användning över olika månader och identifiera säsongstrender eller tillväxtmönster.
+</Tip>
+
+#### Mätarantaldiagram
+
+<Frame>
+<img src="/images/guides/usage-based-billing/meter-quantities-chart.png" alt="Mätarantaldiagram som visar användningstrender över tid med lila gradientvisualisering" />
+</Frame>
+
+Mätarantaldiagrammet visualiserar användningstrender över tid med följande funktioner:
+
+- **Tidsserievisualisering**: Spåra användningsmönster över dagar, veckor eller månader
+- **Stöd för flera mätare**: Visa data från olika mätare samtidigt
+- **Trendanalys**: Identifiera användningstoppar, mönster och tillväxtbanor
+
+<Info>
+Diagrammet skalar automatiskt baserat på din användningsvolym och valt tidsintervall, vilket ger tydlig insyn i både små fluktuationer och stora förändringar i användning.
+</Info>
+
+### Händelseanalys
+
+<Frame>
+<img src="/images/guides/usage-based-billing/events-table.png" alt="Händelsetabell som visar händelsenamn, ID och pagineringskontroller för detaljerad händelseanalys" />
+</Frame>
+
+Händelsefliken ger detaljerad insyn i individuella användningsevenemang:
+
+#### Visning av händelseinformation
+
+Händelsetabellen ger en tydlig vy av individuella användningsevenemang med följande kolumner:
+
+- **Händelsenamn**: Den specifika åtgärden eller utlösaren som genererade användningsevenemanget
+- **Händelse-ID**: Unik identifierare för varje händelseinstans
+- **Kund-ID**: Kunden kopplad till händelsen
+- **Tidsstämpel**: När händelsen inträffade
+
+<Info>
+Denna vy gör att du kan spåra och övervaka individuella användningsevenemang över din kundbas, vilket ger insyn i faktureringsberäkningar och användningsmönster.
+</Info>
+
+### Kundanalys
+
+Kundfliken ger en detaljerad tabellvy av kundens användningsdata med följande information:
+
+#### Tillgängliga datakolumner
+
+<ParamField path="Kundens e-post" type="string">
+E-postadress till kunden för identifiering.
+</ParamField>
+
+<ParamField path="Prenumerations-ID" type="string">
+Unik identifierare för kundens prenumeration.
+</ParamField>
+
+<ParamField path="Gratis tröskel" type="number">
+Antal gratis enheter som ingår i kundens plan innan avgifter tillämpas.
+</ParamField>
+
+<ParamField path="Pris per enhet" type="currency">
+Kostnaden per enhet för användning utöver den gratis tröskeln.
+</ParamField>
+
+<ParamField path="Senaste händelse" type="timestamp">
+Tidsstämpel för kundens senaste användningsevenemang.
+</ParamField>
+
+<ParamField path="Totalt pris" type="currency">
+Totalt belopp debiterat kunden för användningsbaserad fakturering.
+</ParamField>
+
+<ParamField path="Förbrukade enheter" type="number">
+Totalt antal enheter som kunden har förbrukat.
+</ParamField>
+
+<ParamField path="Debiterbara enheter" type="number">
+Antal enheter som överskrider den gratis tröskeln och debiteras.
+</ParamField>
+
+#### Tabellfunktioner
+
+- **Kolumnfiltrering**: Använd funktionen "Redigera kolumner" för att visa/dölja specifika datakolumner
+- **Realtidsuppdateringar**: Användningsdata återspeglar de mest aktuella konsumtionsmåtten
+
+## Aggregeringsexempel
+
+Här är praktiska exempel på hur olika aggregeringstyper fungerar:
+
+### Förstå aggregeringstyper
+
+Olika aggregeringstyper tjänar olika faktureringsscenarier. Välj rätt typ baserat på hur du vill mäta och ta betalt för användning.
+
+### Praktiska implementeringsexempel
+
+Dessa exempel visar verkliga tillämpningar av varje aggregeringstyp med exempelhändelser och förväntade resultat.
+
+<AccordionGroup>
+<Accordion title="Antalsaggregering - API-anrop">
+Scenario: Spåra det totala antalet API-förfrågningar
+
+Mätarkonfiguration:
+- Händelsenamn: `api.call`
+- Aggregeringstyp: Antal
+- Mätningsenhet: `calls`
+
+**Exempelhändelser**:
+
+```json
+{
+  "events": [
+    {"event_id": "call_1", "customer_id": "cus_123", "event_name": "api.call"},
+    {"event_id": "call_2", "customer_id": "cus_123", "event_name": "api.call"},
+    {"event_id": "call_3", "customer_id": "cus_123", "event_name": "api.call"}
+  ]
+}
+```
+
+Resultat: 3 anrop debiterade kunden
+</Accordion>
+
+<Accordion title="Summaaggregering - Datatransfer">
+Scenario: Fakturera baserat på totalt överförda byte
+
+Mätarkonfiguration:
+- Händelsenamn: `data.transfer`
+- Aggregeringstyp: Summa
+- Över egenskap: `bytes`
+- Mätningsenhet: `GB`
+
+**Exempelhändelser**:
+
+```json
+{
+  "events": [
+    {
+      "event_id": "transfer_1",
+      "customer_id": "cus_123", 
+      "event_name": "data.transfer",
+      "metadata": {"bytes": 1073741824}
+    },
+    {
+      "event_id": "transfer_2",
+      "customer_id": "cus_123",
+      "event_name": "data.transfer", 
+      "metadata": {"bytes": 536870912}
+    }
+  ]
+}
+```
+
+Resultat: 1,5 GB totalt överförd debiterad kunden
+</Accordion>
+
+<Accordion title="Maxaggregering - Maximalt antal samtidiga användare">
+Scenario: Fakturera baserat på högsta antal samtidiga användare
+
+Mätarkonfiguration:
+- Händelsenamn: `concurrent.users`
+- Aggregeringstyp: Max
+- Över egenskap: `count`
+- Mätningsenhet: `users`
+
+**Exempelhändelser**:
+
+```json
+{
+  "events": [
+    {
+      "event_id": "peak_1",
+      "customer_id": "cus_123",
+      "event_name": "concurrent.users", 
+      "metadata": {"count": 15}
+    },
+    {
+      "event_id": "peak_2",
+      "customer_id": "cus_123",
+      "event_name": "concurrent.users",
+      "metadata": {"count": 23}
+    },
+    {
+      "event_id": "peak_3",
+      "customer_id": "cus_123",
+      "event_name": "concurrent.users",
+      "metadata": {"count": 18}
+    }
+  ]
+}
+```
+
+Resultat: 23 maximala samtidiga användare debiterade kunden
+</Accordion>
+</AccordionGroup>
+
+### Exempel på händelsefiltrering
+
+<Tabs>
+<Tab title="Filtrera efter API-slutpunkt">
+Räkna endast API-anrop till specifika slutpunkter:
+
+Filtreringskonfiguration:
+- Egenskap: `endpoint`
+- Jämförare: `equals`
+- Värde: `/v1/orders`
+
+Exempelhändelse:
+
+```json
+{
+  "event_id": "call_1",
+  "customer_id": "cus_123",
+  "event_name": "api.call",
+  "metadata": {
+    "endpoint": "/v1/orders",
+    "method": "POST"
+  }
+}
+```
+
+Resultat: Händelser som matchar filtreringskriterierna skulle räknas. Händelser med olika slutpunkter skulle ignoreras.
+</Tab>
+
+<Tab title="Filtrera efter värdeintervall">
+Räkna endast stora filuppladdningar:
+
+Filtreringskonfiguration:
+- Egenskap: `file_size`
+- Jämförare: `greater_than`
+- Värde: `1048576` (1MB i byte)
+
+Exempelhändelse:
+
+```json
+{
+  "event_id": "upload_1",
+  "customer_id": "cus_123", 
+  "event_name": "file.upload",
+  "metadata": {
+    "file_size": 5242880,
+    "file_type": "image"
+  }
+}
+```
+
+Resultat: Filer som är större än 1MB skulle räknas. Mindre filer skulle ignoreras.
+</Tab>
+
+<Tab title="Komplexa fler-villkorsfilter">
+Räkna premium API-anrop under kontorstid:
+
+Filtreringskonfiguration (med OCH-logik):
+- Egenskap: `plan_type`, Jämförare: `equals`, Värde: `premium`
+- Egenskap: `hour`, Jämförare: `greater_than_or_equal`, Värde: `9`
+- Egenskap: `hour`, Jämförare: `less_than`, Värde: `17`
+
+Exempelhändelse:
+
+```json
+{
+  "event_id": "call_1",
+  "customer_id": "cus_123",
+  "event_name": "api.call",
+  "metadata": {
+    "plan_type": "premium",
+    "hour": 14,
+    "endpoint": "/v1/analytics"
+  }
+}
+```
+
+Resultat: Premium API-anrop under kontorstid (9 AM - 5 PM) skulle räknas.
+</Tab>
+</Tabs>
+
+## Felsökning
+
+Lös vanliga problem med implementering av användningsbaserad fakturering och säkerställ korrekt spårning och fakturering.
+
+### Vanliga problem
+
+De flesta problem med användningsbaserad fakturering faller inom dessa kategorier:
+- Problem med händelseleverans och bearbetning
+- Problem med mätarkonfiguration
+- Fel med datatyp och formatering
+- Problem med kund-ID och autentisering
+
+### Felsökningssteg
+
+När du felsöker användningsbaserad fakturering:
+1. Verifiera händelseleverans i fliken Händelseanalys
+2. Kontrollera att mätarkonfigurationen matchar din händelsestruktur
+3. Validera kund-ID och API-autentisering
+4. Granska filtreringsvillkor och aggregeringsinställningar
+
+### Lösningar och fixar
+
+<AccordionGroup>
+<Accordion title="Händelser visas inte i mätaren">
+Vanliga orsaker:
+- Händelsenamnet matchar inte exakt mätarkonfigurationen
+- Filtreringsvillkoren utesluter dina händelser
+- Kund-ID finns inte i ditt Dodo Payments-konto
+- Händelsens tidsstämpel ligger utanför den aktuella faktureringsperioden
+
+Lösningar:
+- Verifiera stavningen av händelsenamnet och skiftlägeskänslighet
+- Granska och testa dina filtreringsvillkor
+- Bekräfta att kund-ID är giltigt och aktivt
+- Kontrollera att händelsetidsstämplarna är aktuella och korrekt formaterade
+</Accordion>
+
+<Accordion title="Aggregering fungerar inte som förväntat">
+Vanliga orsaker:
+- Över egenskapsnamnet matchar inte händelsemetadata-nycklar
+- Metadata-värden har fel datatyp (sträng vs nummer)
+- Saknade nödvändiga metadata-egenskaper
+
+Lösningar:
+- Se till att metadata-nycklarna exakt matchar din inställning för Över egenskap
+- Konvertera strängnummer till faktiska nummer i dina händelser
+- Inkludera alla nödvändiga egenskaper i varje händelse
+</Accordion>
+
+<Accordion title="Filtrering fungerar inte">
+Vanliga orsaker:
+- Filtrerings egenskapsnamn matchar inte händelsemetadata
+- Fel jämförare för datatyp (sträng vs nummer)
+- Skiftlägeskänslighet i strängjämförelser
+
+Lösningar:
+- Dubbelkolla att egenskapsnamnen matchar exakt
+- Använd lämpliga jämförare för dina datatyper
+- Tänk på skiftlägeskänslighet när du filtrerar strängar
+</Accordion>
+</AccordionGroup>

@@ -1,0 +1,164 @@
+---
+title: ऑब्जेक्ट स्टोरेज ब्लूप्रिंट
+description: S3, Google Cloud Storage, Azure Blob, और अन्य ऑब्जेक्ट स्टोरेज
+  सेवाओं के लिए फ़ाइल अपलोड और स्टोरेज उपयोग को ट्रैक करें।
+icon: box-archive
+---
+
+## उपयोग के मामले
+
+ऑब्जेक्ट स्टोरेज ब्लूप्रिंट द्वारा समर्थित सामान्य परिदृश्यों का अन्वेषण करें:
+
+<CardGroup cols={2}>
+<Card title="फ़ाइल होस्टिंग" icon="folder">
+कुल स्टोरेज उपयोग और अपलोड मात्रा के आधार पर ग्राहकों को बिल करें।
+</Card>
+<Card title="बैकअप सेवाएँ" icon="shield">
+बैकअप डेटा अपलोड को ट्रैक करें और प्रति GB स्टोर के लिए चार्ज करें।
+</Card>
+<Card title="मीडिया CDN" icon="photo-film">
+मीडिया अपलोड की निगरानी करें और स्टोरेज और बैंडविड्थ के लिए बिल करें।
+</Card>
+<Card title="दस्तावेज़ प्रबंधन" icon="file">
+उपयोग-आधारित मूल्य निर्धारण के लिए ग्राहक के अनुसार दस्तावेज़ अपलोड को ट्रैक करें।
+</Card>
+</CardGroup>
+
+<Info>
+स्टोरेज अपलोड, फ़ाइल होस्टिंग, CDN उपयोग, या बैकअप सेवाओं के आधार पर बिलिंग के लिए बिल्कुल सही।
+</Info>
+
+## त्वरित प्रारंभ
+
+बाइट्स की खपत के साथ ऑब्जेक्ट स्टोरेज अपलोड को ट्रैक करें:
+
+<Steps>
+<Step title="SDK स्थापित करें">
+
+```bash
+npm install @dodopayments/ingestion-blueprints
+```
+
+</Step>
+
+<Step title="अपने API कुंजी प्राप्त करें">
+- **Dodo Payments API कुंजी**: इसे [Dodo Payments Dashboard](https://app.dodopayments.com/developer/api-keys) से प्राप्त करें
+- **स्टोरेज प्रदाता API कुंजी**: AWS S3, Google Cloud Storage, Azure, आदि से।
+</Step>
+
+<Step title="एक मीटर बनाएं">
+अपने [Dodo Payments Dashboard](https://app.dodopayments.com/) में एक मीटर बनाएं:
+- **इवेंट नाम**: `object_storage_upload` (या आपका पसंदीदा नाम)
+- **संघटन प्रकार**: `sum` कुल बाइट्स अपलोड किए गए ट्रैक करने के लिए
+- **ओवर प्रॉपर्टी**: `bytes` स्टोरेज आकार के आधार पर बिल करने के लिए
+</Step>
+
+<Step title="स्टोरेज उपयोग ट्रैक करें">
+<CodeGroup>
+
+```javascript AWS S3 Upload
+import { Ingestion, trackObjectStorage } from '@dodopayments/ingestion-blueprints';
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import fs from 'fs';
+
+const ingestion = new Ingestion({
+  apiKey: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'test_mode',
+  eventName: 'object_storage_upload'
+});
+
+const s3 = new S3Client({ region: 'us-east-1' });
+
+// Read the file (example: from disk or request)
+const fileBuffer = fs.readFileSync('./document.pdf');
+
+// Upload to S3
+const command = new PutObjectCommand({
+  Bucket: 'my-bucket',
+  Key: 'uploads/document.pdf',
+  Body: fileBuffer
+});
+
+await s3.send(command);
+
+// Track the upload
+await trackObjectStorage(ingestion, {
+  customerId: 'customer_123',
+  bytes: fileBuffer.length
+});
+```
+
+```javascript Google Cloud Storage
+import { Ingestion, trackObjectStorage } from '@dodopayments/ingestion-blueprints';
+import { Storage } from '@google-cloud/storage';
+import fs from 'fs';
+
+const ingestion = new Ingestion({
+  apiKey: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'test_mode',
+  eventName: 'object_storage_upload'
+});
+
+const storage = new Storage();
+const bucket = storage.bucket('my-bucket');
+
+// Read the file
+const fileBuffer = fs.readFileSync('./image.png');
+
+// Upload to GCS
+await bucket.file('uploads/image.png').save(fileBuffer);
+
+// Track the upload
+await trackObjectStorage(ingestion, {
+  customerId: 'customer_456',
+  bytes: fileBuffer.length,
+  metadata: {
+    bucket: 'my-bucket',
+    key: 'uploads/image.png'
+  }
+});
+```
+
+</CodeGroup>
+</Step>
+</Steps>
+
+## कॉन्फ़िगरेशन
+
+### इनजेशन कॉन्फ़िगरेशन
+
+<ParamField path="apiKey" type="string" required>
+आपकी Dodo Payments API कुंजी डैशबोर्ड से।
+</ParamField>
+
+<ParamField path="environment" type="string" required>
+पर्यावरण मोड: `test_mode` या `live_mode`।
+</ParamField>
+
+<ParamField path="eventName" type="string" required>
+इवेंट नाम जो आपके मीटर कॉन्फ़िगरेशन से मेल खाता है।
+</ParamField>
+
+### ऑब्जेक्ट स्टोरेज विकल्प ट्रैक करें
+
+<ParamField path="customerId" type="string" required>
+बिलिंग एट्रिब्यूशन के लिए ग्राहक ID।
+</ParamField>
+
+<ParamField path="bytes" type="number">
+अपलोड किए गए बाइट्स की संख्या। बाइट-आधारित बिलिंग के लिए आवश्यक।
+</ParamField>
+
+<ParamField path="metadata" type="object">
+अपलोड के बारे में वैकल्पिक मेटाडेटा जैसे बकेट नाम, सामग्री प्रकार, आदि।
+</ParamField>
+
+## सर्वोत्तम प्रथाएँ
+
+<Tip>
+**अपलोड से पहले या बाद में ट्रैक करें**: आप अपनी त्रुटि हैंडलिंग रणनीति के आधार पर वास्तविक अपलोड से पहले या बाद में इवेंट को ट्रैक कर सकते हैं।
+</Tip>
+
+<Warning>
+**अपलोड विफलताओं को संभालें**: विफल ऑपरेशनों के लिए बिलिंग से बचने के लिए केवल सफल अपलोड को ट्रैक करें।
+</Warning>

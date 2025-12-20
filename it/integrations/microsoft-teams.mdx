@@ -1,0 +1,216 @@
+---
+title: Microsoft Teams
+description: Invia notifiche di Dodo Payments ai canali di Microsoft Teams con
+  schede Adaptive ricche.
+icon: microsoft
+---
+
+## Introduzione
+
+Tieni il tuo team aziendale aggiornato con notifiche di pagamento in tempo reale in Microsoft Teams. L'integrazione fornisce eventi di pagamento come schede Adaptive ricche, perfette per ambienti aziendali in cui Teams è lo strumento principale di collaborazione.
+
+<Info>
+Questa guida presuppone che tu abbia accesso da amministratore per creare webhook nel tuo spazio di lavoro di Microsoft Teams.
+</Info>
+
+## Iniziare
+
+<Steps>
+<Step title="Apri la sezione Webhook">
+  Nel tuo dashboard di Dodo Payments, vai a <b>Webhook → + Aggiungi Endpoint</b> ed espandi il menu a discesa delle integrazioni.
+  <Frame>
+    <img src="/images/integrations/teams.png" alt="Aggiungi Endpoint e menu a discesa delle integrazioni" />
+  </Frame>
+</Step>
+
+<Step title="Seleziona Microsoft Teams">
+  Scegli la scheda di integrazione <b>Microsoft Teams</b>.
+</Step>
+
+<Step title="Crea Webhook Teams">
+  In Teams, vai al tuo canale → ⋯ → Connettori → Incoming Webhook → Configura. Copia l'URL del webhook.
+</Step>
+
+<Step title="Incolla l'URL del Webhook">
+  Incolla l'URL del webhook di Teams nella configurazione dell'endpoint.
+</Step>
+
+<Step title="Personalizza la Trasformazione">
+  Modifica il codice di trasformazione per formattare i messaggi come schede Adaptive per Teams.
+</Step>
+
+<Step title="Testa e Crea">
+  Testa con payload di esempio e clicca su <b>Crea</b> per attivare.
+</Step>
+
+<Step title="Fatto!">
+  🎉 Il tuo canale Teams riceverà ora aggiornamenti di Dodo Payments come schede Adaptive.
+</Step>
+</Steps>
+
+## Esempi di Codice di Trasformazione
+
+### Scheda di Pagamento di Base
+
+```javascript payment_card.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.payload = {
+      type: "message",
+      attachments: [{
+        contentType: "application/vnd.microsoft.card.adaptive",
+        content: {
+          type: "AdaptiveCard",
+          body: [
+            {
+              type: "TextBlock",
+              text: "✅ Payment Successful",
+              weight: "Bolder",
+              size: "Medium"
+            },
+            {
+              type: "FactSet",
+              facts: [
+                { title: "Amount", value: `$${(p.total_amount / 100).toFixed(2)}` },
+                { title: "Customer", value: p.customer.email },
+                { title: "Payment ID", value: p.payment_id }
+              ]
+            }
+          ]
+        }
+      }]
+    };
+  }
+  return webhook;
+}
+```
+
+### Gestione degli Abbonamenti
+
+```javascript subscription_card.js icon="js" expandable
+function handler(webhook) {
+  const s = webhook.payload.data;
+  switch (webhook.eventType) {
+    case "subscription.active":
+      webhook.payload = {
+        type: "message",
+        attachments: [{
+          contentType: "application/vnd.microsoft.card.adaptive",
+          content: {
+            type: "AdaptiveCard",
+            body: [
+              {
+                type: "TextBlock",
+                text: "📄 Subscription Activated",
+                weight: "Bolder",
+                color: "Good"
+              },
+              {
+                type: "FactSet",
+                facts: [
+                  { title: "Customer", value: s.customer.email },
+                  { title: "Product", value: s.product_id },
+                  { title: "Amount", value: `$${(s.recurring_pre_tax_amount / 100).toFixed(2)}/${s.payment_frequency_interval}` },
+                  { title: "Next Billing", value: new Date(s.next_billing_date).toLocaleDateString() }
+                ]
+              }
+            ]
+          }
+        }]
+      };
+      break;
+    case "subscription.cancelled":
+      webhook.payload = {
+        type: "message",
+        attachments: [{
+          contentType: "application/vnd.microsoft.card.adaptive",
+          content: {
+            type: "AdaptiveCard",
+            body: [
+              {
+                type: "TextBlock",
+                text: "⚠️ Subscription Cancelled",
+                weight: "Bolder",
+                color: "Warning"
+              },
+              {
+                type: "FactSet",
+                facts: [
+                  { title: "Customer", value: s.customer.email },
+                  { title: "Product", value: s.product_id },
+                  { title: "Cancelled At", value: new Date(s.cancelled_at).toLocaleDateString() }
+                ]
+              }
+            ]
+          }
+        }]
+      };
+      break;
+  }
+  return webhook;
+}
+```
+
+### Avvisi di Controversia
+
+```javascript dispute_card.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType.startsWith("dispute.")) {
+    const d = webhook.payload.data;
+    const color = d.dispute_status === "won" ? "Good" : d.dispute_status === "lost" ? "Attention" : "Warning";
+    const title = d.dispute_status === "won" ? "🏆 Dispute Won" : d.dispute_status === "lost" ? "❌ Dispute Lost" : "🚨 Dispute Update";
+    
+    webhook.payload = {
+      type: "message",
+      attachments: [{
+        contentType: "application/vnd.microsoft.card.adaptive",
+        content: {
+          type: "AdaptiveCard",
+          body: [
+            {
+              type: "TextBlock",
+              text: title,
+              weight: "Bolder",
+              color: color
+            },
+            {
+              type: "FactSet",
+              facts: [
+                { title: "Payment ID", value: d.payment_id },
+                { title: "Amount", value: `$${(d.amount / 100).toFixed(2)}` },
+                { title: "Status", value: d.dispute_status },
+                { title: "Stage", value: d.dispute_stage }
+              ]
+            }
+          ]
+        }
+      }]
+    };
+  }
+  return webhook;
+}
+```
+
+## Suggerimenti
+
+- Usa schede Adaptive per una formattazione ricca e interattiva
+- Scegli colori appropriati: Buono (verde), Avviso (giallo), Attenzione (rosso)
+- Mantieni i set di fatti concisi e leggibili
+- Testa con il tester del webhook di Teams prima di distribuire
+
+## Risoluzione dei Problemi
+
+<AccordionGroup>
+<Accordion title="Nessun messaggio in Teams">
+- Verifica che l'URL del webhook sia corretto e attivo
+- Controlla che la trasformazione restituisca un JSON di scheda Adaptive valido
+- Assicurati che il webhook abbia il permesso di postare nel canale
+</Accordion>
+
+<Accordion title="Problemi di formattazione della scheda">
+- Valida lo schema della scheda Adaptive nel tester del webhook di Teams
+- Controlla che tutti i campi richiesti siano presenti
+- Assicurati che i valori dei colori siano validi (Buono, Avviso, Attenzione, Predefinito)
+</Accordion>
+</AccordionGroup>

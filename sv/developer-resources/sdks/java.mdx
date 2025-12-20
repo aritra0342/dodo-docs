@@ -1,0 +1,413 @@
+---
+title: Java
+description: Integrera Dodo Payments i dina Java-applikationer med ett robust,
+  typ-säkert SDK
+icon: java
+---
+
+Java SDK tillhandahåller bekväm och ergonomisk åtkomst till Dodo Payments REST API för applikationer skrivna i Java. Det utnyttjar Java-specifika funktioner som Optional, Stream och CompletableFuture för modern Java-utveckling.
+
+## Installation
+
+### Maven
+
+Lägg till beroendet i din `pom.xml`:
+
+```xml pom.xml
+<dependency>
+  <groupId>com.dodopayments.api</groupId>
+  <artifactId>dodo-payments-java</artifactId>
+  <version>1.61.5</version>
+</dependency>
+```
+
+### Gradle
+
+Lägg till beroendet i din `build.gradle`:
+
+```kotlin build.gradle.kts
+implementation("com.dodopayments.api:dodo-payments-java:1.61.5")
+```
+
+<Tip>
+Använd alltid den senaste SDK-versionen för att få tillgång till de senaste Dodo Payments-funktionerna. Kontrollera [Maven Central](https://central.sonatype.com/artifact/com.dodopayments.api/dodo-payments-java) för den senaste versionen.
+</Tip>
+
+<Info>
+SDK:n stöder Java 8 och alla senare versioner, inklusive Java 11, 17 och 21.
+</Info>
+
+## Snabbstart
+
+Initiera klienten och skapa en checkout-session:
+
+```java
+import com.dodopayments.api.client.DodoPaymentsClient;
+import com.dodopayments.api.client.okhttp.DodoPaymentsOkHttpClient;
+import com.dodopayments.api.models.checkoutsessions.CheckoutSessionRequest;
+import com.dodopayments.api.models.checkoutsessions.CheckoutSessionResponse;
+
+// Configure using environment variables (DODO_PAYMENTS_API_KEY, DODO_PAYMENTS_BASE_URL)
+// Or system properties (dodopayments.apiKey, dodopayments.baseUrl)
+DodoPaymentsClient client = DodoPaymentsOkHttpClient.fromEnv();
+
+CheckoutSessionRequest params = CheckoutSessionRequest.builder()
+    .addProductCart(CheckoutSessionRequest.ProductCart.builder()
+        .productId("product_id")
+        .quantity(1)
+        .build())
+    .build();
+    
+CheckoutSessionResponse checkoutSessionResponse = client.checkoutSessions().create(params);
+System.out.println(checkoutSessionResponse.sessionId());
+```
+
+<Warning>
+Lagra alltid dina API-nycklar säkert med hjälp av miljövariabler, systemegenskaper eller ett säkert konfigurationshanteringssystem. Hårdkoda dem aldrig i din källkod.
+</Warning>
+
+## Kärnfunktioner
+
+<CardGroup cols={2}>
+<Card title="Typ Säkerhet" icon="shield-check">
+  Starkt typad API med säkerhet vid kompileringstid
+</Card>
+
+<Card title="Trådsäker" icon="bolt">
+  Säker för samtidig användning i flertrådade applikationer
+</Card>
+
+<Card title="Builder-mönster" icon="layer-group">
+  Intuitivt builder-mönster för att konstruera förfrågningar
+</Card>
+
+<Card title="Async Stöd" icon="arrows-rotate">
+  CompletableFuture-stöd för asynkrona operationer
+</Card>
+</CardGroup>
+
+## Konfiguration
+
+### Miljövariabler
+
+Konfigurera med hjälp av miljövariabler eller systemegenskaper:
+
+```bash .env
+DODO_PAYMENTS_API_KEY=your_api_key_here
+DODO_PAYMENTS_BASE_URL=https://live.dodopayments.com
+```
+
+```java
+// Automatically reads from environment variables
+DodoPaymentsClient client = DodoPaymentsOkHttpClient.fromEnv();
+```
+
+### Manuell Konfiguration
+
+Konfigurera manuellt med alla alternativ:
+
+```java
+import java.time.Duration;
+
+DodoPaymentsClient client = DodoPaymentsOkHttpClient.builder()
+    .bearerToken("your_api_key_here")
+    .baseUrl("https://live.dodopayments.com")
+    .maxRetries(4)
+    .timeout(Duration.ofSeconds(30))
+    .responseValidation(true)
+    .build();
+```
+
+### Testläge
+
+Konfigurera för test/sandbox-miljö:
+
+```java
+DodoPaymentsClient testClient = DodoPaymentsOkHttpClient.builder()
+    .fromEnv()
+    .testMode()
+    .build();
+```
+
+## Vanliga Operationer
+
+### Skapa en Checkout-session
+
+Generera en checkout-session:
+
+```java
+CheckoutSessionRequest params = CheckoutSessionRequest.builder()
+    .addProductCart(CheckoutSessionRequest.ProductCart.builder()
+        .productId("prod_123")
+        .quantity(1)
+        .build())
+    .returnUrl("https://yourdomain.com/return")
+    .build();
+
+CheckoutSessionResponse session = client.checkoutSessions().create(params);
+System.out.println("Checkout URL: " + session.url());
+```
+
+### Hantera Kunder
+
+Skapa och hämta kundinformation:
+
+```java
+import com.dodopayments.api.models.customers.Customer;
+import com.dodopayments.api.models.customers.CustomerCreateParams;
+
+// Create a customer
+CustomerCreateParams createParams = CustomerCreateParams.builder()
+    .email("customer@example.com")
+    .name("John Doe")
+    .putMetadata("user_id", "12345")
+    .build();
+
+Customer customer = client.customers().create(createParams);
+
+// Retrieve customer
+Customer retrieved = client.customers().retrieve("cus_123");
+System.out.println("Customer: " + retrieved.name() + " (" + retrieved.email() + ")");
+```
+
+### Hantera Prenumerationer
+
+Skapa och hantera återkommande prenumerationer:
+
+```java
+import com.dodopayments.api.models.subscriptions.*;
+
+// Create a subscription
+SubscriptionNewParams subscriptionParams = SubscriptionNewParams.builder()
+    .customerId("cus_123")
+    .productId("prod_456")
+    .priceId("price_789")
+    .build();
+
+Subscription subscription = client.subscriptions().create(subscriptionParams);
+
+// Charge subscription
+SubscriptionChargeParams chargeParams = SubscriptionChargeParams.builder()
+    .amount(1000)
+    .build();
+
+SubscriptionChargeResponse chargeResponse = client.subscriptions()
+    .charge(subscription.id(), chargeParams);
+```
+
+## Användningsbaserad Fakturering
+
+### Konfigurera Mätare
+
+Skapa och hantera mätare för att spåra användning:
+
+```java
+import com.dodopayments.api.models.meters.*;
+
+// Create API calls meter
+MeterCreateParams apiMeterParams = MeterCreateParams.builder()
+    .name("API Requests")
+    .eventName("api_request")
+    .aggregation("count")
+    .putMetadata("category", "api_usage")
+    .build();
+
+Meter apiMeter = client.meters().create(apiMeterParams);
+System.out.println("Meter created: " + apiMeter.meterId());
+
+// List all meters
+client.meters().list()
+    .autoPager()
+    .forEach(m -> System.out.println("Meter: " + m.name() + " - " + m.aggregation()));
+```
+
+### Ingesta Användningsevenemang
+
+Spåra anpassade händelser:
+
+```java
+import com.dodopayments.api.models.usageevents.*;
+import java.time.OffsetDateTime;
+
+// Ingest single event
+UsageEventIngestParams singleEventParams = UsageEventIngestParams.builder()
+    .addEvent(UsageEventIngestParams.Event.builder()
+        .eventId("api_call_" + System.currentTimeMillis())
+        .customerId("cus_abc123")
+        .eventName("api_request")
+        .timestamp(OffsetDateTime.now())
+        .putMetadata("endpoint", "/api/v1/users")
+        .putMetadata("method", "GET")
+        .putMetadata("tokens_used", "150")
+        .build())
+    .build();
+
+UsageEventIngestResponse response = client.usageEvents().ingest(singleEventParams);
+System.out.println("Processed: " + response.processedEvents());
+```
+
+### Batch Ingesta Händelser
+
+Ingesta flera händelser effektivt (max 1000 per begäran):
+
+```java
+UsageEventIngestParams.Builder batchBuilder = UsageEventIngestParams.builder();
+
+for (int i = 0; i < 100; i++) {
+    batchBuilder.addEvent(UsageEventIngestParams.Event.builder()
+        .eventId("batch_event_" + i + "_" + System.currentTimeMillis())
+        .customerId("cus_abc123")
+        .eventName("video_transcode")
+        .timestamp(OffsetDateTime.now().minusMinutes(i))
+        .putMetadata("video_id", "video_" + i)
+        .putMetadata("duration_seconds", String.valueOf(120 + i))
+        .build());
+}
+
+UsageEventIngestResponse batchResponse = client.usageEvents().ingest(batchBuilder.build());
+System.out.println("Batch processed: " + batchResponse.processedEvents() + " events");
+```
+
+## Felhantering
+
+Omfattande felhantering för olika scenarier:
+
+```java
+import com.dodopayments.api.errors.*;
+
+try {
+    Payment payment = client.payments().retrieve("pay_invalid");
+} catch (NotFoundException e) {
+    System.err.println("Payment not found: " + e.getMessage());
+} catch (UnauthorizedException e) {
+    System.err.println("Authentication failed: " + e.getMessage());
+} catch (PermissionDeniedException e) {
+    System.err.println("Permission denied: " + e.getMessage());
+} catch (BadRequestException e) {
+    System.err.println("Invalid request: " + e.getMessage());
+} catch (UnprocessableEntityException e) {
+    System.err.println("Validation error: " + e.getMessage());
+} catch (RateLimitException e) {
+    System.err.println("Rate limit exceeded: " + e.getMessage());
+    // SDK automatically retries with backoff
+} catch (InternalServerException e) {
+    System.err.println("Server error: " + e.getMessage());
+} catch (DodoPaymentsServiceException e) {
+    System.err.println("API error: " + e.statusCode() + " - " + e.getMessage());
+}
+```
+
+<Tip>
+SDK:n försöker automatiskt om begärningar vid anslutningsfel, 408, 409, 429 och 5xx-fel med exponentiell backoff.
+</Tip>
+
+## Asynkrona Operationer
+
+Använd CompletableFuture för asynkrona operationer:
+
+```java
+import java.util.concurrent.CompletableFuture;
+
+CompletableFuture<CheckoutSessionResponse> future = client.async()
+    .checkoutSessions()
+    .create(params);
+
+// Handle response asynchronously
+future.thenAccept(response -> {
+    System.out.println("Session created: " + response.sessionId());
+}).exceptionally(ex -> {
+    System.err.println("Error: " + ex.getMessage());
+    return null;
+});
+```
+
+## Spring Boot Integration
+
+### Konfigurationsklass
+
+```java
+import com.dodopayments.api.client.DodoPaymentsClient;
+import com.dodopayments.api.client.okhttp.DodoPaymentsOkHttpClient;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+@Configuration
+public class DodoPaymentsConfig {
+    
+    @Value("${dodo.api.key}")
+    private String apiKey;
+    
+    @Value("${dodo.environment:sandbox}")
+    private String environment;
+    
+    @Bean
+    public DodoPaymentsClient dodoPayments() {
+        return DodoPaymentsOkHttpClient.builder()
+            .bearerToken(apiKey)
+            .baseUrl(environment.equals("live") 
+                ? "https://live.dodopayments.com" 
+                : "https://sandbox.dodopayments.com")
+            .build();
+    }
+}
+```
+
+### Tjänstelager
+
+```java
+import com.dodopayments.api.client.DodoPaymentsClient;
+import com.dodopayments.api.models.checkoutsessions.*;
+import org.springframework.stereotype.Service;
+
+@Service
+public class PaymentService {
+    
+    private final DodoPaymentsClient client;
+    
+    public PaymentService(DodoPaymentsClient client) {
+        this.client = client;
+    }
+    
+    public CheckoutSessionResponse createCheckout(List<CheckoutSessionRequest.ProductCart> items) {
+        CheckoutSessionRequest params = CheckoutSessionRequest.builder()
+            .productCart(items)
+            .returnUrl("https://yourdomain.com/return")
+            .build();
+            
+        return client.checkoutSessions().create(params);
+    }
+}
+```
+
+## Resurser
+
+<CardGroup cols={2}>
+<Card title="GitHub Repository" icon="github" href="https://github.com/dodopayments/dodopayments-java">
+  Visa källkod och bidra
+</Card>
+
+<Card title="API Referens" icon="book" href="/api-reference/introduction">
+  Komplett API-dokumentation
+</Card>
+
+<Card title="Discord Community" icon="discord" href="https://discord.gg/bYqAp4ayYh">
+  Få hjälp och koppla ihop med utvecklare
+</Card>
+
+<Card title="Rapportera Problem" icon="bug" href="https://github.com/dodopayments/dodopayments-java/issues">
+  Rapportera buggar eller begära funktioner
+</Card>
+</CardGroup>
+
+## Support
+
+Behöver du hjälp med Java SDK?
+
+- **Discord**: Gå med i vår [community-server](https://discord.gg/bYqAp4ayYh) för realtidsstöd
+- **E-post**: Kontakta oss på support@dodopayments.com
+- **GitHub**: Öppna ett problem på [repositoryn](https://github.com/dodopayments/dodopayments-java)
+
+## Bidra
+
+Vi välkomnar bidrag! Kontrollera [bidragsriktlinjerna](https://github.com/dodopayments/dodopayments-java/blob/main/CONTRIBUTING.md) för att komma igång.

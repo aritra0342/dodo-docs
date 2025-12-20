@@ -1,0 +1,751 @@
+---
+sidebarTitle: Panoramica
+title: Webhooks
+description: Ricevi notifiche in tempo reale quando si verificano eventi in Dodo
+  Payments. Automatizza i flussi di lavoro e mantieni i tuoi sistemi
+  sincronizzati con la consegna immediata degli eventi.
+icon: box
+---
+
+<Frame>
+  <img src="/images/cover-images/Webhooks.webp" alt="Immagine di copertura Webhook"/>
+</Frame>
+
+I webhooks forniscono notifiche in tempo reale quando si verificano eventi specifici nel tuo account Dodo Payments. Utilizza i webhooks per automatizzare i flussi di lavoro, aggiornare il tuo database, inviare notifiche e mantenere i tuoi sistemi sincronizzati.
+
+<Info>
+La nostra implementazione dei webhook segue la specifica [Standard Webhooks](https://standardwebhooks.com/), garantendo compatibilità con le migliori pratiche del settore e le librerie di webhook esistenti.
+</Info>
+
+## Caratteristiche principali
+
+<CardGroup cols={2}>
+  <Card title="Consegna in tempo reale" icon="bolt">
+    Ricevi notifiche istantanee quando si verificano eventi
+  </Card>
+  <Card title="Sicuro per impostazione predefinita" icon="shield-check">
+    Verifica della firma HMAC SHA256 inclusa
+  </Card>
+  <Card title="Ritenti automatici" icon="rotate">
+    Logica di ritentativo integrata con backoff esponenziale
+  </Card>
+  <Card title="Filtraggio degli eventi" icon="filter">
+    Iscriviti solo agli eventi di cui hai bisogno
+  </Card>
+</CardGroup>
+
+## Iniziare
+
+<Steps>
+<Step title="Accedi alle impostazioni del Webhook">
+    Naviga al Dashboard di DodoPayments e vai a `Settings > Webhooks`.
+</Step>
+
+<Step title="Crea un endpoint Webhook">
+    Clicca su `Add Webhook` per creare un nuovo endpoint webhook.
+    
+
+    <Frame>
+        <img src="/images/webhooks/create-endpoint.png" alt="Aggiungi Webhook" />
+    </Frame>
+</Step>
+
+<Step title="Aggiungi URL dell'endpoint">
+    Inserisci l'URL dove desideri ricevere gli eventi webhook.
+    
+</Step>
+
+<Step title="Seleziona eventi da ricevere">
+    Scegli gli eventi specifici a cui il tuo endpoint webhook dovrebbe ascoltare selezionandoli dall'elenco degli eventi.
+    
+    <Tip>
+    Solo gli eventi selezionati attiveranno i webhook al tuo endpoint, aiutandoti a evitare traffico eccessivo e elaborazione non necessaria.
+    </Tip>
+</Step>
+
+<Step title="Ottieni la chiave segreta">
+    Ottieni il tuo webhook `Secret Key` dalla pagina delle impostazioni. Utilizzerai questo per verificare l'autenticità dei webhook ricevuti.
+    
+    <Warning>
+    Tieni al sicuro la tua chiave segreta del webhook e non esporla mai nel codice lato client o nei repository pubblici.
+    </Warning>
+</Step>
+
+<Step title="Ruota segreto (opzionale)">
+    Se necessario, puoi ruotare il tuo segreto webhook per una maggiore sicurezza. Clicca sul pulsante **Ruota segreto** nelle impostazioni del tuo webhook.
+    
+    <Warning>
+    Ruotare il segreto **scadrà** e **sostituirà** con uno nuovo. Il vecchio segreto sarà valido solo per le prossime 24 ore. Dopo, provare a verificare con il vecchio segreto fallirà.
+    </Warning>
+    
+    <Info>
+    Utilizza la rotazione del segreto periodicamente o immediatamente se sospetti che il tuo attuale segreto sia stato compromesso.
+    </Info>
+</Step>
+</Steps>
+
+## Configurazione degli eventi sottoscritti
+
+Puoi configurare quali eventi specifici desideri ricevere per ciascun endpoint webhook.
+
+### Accesso alla configurazione degli eventi
+
+<Steps>
+<Step title="Naviga ai dettagli del Webhook">
+    Vai al tuo Dashboard di Dodo Payments e naviga a `Settings > Webhooks`.
+</Step>
+
+<Step title="Seleziona il tuo endpoint">
+    Clicca sull'endpoint webhook che desideri configurare.
+</Step>
+
+<Step title="Apri le impostazioni degli eventi">
+    Nella pagina dei dettagli del webhook, vedrai una sezione "Eventi sottoscritti". Clicca sul pulsante **Modifica** per modificare le tue iscrizioni agli eventi.
+</Step>
+</Steps>
+
+### Gestione delle iscrizioni agli eventi
+
+<Steps>
+<Step title="Visualizza eventi disponibili">
+    L'interfaccia mostra tutti gli eventi webhook disponibili organizzati in una struttura gerarchica. Gli eventi sono raggruppati per categoria (ad es., `dispute`, `payment`, `subscription`).
+</Step>
+
+<Step title="Cerca e filtra">
+    Usa la barra di ricerca per trovare rapidamente eventi specifici digitando nomi di eventi o parole chiave.
+</Step>
+
+<Step title="Seleziona eventi">
+    Seleziona le caselle accanto agli eventi che desideri ricevere. Puoi:
+    - Selezionare eventi secondari individuali (ad es., `dispute.accepted`, `dispute.challenged`)
+    - Selezionare eventi principali per ricevere tutti gli eventi secondari correlati
+    - Mescolare e abbinare eventi specifici in base alle tue esigenze
+</Step>
+
+<Step title="Rivedi i dettagli dell'evento">
+    Passa il mouse sull'icona informativa (ⓘ) accanto a ciascun evento per vedere una descrizione di quando viene attivato quell'evento.
+</Step>
+
+<Step title="Salva configurazione">
+    Clicca su **Salva** per applicare le tue modifiche, o **Annulla** per scartare le modifiche.
+</Step>
+</Steps>
+
+<Warning>
+Se deselezioni tutti gli eventi, il tuo endpoint webhook non riceverà alcuna notifica. Assicurati di selezionare almeno gli eventi di cui la tua applicazione ha bisogno per funzionare correttamente.
+</Warning>
+
+## Consegna del Webhook
+
+### Timeout
+
+I webhooks hanno una **finestra di timeout di 15 secondi** sia per le operazioni di connessione che di lettura. Assicurati che il tuo endpoint risponda rapidamente per evitare timeout.
+
+<Tip>
+Elabora i webhooks in modo asincrono riconoscendo immediatamente la ricezione con un codice di stato `200`, quindi gestendo l'elaborazione effettiva in background.
+</Tip>
+
+### Ritenti automatici
+
+Se la consegna di un webhook fallisce, Dodo Payments riprova automaticamente con un backoff esponenziale per evitare di sovraccaricare il tuo sistema.
+
+| Tentativo | Ritardo | Descrizione |
+|---------|------------------------------|-------------|
+| 1 | Immediatamente | Il primo tentativo avviene subito |
+| 2 | 5 secondi | Secondo tentativo dopo un breve ritardo |
+| 3 | 5 minuti | Terzo tentativo con backoff aumentato |
+| 4 | 30 minuti | Quarto tentativo continuando il backoff |
+| 5 | 2 ore | Quinto tentativo con ritardo esteso |
+| 6 | 5 ore | Sesto tentativo con ritardo più lungo |
+| 7 | 10 ore | Settimo tentativo con ritardo massimo |
+| 8 | 10 ore | **Tentativo finale** - webhook contrassegnato come fallito se non riuscito |
+
+<Info>
+**Massimo di 8 tentativi di ripetizione** per ogni evento webhook. Ad esempio, se un webhook fallisce tre volte prima di avere successo, il tempo totale di consegna è di circa 35 minuti e 5 secondi dal primo tentativo.
+</Info>
+
+<Tip>
+Utilizza il dashboard di Dodo Payments per ripetere manualmente messaggi singoli o recuperare in blocco tutti i messaggi falliti in qualsiasi momento.
+</Tip>
+
+### Idempotenza
+
+Ogni evento webhook include un header unico `webhook-id`. Utilizza questo identificatore per implementare l'idempotenza e prevenire l'elaborazione duplicata.
+
+```javascript
+// Example: Storing webhook IDs to prevent duplicate processing
+const processedWebhooks = new Set();
+
+app.post('/webhook', (req, res) => {
+  const webhookId = req.headers['webhook-id'];
+  
+  if (processedWebhooks.has(webhookId)) {
+    return res.status(200).json({ received: true });
+  }
+  
+  processedWebhooks.add(webhookId);
+  // Process the webhook...
+});
+```
+
+<Warning>
+Implementa sempre controlli di idempotenza. A causa dei ritentativi, potresti ricevere lo stesso evento più volte.
+</Warning>
+
+### Ordinamento degli eventi
+
+Gli eventi webhook possono arrivare in ordine errato a causa di ritentativi o condizioni di rete. Progetta il tuo sistema per gestire eventi in qualsiasi sequenza.
+
+<Info>
+Riceverai il **payload più recente al momento della consegna**, indipendentemente da quando l'evento webhook è stato originariamente emesso.
+</Info>
+
+## Sicurezza dei Webhook
+
+Per garantire la sicurezza dei tuoi webhook, valida sempre i payload e utilizza HTTPS.
+
+### Verifica delle firme
+
+Ogni richiesta webhook include un header `webhook-signature`, una firma HMAC SHA256 del payload del webhook e del timestamp, firmata con la tua chiave segreta.
+
+#### Verifica SDK (raccomandata)
+
+Tutti gli SDK ufficiali includono helper integrati per validare e analizzare in modo sicuro i webhook in arrivo. Sono disponibili due metodi:
+
+* `unwrap()`: Verifica le firme utilizzando la tua chiave segreta del webhook
+* `unsafe_unwrap()`: Analizza i payload senza verifica
+
+<Tip>
+  Fornisci la tua chiave segreta del webhook tramite `DODO_PAYMENTS_WEBHOOK_KEY` durante l'inizializzazione del client Dodo Payments.
+</Tip>
+
+<CodeGroup>
+
+```typescript TypeScript/Node.js
+import DodoPayments from 'dodopayments';
+import express from 'express';
+
+const app = express();
+app.use(express.raw({ type: 'application/json' }));
+
+const client = new DodoPayments({
+  bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+  environment: process.env.DODO_PAYMENTS_ENVIRONMENT,
+  webhookKey: process.env.DODO_PAYMENTS_WEBHOOK_KEY,
+});
+
+app.post('/webhook', async (req, res) => {
+  try {
+    const unwrapped = client.webhooks.unwrap(req.body.toString(), {
+      headers: {
+        'webhook-id': req.headers['webhook-id'] as string,
+        'webhook-signature': req.headers['webhook-signature'] as string,
+        'webhook-timestamp': req.headers['webhook-timestamp'] as string,
+      },
+    });
+    res.json({ received: true });
+  } catch (error) {
+    res.status(401).json({ error: 'Invalid signature' });
+  }
+});
+```
+
+```python Python
+from fastapi import FastAPI, Request, HTTPException
+from dodopayments import DodoPayments
+import os
+
+app = FastAPI()
+client = DodoPayments(
+    bearer_token=os.getenv("DODO_PAYMENTS_API_KEY"),
+    environment=os.getenv("DODO_PAYMENTS_ENVIRONMENT"),
+    webhook_key=os.getenv("DODO_PAYMENTS_WEBHOOK_KEY"),
+)
+
+@app.post("/webhook")
+async def handle_webhook(request: Request):
+    try:
+        unwrapped = client.webhooks.unwrap(
+            await request.body(),
+            headers={
+                "webhook-id": request.headers.get("webhook-id", ""),
+                "webhook-signature": request.headers.get("webhook-signature", ""),
+                "webhook-timestamp": request.headers.get("webhook-timestamp", ""),
+            },
+        )
+        return {"received": True}
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid signature")
+```
+
+```go Go
+import (
+	"context"
+	"io"
+	"net/http"
+	"os"
+	"github.com/dodopayments/dodopayments-go"
+	"github.com/dodopayments/dodopayments-go/option"
+)
+
+func webhookHandler(w http.ResponseWriter, r *http.Request) {
+	client := dodopayments.NewClient(
+		option.WithBearerToken(os.Getenv("DODO_PAYMENTS_API_KEY")),
+		option.WithEnvironment(os.Getenv("DODO_PAYMENTS_ENVIRONMENT")),
+		option.WithWebhookKey(os.Getenv("DODO_PAYMENTS_WEBHOOK_KEY")),
+	)
+	rawBody, _ := io.ReadAll(r.Body)
+	if _, err := client.Webhooks.Unwrap(context.Background(), rawBody, map[string]string{
+		"webhook-id":       r.Header.Get("webhook-id"),
+		"webhook-signature": r.Header.Get("webhook-signature"),
+		"webhook-timestamp": r.Header.Get("webhook-timestamp"),
+	}); err != nil {
+		http.Error(w, "Invalid signature", http.StatusUnauthorized)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+}
+```
+
+</CodeGroup>
+
+#### Verifica manuale (alternativa)
+
+Se non stai utilizzando un SDK, puoi verificare le firme tu stesso seguendo la specifica Standard Webhooks:
+
+1. Costruisci il messaggio firmato concatenando `webhook-id`, `webhook-timestamp`, e la stringa esatta raw stringificata `payload`, separati da punti (`.`).
+2. Calcola l'HMAC SHA256 di quella stringa utilizzando la tua chiave segreta del webhook dal Dashboard.
+3. Confronta la firma calcolata con l'header `webhook-signature`. Se corrispondono, il webhook è autentico.
+
+<Info>
+  Seguiamo la specifica Standard Webhooks. Puoi utilizzare le loro librerie per verificare le firme: [https://github.com/standard-webhooks/standard-webhooks/tree/main/libraries](https://github.com/standard-webhooks/standard-webhooks/tree/main/libraries). Per i formati dei payload degli eventi, vedere il [Payload del Webhook](/developer-resources/webhooks/intents/payment).
+</Info>
+
+### Rispondere ai Webhook
+
+* Il tuo gestore webhook deve restituire un `2xx status code` per riconoscere la ricezione dell'evento.
+* Qualsiasi altra risposta sarà trattata come un fallimento e il webhook verrà ripetuto.
+
+### Migliori pratiche
+
+<AccordionGroup>
+<Accordion title="Utilizza solo endpoint HTTPS" icon="lock">
+  Utilizza sempre URL HTTPS per gli endpoint webhook. Gli endpoint HTTP sono vulnerabili ad attacchi man-in-the-middle e espongono i tuoi dati webhook.
+</Accordion>
+
+<Accordion title="Rispondi immediatamente" icon="bolt">
+  Restituisci un codice di stato `200` immediatamente al ricevimento del webhook. Elabora l'evento in modo asincrono per evitare timeout.
+  
+
+  ```javascript
+  app.post('/webhook', async (req, res) => {
+    // Acknowledge receipt immediately
+    res.status(200).json({ received: true });
+    
+    // Process asynchronously
+    processWebhookAsync(req.body).catch(console.error);
+  });
+  ```
+
+</Accordion>
+
+<Accordion title="Gestisci eventi duplicati" icon="rotate">
+  Implementa l'idempotenza utilizzando l'header `webhook-id` per elaborare in modo sicuro lo stesso evento più volte senza effetti collaterali.
+</Accordion>
+
+<Accordion title="Sicura la tua chiave segreta del webhook" icon="key">
+  Conserva la tua chiave segreta del webhook in modo sicuro utilizzando variabili di ambiente o un gestore di segreti. Non commettere mai segreti nel controllo delle versioni.
+</Accordion>
+</AccordionGroup>
+
+## Struttura del Payload del Webhook
+
+Comprendere la struttura del payload del webhook ti aiuta a analizzare e elaborare correttamente gli eventi.
+
+### Formato della richiesta
+
+```http
+POST /your-webhook-url
+Content-Type: application/json
+```
+
+### Intestazioni
+
+<ParamField header="webhook-id" type="string" required>
+Identificatore unico per questo evento webhook. Utilizzalo per controlli di idempotenza.
+</ParamField>
+
+<ParamField header="webhook-signature" type="string" required>
+Firma HMAC SHA256 per verificare l'autenticità del webhook.
+</ParamField>
+
+<ParamField header="webhook-timestamp" type="string" required>
+Timestamp Unix (in secondi) quando il webhook è stato inviato.
+</ParamField>
+
+### Corpo della richiesta
+
+<ResponseField name="business_id" type="string" required>
+Il tuo identificatore aziendale Dodo Payments.
+</ResponseField>
+
+<ResponseField name="type" type="string" required>
+Tipo di evento che ha attivato questo webhook (ad es., `payment.succeeded`, `subscription.created`).
+</ResponseField>
+
+<ResponseField name="timestamp" type="string" required>
+Timestamp formattato ISO 8601 di quando si è verificato l'evento.
+</ResponseField>
+
+<ResponseField name="data" type="object" required>
+Payload specifico dell'evento contenente informazioni dettagliate sull'evento.
+
+<Expandable title="Proprietà dell'oggetto Data">
+  <ResponseField name="payload_type" type="string">
+  Tipo di risorsa: `Payment`, `Subscription`, `Refund`, `Dispute`, o `LicenseKey`.
+  </ResponseField>
+  
+  I campi aggiuntivi variano in base al tipo di evento. Vedi la documentazione specifica per l'evento per schemi completi.
+</Expandable>
+</ResponseField>
+
+### Esempio di Payload
+
+```json
+{
+  "business_id": "string",
+  "type": "payment.succeeded | payment.failed |...",
+  "timestamp": "2024-01-01T12:00:00Z",
+  "data": {
+    "payload_type": "Payment | Subscription | Refund | Dispute | LicenseKey",
+    // ... event-specific fields (see below)
+  }
+}
+```
+
+<CardGroup cols={2}>
+  <Card title="Tipi di eventi" icon="list" href="/developer-resources/webhooks/intents/webhook-events-guide">
+    Esplora tutti i tipi di eventi webhook disponibili
+  </Card>
+  <Card title="Payload degli eventi" icon="code" href="/developer-resources/webhooks/intents/payment">
+    Visualizza schemi dettagliati dei payload per ciascun evento
+  </Card>
+</CardGroup>
+
+## Testare i Webhook
+
+Puoi testare la tua integrazione webhook direttamente dal dashboard di Dodo Payments per assicurarti che il tuo endpoint funzioni correttamente prima di andare in produzione.
+
+<Frame>
+    <img src="/images/webhooks/endpoints.png" alt="Dettagli dell'Endpoint" />
+</Frame>
+
+### Accesso all'interfaccia di test
+
+<Steps>
+<Step title="Naviga ai Webhook">
+    Vai al tuo Dashboard di Dodo Payments e naviga a `Settings > Webhooks`.
+</Step>
+
+<Step title="Seleziona il tuo endpoint">
+    Clicca sul tuo endpoint webhook per accedere alla sua pagina dei dettagli.
+</Step>
+
+<Step title="Apri la scheda di test">
+    Clicca sulla scheda **Test** per accedere all'interfaccia di test del webhook.
+</Step>
+</Steps>
+
+### Testare il tuo Webhook
+
+L'interfaccia di test fornisce un modo completo per testare il tuo endpoint webhook:
+
+<Steps>
+<Step title="Seleziona il tipo di evento">
+    Usa il menu a discesa per selezionare il tipo di evento specifico che desideri testare (ad es., `payment.succeeded`, `payment.failed`, ecc.).
+    
+    <Info>
+    Il menu a discesa contiene tutti i tipi di eventi webhook disponibili che il tuo endpoint può ricevere.
+    </Info>
+</Step>
+
+<Step title="Rivedi schema e esempio">
+    L'interfaccia mostra sia lo **Schema** (struttura dei dati) che l'**Esempio** (payload di esempio) per il tipo di evento selezionato.
+</Step>
+
+<Step title="Invia evento di test">
+    Clicca sul pulsante **Invia esempio** per inviare un webhook di test al tuo endpoint.
+    
+    <Warning>
+    **Importante**: I messaggi falliti inviati tramite l'interfaccia di test non verranno ripetuti. Questo è solo per scopi di test.
+    </Warning>
+</Step>
+</Steps>
+
+### Verifica del tuo test
+
+<Steps>
+<Step title="Controlla il tuo endpoint">
+    Monitora i log del tuo endpoint webhook per confermare che l'evento di test sia stato ricevuto.
+</Step>
+
+<Step title="Verifica la firma">
+    Assicurati che la tua verifica della firma funzioni correttamente con il payload di test.
+</Step>
+
+<Step title="Testa la risposta">
+    Conferma che il tuo endpoint restituisca un codice di stato `2xx` per riconoscere la ricezione.
+</Step>
+</Steps>
+
+### Esempio di implementazione
+
+Ecco un'implementazione completa di Express.js che mostra la verifica e la gestione dei webhook:
+
+<CodeGroup>
+
+```typescript Express.js Webhook Handler
+import { Webhook } from "standardwebhooks";
+import express from "express";
+
+const app = express();
+app.use(express.json());
+
+const webhook = new Webhook(process.env.DODO_WEBHOOK_SECRET);
+
+app.post('/webhook/dodo-payments', async (req, res) => {
+  try {
+    // Extract webhook headers
+    const webhookHeaders = {
+      "webhook-id": req.headers["webhook-id"] as string,
+      "webhook-signature": req.headers["webhook-signature"] as string,
+      "webhook-timestamp": req.headers["webhook-timestamp"] as string,
+    };
+
+    // Verify the webhook signature
+    const payload = JSON.stringify(req.body);
+    await webhook.verify(payload, webhookHeaders);
+    
+    // Acknowledge receipt immediately
+    res.status(200).json({ received: true });
+    
+    // Process webhook asynchronously
+    processWebhookAsync(req.body).catch(console.error);
+    
+  } catch (error) {
+    console.error('Webhook verification failed:', error);
+    res.status(400).json({ error: 'Invalid signature' });
+  }
+});
+
+async function processWebhookAsync(data: any) {
+  // Handle the webhook event based on type
+  switch (data.type) {
+    case 'payment.succeeded':
+      await handlePaymentSucceeded(data);
+      break;
+    case 'subscription.created':
+      await handleSubscriptionCreated(data);
+      break;
+    // Add more event handlers...
+  }
+}
+```
+
+```javascript Testing Webhooks Locally
+const { Webhook } = require("standardwebhooks");
+const axios = require("axios");
+const crypto = require("crypto");
+
+// Generate test webhook
+const timestamp = new Date();
+const webhookId = crypto.randomUUID();
+const payload = {
+  business_id: "biz_test123",
+  type: "payment.succeeded",
+  timestamp: timestamp.toISOString(),
+  data: {
+    payload_type: "Payment",
+    payment_id: "pay_test456",
+    amount: 2999
+  }
+};
+
+// Sign the payload
+const webhookSecret = process.env.DODO_WEBHOOK_SECRET;
+const webhookInstance = new Webhook(webhookSecret);
+const payloadString = JSON.stringify(payload);
+const signature = webhookInstance.sign(webhookId, timestamp, payloadString);
+
+// Send test webhook
+const response = await axios.post('http://localhost:3000/webhook/dodo-payments', payload, {
+  headers: {
+    "webhook-id": webhookId,
+    "webhook-timestamp": Math.floor(timestamp.getTime() / 1000),
+    "webhook-signature": signature,
+    "Content-Type": "application/json"
+  }
+});
+
+console.log("Test webhook sent successfully:", response.data);
+```
+
+</CodeGroup>
+
+<Tip>
+Testa a fondo il tuo gestore webhook utilizzando l'interfaccia di test del dashboard prima di elaborare eventi di produzione. Questo aiuta a identificare e risolvere i problemi in anticipo.
+</Tip>
+
+## Impostazioni avanzate
+
+La scheda Impostazioni avanzate fornisce opzioni di configurazione aggiuntive per ottimizzare il comportamento del tuo endpoint webhook.
+
+### Limitazione della velocità (Throttling)
+
+Controlla la velocità con cui gli eventi webhook vengono consegnati al tuo endpoint per evitare di sovraccaricare il tuo sistema.
+
+<Steps>
+<Step title="Accedi alle impostazioni di limitazione della velocità">
+    Nella scheda **Avanzate**, individua la sezione "Limitazione della velocità (throttling)".
+</Step>
+
+<Step title="Configura la limitazione della velocità">
+    Clicca sul pulsante **Modifica** per modificare le impostazioni di limitazione della velocità.
+    
+    <Info>
+    Per impostazione predefinita, i webhook non hanno "Nessuna limitazione della velocità" applicata, il che significa che gli eventi vengono consegnati non appena si verificano.
+    </Info>
+</Step>
+
+<Step title="Imposta limiti">
+    Configura il tuo limite di velocità desiderato per controllare la frequenza di consegna dei webhook e prevenire sovraccarichi del sistema.
+</Step>
+</Steps>
+
+<Tip>
+Utilizza la limitazione della velocità quando il tuo gestore webhook ha bisogno di tempo per elaborare gli eventi o quando desideri raggruppare più eventi insieme.
+</Tip>
+
+### Intestazioni personalizzate
+
+Aggiungi intestazioni HTTP personalizzate a tutte le richieste webhook inviate al tuo endpoint. Questo è utile per l'autenticazione, il routing o l'aggiunta di metadati alle tue richieste webhook.
+
+<Steps>
+<Step title="Aggiungi intestazione personalizzata">
+    Nella sezione "Intestazioni personalizzate", inserisci una **Chiave** e un **Valore** per la tua intestazione personalizzata.
+</Step>
+
+<Step title="Aggiungi più intestazioni">
+    Clicca sul pulsante **+** per aggiungere ulteriori intestazioni personalizzate secondo necessità.
+</Step>
+
+<Step title="Salva configurazione">
+    Le tue intestazioni personalizzate saranno incluse in tutte le richieste webhook a questo endpoint.
+</Step>
+</Steps>
+
+### Trasformazioni
+
+Le trasformazioni ti consentono di modificare un payload di webhook e reindirizzarlo a un URL diverso. Questa potente funzionalità ti consente di:
+
+- Modificare la struttura del payload prima dell'elaborazione
+- Reindirizzare i webhook a diversi endpoint in base al contenuto
+- Aggiungere o rimuovere campi dal payload
+- Trasformare i formati dei dati
+
+<Steps>
+<Step title="Abilita trasformazioni">
+    Attiva l'interruttore **Abilitato** per attivare la funzionalità di trasformazione.
+</Step>
+
+<Step title="Configura trasformazione">
+    Clicca su **Modifica trasformazione** per definire le tue regole di trasformazione.
+    
+    <Info>
+    Puoi utilizzare JavaScript per trasformare il payload del webhook e specificare un URL di destinazione diverso.
+    </Info>
+</Step>
+
+<Step title="Testa la trasformazione">
+    Usa l'interfaccia di test per verificare che la tua trasformazione funzioni correttamente prima di andare in produzione.
+</Step>
+</Steps>
+
+<Warning>
+Le trasformazioni possono influire significativamente sulle prestazioni di consegna dei webhook. Testa a fondo e mantieni la logica di trasformazione semplice ed efficiente.
+</Warning>
+
+<Tip>
+Le trasformazioni sono particolarmente utili per:
+- Convertire tra diversi formati di dati
+- Filtrare eventi in base a criteri specifici
+- Aggiungere campi calcolati al payload
+- Reindirizzare eventi a diversi microservizi
+</Tip>
+
+## Monitoraggio dei log dei Webhook
+
+La scheda Log fornisce una visibilità completa sullo stato di consegna dei tuoi webhook, consentendoti di monitorare, eseguire il debug e gestire efficacemente gli eventi webhook.
+
+<Frame>
+    <img src="/images/webhooks/logs.png" alt="Log" />
+</Frame>
+
+## Monitoraggio dell'attività
+
+La scheda Attività fornisce informazioni in tempo reale sulle prestazioni di consegna dei tuoi webhook con analisi visive.
+
+<Frame>
+    <img src="/images/webhooks/activity.png" alt="Attività" />
+</Frame>
+
+## Avvisi via email
+
+Rimani informato sulla salute dei tuoi webhook con notifiche email automatiche. Quando le consegne dei webhook iniziano a fallire o il tuo endpoint smette di rispondere, riceverai avvisi via email in modo da poter affrontare rapidamente i problemi e mantenere le tue integrazioni in esecuzione senza problemi.
+
+<Frame>
+  <img src="/images/webhooks/alerting.png" alt="Impostazioni di avviso Webhook che mostrano la configurazione delle notifiche email" />
+</Frame>
+
+### Abilita avvisi via email
+
+<Steps>
+<Step title="Naviga alle impostazioni di avviso">
+  Vai al tuo Dashboard di Dodo Payments e naviga a **Dashboard → Webhooks → Avvisi**.
+</Step>
+
+<Step title="Abilita notifiche email">
+  Attiva le **Notifiche email** per iniziare a ricevere avvisi sui problemi di consegna dei webhook.
+</Step>
+
+<Step title="Configura indirizzo email">
+  Inserisci l'indirizzo email dove desideri ricevere gli avvisi webhook. Invieremo notifiche a questo indirizzo quando si verificano determinati eventi con la tua configurazione webhook, come problemi di consegna che potrebbero influenzare le tue integrazioni.
+</Step>
+</Steps>
+
+<Tip>
+Abilita gli avvisi via email per catturare precocemente i problemi di consegna dei webhook e mantenere integrazioni affidabili. Sarai avvisato quando le consegne falliscono o il tuo endpoint diventa non responsivo.
+</Tip>
+
+## Distribuzione su piattaforme cloud
+
+Pronto a distribuire il tuo gestore webhook in produzione? Forniamo guide specifiche per piattaforma per aiutarti a distribuire i webhook ai fornitori di cloud popolari con le migliori pratiche per ciascuna piattaforma.
+
+<CardGroup cols={2}>
+  <Card title="Vercel" icon="triangle" href="/developer-resources/webhooks/examples/vercel-example">
+    Distribuisci webhook su Vercel con funzioni serverless
+  </Card>
+  <Card title="Cloudflare Workers" icon="cloud" href="/developer-resources/webhooks/examples/cloudflare-example">
+    Esegui webhook sulla rete edge di Cloudflare
+  </Card>
+  <Card title="Supabase Edge Functions" icon="database" href="/developer-resources/webhooks/examples/supabase-example">
+    Integra webhook con Supabase
+  </Card>
+  <Card title="Netlify Functions" icon="circle-nodes" href="/developer-resources/webhooks/examples/netlify-example">
+    Distribuisci webhook come funzioni serverless di Netlify
+  </Card>
+</CardGroup>
+
+<Info>
+Ogni guida per piattaforma include configurazione dell'ambiente, verifica della firma e passaggi di distribuzione specifici per quel fornitore.
+</Info>

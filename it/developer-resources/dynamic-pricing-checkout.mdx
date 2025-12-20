@@ -1,0 +1,530 @@
+---
+sidebarTitle: Checkout con Prezzi Dinamici
+title: Checkout con Prezzi Dinamici e Paga Quanto Vuoi
+description: Crea link di checkout flessibili con prezzi variabili utilizzando
+  un singolo prodotto. Abilita Paga Quanto Vuoi per consentire ai clienti di
+  scegliere il proprio prezzo o impostare importi dinamici programmaticamente.
+icon: tags
+---
+
+**La pricing dinamica** ti consente di offrire prezzi variabili per i tuoi prodotti senza dover creare più voci di prodotto. Abilitando **Paga Quanto Vuoi (PWYW)** su un singolo prodotto, puoi impostare limiti di prezzo minimi e massimi, quindi passare importi dinamici quando crei i link per le sessioni di checkout.
+
+Questo approccio è ideale quando hai bisogno di:
+- **Prezzi variabili** senza gestire più prodotti
+- **Prezzi guidati dai clienti** in cui gli acquirenti scelgono il loro importo
+- **Controllo dei prezzi programmatico** in cui imposti l'importo dinamicamente tramite API
+- **Modelli di prezzo flessibili** per prodotti digitali, donazioni o lanci sperimentali
+
+<Warning>
+Paga Quanto Vuoi è disponibile solo per prodotti **a Pagamento Singolo** (una tantum). Non può essere utilizzato con prodotti in abbonamento.
+</Warning>
+
+## Come Funziona
+
+Con Paga Quanto Vuoi abilitato, puoi:
+
+1. **Impostare limiti di prezzo**: Definisci un prezzo minimo (obbligatorio) e facoltativamente un prezzo massimo
+2. **Passare importi dinamici**: Includi un campo `amount` nel carrello del prodotto quando crei sessioni di checkout
+3. **Consentire ai clienti di scegliere**: Se non viene fornito alcun importo, i clienti possono inserire il proprio prezzo (all'interno dei tuoi limiti)
+
+<Info>
+Quando passi un `amount` nel carrello del prodotto, quell'importo viene utilizzato per il checkout. Se ometti il campo `amount`, i clienti possono selezionare il proprio prezzo durante il checkout (soggetto alle tue impostazioni minime/massime).
+</Info>
+
+## Passo 1: Crea un Prodotto con Paga Quanto Vuoi
+
+Per prima cosa, crea un prodotto una tantum nel tuo dashboard di Dodo Payments e abilita la pricing Paga Quanto Vuoi.
+
+<Steps>
+<Step title="Crea un nuovo prodotto">
+Naviga su **Prodotti** nel tuo dashboard di Dodo Payments e clicca su **Aggiungi Prodotto**.
+</Step>
+
+<Step title="Configura i dettagli del prodotto">
+Compila le informazioni richieste sul prodotto:
+- **Nome Prodotto**: Nome visualizzato per il tuo prodotto
+- **Descrizione Prodotto**: Descrizione chiara di cosa stanno acquistando i clienti
+- **Immagine Prodotto**: Carica un'immagine (PNG/JPG/WebP, fino a 3 MB)
+- **Categoria Fiscale**: Seleziona la categoria fiscale appropriata
+</Step>
+
+<Step title="Imposta il tipo di prezzo">
+Seleziona **Tipo di Prezzo** come **Pagamento Singolo** (pagamento una tantum).
+</Step>
+
+<Step title="Abilita Paga Quanto Vuoi">
+Nella sezione **Prezzo**, abilita l'interruttore **Paga Quanto Vuoi**.
+</Step>
+
+<Step title="Imposta il prezzo minimo">
+Inserisci il **Prezzo Minimo** che i clienti devono pagare. Questo è obbligatorio e garantisce che tu mantenga un piano di entrate.
+
+**Esempio**: Se il tuo minimo è $5.00, inserisci `5.00` (o `500` centesimi).
+</Step>
+
+<Step title="Imposta il prezzo massimo (opzionale)">
+Facoltativamente, imposta un **Prezzo Massimo** per limitare l'importo che i clienti possono pagare.
+</Step>
+
+<Step title="Imposta il prezzo suggerito (opzionale)">
+Facoltativamente, inserisci un **Prezzo Suggerito** che verrà visualizzato per guidare i clienti. Questo aiuta ad ancorare le aspettative e può migliorare il valore medio dell'ordine.
+</Step>
+
+<Step title="Salva il prodotto">
+Clicca su **Aggiungi Prodotto** per salvare. Nota il tuo ID prodotto (ad es., `pdt_123abc456def`) per utilizzarlo nelle sessioni di checkout.
+</Step>
+</Steps>
+
+<Tip>
+Puoi trovare il tuo ID prodotto nel dashboard sotto **Prodotti** → **Visualizza Dettagli**, o utilizzando l'[API Elenco Prodotti](/api-reference/products/get-products).
+</Tip>
+
+## Passo 2: Crea Sessioni di Checkout con Prezzi Dinamici
+
+Una volta che il tuo prodotto è configurato con Paga Quanto Vuoi, puoi creare sessioni di checkout con importi dinamici. Il campo `amount` nel carrello del prodotto ti consente di impostare il prezzo programmaticamente per ogni sessione di checkout.
+
+### Comprendere il Campo Importo
+
+Quando crei una sessione di checkout, puoi includere un campo `amount` in ciascun elemento del carrello del prodotto:
+
+- **Se `amount` è fornito**: Il checkout utilizza esattamente questo importo (deve essere all'interno dei tuoi limiti minimi/massimi)
+- **Se `amount` è omesso**: I clienti possono inserire il proprio prezzo durante il checkout (all'interno dei tuoi limiti)
+
+<Warning>
+Il campo `amount` è applicabile solo per i prodotti Paga Quanto Vuoi. Per i prodotti normali, questo campo viene ignorato.
+</Warning>
+
+### Esempi di Codice
+
+<CodeGroup>
+
+```typescript TypeScript
+import DodoPayments from 'dodopayments';
+
+// Initialize the Dodo Payments client
+const client = new DodoPayments({
+  bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+});
+
+async function createDynamicPricingCheckout(
+  productId: string,
+  amountInCents: number,
+  returnUrl: string
+) {
+  try {
+    const session = await client.checkoutSessions.create({
+      product_cart: [
+        {
+          product_id: productId,
+          quantity: 1,
+          // Dynamic amount in cents (e.g., 1500 = $15.00)
+          amount: amountInCents
+        }
+      ],
+      return_url: returnUrl,
+      // Optional: Pre-fill customer information
+      customer: {
+        email: 'customer@example.com',
+        name: 'John Doe'
+      },
+      // Optional: Add metadata for tracking
+      metadata: {
+        order_id: 'order_123',
+        pricing_tier: 'custom'
+      }
+    });
+
+    console.log('Checkout URL:', session.checkout_url);
+    console.log('Session ID:', session.session_id);
+    
+    return session;
+  } catch (error) {
+    console.error('Failed to create checkout session:', error);
+    throw error;
+  }
+}
+
+// Example: Create checkout with $25.00 (2500 cents)
+const session = await createDynamicPricingCheckout(
+  'prod_123abc456def',
+  2500, // $25.00 in cents
+  'https://yoursite.com/checkout/success'
+);
+
+// Example: Create checkout with $10.00 (1000 cents)
+const session2 = await createDynamicPricingCheckout(
+  'prod_123abc456def',
+  1000, // $10.00 in cents
+  'https://yoursite.com/checkout/success'
+);
+```
+
+```python Python
+import os
+from dodopayments import DodoPayments
+
+# Initialize the Dodo Payments client
+client = DodoPayments(
+    bearer_token=os.environ.get("DODO_PAYMENTS_API_KEY"),
+)
+
+def create_dynamic_pricing_checkout(
+    product_id: str,
+    amount_in_cents: int,
+    return_url: str
+):
+    """
+    Create a checkout session with dynamic pricing.
+    
+    Args:
+        product_id: The product ID with Pay What You Want enabled
+        amount_in_cents: The amount in cents (e.g., 2500 for $25.00)
+        return_url: URL to redirect after payment completion
+    
+    Returns:
+        Session object with checkout_url and session_id
+    """
+    try:
+        session = client.checkout_sessions.create(
+            product_cart=[
+                {
+                    "product_id": product_id,
+                    "quantity": 1,
+                    # Dynamic amount in cents (e.g., 1500 = $15.00)
+                    "amount": amount_in_cents
+                }
+            ],
+            return_url=return_url,
+            # Optional: Pre-fill customer information
+            customer={
+                "email": "customer@example.com",
+                "name": "John Doe"
+            },
+            # Optional: Add metadata for tracking
+            metadata={
+                "order_id": "order_123",
+                "pricing_tier": "custom"
+            }
+        )
+        
+        print(f"Checkout URL: {session.checkout_url}")
+        print(f"Session ID: {session.session_id}")
+        
+        return session
+    except Exception as error:
+        print(f"Failed to create checkout session: {error}")
+        raise error
+
+# Example: Create checkout with $25.00 (2500 cents)
+session = create_dynamic_pricing_checkout(
+    "prod_123abc456def",
+    2500,  # $25.00 in cents
+    "https://yoursite.com/checkout/success"
+)
+
+# Example: Create checkout with $10.00 (1000 cents)
+session2 = create_dynamic_pricing_checkout(
+    "prod_123abc456def",
+    1000,  # $10.00 in cents
+    "https://yoursite.com/checkout/success"
+)
+```
+
+</CodeGroup>
+
+<Note>
+**Formato Importo**: Il campo `amount` deve essere nella più bassa denominazione della valuta. Per USD, questo significa centesimi (ad es., $25.00 = `2500`). Per altre valute, utilizza l'unità più piccola (ad es., paise per INR).
+</Note>
+
+## Passo 3: Consenti ai Clienti di Scegliere il Loro Prezzo
+
+Se desideri che i clienti selezionino il proprio prezzo durante il checkout, ometti semplicemente il campo `amount` dal carrello del prodotto. La pagina di checkout mostrerà un campo di input in cui i clienti possono inserire qualsiasi importo all'interno dei tuoi limiti minimi e massimi.
+
+<CodeGroup>
+
+```typescript TypeScript
+async function createCustomerChoiceCheckout(
+  productId: string,
+  returnUrl: string
+) {
+  try {
+    const session = await client.checkoutSessions.create({
+      product_cart: [
+        {
+          product_id: productId,
+          quantity: 1
+          // No amount field - customer will choose their price
+        }
+      ],
+      return_url: returnUrl,
+      customer: {
+        email: 'customer@example.com',
+        name: 'John Doe'
+      }
+    });
+
+    return session;
+  } catch (error) {
+    console.error('Failed to create checkout session:', error);
+    throw error;
+  }
+}
+```
+
+```python Python
+def create_customer_choice_checkout(
+    product_id: str,
+    return_url: str
+):
+    """
+    Create a checkout session where customers choose their own price.
+    """
+    try:
+        session = client.checkout_sessions.create(
+            product_cart=[
+                {
+                    "product_id": product_id,
+                    "quantity": 1
+                    # No amount field - customer will choose their price
+                }
+            ],
+            return_url=return_url,
+            customer={
+                "email": "customer@example.com",
+                "name": "John Doe"
+            }
+        )
+        
+        return session
+    except Exception as error:
+        print(f"Failed to create checkout session: {error}")
+        raise error
+```
+
+</CodeGroup>
+
+## Casi d'Uso Comuni
+
+### Caso d'Uso 1: Prezzi a Livelli Basati sul Tipo di Utente
+
+Offri prezzi diversi a diversi segmenti di clienti utilizzando lo stesso prodotto:
+
+```typescript
+// Student discount: $10.00
+const studentSession = await createDynamicPricingCheckout(
+  'prod_123abc456def',
+  1000, // $10.00
+  'https://yoursite.com/success'
+);
+
+// Regular price: $25.00
+const regularSession = await createDynamicPricingCheckout(
+  'prod_123abc456def',
+  2500, // $25.00
+  'https://yoursite.com/success'
+);
+
+// Premium price: $50.00
+const premiumSession = await createDynamicPricingCheckout(
+  'prod_123abc456def',
+  5000, // $50.00
+  'https://yoursite.com/success'
+);
+```
+
+### Caso d'Uso 2: Prezzi Dinamici Basati sulla Quantità
+
+Regola il prezzo in base alla quantità acquistata:
+
+```typescript
+async function createQuantityBasedCheckout(
+  productId: string,
+  quantity: number
+) {
+  // Base price: $20.00 per unit
+  // Discount: 10% for 2+ items, 20% for 5+ items
+  const basePrice = 2000; // $20.00 in cents
+  let discount = 0;
+  
+  if (quantity >= 5) {
+    discount = 0.20; // 20% off
+  } else if (quantity >= 2) {
+    discount = 0.10; // 10% off
+  }
+  
+  const totalAmount = Math.round(basePrice * quantity * (1 - discount));
+  
+  const session = await client.checkoutSessions.create({
+    product_cart: [
+      {
+        product_id: productId,
+        quantity: quantity,
+        amount: totalAmount
+      }
+    ],
+    return_url: 'https://yoursite.com/success'
+  });
+  
+  return session;
+}
+```
+
+### Caso d'Uso 3: Prezzi Basati sul Tempo o Promozionali
+
+Applica prezzi promozionali durante periodi specifici:
+
+```typescript
+async function createPromotionalCheckout(productId: string) {
+  const isPromoActive = checkIfPromotionActive(); // Your logic
+  const regularPrice = 3000; // $30.00
+  const promoPrice = 2000; // $20.00
+  
+  const amount = isPromoActive ? promoPrice : regularPrice;
+  
+  const session = await client.checkoutSessions.create({
+    product_cart: [
+      {
+        product_id: productId,
+        quantity: 1,
+        amount: amount
+      }
+    ],
+    return_url: 'https://yoursite.com/success',
+    metadata: {
+      pricing_type: isPromoActive ? 'promotional' : 'regular'
+    }
+  });
+  
+  return session;
+}
+```
+
+## Migliori Pratiche
+
+<CardGroup cols={2}>
+<Card title="Imposta Limiti Ragionevoli" icon="sliders">
+Scegli un prezzo minimo che copra i tuoi costi rimanendo accessibile. Usa un prezzo suggerito per guidare le aspettative dei clienti.
+</Card>
+
+<Card title="Valida gli Importi" icon="shield-check">
+Valida sempre che gli importi dinamici rientrino nei limiti minimi e massimi del tuo prodotto prima di creare sessioni di checkout.
+</Card>
+
+<Card title="Monitora le Decisioni di Prezzo" icon="chart-line">
+Utilizza i metadati per monitorare perché sono stati scelti importi specifici (ad es., `pricing_tier`, `discount_code`, `user_segment`).
+</Card>
+
+<Card title="Gestisci Casi Estremi" icon="exclamation-triangle">
+Assicurati che la tua applicazione gestisca i casi in cui gli importi superano i limiti massimi o scendono sotto i minimi in modo elegante.
+</Card>
+</CardGroup>
+
+## Validazione e Gestione degli Errori
+
+Valida sempre gli importi rispetto alle impostazioni minime e massime del tuo prodotto:
+
+<CodeGroup>
+
+```typescript TypeScript
+async function createValidatedCheckout(
+  productId: string,
+  amountInCents: number,
+  minAmount: number,
+  maxAmount: number | null
+) {
+  // Validate minimum
+  if (amountInCents < minAmount) {
+    throw new Error(
+      `Amount ${amountInCents} is below minimum ${minAmount}`
+    );
+  }
+  
+  // Validate maximum (if set)
+  if (maxAmount !== null && amountInCents > maxAmount) {
+    throw new Error(
+      `Amount ${amountInCents} exceeds maximum ${maxAmount}`
+    );
+  }
+  
+  // Create checkout session
+  return await client.checkoutSessions.create({
+    product_cart: [
+      {
+        product_id: productId,
+        quantity: 1,
+        amount: amountInCents
+      }
+    ],
+    return_url: 'https://yoursite.com/success'
+  });
+}
+```
+
+```python Python
+def create_validated_checkout(
+    product_id: str,
+    amount_in_cents: int,
+    min_amount: int,
+    max_amount: int | None
+):
+    """
+    Create a checkout session with amount validation.
+    """
+    # Validate minimum
+    if amount_in_cents < min_amount:
+        raise ValueError(
+            f"Amount {amount_in_cents} is below minimum {min_amount}"
+        )
+    
+    # Validate maximum (if set)
+    if max_amount is not None and amount_in_cents > max_amount:
+        raise ValueError(
+            f"Amount {amount_in_cents} exceeds maximum {max_amount}"
+        )
+    
+    # Create checkout session
+    return client.checkout_sessions.create(
+        product_cart=[
+            {
+                "product_id": product_id,
+                "quantity": 1,
+                "amount": amount_in_cents
+            }
+        ],
+        return_url="https://yoursite.com/success"
+    )
+```
+
+</CodeGroup>
+
+## Riferimento API
+
+<CardGroup cols={2}>
+
+<Card title="Funzionalità Paga Quanto Vuoi" icon="dollar-sign" href="/features/pay-what-you-want">
+Scopri di più sul modello di pricing Paga Quanto Vuoi e le sue capacità.
+</Card>
+
+<Card title="Guida alle Sessioni di Checkout" icon="cart-shopping" href="/developer-resources/checkout-session">
+Esplora funzionalità avanzate delle sessioni di checkout e opzioni di personalizzazione.
+</Card>
+</CardGroup>
+
+## Risoluzione dei Problemi
+
+<AccordionGroup>
+<Accordion title="L'importo viene ignorato">
+Se il tuo campo `amount` viene ignorato, verifica che:
+- Il prodotto ha **Paga Quanto Vuoi** abilitato nel dashboard
+- Il prodotto è un prodotto **a Pagamento Singolo** (una tantum), non un abbonamento
+- L'importo è nel formato corretto (la più bassa denominazione della valuta, ad es., centesimi per USD)
+</Accordion>
+
+<Accordion title="L'importo supera il massimo o è sotto il minimo">
+L'API rifiuterà le sessioni di checkout in cui l'importo viola i limiti di prezzo del tuo prodotto. Valida sempre gli importi prima di creare sessioni di checkout, o consenti ai clienti di scegliere il loro prezzo omettendo il campo `amount`.
+</Accordion>
+
+<Accordion title="Il cliente non può inserire il proprio prezzo">
+Se i clienti non vedono il campo di input del prezzo, assicurati di aver omesso il campo `amount` dal carrello del prodotto. Quando `amount` è fornito, il checkout utilizza esattamente quell'importo.
+</Accordion>
+</AccordionGroup>

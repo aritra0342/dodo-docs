@@ -1,0 +1,161 @@
+---
+title: Segment
+description: Invia eventi di Dodo Payments a Segment per l'analisi e
+  l'integrazione della piattaforma di dati dei clienti.
+icon: chart-line
+---
+
+## Introduzione
+
+Monitora gli eventi di pagamento in Segment per alimentare la tua analisi, automazione del marketing e piattaforma di dati dei clienti. Invia automaticamente eventi di pagamento, abbonamento e ciclo di vita del cliente a oltre 300 strumenti downstream.
+
+<Info>
+Questa integrazione richiede una Segment Write Key dal tuo workspace Segment.
+</Info>
+
+## Iniziare
+
+<Steps>
+<Step title="Apri la Sezione Webhook">
+  Nel tuo dashboard di Dodo Payments, vai a <b>Webhooks → + Aggiungi Endpoint</b> ed espandi il menu a discesa delle integrazioni.
+  <Frame>
+    <img src="/images/integrations/segment.png" alt="Aggiungi Endpoint e menu a discesa delle integrazioni" />
+  </Frame>
+</Step>
+
+<Step title="Seleziona Segment">
+  Scegli la scheda di integrazione <b>Segment</b>.
+</Step>
+
+<Step title="Inserisci Write Key">
+  Fornisci la tua Segment Write Key nella configurazione.
+</Step>
+
+<Step title="Configura Trasformazione">
+  Modifica il codice di trasformazione per formattare gli eventi per l'API Track di Segment.
+</Step>
+
+<Step title="Testa e Crea">
+  Testa con payload di esempio e fai clic su <b>Crea</b> per attivare la sincronizzazione.
+</Step>
+
+<Step title="Fatto!">
+  🎉 Gli eventi di pagamento saranno ora monitorati in Segment e inviati ai tuoi strumenti connessi.
+</Step>
+</Steps>
+
+## Esempi di Codice di Trasformazione
+
+### Monitora Eventi di Pagamento
+
+```javascript track_payments.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.url = "https://api.segment.io/v1/track";
+    webhook.payload = {
+      userId: p.customer.customer_id,
+      event: "Payment Completed",
+      properties: {
+        amount: (p.total_amount / 100).toFixed(2),
+        currency: p.currency || "USD",
+        payment_method: p.payment_method || "unknown",
+        payment_id: p.payment_id,
+        customer_email: p.customer.email,
+        customer_name: p.customer.name
+      },
+      timestamp: webhook.payload.timestamp
+    };
+  }
+  return webhook;
+}
+```
+
+### Monitora Ciclo di Vita dell'Abbonamento
+
+```javascript track_subscriptions.js icon="js" expandable
+function handler(webhook) {
+  const s = webhook.payload.data;
+  switch (webhook.eventType) {
+    case "subscription.active":
+      webhook.url = "https://api.segment.io/v1/track";
+      webhook.payload = {
+        userId: s.customer.customer_id,
+        event: "Subscription Started",
+        properties: {
+          subscription_id: s.subscription_id,
+          product_id: s.product_id,
+          amount: (s.recurring_pre_tax_amount / 100).toFixed(2),
+          frequency: s.payment_frequency_interval,
+          next_billing: s.next_billing_date,
+          customer_email: s.customer.email
+        },
+        timestamp: webhook.payload.timestamp
+      };
+      break;
+    case "subscription.cancelled":
+      webhook.url = "https://api.segment.io/v1/track";
+      webhook.payload = {
+        userId: s.customer.customer_id,
+        event: "Subscription Cancelled",
+        properties: {
+          subscription_id: s.subscription_id,
+          product_id: s.product_id,
+          cancelled_at: s.cancelled_at,
+          cancel_at_next_billing: s.cancel_at_next_billing_date,
+          customer_email: s.customer.email
+        },
+        timestamp: webhook.payload.timestamp
+      };
+      break;
+  }
+  return webhook;
+}
+```
+
+### Identifica Proprietà del Cliente
+
+```javascript identify_customer.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.url = "https://api.segment.io/v1/identify";
+    webhook.payload = {
+      userId: p.customer.customer_id,
+      traits: {
+        email: p.customer.email,
+        name: p.customer.name,
+        total_spent: (p.total_amount / 100).toFixed(2),
+        payment_method: p.payment_method || "unknown",
+        last_payment_date: webhook.payload.timestamp,
+        customer_since: webhook.payload.timestamp
+      }
+    };
+  }
+  return webhook;
+}
+```
+
+## Suggerimenti
+
+- Usa nomi di eventi coerenti nella tua integrazione
+- Includi proprietà rilevanti per analisi e segmentazione
+- Imposta timestamp appropriati per un tracciamento accurato degli eventi
+- Usa gli ID cliente come userId per una corretta identificazione dell'utente
+
+## Risoluzione dei Problemi
+
+<AccordionGroup>
+<Accordion title="Eventi non visibili in Segment">
+- Verifica che la Write Key sia corretta e attiva
+- Controlla che i nomi degli eventi seguano le convenzioni di denominazione di Segment
+- Assicurati che userId sia impostato correttamente per l'identificazione dell'utente
+- Rivedi i limiti di frequenza dell'API di Segment
+</Accordion>
+
+<Accordion title="Errori di trasformazione">
+- Valida che la struttura JSON corrisponda al formato dell'API di Segment
+- Controlla che tutti i campi richiesti siano presenti
+- Assicurati che i nomi degli eventi siano stringhe, non oggetti
+</Accordion>
+</AccordionGroup>

@@ -1,0 +1,280 @@
+---
+sidebarTitle: सदस्यता माइग्रेशन
+title: Dodo Payments के लिए सदस्यता माइग्रेशन
+description: जानें कि कैसे अपने मौजूदा ग्राहकों और भुगतान विधियों को अपने
+  वर्तमान भुगतान प्रोसेसर से Dodo Payments में माइग्रेट करें।
+icon: file-import
+---
+
+## सदस्यता माइग्रेशन क्या है?
+
+सदस्यता माइग्रेशन आपके मौजूदा ग्राहकों को आपके पुराने भुगतान प्रोसेसर से Dodo Payments में स्थानांतरित करता है, जिससे आपको अपने सभी ग्राहक डेटा के लिए एक सिंगल स्रोत मिलता है। माइग्रेशन के बिना, अब तक प्राप्त ग्राहक आपके पुराने सिस्टम में बने रहते हैं, और केवल नए ग्राहक Dodo Payments में दिखाई देंगे।
+
+माइग्रेशन प्रक्रिया आपके ग्राहकों के लिए एक निर्बाध बिलिंग अनुभव सुनिश्चित करती है—उन्हें अपने भुगतान विवरण फिर से दर्ज करने की आवश्यकता नहीं होगी या उनकी सदस्यताओं में कोई रुकावट का अनुभव नहीं होगा।
+
+<Warning>
+वर्तमान में, हम केवल **कार्ड टोकन** के लिए माइग्रेशन का समर्थन करते हैं। Apple Pay, Google Pay, और अन्य वॉलेट भुगतान विधियों को इन प्रदाताओं द्वारा लगाए गए टोकनाइजेशन प्रतिबंधों के कारण भुगतान प्रोसेसर के बीच स्थानांतरित नहीं किया जा सकता है।
+</Warning>
+
+## माइग्रेशन प्रक्रिया का अवलोकन
+
+सदस्यता माइग्रेशन प्रक्रिया में तीन प्रमुख भाग होते हैं:
+
+1. **भुगतान विधि स्थानांतरण** — आपके वर्तमान प्रोसेसर से संवेदनशील कार्ड डेटा का सुरक्षित स्थानांतरण
+2. **ग्राहक डेटा स्थानांतरण** — ग्राहक विवरण, सदस्यता योजनाएँ, और बिलिंग शेड्यूल का निर्यात
+3. **आयात और मान्यता** — Dodo Payments में भुगतान विधियों और ग्राहक डेटा का एकीकरण
+
+<Note>
+सदस्यता माइग्रेशन शुरू करने के लिए, हमारी [सहायता टीम](mailto:support@dodopayments.com) से संपर्क करें। वे आपको एक समर्पित सॉल्यूशंस इंजीनियर से जोड़ेंगे जो आपको पूरी प्रक्रिया में मार्गदर्शन करेंगे।
+</Note>
+
+## आवश्यकताएँ
+
+माइग्रेशन शुरू करने से पहले, सुनिश्चित करें कि आप निम्नलिखित आवश्यकताओं को पूरा करते हैं:
+
+<AccordionGroup>
+<Accordion title="PCI DSS अनुपालन सत्यापन">
+Dodo Payments PCI DSS स्तर 1 अनुपालन है। अनुपालन दायित्वों को पूरा करने के लिए, हम केवल एक अन्य PCI DSS स्तर 1 अनुप compliant भुगतान प्रोसेसर से कार्ड डेटा प्राप्त कर सकते हैं।
+
+आपके वर्तमान प्रोसेसर को प्रदान करना चाहिए:
+- उनका वर्तमान PCI अनुपालन का प्रमाण पत्र (AOC), या वीज़ा के वैश्विक सेवा प्रदाताओं के रजिस्टर में उनकी सूची
+- पुष्टि कि वे सुरक्षित कार्ड डेटा निर्यात का समर्थन करते हैं
+
+हमारा [अनुपालन का प्रमाण पत्र (AOC)](/assets/dodo-payments-pci-dss-aoc.pdf) देखें जिसे आप अपने वर्तमान प्रोसेसर के साथ साझा कर सकते हैं।
+</Accordion>
+
+<Accordion title="Dodo Payments एकीकरण">
+अपने Dodo Payments एकीकरण को पूरा करें और सुनिश्चित करें कि सभी नए ग्राहक माइग्रेशन शुरू करने से पहले Dodo Payments चेकआउट की ओर निर्देशित हो रहे हैं। यह संक्रमण अवधि के दौरान डेटा असंगतियों को रोकता है।
+</Accordion>
+
+<Accordion title="डेटा एक्सेस प्राधिकरण">
+सुनिश्चित करें कि आपके पास अपने वर्तमान प्रोसेसर से डेटा निर्यात का अनुरोध करने के लिए आवश्यक प्राधिकरण है। यह आमतौर पर आवश्यक है:
+- खाता मालिक की सत्यापन
+- संवेदनशील डेटा एक्सेस के लिए लिखित प्राधिकरण
+- आपके प्रोसेसर के सुरक्षा सत्यापन चरणों को पूरा करना
+</Accordion>
+</AccordionGroup>
+
+## चरण-दर-चरण माइग्रेशन गाइड
+
+<Steps>
+<Step title="अपने वर्तमान प्रोसेसर से भुगतान विधि निर्यात का अनुरोध करें">
+अपने वर्तमान भुगतान प्रोसेसर की सहायता टीम से संपर्क करें और अपने ग्राहक कार्ड टोकन का पूरा निर्यात करने के लिए एक औपचारिक अनुरोध प्रस्तुत करें।
+
+आपको निम्नलिखित प्रदान करने की आवश्यकता होगी:
+- अपनी पहचान और प्राधिकरण का सत्यापन
+- अनुरोध करें कि वे निर्यात को Dodo Payments के PGP सार्वजनिक कुंजी का उपयोग करके एन्क्रिप्ट करें (नीचे प्रदान की गई)
+- उनसे अनुरोध करें कि वे एन्क्रिप्टेड फ़ाइल को सीधे हमारे सुरक्षित SFTP सर्वर पर स्थानांतरित करें
+
+<Info>
+सुरक्षित स्थानांतरण सीधे सर्वर से सर्वर के माध्यम से SFTP के माध्यम से किए जाते हैं। आपके सॉल्यूशंस इंजीनियर आपके वर्तमान प्रोसेसर के साथ साझा करने के लिए SFTP क्रेडेंशियल प्रदान करेंगे।
+</Info>
+
+औसतन, यह प्रक्रिया लगभग **2 सप्ताह** लेती है, हालांकि समय आपके वर्तमान प्रोसेसर की नीतियों और प्रतिक्रिया समय के आधार पर भिन्न हो सकता है।
+</Step>
+
+<Step title="ग्राहक डेटा निर्यात तैयार करें">
+जब भुगतान विधि स्थानांतरण प्रगति में हो, तो अपने पुराने सिस्टम से अपने ग्राहक डेटा का निर्यात करें। आपके सॉल्यूशंस इंजीनियर एक CSV टेम्पलेट प्रदान करेंगे और आवश्यक फ़ील्ड के माध्यम से आपको मार्गदर्शन करेंगे।
+
+### आवश्यक ग्राहक डेटा
+
+| फ़ील्ड | विवरण |
+|-------|-------------|
+| `customer_id` | आपका आंतरिक ग्राहक पहचानकर्ता |
+| `email` | ग्राहक का ईमेल पता |
+| `name` | ग्राहक का पूरा नाम |
+| `country` | दो-अक्षर वाला देश कोड (ISO 3166-1 alpha-2) |
+| `currency` | तीन-अक्षर वाला मुद्रा कोड (ISO 4217) |
+| `payment_amount` | सबसे छोटे मुद्रा इकाई में सदस्यता राशि |
+| `payment_interval` | बिलिंग आवृत्ति (मासिक, वार्षिक, आदि) |
+| `next_billing_date` | अगली निर्धारित बिलिंग तिथि (ISO 8601) |
+| `card_token` | आपके वर्तमान प्रोसेसर से अद्वितीय टोकन |
+
+<Warning>
+`card_token` फ़ील्ड महत्वपूर्ण है—यह आयात के दौरान ग्राहक रिकॉर्ड को उनके भुगतान विधियों से मिलाने के लिए उपयोग किया जाता है। सुनिश्चित करें कि यह भुगतान विधि निर्यात में टोकन के साथ बिल्कुल मेल खाता है।
+</Warning>
+
+### नमूना डेटा प्रारूप
+
+```json
+{
+  "customers": [
+    {
+      "customer_id": "cus_abc123",
+      "email": "jane.doe@example.com",
+      "name": "Jane Doe",
+      "country": "US",
+      "currency": "USD",
+      "payment_amount": 2999,
+      "payment_interval": "monthly",
+      "next_billing_date": "2025-01-15T00:00:00Z",
+      "card_token": "tok_xyz789",
+      "metadata": {
+        "plan": "pro",
+        "signup_source": "website"
+      }
+    }
+  ]
+}
+```
+
+</Step>
+
+<Step title="मान्यता और परीक्षण">
+आयात तिथि से पहले, हमारी टीम:
+
+- भुगतान विधि डेटा की फ़ाइल अखंडता और एन्क्रिप्शन की पुष्टि करें
+- आपके ग्राहक CSV को सही प्रारूप के लिए मान्य करें
+- हमारे सैंडबॉक्स वातावरण में एक परीक्षण आयात चलाएँ
+- किसी भी डेटा मैपिंग मुद्दों की पहचान करें और उन्हें हल करें
+
+<Check>
+आपको एक मान्यता रिपोर्ट प्राप्त होगी जो पुष्टि करती है कि उत्पादन आयात के लिए सब कुछ तैयार है।
+</Check>
+</Step>
+
+<Step title="उत्पादन आयात">
+निर्धारित आयात तिथि पर, हमारी इंजीनियरिंग टीम:
+
+1. हमारे PCI-अनुपालन कार्ड वॉल्ट में भुगतान विधि डेटा का आयात करें
+2. आपके ग्राहक डेटा का आयात करें
+3. कार्ड टोकन का उपयोग करके ग्राहकों को उनके भुगतान विधियों से मिलाएँ
+4. सभी माइग्रेटेड सदस्यताओं को सक्रिय करें
+
+<Info>
+मानक माइग्रेशन के लिए सामान्य प्रसंस्करण समय **2-3 व्यावसायिक दिन** है, जो ग्राहकों की मात्रा पर निर्भर करता है।
+</Info>
+</Step>
+
+<Step title="पोस्ट-माइग्रेशन सत्यापन">
+आयात पूरा होने के बाद, आपको प्राप्त होगा:
+
+- एक व्यापक माइग्रेशन रिपोर्ट
+- एक CSV जो आपके पुराने सदस्यता आईडी को नए Dodo Payments आईडी से मैप करता है
+- आपके Dodo Payments डैशबोर्ड में सभी माइग्रेटेड ग्राहकों तक पहुँच
+
+हम अनुशंसा करते हैं:
+- अपने डैशबोर्ड में माइग्रेटेड सदस्यताओं के एक नमूने की पुष्टि करें
+- सैंडबॉक्स मोड में कुछ सदस्यता नवीनीकरण का परीक्षण करें
+- नए आईडी के साथ अपने आंतरिक डेटाबेस संदर्भों को अपडेट करें
+- पहले बिलिंग चक्र के लिए समानांतर निगरानी चलाएँ
+</Step>
+</Steps>
+
+## माइग्रेट करने योग्य डेटा
+
+सदस्यता माइग्रेशन के दौरान निम्नलिखित डेटा को स्थानांतरित किया जा सकता है:
+
+| डेटा प्रकार | समर्थित | नोट्स |
+|-----------|-----------|-------|
+| क्रेडिट/डेबिट कार्ड नंबर | ✅ | PGP के माध्यम से एन्क्रिप्टेड |
+| कार्ड समाप्ति तिथियाँ | ✅ | |
+| कार्डधारक के नाम | ✅ | |
+| बिलिंग पते | ✅ | |
+| ग्राहक ईमेल पते | ✅ | |
+| ग्राहक मेटाडेटा | ✅ | कस्टम कुंजी-मूल्य जोड़े |
+| सदस्यता विवरण | ✅ | योजना, राशि, अंतराल |
+| Apple Pay टोकन | ❌ | स्थानांतरित नहीं किया जा सकता |
+| Google Pay टोकन | ❌ | स्थानांतरित नहीं किया जा सकता |
+| अन्य वॉलेट टोकन | ❌ | स्थानांतरित नहीं किया जा सकता |
+| भुगतान इतिहास | ❌ | आपके वर्तमान प्रोसेसर से निर्यात करें |
+
+<Note>
+भुगतान इतिहास और लेनदेन रिकॉर्ड माइग्रेट नहीं किए जा सकते। हम अनुशंसा करते हैं कि आप संक्रमण पूरा करने से पहले अपने वर्तमान प्रोसेसर से अपने रिकॉर्ड के लिए इस डेटा का निर्यात करें।
+</Note>
+
+## PGP एन्क्रिप्शन
+
+संवेदनशील कार्ड डेटा को स्थानांतरित करते समय अधिकतम सुरक्षा के लिए, सभी फ़ाइलें **अनिवार्य** रूप से हमारे PGP सार्वजनिक कुंजी का उपयोग करके एन्क्रिप्ट की जानी चाहिए। यह परिवहन स्तर की एन्क्रिप्शन से परे सुरक्षा की एक अतिरिक्त परत प्रदान करता है।
+
+इस कुंजी को अपने वर्तमान भुगतान प्रोसेसर के साथ साझा करें ताकि कार्ड डेटा निर्यात को एन्क्रिप्ट किया जा सके:
+
+<Accordion title="Dodo Payments PGP सार्वजनिक कुंजी">
+
+```
+-----BEGIN PGP PUBLIC KEY BLOCK-----
+
+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
+1OSDhXaPYtJnVApUzaCrC5PJCXU=
+=nHcw
+-----END PGP PUBLIC KEY BLOCK-----
+
+```
+
+</Accordion>
+
+## समयसीमा की अपेक्षाएँ
+
+| चरण | अवधि |
+|-------|----------|
+| प्रारंभिक सेटअप और योजना | 1-2 दिन |
+| भुगतान विधि स्थानांतरण | ~2 सप्ताह |
+| ग्राहक डेटा तैयारी | 3-5 दिन (समानांतर) |
+| मान्यता और परीक्षण | 2-3 दिन |
+| उत्पादन आयात | 2-3 व्यावसायिक दिन |
+| पोस्ट-माइग्रेशन सत्यापन | 1-2 दिन |
+
+<Tip>
+कुल माइग्रेशन आमतौर पर शुरू से अंत तक **3-4 सप्ताह** लेता है। भुगतान विधि स्थानांतरण के प्रगति में होने के दौरान अपने ग्राहक डेटा तैयारी को शुरू करना कुल समयसीमा को कम करने में मदद करता है।
+</Tip>
+
+## शुरू करें
+
+क्या आप अपनी सदस्यताओं को Dodo Payments में माइग्रेट करने के लिए तैयार हैं? प्रक्रिया शुरू करने के लिए हमारी टीम से संपर्क करें:
+
+<CardGroup cols={2}>
+<Card title="सहायता से संपर्क करें" icon="envelope" href="mailto:support@dodopayments.com">
+अपनी माइग्रेशन शुरू करने और एक सॉल्यूशंस इंजीनियर से जुड़ने के लिए संपर्क करें।
+</Card>
+
+<Card title="API दस्तावेज़" icon="code" href="/api-reference">
+जानें कि Dodo Payments में सदस्यताएँ कैसे काम करती हैं, इसके लिए हमारे API का अन्वेषण करें।
+</Card>
+</CardGroup>

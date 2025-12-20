@@ -1,0 +1,168 @@
+---
+sidebarTitle: Figma-plugin
+title: Figma-pluginmall
+description: Bygg Figma-plugins med Dodo Payments licensnyckelvalidering och aktivering
+icon: figma
+---
+
+Detta är en exempelimplementation och mall som är utformad som en utgångspunkt för Figma-pluginutvecklare som vill integrera Dodo Payments licensnyckel-API för att ge åtkomst till sina plugins. Mallen demonstrerar fullständig licensnyckelvalidering och aktiveringsfunktionalitet, vilket ger allt du behöver för att skapa premium Figma-plugins med inbyggd licensiering.
+
+## Funktioner
+
+- **Licensnyckelvalidering**: Validerar licensnycklar mot Dodo Payments API
+- **Licensnyckelaktivering**: Aktiverar licensnycklar med användaridentifiering
+- **Miljöstöd**: Konfigurerbar för både test- och produktionsmiljöer  
+- **CORS Proxy**: Använder en Cloudflare Worker-proxy för att hantera CORS-restriktioner
+- **TypeScript-stöd**: Fullt typad implementation med korrekt felhantering
+
+## Komma igång
+
+<Steps>
+<Step title="Skapa Basplugin">
+Skapa ditt eget Figma-pluginprojekt med hjälp av [Figma's plugin quickstart guide](https://www.figma.com/plugin-docs/plugin-quickstart-guide/). Detta kommer att generera en struktur med en `manifest.json` fil.
+
+<Tip>
+Detta steg är bara för att få ett unikt namn och ID för ditt plugin. Du kan kassera de genererade filerna efter att ha åtagit dig ID och namn till ditt git-repo i nästa steg.
+</Tip>
+</Step>
+
+<Step title="Klona Exempelimplementationen">
+Klona [dodopayments-figma-repositoriet](https://github.com/dodopayments/dodopayments-figma) och uppdatera dess `manifest.json` med namnet och ID:t från din genererade pluginmapp.
+
+```bash
+git clone https://github.com/dodopayments/dodopayments-figma.git
+cd dodopayments-figma
+```
+
+Detta exempel fungerar som din utgångspunkt för integration.
+
+<Tip>
+Du behöver ändra den fjärranslutna ursprungs-URL:en till ditt eget repository för versionskontroll.
+</Tip>
+</Step>
+
+<Step title="Installera Beroenden">
+Kör följande kommando i din projektrot:
+
+```bash
+npm install
+```
+
+</Step>
+
+<Step title="Konfigurera Miljö">
+Ställ in `API_MODE` i `src/ui/api.ts`:
+
+```typescript
+const API_MODE = "test_mode"; // for development
+// const API_MODE = "live_mode"; // for production
+```
+
+<Warning>
+Använd alltid `test_mode` under utveckling för att undvika att bearbeta verkliga betalningar.
+</Warning>
+</Step>
+
+<Step title="Anpassa Komponenter">
+Anpassa plugin-komponenterna för att matcha dina behov:
+
+- Uppdatera `Authenticated.tsx` för att exponera funktionalitet för användare med giltiga licensnycklar
+- Anpassa `LicenseKeyInput.tsx` för att matcha dina designpreferenser
+
+<Note>
+Den `Authenticated.tsx` komponenten är där du kommer att lägga till dina plugins premiumfunktioner som kräver en giltig licens.
+</Note>
+</Step>
+</Steps>
+
+## Konfiguration
+
+<Steps>
+<Step title="Konfigurera Nätverksåtkomst">
+Pluginen behöver nätverksåtkomst för att kommunicera med CORS-proxyn. Lägg till följande i din `manifest.json`:
+
+```json
+{
+  "networkAccess": {
+    "allowedDomains": ["https://dodo-payments-proxy.aagarwal9782.workers.dev"]
+  }
+}
+```
+
+Detta gör att pluginen kan validera och aktivera licensnycklar med hjälp av Dodo Payments API.
+
+<Info>
+CORS-proxyn är nödvändig eftersom Dodo Payments API för närvarande inte tillåter API-anrop från webbläsarbaserade applikationer.
+</Info>
+</Step>
+
+<Step title="Konfigurera API-läge">
+I `src/ui/api.ts`, konfigurera API-läget:
+
+```typescript
+const API_MODE = "test_mode"; // or "live_mode"
+```
+
+<Tip>
+Byt till `live_mode` först när du är redo för produktion och har testat noggrant i testläge.
+</Tip>
+</Step>
+</Steps>
+
+## Utveckling
+
+<Steps>
+<Step title="Importera Plugin">
+Importera pluginen till Figma med "Importera Manifest" från Figma-skrivbordsappen.
+
+<Note>
+Du behöver ha Figma-skrivbordsappen installerad för att utveckla och testa plugins lokalt.
+</Note>
+</Step>
+
+<Step title="Starta Utvecklingsserver">
+
+```bash
+npm run dev
+```
+
+Detta startar utvecklingsservern med filövervakning för automatisk ombyggnad.
+
+<Check>
+Din plugin kommer automatiskt att ombyggas när du gör ändringar i källkoden.
+</Check>
+</Step>
+</Steps>
+
+## Byggkommandon
+
+| Kommando | Beskrivning |
+|---------|-------------|
+| `npm run build` | Bygg pluginen för produktion |
+| `npm run dev` | Starta utvecklingsserver med filövervakning |
+| `npm run lint` | Kontrollera kodstil och fel |
+| `npm run format` | Formatera kod med Prettier |
+
+## Licensnyckelintegration
+
+Exempelimplementationen inkluderar fullständig licensnyckelvalidering och aktivering som du kan anpassa för din plugin:
+
+1. **Användarinmatning**: Användare anger sin licensnyckel i pluginens UI
+2. **Validering**: Pluginen validerar nyckeln mot Dodo Payments API
+3. **Aktivering**: Giltiga nycklar aktiveras med användaridentifiering
+4. **Åtkomstkontroll**: Pluginens funktionalitet låses upp för innehavare av giltiga licensnycklar
+
+## Publicering
+
+När din plugin är redo:
+
+1. Bygg för produktion: `npm run build`
+2. Testa noggrant i både test- och produktionslägen
+3. Följ [Figma's plugin publiceringsriktlinjer](https://www.figma.com/plugin-docs/publishing-plugins/)
+4. Skicka in för granskning genom Figma Community
+
+## Repository
+
+Den kompletta exempelimplementationen finns på: [github.com/dodopayments/dodopayments-figma](https://github.com/dodopayments/dodopayments-figma)
+
+Använd detta som din utgångspunkt för att bygga din egen premium Figma-plugin med Dodo Payments licensnyckelintegration.

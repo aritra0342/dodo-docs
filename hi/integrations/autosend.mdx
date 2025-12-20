@@ -1,0 +1,210 @@
+---
+title: AutoSend
+description: AutoSend के ईमेल API का उपयोग करके अपने Dodo Payments लेनदेन, रिफंड
+  और भुगतान घटनाओं के लिए स्वचालित लेनदेन ईमेल भेजना सीखें।
+icon: paper-plane
+---
+
+## परिचय
+
+AutoSend और Dodo Payments का एकीकरण आपको सभी भुगतान घटनाओं के लिए स्वचालित रूप से वास्तविक समय के ईमेल सूचनाएँ भेजने की अनुमति देता है, सफल लेनदेन से लेकर असफल प्रयासों और रिफंड पुष्टियों तक।
+
+AutoSend के शक्तिशाली ईमेल API का उपयोग करके भुगतान घटनाओं के लिए लेनदेन ईमेल भेजें।
+
+<Info>
+इस एकीकरण के लिए प्रमाणीकरण के लिए आपके AutoSend API कुंजी की आवश्यकता है। आप अपनी API कुंजी AutoSend डैशबोर्ड में Settings > API Keys के तहत पा सकते हैं।
+</Info>
+
+## प्रारंभ करना
+
+Dodo Payments के साथ AutoSend को एकीकृत करने के लिए इन चरणों का पालन करें:
+
+<Steps>
+<Step title="Webhook अनुभाग खोलें">
+  अपने Dodo Payments डैशबोर्ड में Webhooks अनुभाग पर जाएं।
+  
+  <Frame>
+    <img src="/images/integrations/autosend.png" alt="एंडपॉइंट और एकीकरण ड्रॉपडाउन जोड़ें" />
+  </Frame>
+</Step>
+
+<Step title="AutoSend एकीकरण चुनें">
+  उपलब्ध एकीकरणों की सूची में से AutoSend चुनें।
+</Step>
+
+<Step title="API कुंजी दर्ज करें">
+  प्रमाणीकरण के लिए अपनी AutoSend API कुंजी प्रदान करें। आप अपनी API कुंजी AutoSend डैशबोर्ड में Settings > API Keys के तहत पा सकते हैं।
+  
+  <Card title="API कुंजी बनाने और प्रबंधित करने के तरीके के बारे में जानें" icon="key" href="https://docs.autosend.com/api-keys">
+    API कुंजी बनाने और प्रबंधित करने के लिए विस्तृत निर्देशों के लिए AutoSend दस्तावेज़ पर जाएं।
+  </Card>
+</Step>
+
+<Step title="रूपांतरण कॉन्फ़िगर करें">
+  भुगतान घटनाओं के आधार पर ईमेल सामग्री को अनुकूलित करने के लिए JavaScript रूपांतरण हैंडलर सेट करें।
+</Step>
+
+<Step title="परीक्षण और निर्माण">
+  सुनिश्चित करें कि ईमेल सही ढंग से भेजे जा रहे हैं, फिर एकीकरण बनाएं।
+</Step>
+
+<Step title="सक्रियण पूरा">
+  🎉 आपका AutoSend एकीकरण अब सक्रिय है और कॉन्फ़िगर की गई भुगतान घटनाओं के लिए स्वचालित रूप से ईमेल भेजेगा।
+</Step>
+</Steps>
+
+## कोड उदाहरण
+
+### भुगतान पुष्टिकरण ईमेल
+
+जब भुगतान सफलतापूर्वक संसाधित होता है, तो पुष्टिकरण ईमेल भेजें:
+
+```javascript payment_confirmation.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.url = "https://api.autosend.com/v1/mails/send";
+    webhook.payload = {
+      to: {
+        email: p.customer.email,
+        name: p.customer.name,
+      },
+      from: {
+        email: "payments@mail.yourdomain.com",
+        name: "Your Company",
+      },
+      subject: "Payment Successful - Thank you for your purchase!",
+      templateId: "A-61522f2xxxxxxxxx",
+      dynamicData: {
+        customerName: p.customer.name,
+        amount: p.amount,
+        currency: p.currency,
+        paymentId: p.payment_id,
+        paymentDate: new Date(p.created_at).toLocaleDateString(),
+      },
+      replyTo: {
+        email: "support@yourdomain.com",
+        name: "Support Team",
+      },
+    };
+  }
+  return webhook;
+}
+```
+
+### सदस्यता स्वागत ईमेल
+
+जब एक नई सदस्यता बनाई जाती है, तो स्वागत ईमेल भेजें:
+
+```javascript subscription_welcome.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "subscription.created") {
+    const s = webhook.payload.data;
+    webhook.url = "https://api.autosend.com/v1/mails/send";
+    webhook.payload = {
+      to: {
+        email: s.customer.email,
+        name: s.customer.name,
+      },
+      from: {
+        email: "subscriptions@mail.yourdomain.com",
+        name: "Your Company",
+      },
+      subject: "Welcome to your subscription!",
+      templateId: "A-61522f2xxxxxxxxx",
+      dynamicData: {
+        customerName: s.customer.name,
+        planName: s.plan.name,
+        billingInterval: s.billing_interval,
+        nextBillingDate: new Date(s.next_billing_at).toLocaleDateString(),
+        subscriptionId: s.subscription_id,
+      },
+      replyTo: {
+        email: "support@yourdomain.com",
+        name: "Support Team",
+      },
+    };
+  }
+  return webhook;
+}
+```
+
+### भुगतान विफलता सूचना
+
+जब भुगतान विफल होता है, तो सूचना ईमेल भेजें:
+
+```javascript payment_failure.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.failed") {
+    const p = webhook.payload.data;
+    webhook.url = "https://api.autosend.com/v1/mails/send";
+    webhook.payload = {
+      to: {
+        email: p.customer.email,
+        name: p.customer.name,
+      },
+      from: {
+        email: "billing@mail.yourdomain.com",
+        name: "Your Company Billing",
+      },
+      subject: "Payment Failed - Action Required",
+      templateId: "A-61522f2xxxxxxxxx",
+      dynamicData: {
+        customerName: p.customer.name,
+        amount: p.amount,
+        currency: p.currency,
+        failureReason: p.failure_reason,
+        paymentId: p.payment_id,
+        retryUrl: `https://yourdomain.com/billing/retry/${p.payment_id}`,
+      },
+      replyTo: {
+        email: "billing@yourdomain.com",
+        name: "Billing Support",
+      },
+    };
+  }
+  return webhook;
+}
+```
+
+## सर्वोत्तम प्रथाएँ
+
+- **अपने प्रेषक डोमेन की पुष्टि करें**: सुनिश्चित करें कि आपके प्रेषक ईमेल डोमेन को AutoSend में सत्यापित किया गया है ताकि डिलीवरी में सुधार हो सके और प्रमाणीकरण समस्याओं से बचा जा सके। सत्यापित डोमेन ईमेल को स्पैम फ़ोल्डरों में जाने से रोकने में मदद करते हैं।
+
+- **व्यक्तिगतकरण के लिए गतिशील डेटा का उपयोग करें**: ईमेल को ग्राहक-विशिष्ट जानकारी जैसे नाम, भुगतान राशि, और सदस्यता विवरण के साथ व्यक्तिगत बनाने के लिए `dynamicData` फ़ील्ड का उपयोग करें। व्यक्तिगत ईमेल की सहभागिता दर अधिक होती है।
+
+- **स्पष्ट विषय पंक्तियाँ लिखें**: वर्णनात्मक विषय पंक्तियाँ लिखें जो ईमेल के उद्देश्य को स्पष्ट रूप से इंगित करती हैं। स्पैम-प्रेरक शब्दों से बचें और विषयों को संक्षिप्त रखें (50 वर्णों के तहत)।
+
+- **उत्पादन से पहले परीक्षण करें**: हमेशा अपने ईमेल को उत्पादन में भेजने से पहले परीक्षण करें। यह सुनिश्चित करता है कि आपकी ईमेल सामग्री सही ढंग से प्रदर्शित होती है और सभी गतिशील डेटा सही ढंग से मैप किया गया है।
+
+## API संदर्भ
+
+AutoSend API के पूर्ण विवरण के लिए, सभी उपलब्ध पैरामीटर और त्रुटि कोड सहित, [AutoSend API दस्तावेज़](https://docs.autosend.com/api-reference/mails/send) पर जाएं।
+
+## समस्या निवारण
+
+<AccordionGroup>
+<Accordion title="ईमेल नहीं भेजे जा रहे हैं">
+- API कुंजी सही और सक्रिय है यह सत्यापित करें
+- सुनिश्चित करें कि प्रेषक डोमेन AutoSend में सत्यापित है
+- सुनिश्चित करें कि प्राप्तकर्ता ईमेल पते मान्य हैं
+- AutoSend भेजने की सीमाओं और कोटा की समीक्षा करें
+- सत्यापित करें कि API एंडपॉइंट URL सही है: `https://api.autosend.com/v1/mails/send`
+- सुनिश्चित करें कि पेलोड में आवश्यक पैरामीटर मौजूद हैं
+</Accordion>
+
+<Accordion title="रूपांतरण त्रुटियाँ">
+- सत्यापित करें कि JSON संरचना AutoSend API प्रारूप से मेल खाती है
+- सुनिश्चित करें कि सभी आवश्यक फ़ील्ड मौजूद हैं (`to`, `from`, `templateId` या `html`/`text`)
+- सुनिश्चित करें कि ईमेल पते सही ढंग से स्वरूपित हैं
+- यदि टेम्पलेट का उपयोग कर रहे हैं तो `templateId` मान्य है यह सत्यापित करें
+- सुनिश्चित करें कि `dynamicData` कुंजी आपके टेम्पलेट वेरिएबल से मेल खाती हैं
+</Accordion>
+
+<Accordion title="टेम्पलेट समस्याएँ">
+- सुनिश्चित करें कि आपका टेम्पलेट ID AutoSend में सही और सक्रिय है
+- सुनिश्चित करें कि `dynamicData` कुंजी आपके टेम्पलेट में उपयोग किए गए वेरिएबल से मेल खाती हैं
+- सुनिश्चित करें कि सभी आवश्यक टेम्पलेट वेरिएबल प्रदान किए गए हैं
+- AutoSend डैशबोर्ड में स्वतंत्र रूप से अपने टेम्पलेट का परीक्षण करें
+</Accordion>
+</AccordionGroup>

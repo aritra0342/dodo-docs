@@ -1,0 +1,211 @@
+---
+title: N8N
+description: Integrera Dodo Payments med N8N för att automatisera arbetsflöden
+  och koppla samman med över 5 000 appar med hjälp av webhooks—kraftfull,
+  anpassningsbar automation i självhostade eller molnbaserade N8N-miljöer.
+icon: diagram-project
+---
+
+## Introduktion
+
+Anslut Dodo Payments till tusentals appar och tjänster genom N8N. Automatisera arbetsflöden genom att utlösa N8N-arbetsflöden när betalningsevenemang inträffar, från att skicka e-post till att uppdatera kalkylblad, skapa uppgifter, databasoperationer och mycket mer.
+
+<Info>
+Denna integration kräver en N8N webhook-URL från din arbetsflödeskonfiguration.
+</Info>
+
+## Komma igång
+
+<Steps>
+<Step title="Öppna Webhook-sektionen">
+  I din Dodo Payments-instrumentpanel, navigera till <b>Webhooks → + Lägg till slutpunkt</b> och expandera integrationsrullgardinsmenyn.
+  <Frame>
+    <img src="/images/integrations/n8n.png" alt="Lägg till slutpunkt och integrationsrullgardinsmeny" />
+  </Frame>
+</Step>
+
+<Step title="Välj N8N">
+  Välj <b>N8N</b> integrationskortet.
+</Step>
+
+<Step title="Skapa Webhook i N8N">
+  I N8N, skapa ett nytt arbetsflöde och lägg till en <b>Webhook</b> nod som utlösare. Konfigurera den som en POST-webhook och kopiera webhook-URL:en.
+</Step>
+
+<Step title="Klistra in Webhook-URL">
+  Klistra in N8N webhook-URL:en i slutpunktens konfiguration.
+</Step>
+
+<Step title="Konfigurera Transformation">
+  Redigera transformationskoden för att formatera data för ditt N8N-arbetsflöde.
+</Step>
+
+<Step title="Testa & Skapa">
+  Testa med exempelpayloadar och klicka på <b>Skapa</b> för att aktivera integrationen.
+</Step>
+
+<Step title="Aktivera Arbetsflöde">
+  I N8N, aktivera ditt arbetsflöde för att börja ta emot webhook-händelser.
+</Step>
+
+<Step title="Klart!">
+  🎉 Betalningsevenemang kommer nu automatiskt att utlösa dina N8N-arbetsflöden.
+</Step>
+</Steps>
+
+## Transformationskodexempel
+
+### Grundläggande Webhook Payload
+
+```javascript basic_webhook.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.payload = {
+      event_type: webhook.eventType,
+      payment_id: p.payment_id,
+      amount: (p.total_amount / 100).toFixed(2),
+      currency: p.currency || "USD",
+      customer_email: p.customer.email,
+      customer_name: p.customer.name,
+      payment_method: p.payment_method || "unknown",
+      timestamp: webhook.payload.timestamp
+    };
+  }
+  return webhook;
+}
+```
+
+### Prenumerationseventhanterare
+
+```javascript subscription_webhook.js icon="js" expandable
+function handler(webhook) {
+  const s = webhook.payload.data;
+  switch (webhook.eventType) {
+    case "subscription.active":
+      webhook.payload = {
+        event_type: "subscription_started",
+        subscription_id: s.subscription_id,
+        customer_email: s.customer.email,
+        customer_name: s.customer.name,
+        product_id: s.product_id,
+        amount: (s.recurring_pre_tax_amount / 100).toFixed(2),
+        frequency: s.payment_frequency_interval,
+        next_billing: s.next_billing_date,
+        timestamp: webhook.payload.timestamp
+      };
+      break;
+    case "subscription.cancelled":
+      webhook.payload = {
+        event_type: "subscription_cancelled",
+        subscription_id: s.subscription_id,
+        customer_email: s.customer.email,
+        cancelled_at: s.cancelled_at,
+        cancel_at_next_billing: s.cancel_at_next_billing_date,
+        timestamp: webhook.payload.timestamp
+      };
+      break;
+  }
+  return webhook;
+}
+```
+
+### Tvistvarningshanterare
+
+```javascript dispute_webhook.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType.startsWith("dispute.")) {
+    const d = webhook.payload.data;
+    webhook.payload = {
+      event_type: webhook.eventType,
+      dispute_id: d.dispute_id,
+      payment_id: d.payment_id,
+      amount: (d.amount / 100).toFixed(2),
+      status: d.dispute_status,
+      stage: d.dispute_stage,
+      remarks: d.remarks || "",
+      urgent: webhook.eventType === "dispute.opened",
+      timestamp: webhook.payload.timestamp
+    };
+  }
+  return webhook;
+}
+```
+
+## Populära N8N Användningsfall
+
+<AccordionGroup>
+<Accordion title="E-postnotifikationer">
+- Skicka Gmail/Outlook-e-post för betalningsbekräftelser
+- Skapa e-postsekvenser i Mailchimp/ConvertKit
+- Skicka Slack/Discord-notifikationer via webhooks
+- Skapa Google Sheets-poster automatiskt
+- Skicka Telegram/WhatsApp-meddelanden
+</Accordion>
+
+<Accordion title="CRM-uppdateringar">
+- Lägg till kontakter i HubSpot/Salesforce
+- Skapa affärer i Pipedrive/Close
+- Uppdatera kundregister i Airtable
+- Logga aktiviteter i Monday.com
+- Synkronisera data till PostgreSQL/MySQL-databaser
+</Accordion>
+
+<Accordion title="Uppgiftshantering">
+- Skapa uppgifter i Asana/Trello
+- Lägg till att-göra-punkter i Notion
+- Skapa kalenderhändelser i Google Kalender
+- Skicka SMS-notifikationer via Twilio
+- Skapa GitHub-ärenden för tvister
+</Accordion>
+
+<Accordion title="Databehandling">
+- Transformera och berika betalningsdata
+- Lagra händelser i databaser (PostgreSQL, MongoDB)
+- Aggregatmetrik och analyser
+- Generera rapporter och exporter
+- Utlösa komplexa flerstegsarbetsflöden
+</Accordion>
+</AccordionGroup>
+
+## Tips
+
+- Håll payloadstrukturen enkel för enkel N8N nodparsing
+- Använd konsekventa fältnamn över alla händelser
+- Inkludera tidsstämplar för arbetsflödestiming och schemaläggning
+- Testa ditt arbetsflöde med exempeldata innan du aktiverar
+- Använd N8N:s IF-nod för villkorlig logik och routing
+- Utnyttja N8N:s Code-nod för anpassade datatransformationer
+- Använd Switch-noden för att styra olika händelsetyper till olika vägar
+- Ställ in felarbetsflöden för att hantera misslyckade webhook-leveranser
+
+## Felsökning
+
+<AccordionGroup>
+<Accordion title="Arbetsflöde utlöses inte">
+- Verifiera att webhook-URL:en är korrekt och tillgänglig
+- Kontrollera att arbetsflödet är aktiverat i N8N
+- Se till att webhook-noden är konfigurerad som POST-metod
+- Testa webhook-leverans i N8N:s exekveringshistorik
+- Verifiera att brandväggs-/nätverksinställningar tillåter inkommande webhooks
+- Kontrollera N8N webhook-autentiseringsinställningar om de är konfigurerade
+</Accordion>
+
+<Accordion title="Data mappas inte korrekt">
+- Kontrollera fältnamn i N8N nodkonfigurationer
+- Verifiera att datatyper matchar förväntade format i noder
+- Använd N8N:s testfunktion för att inspektera inkommande data
+- Se till att transformationskoden returnerar giltig JSON
+- Kontrollera webhook-nodens svarformatinställningar
+- Använd Set-noden för att byta namn på eller omstrukturera fält
+</Accordion>
+
+<Accordion title="Fel vid arbetsflödesexekvering">
+- Granska exekveringsloggar i N8N för detaljerade felmeddelanden
+- Kontrollera nodanslutningsinställningar och autentiseringsuppgifter
+- Verifiera att alla obligatoriska fält finns i payloaden
+- Testa individuella noder med exempeldata
+- Aktivera felarbetsflöden för att fånga och hantera misslyckanden
+- Kontrollera hastighetsbegränsningar och API-kvoter för anslutna tjänster
+</Accordion>
+</AccordionGroup>

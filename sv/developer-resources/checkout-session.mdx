@@ -1,0 +1,1005 @@
+---
+title: Kassa Sessioner
+description: Skapa säkra, värd kassaupplevelser som hanterar hela
+  betalningsflödet för både engångsköp och prenumerationer med full
+  anpassningskontroll.
+icon: cart-shopping
+---
+
+<CardGroup cols={2}>
+<Card title="Snabbstartsguide" icon="rocket" href="#creating-your-first-checkout-session">
+  Få din första kassa session att fungera på mindre än 5 minuter
+</Card>
+
+<Card title="API Referens & Live Testning" icon="code" href="/api-reference/checkout-sessions/create">
+  Utforska den fullständiga API-dokumentationen och testa interaktivt kassa session begärningar och svar.
+</Card>
+</CardGroup>
+
+<Info>
+**Sessionens giltighet**: Kassa sessioner är giltiga i 24 timmar som standard. Om du skickar `confirm=true` i din begäran, kommer sessionen endast att vara giltig i 15 minuter.
+</Info>
+
+## Förutsättningar
+
+<Steps>
+<Step title="Dodo Payments Konto">
+  Du behöver ett aktivt Dodo Payments säljarkonto med API-åtkomst.
+</Step>
+
+<Step title="API Referenser">
+  Generera dina API-referenser från Dodo Payments instrumentpanelen:
+</Step>
+
+<Step title="Produktinställningar">
+  Skapa dina produkter i Dodo Payments instrumentpanelen innan du implementerar kassa sessioner.
+</Step>
+</Steps>
+
+## Skapa Din Första Kassa Session
+
+<Tabs>
+<Tab title="Node.js SDK">
+
+```javascript expandable
+import DodoPayments from 'dodopayments';
+
+// Initialize the Dodo Payments client
+const client = new DodoPayments({
+  bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'test_mode', // defaults to 'live_mode'
+});
+
+async function createCheckoutSession() {
+  try {
+    const session = await client.checkoutSessions.create({
+      // Products to sell - use IDs from your Dodo Payments dashboard
+      product_cart: [
+        {
+          product_id: 'prod_123', // Replace with your actual product ID
+          quantity: 1
+        }
+      ],
+      
+      // Pre-fill customer information to reduce friction
+      customer: {
+        email: 'customer@example.com',
+        name: 'John Doe',
+        phone_number: '+1234567890'
+      },
+      
+      // Billing address for tax calculation and compliance
+      billing_address: {
+        street: '123 Main St',
+        city: 'San Francisco',
+        state: 'CA',
+        country: 'US', // Required: ISO 3166-1 alpha-2 country code
+        zipcode: '94102'
+      },
+      
+      // Where to redirect after successful payment
+      return_url: 'https://yoursite.com/checkout/success',
+      
+      // Custom data for your internal tracking
+      metadata: {
+        order_id: 'order_123',
+        source: 'web_app'
+      }
+    });
+
+    // Redirect your customer to this URL to complete payment
+    console.log('Checkout URL:', session.checkout_url);
+    console.log('Session ID:', session.session_id);
+    
+    return session;
+    
+  } catch (error) {
+    console.error('Failed to create checkout session:', error);
+    throw error;
+  }
+}
+
+// Example usage in an Express.js route
+app.post('/create-checkout', async (req, res) => {
+  try {
+    const session = await createCheckoutSession();
+    res.json({ checkout_url: session.checkout_url });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to create checkout session' });
+  }
+});
+```
+
+</Tab>
+
+<Tab title="Python SDK">
+
+```python expandable
+import os
+from dodopayments import DodoPayments
+
+# Initialize the Dodo Payments client
+client = DodoPayments(
+    bearer_token=os.environ.get("DODO_PAYMENTS_API_KEY"),  # This is the default and can be omitted
+    environment="test_mode",  # defaults to "live_mode"
+)
+
+def create_checkout_session():
+    """
+    Create a checkout session for a single product with customer data pre-filled.
+    Returns the session object containing checkout_url for customer redirection.
+    """
+    try:
+        session = client.checkout_sessions.create(
+            # Products to sell - use IDs from your Dodo Payments dashboard
+            product_cart=[
+                {
+                    "product_id": "prod_123",  # Replace with your actual product ID
+                    "quantity": 1
+                }
+            ],
+            
+            # Pre-fill customer information to reduce checkout friction
+            customer={
+                "email": "customer@example.com",
+                "name": "John Doe",
+                "phone_number": "+1234567890"
+            },
+            
+            # Billing address for tax calculation and compliance
+            billing_address={
+                "street": "123 Main St",
+                "city": "San Francisco", 
+                "state": "CA",
+                "country": "US",  # Required: ISO 3166-1 alpha-2 country code
+                "zipcode": "94102"
+            },
+            
+            # Where to redirect after successful payment
+            return_url="https://yoursite.com/checkout/success",
+            
+            # Custom data for your internal tracking
+            metadata={
+                "order_id": "order_123",
+                "source": "web_app"
+            }
+        )
+        
+        # Redirect your customer to this URL to complete payment
+        print(f"Checkout URL: {session.checkout_url}")
+        print(f"Session ID: {session.session_id}")
+        
+        return session
+        
+    except Exception as error:
+        print(f"Failed to create checkout session: {error}")
+        raise error
+
+# Example usage in a Flask route
+from flask import Flask, jsonify, request
+
+app = Flask(__name__)
+
+@app.route('/create-checkout', methods=['POST'])
+def create_checkout():
+    try:
+        session = create_checkout_session()
+        return jsonify({"checkout_url": session.checkout_url})
+    except Exception as error:
+        return jsonify({"error": "Failed to create checkout session"}), 500
+```
+
+</Tab>
+
+<Tab title="REST API">
+
+```javascript expandable
+// Direct API call using fetch - useful for any JavaScript environment
+async function createCheckoutSession() {
+  try {
+    const response = await fetch('https://test.dodopayments.com/checkouts', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.DODO_PAYMENTS_API_KEY}`
+      },
+      body: JSON.stringify({
+        // Products to sell - use IDs from your Dodo Payments dashboard
+        product_cart: [
+          {
+            product_id: 'prod_123', // Replace with your actual product ID
+            quantity: 1
+          }
+        ],
+        
+        // Pre-fill customer information to reduce checkout friction
+        customer: {
+          email: 'customer@example.com',
+          name: 'John Doe',
+          phone_number: '+1234567890'
+        },
+        
+        // Billing address for tax calculation and compliance
+        billing_address: {
+          street: '123 Main St',
+          city: 'San Francisco',
+          state: 'CA', 
+          country: 'US', // Required: ISO 3166-1 alpha-2 country code
+          zipcode: '94102'
+        },
+        
+        // Where to redirect after successful payment
+        return_url: 'https://yoursite.com/checkout/success',
+        
+        // Custom data for your internal tracking
+        metadata: {
+          order_id: 'order_123',
+          source: 'web_app'
+        }
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const session = await response.json();
+    
+    // Redirect your customer to this URL to complete payment
+    console.log('Checkout URL:', session.checkout_url);
+    console.log('Session ID:', session.session_id);
+    
+    return session;
+    
+  } catch (error) {
+    console.error('Failed to create checkout session:', error);
+    throw error;
+  }
+}
+
+// Example: Redirect user to checkout
+createCheckoutSession().then(session => {
+  window.location.href = session.checkout_url;
+});
+```
+
+</Tab>
+</Tabs>
+
+### API Svar
+
+Alla metoder ovan returnerar samma svarstruktur:
+
+```json
+{
+  "session_id": "cks_Gi6KGJ2zFJo9rq9Ukifwa",
+  "checkout_url": "https://test.checkout.dodopayments.com/session/cks_Gi6KGJ2zFJo9rq9Ukifwa"
+}
+```
+
+<Steps>
+<Step title="Hämta kassa URL">
+Extrahera `checkout_url` från API-svaret.
+</Step>
+
+<Step title="Omdirigera din kund">
+Dirigera din kund till kassa URL för att slutföra sitt köp.
+
+```javascript
+// Redirect immediately
+window.location.href = session.checkout_url;
+
+// Or open in new window
+window.open(session.checkout_url, '_blank');
+```
+
+</Step>
+
+<Step title="Hantera återkomsten">
+Efter betalning omdirigeras kunder till din `return_url` med ytterligare frågeparametrar för betalningsstatus.
+</Step>
+</Steps>
+
+## Begärningskropp
+
+<CardGroup cols={2}>
+<Card title="Obligatoriska Fält" icon="asterisk">
+  Viktiga fält som behövs för varje kassa session
+</Card>
+
+<Card title="Valfria Fält" icon="gear">
+  Ytterligare konfiguration för att anpassa din kassa upplevelse
+</Card>
+</CardGroup>
+
+### Obligatoriska Fält
+
+<ParamField body="product_cart" type="array" required>
+Array av produkter som ska inkluderas i kassa sessionen. Varje produkt måste ha en giltig `product_id` från din Dodo Payments instrumentpanel.
+
+<Tip>
+**Blandad Kassa**: Du kan kombinera engångsbetalningsprodukter och prenumerationsprodukter i samma kassa session. Detta möjliggör kraftfulla användningsfall som installationsavgifter med prenumerationer, hårdvarubundlar med SaaS, och mer.
+</Tip>
+
+<Expandable title="Produktkorgsobjektsegenskaper">
+<ParamField body="product_id" type="string" required>
+Den unika identifieraren för produkten från din Dodo Payments instrumentpanel.
+
+**Exempel:** `"prod_123abc456def"`
+</ParamField>
+
+<ParamField body="quantity" type="integer" required>
+Antal av produkten.
+
+**Exempel:** `1` för enstaka artikel, `3` för flera kvantiteter
+</ParamField>
+
+<ParamField body="addons" type="array">
+Array av tillägg som ska kopplas till produkten. Endast giltigt om produkten är en prenumeration.
+
+<Expandable title="Tilläggsobjektsegenskaper">
+<ParamField body="addon_id" type="string" required />
+
+<ParamField body="quantity" type="integer" required />
+</Expandable>
+</ParamField>
+
+<ParamField body="amount" type="integer">
+Beloppet kunden betalar om pay_what_you_want är aktiverat. Om det är inaktiverat kommer detta fält att ignoreras.
+
+**Format**: Representerat i den lägsta valören av valutan (t.ex. cent för USD). Till exempel, för att ta ut $1.00, skicka `100`.
+</ParamField>
+</Expandable>
+</ParamField>
+
+<Tip>
+**Hitta Dina Produkt-ID:n**: Du kan hitta produkt-ID:n i din Dodo Payments instrumentpanel under Produkter → Visa Detaljer, eller genom att använda [Lista Produkter API](/api-reference/products/get-products).
+</Tip>
+
+### Valfria Fält
+
+Konfigurera dessa fält för att anpassa kassa upplevelsen och lägga till affärslogik till ditt betalningsflöde.
+
+<AccordionGroup>
+<Accordion title="Kundinformation">
+
+<ParamField body="customer" type="object">
+Kundinformation. Du kan antingen koppla en befintlig kund med deras ID eller skapa en ny kundpost under kassan.
+
+<Tabs>
+<Tab title="Koppla Befintlig Kund">
+Koppla en befintlig kund till kassa sessionen med deras ID.
+
+<Expandable title="Befintliga Kundsegenskaper">
+<ParamField body="customer_id" type="string" required>
+Den unika identifieraren för en befintlig kund. Använd detta för att koppla kassa sessionen till en befintlig kund istället för att skapa en ny.
+</ParamField>
+</Expandable>
+</Tab>
+
+<Tab title="Ny Kund">
+Skapa en ny kundpost under kassan.
+
+<Expandable title="Nya Kundsegenskaper">
+<ParamField body="email" type="string" required>
+Kundens e-postadress. Obligatorisk vid skapande av ny kund.
+</ParamField>
+
+<ParamField body="name" type="string">
+Kundens fullständiga namn som det ska visas på kvitton och fakturor.
+
+**Exempel**: `"John Doe"` eller `"Jane Smith"`
+</ParamField>
+
+<ParamField body="phone_number" type="string">
+Kundens telefonnummer i internationellt format. Obligatorisk för vissa betalningsmetoder och bedrägeriförebyggande åtgärder.
+
+**Format**: Inkludera landskod, t.ex. `"+1234567890"` för amerikanska nummer
+</ParamField>
+</Expandable>
+</Tab>
+</Tabs>
+</ParamField>
+
+<ParamField body="billing_address" type="object">
+Faktureringsadressinformation för korrekt skatteberäkning, bedrägeriförebyggande och efterlevnad av regler.
+
+<Info>
+När `confirm` är inställt på `true`, blir alla faktureringsadressfält obligatoriska för att skapa sessionen framgångsrikt.
+</Info>
+
+<Expandable title="Faktureringsadressobjektsegenskaper">
+<ParamField body="street" type="string">
+Fullständig gatuadress inklusive husnummer, gatunamn och lägenhet/enhetsnummer om tillämpligt.
+
+**Exempel**: `"123 Main St, Apt 4B"` eller `"456 Oak Avenue"`
+</ParamField>
+
+<ParamField body="city" type="string">
+Stad eller kommunens namn.
+
+**Exempel**: `"San Francisco"`, `"New York"`, `"London"`
+</ParamField>
+
+<ParamField body="state" type="string">
+Stat, provins eller regions namn. Använd fullständiga namn eller standardförkortningar.
+
+**Exempel**: `"California"` eller `"CA"`, `"Ontario"` eller `"ON"`
+</ParamField>
+
+<ParamField body="country" type="string" required>
+Tvåbokstavskod för land (ISO 3166-1 alpha-2). Detta fält är alltid obligatoriskt när faktureringsadress tillhandahålls.
+
+**Exempel**: `"US"` (USA), `"CA"` (Kanada), `"GB"` (Storbritannien), `"DE"` (Tyskland)
+
+<Card title="Landkod Referens" icon="globe" href="/api-reference/misc/supported-countries">
+  Visa komplett lista över stödda länder och deras ISO-koder
+</Card>
+</ParamField>
+
+<ParamField body="zipcode" type="string">
+Postnummer, ZIP-kod eller motsvarande baserat på landets krav.
+
+**Exempel**: `"94102"` (US), `"M5V 3A8"` (Kanada), `"SW1A 1AA"` (UK)
+</ParamField>
+</Expandable>
+</ParamField>
+
+</Accordion>
+
+<Accordion title="Betalningskonfiguration">
+
+<ParamField body="allowed_payment_method_types" type="array">
+Kontrollera vilka betalningsmetoder som är tillgängliga för kunder under kassan. Detta hjälper till att optimera för specifika marknader eller affärskrav.
+
+**Tillgängliga Alternativ**: `credit`, `debit`, `upi_collect`, `upi_intent`, `apple_pay`, `google_pay`, `amazon_pay`, `klarna`, `affirm`, `afterpay_clearpay`, `sepa`, `ach`, `cashapp`, `multibanco`, `bancontact_card`, `eps`, `ideal`, `przelewy24`, `paypal`
+
+<Warning>
+**Kritiskt**: Inkludera alltid `credit` och `debit` som fallback-alternativ för att förhindra kassa misslyckanden när föredragna betalningsmetoder inte är tillgängliga.
+</Warning>
+
+**Exempel**: 
+
+```json expandable
+["apple_pay", "google_pay", "credit", "debit"]
+```
+
+</ParamField>
+
+<ParamField body="billing_currency" type="string">
+Överskriv standardvalutan med en fast faktureringsvaluta. Använder ISO 4217 valutakoder.
+
+**Stödda Valutor**: `USD`, `EUR`, `GBP`, `CAD`, `AUD`, `INR`, och fler
+
+**Exempel**: `"USD"` för US Dollar, `"EUR"` för Euro
+
+<Note>
+Detta fält är endast effektivt när adaptiv prissättning är aktiverad. Om adaptiv prissättning är inaktiverad kommer produktens standardvaluta att användas.
+</Note>
+</ParamField>
+
+<ParamField body="show_saved_payment_methods" type="boolean" default="false">
+Visa tidigare sparade betalningsmetoder för återkommande kunder, vilket förbättrar kassa hastighet och användarupplevelse.
+</ParamField>
+
+</Accordion>
+
+<Accordion title="Sessionhantering">
+
+<ParamField body="return_url" type="string">
+URL för att omdirigera kunder efter lyckad betalning eller avbokning.
+</ParamField>
+
+<ParamField body="confirm" type="boolean" default="false">
+Om sant, avslutar alla sessionsdetaljer omedelbart. API:n kommer att kasta ett fel om nödvändig data saknas.
+</ParamField>
+
+<ParamField body="discount_code" type="string">
+Tillämpa en rabattkod på kassa sessionen.
+</ParamField>
+
+<ParamField body="metadata" type="object">
+Anpassade nyckel-värde-par för att lagra ytterligare information om sessionen.
+</ParamField>
+
+<ParamField body="force_3ds" type="boolean">
+Överskriv säljarnas standard 3DS-beteende för denna session.
+</ParamField>
+
+<ParamField body="minimal_address" type="boolean" default="false">
+Aktivera läge för insamling av minimal adress. När det är aktiverat samlar kassan endast in:
+- **Land**: Alltid obligatoriskt för skatteberäkning
+- **ZIP/Postnummer**: Endast i regioner där det är nödvändigt för försäljningsskatt, moms eller GST-beräkning
+
+Detta minskar avsevärt friktionen vid kassan genom att eliminera onödiga formulärfält.
+
+<Tip>
+Aktivera minimal adress för snabbare kassa slutförande. Fullständig adressinsamling förblir tillgänglig för företag som kräver kompletta faktureringsuppgifter.
+</Tip>
+</ParamField>
+
+</Accordion>
+
+<Accordion title="UI Anpassning & Funktioner">
+
+<ParamField body="customization" type="object">
+Anpassa utseendet och beteendet hos kassa gränssnittet.
+
+<Expandable title="Anpassningsobjektsegenskaper">
+<ParamField body="theme" type="string" default="system">
+Tema för kassa gränssnittet. Alternativ: `light`, `dark`, eller `system`.
+</ParamField>
+
+<ParamField body="show_order_details" type="boolean" default="true">
+Visa avsnittet för orderdetaljer i kassa gränssnittet.
+</ParamField>
+
+<ParamField body="show_on_demand_tag" type="boolean" default="true">
+Visa "on-demand"-taggen för tillämpliga produkter.
+</ParamField>
+
+<ParamField body="force_language" type="string">
+Tvinga kassa gränssnittet att renderas på ett specifikt språk.
+
+**Exempel**: `"en"` för engelska, `"es"` för spanska
+</ParamField>
+</Expandable>
+</ParamField>
+
+<ParamField body="feature_flags" type="object">
+Konfigurera specifika funktioner och beteenden för kassa sessionen.
+
+<Expandable title="Funktionsflaggor objektsegenskaper">
+<ParamField body="allow_currency_selection" type="boolean" default="true">
+Tillåt kunder att välja sin föredragna valuta under kassan.
+</ParamField>
+
+<ParamField body="allow_discount_code" type="boolean" default="true">
+Visa fält för rabattkod i kassa gränssnittet.
+</ParamField>
+
+<ParamField body="allow_phone_number_collection" type="boolean" default="true">
+Samla in kundtelefonnummer under kassan.
+</ParamField>
+
+<ParamField body="allow_tax_id" type="boolean" default="true">
+Tillåt kunder att ange skatteidentifieringsnummer.
+</ParamField>
+
+<ParamField body="always_create_new_customer" type="boolean" default="false">
+Tvinga skapandet av en ny kundpost istället för att uppdatera befintliga.
+</ParamField>
+
+<ParamField body="allow_customer_editing_email" type="boolean">
+Tillåt kunder att redigera sin e-postadress under kassan.
+</ParamField>
+
+<ParamField body="allow_customer_editing_name" type="boolean">
+Tillåt kunder att redigera sitt namn under kassan.
+</ParamField>
+
+<ParamField body="allow_customer_editing_street" type="boolean">
+Tillåt kunder att redigera gatuadressen under kassan.
+</ParamField>
+
+<ParamField body="allow_customer_editing_city" type="boolean">
+Tillåt kunder att redigera staden under kassan.
+</ParamField>
+
+<ParamField body="allow_customer_editing_state" type="boolean">
+Tillåt kunder att redigera staten under kassan.
+</ParamField>
+
+<ParamField body="allow_customer_editing_country" type="boolean">
+Tillåt kunder att redigera landet under kassan.
+</ParamField>
+
+<ParamField body="allow_customer_editing_zipcode" type="boolean">
+Tillåt kunder att redigera postnumret under kassan.
+</ParamField>
+
+<ParamField body="minimal_address" type="boolean" default="false">
+Aktivera läge för insamling av minimal adress. När det är aktiverat samlar kassan endast in:
+- **Land**: Alltid obligatoriskt för skatteberäkning
+- **ZIP/Postnummer**: Endast i regioner där det är nödvändigt för försäljningsskatt, moms eller GST-beräkning
+
+Detta minskar avsevärt friktionen vid kassan genom att eliminera onödiga formulärfält.
+
+<Tip>
+Aktivera minimal adress för snabbare kassa slutförande. Fullständig adressinsamling förblir tillgänglig för företag som kräver kompletta faktureringsuppgifter.
+</Tip>
+</ParamField>
+</Expandable>
+</ParamField>
+
+</Accordion>
+
+<Accordion title="Prenumerationskonfiguration">
+
+<ParamField body="subscription_data" type="object">
+Ytterligare konfiguration för kassa sessioner som innehåller prenumerationsprodukter.
+
+<Expandable title="Prenumerationsdata objektsegenskaper">
+<ParamField body="trial_period_days" type="integer">
+Antal dagar för provperioden innan den första avgiften. Måste vara mellan 0 och 10000 dagar.
+</ParamField>
+
+<ParamField body="on_demand" type="object">
+On-demand prenumerationskonfiguration för användningsbaserad eller mätad fakturering.
+
+<Expandable title="On-demand objektsegenskaper">
+<ParamField body="mandate_only" type="boolean" required>
+Om inställt på sant, utförs ingen avgift och endast betalningsmetodens detaljer auktoriseras för framtida användning.
+</ParamField>
+
+<ParamField body="product_price" type="integer">
+Produktpris för den initiala avgiften till kunden. Om det inte anges, kommer det lagrade priset för produkten att användas.
+
+**Format**: Representerat i den lägsta valören av valutan (t.ex. cent för USD). Till exempel, för att ta ut $1.00, skicka `100`.
+</ParamField>
+
+<ParamField body="product_currency" type="string">
+Valfri valuta för produktpriset. Om det inte anges, standardiseras till produktens valuta.
+</ParamField>
+
+<ParamField body="product_description" type="string">
+Valfritt produktbeskrivning överskrivning för fakturering och linjeposter. Om det inte anges, kommer den lagrade beskrivningen av produkten att användas.
+</ParamField>
+
+<ParamField body="adaptive_currency_fees_inclusive" type="boolean">
+Om adaptiva valutavgifter ska inkluderas i produktpriset (sant) eller läggas till (falskt). Ignoreras om adaptiv prissättning inte är aktiverad.
+</ParamField>
+</Expandable>
+</ParamField>
+</Expandable>
+</ParamField>
+
+</Accordion>
+</AccordionGroup>
+
+## Användningsexempel
+
+Här är 10 omfattande exempel som visar olika konfigurationer av kassa sessioner för olika affärsscenarier:
+
+### 1. Enkel Engångsprodukt Kassa
+
+```javascript expandable
+const session = await client.checkoutSessions.create({
+  product_cart: [
+    {
+      product_id: 'prod_ebook_guide',
+      quantity: 1
+    }
+  ],
+  customer: {
+    email: 'customer@example.com',
+    name: 'John Doe'
+  },
+  return_url: 'https://yoursite.com/success'
+});
+```
+
+### 2. Multi-Produkt Korg
+
+```javascript expandable
+const session = await client.checkoutSessions.create({
+  product_cart: [
+    {
+      product_id: 'prod_laptop',
+      quantity: 1
+    },
+    {
+      product_id: 'prod_mouse',
+      quantity: 2
+    },
+    {
+      product_id: 'prod_warranty',
+      quantity: 1
+    }
+  ],
+  customer: {
+    email: 'customer@example.com',
+    name: 'John Doe',
+    phone_number: '+1234567890'
+  },
+  billing_address: {
+    street: '123 Tech Street',
+    city: 'San Francisco',
+    state: 'CA',
+    country: 'US',
+    zipcode: '94102'
+  },
+  return_url: 'https://electronics-store.com/order-confirmation'
+});
+```
+
+### 3. Prenumeration med Provperiod
+
+```javascript expandable
+const session = await client.checkoutSessions.create({
+  product_cart: [
+    {
+      product_id: 'prod_monthly_plan',
+      quantity: 1
+    }
+  ],
+  subscription_data: {
+    trial_period_days: 14
+  },
+  customer: {
+    email: 'user@startup.com',
+    name: 'Jane Smith'
+  },
+  return_url: 'https://saas-app.com/onboarding',
+  metadata: {
+    plan_type: 'professional',
+    referral_source: 'google_ads'
+  }
+});
+```
+
+### 4. Förhandsbekräftad Kassa
+
+<Note>
+När `confirm` är inställt på `true`, kommer kunden att tas direkt till kassa sidan, vilket omgår eventuella bekräftelsesteg.
+</Note>
+
+```javascript expandable
+const session = await client.checkoutSessions.create({
+  product_cart: [
+    {
+      product_id: 'prod_premium_course',
+      quantity: 1
+    }
+  ],
+  customer: {
+    email: 'student@university.edu',
+    name: 'Alex Johnson',
+    phone_number: '+1555123456'
+  },
+  billing_address: {
+    street: '456 University Ave',
+    city: 'Boston',
+    state: 'MA',
+    country: 'US',
+    zipcode: '02134'
+  },
+  confirm: true,
+  return_url: 'https://learning-platform.com/course-access',
+  metadata: {
+    course_category: 'programming',
+    enrollment_date: '2024-01-15'
+  }
+});
+```
+
+### 5. Kassa med Valutaöverskrivning
+
+<Note>
+Den `billing_currency` överskrivningen träder endast i kraft när adaptiv valuta är aktiverad i dina kontoinställningar. Om adaptiv valuta är inaktiverad kommer denna parameter att ha ingen effekt.
+</Note>
+
+```javascript expandable
+const session = await client.checkoutSessions.create({
+  product_cart: [
+    {
+      product_id: 'prod_consulting_service',
+      quantity: 1
+    }
+  ],
+  customer: {
+    email: 'client@company.co.uk',
+    name: 'Oliver Williams'
+  },
+  billing_address: {
+    street: '789 Business Park',
+    city: 'London',
+    state: 'England',
+    country: 'GB',
+    zipcode: 'SW1A 1AA'
+  },
+  billing_currency: 'GBP',
+  feature_flags: {
+    allow_currency_selection: true,
+    allow_tax_id: true
+  },
+  return_url: 'https://consulting-firm.com/service-confirmation'
+});
+```
+
+### 6. Sparade Betalningsmetoder för Återkommande Kunder
+
+```javascript expandable
+const session = await client.checkoutSessions.create({
+  product_cart: [
+    {
+      product_id: 'prod_monthly_subscription',
+      quantity: 1
+    }
+  ],
+  customer: {
+    email: 'returning.customer@example.com',
+    name: 'Robert Johnson',
+    phone_number: '+1555987654'
+  },
+  show_saved_payment_methods: true,
+  feature_flags: {
+    allow_phone_number_collection: true,
+    always_create_new_customer: false
+  },
+  return_url: 'https://subscription-service.com/welcome-back',
+  metadata: {
+    customer_tier: 'premium',
+    account_age: 'returning'
+  }
+});
+```
+
+### 7. B2B Kassa med Skatte-ID Insamling
+
+```javascript expandable
+const session = await client.checkoutSessions.create({
+  product_cart: [
+    {
+      product_id: 'prod_enterprise_license',
+      quantity: 5
+    }
+  ],
+  customer: {
+    email: 'procurement@enterprise.com',
+    name: 'Sarah Davis',
+    phone_number: '+1800555000'
+  },
+  billing_address: {
+    street: '1000 Corporate Blvd',
+    city: 'New York',
+    state: 'NY',
+    country: 'US',
+    zipcode: '10001'
+  },
+  feature_flags: {
+    allow_tax_id: true,
+    allow_phone_number_collection: true,
+    always_create_new_customer: false
+  },
+  return_url: 'https://enterprise-software.com/license-delivery',
+  metadata: {
+    customer_type: 'enterprise',
+    contract_id: 'ENT-2024-001',
+    sales_rep: 'john.sales@company.com'
+  }
+});
+```
+
+### 8. Mörkt Tema Kassa med Rabattkod
+
+```javascript expandable
+const session = await client.checkoutSessions.create({
+  product_cart: [
+    {
+      product_id: 'prod_gaming_chair',
+      quantity: 1
+    }
+  ],
+  discount_code: 'BLACKFRIDAY2024',
+  customization: {
+    theme: 'dark',
+    show_order_details: true,
+    show_on_demand_tag: false
+  },
+  feature_flags: {
+    allow_discount_code: true
+  },
+  customer: {
+    email: 'gamer@example.com',
+    name: 'Mike Chen'
+  },
+  return_url: 'https://gaming-store.com/order-complete'
+});
+```
+
+### 9. Regionala Betalningsmetoder (UPI för Indien)
+
+```javascript expandable
+const session = await client.checkoutSessions.create({
+  product_cart: [
+    {
+      product_id: 'prod_online_course_hindi',
+      quantity: 1
+    }
+  ],
+  allowed_payment_method_types: [
+    'upi_collect',
+    'upi_intent',
+    'credit',
+    'debit'
+  ],
+  customer: {
+    email: 'student@example.in',
+    name: 'Priya Sharma',
+    phone_number: '+919876543210'
+  },
+  billing_address: {
+    street: 'MG Road',
+    city: 'Bangalore',
+    state: 'Karnataka',
+    country: 'IN',
+    zipcode: '560001'
+  },
+  billing_currency: 'INR',
+  return_url: 'https://education-platform.in/course-access',
+  metadata: {
+    region: 'south_india',
+    language: 'hindi'
+  }
+});
+```
+
+### 10. BNPL (Köp Nu Betala Senare) Kassa
+
+```javascript expandable
+const session = await client.checkoutSessions.create({
+  product_cart: [
+    {
+      product_id: 'prod_luxury_watch',
+      quantity: 1
+    }
+  ],
+  allowed_payment_method_types: [
+    'klarna',
+    'affirm',
+    'afterpay_clearpay',
+    'credit',
+    'debit'
+  ],
+  customer: {
+    email: 'fashion.lover@example.com',
+    name: 'Emma Thompson',
+    phone_number: '+1234567890'
+  },
+  billing_address: {
+    street: '555 Fashion Ave',
+    city: 'Los Angeles',
+    state: 'CA',
+    country: 'US',
+    zipcode: '90210'
+  },
+  feature_flags: {
+    allow_phone_number_collection: true
+  },
+  return_url: 'https://luxury-store.com/purchase-confirmation',
+  metadata: {
+    product_category: 'luxury',
+    price_range: 'high_value'
+  }
+});
+```
+
+## Flytta från Dynamiska Länkar till Kassa Sessioner
+
+### Nyckelskillnader
+Tidigare, när du skapade en betalningslänk med Dynamiska Länkar, var du tvungen att tillhandahålla kundens fullständiga faktureringsadress.
+
+Med Kassa Sessioner är detta inte längre nödvändigt. Du kan helt enkelt skicka med den information du har, och vi hanterar resten. Till exempel:
+
+- Om du bara känner till kundens faktureringsland, ge bara det.
+- Kassa flödet kommer automatiskt att samla in de saknade detaljerna innan kunden flyttas till betalningssidan.
+- Å andra sidan, om du redan har all nödvändig information och vill hoppa direkt till betalningssidan, kan du skicka hela datamängden och inkludera `confirm=true` i din begärningskropp.
+
+### Migreringsprocess
+
+Att migrera från Dynamiska Länkar till Kassa Sessioner är enkelt:
+
+<Steps>
+<Step title="Uppdatera din integration">
+Uppdatera din integration för att använda den nya API- eller SDK-metoden.
+</Step>
+
+<Step title="Justera begärningspayload">
+Justera begärningspayloaden enligt Kassa Sessioner formatet.
+</Step>
+
+<Step title="Det är allt!">
+Ja. Ingen ytterligare hantering eller speciella migreringssteg behövs från din sida.
+</Step>
+</Steps>

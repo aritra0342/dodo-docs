@@ -1,0 +1,191 @@
+---
+title: Metadata Guide
+description: Lär dig hur du använder metadata för att lagra ytterligare
+  information om dina Dodo Payments-objekt
+icon: tags
+---
+
+## Introduktion
+
+Metadata gör att du kan lagra ytterligare, strukturerad information om dina objekt i Dodo Payments. Du kan bifoga metadata till de flesta Dodo Payments-objekt, inklusive betalningar, prenumerationer och mer.
+
+## Översikt
+
+- Metadata-nycklar kan vara upp till 40 tecken långa
+- Metadata-värden kan vara upp till 500 tecken långa
+- Du kan ha upp till 50 metadata-nyckel-värde-par per objekt
+- Nycklar bör endast innehålla alfanumeriska tecken, bindestreck och understreck
+- Metadata är inte sökbar via vårt API men returneras i API-svar och webhooks
+
+## Användningsfall
+
+Metadata är användbart för:
+
+- Lagring av externa ID:n eller referenser
+- Tillägg av interna anteckningar
+- Länkning av Dodo Payments-objekt till ditt system
+- Kategorisering av transaktioner
+- Tillägg av anpassade attribut för rapportering
+
+## Lägga till Metadata
+
+Du kan lägga till metadata när du skapar eller uppdaterar objekt via API:et. För produkter har du också möjlighet att lägga till metadata direkt från dashboardens användargränssnitt.
+
+### Via API
+
+```javascript
+// Adding metadata when creating a checkout session
+const checkoutSession = await client.checkoutSessions.create({
+    product_cart: [{ product_id: 'product_id', quantity: 1 }],
+    return_url: 'https://example.com/return',
+    metadata: {
+        order_id: 'ORD-123',
+        campaign_source: 'email',
+        customer_segment: 'premium'
+    }
+});
+
+// Adding metadata when creating a payment
+const payment = await client.payments.create({
+    billing: { city: 'city', country: 'AF', state: 'state', street: 'street', zipcode: 0 },
+    customer: { customer_id: 'customer_id' },
+    product_cart: [{ product_id: 'product_id', quantity: 0 }],
+    metadata:{order_id: 'ORD-123', customer_notes: 'Customer notes'}
+  });
+
+// Adding metadata when creating a product
+const product = await client.products.create({
+    name: 'Premium Software License',
+    price: 9900,
+    currency: 'USD',
+    metadata: {
+        category: 'software',
+        license_type: 'premium',
+        support_tier: 'priority'
+    }
+});
+
+// Adding metadata when creating a customer
+const customer = await client.customers.create({
+    email: 'customer@example.com',
+    name: 'John Doe',
+    metadata: {
+        crm_id: 'CRM-12345',
+        customer_segment: 'enterprise',
+        referral_source: 'website'
+    }
+});
+```
+
+### Via Dashboard UI (Endast Produkter)
+
+För produkter kan du också lägga till metadata direkt från Dodo Payments-dashboarden när du skapar eller redigerar en produkt. Metadata-sektionen gör att du enkelt kan lägga till anpassade nyckel-värde-par utan att skriva kod.
+
+<Frame>
+<img src="/images/product-catalog/product-metadata-ui.png" alt="Produktmetadata-gränssnitt i Dodo Payments-dashboard" />
+</Frame>
+
+<Tip>
+Att använda dashboardens användargränssnitt för produktmetadata är särskilt användbart för icke-tekniska teammedlemmar som behöver hantera produktinformation och kategorier.
+</Tip>
+
+## Hämta Metadata
+
+Metadata ingår i API-svar när du hämtar objekt:
+
+```javascript
+// Retrieving checkout session metadata
+const checkoutSession = await client.checkoutSessions.retrieve('cs_123');
+console.log(checkoutSession.metadata.order_id); // 'ORD-123'
+
+// Retrieving payment metadata
+const payment = await client.payments.retrieve('pay_123');
+console.log(payment.metadata.order_id); // '6735'
+
+// Retrieving customer metadata
+const customer = await client.customers.retrieve('customer_123');
+console.log(customer.metadata.crm_id); // 'CRM-12345'
+
+// Retrieving refund metadata
+const refund = await client.refunds.retrieve('refund_123');
+console.log(refund.metadata.refund_reason); // 'customer_request'
+```
+
+## Sökning och Filtrering
+
+Även om metadata inte är direkt sökbar via vårt API kan du:
+
+1. Lagra viktiga identifierare i metadata
+2. Hämta objekt med deras primära ID:n
+3. Filtrera resultaten i din applikationskod
+
+```javascript
+// Example: Find a checkout session using metadata
+const checkoutSessions = await client.checkoutSessions.list({
+  limit: 100
+});
+
+const matchingSession = checkoutSessions.data.find(
+  session => session.metadata?.order_id === 'ORD-123'
+);
+
+// Example: Find a payment using your order ID
+const payments = await client.payments.list({
+  limit: 100
+});
+
+const matchingPayment = payments.data.find(
+  payment => payment.metadata.order_id === '6735'
+);
+```
+
+## Bästa Praxis
+
+### Gör:
+- Använd konsekventa namngivningskonventioner för metadata-nycklar
+- Dokumentera ditt metadata-schema internt
+- Håll värden korta och meningsfulla
+- Använd metadata för statiska data endast
+- Överväg att använda prefix för olika system (t.ex., `crm_id`, `inventory_sku`)
+
+### Gör inte:
+- Lagra känslig data i metadata
+- Använd metadata för ofta föränderliga värden
+- Lita på metadata för kritisk affärslogik
+- Lagra duplicerad information som finns tillgänglig på annat håll i objektet
+- Använd specialtecken i metadata-nycklar
+
+## Stödda Objekt
+
+Metadata stöds på följande objekt:
+
+| Objekt Typ | Stöd |
+|------------|---------|
+| Betalningar | ✓ |
+| Prenumerationer | ✓ |
+| Produkter | ✓ |
+| Återbetalningar | ✓ |
+| Kassa Sessioner | ✓ |
+| Kunder | ✓ |
+
+## Webhooks och Metadata
+
+Metadata ingår i webhook-händelser, vilket gör det enkelt att hantera meddelanden med din anpassade data:
+
+```javascript
+// Example webhook handler
+app.post('/webhook', (req, res) => {
+  const event = req.body;
+
+  if (event.type === 'payment.succeeded') {
+    const orderId = event.data.object.metadata.order_id;
+    // Process order using your internal order ID
+  }
+  
+  if (event.type === 'checkout.session.completed') {
+    const orderId = event.data.object.metadata.order_id;
+    const campaignSource = event.data.object.metadata.campaign_source;
+    // Handle checkout session completion with custom metadata
+  }
+});
+```

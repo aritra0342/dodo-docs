@@ -1,0 +1,189 @@
+---
+title: Vindmölla
+description: Utlös Vindmölla arbetsflöden och skript baserat på Dodo Payments
+  händelser för anpassad automation.
+icon: wind
+---
+
+## Introduktion
+
+Kör anpassade arbetsflöden och skript i Vindmölla när betalningsevent inträffar. Utför databasoperationer, skicka meddelanden, bearbeta data och automatisera komplex affärslogik med Vindmöllas kraftfulla arbetsflödesmotor.
+
+<Info>
+Denna integration kräver din Vindmölla webhook-URL från din arbetsflödeskonfiguration.
+</Info>
+
+## Komma igång
+
+<Steps>
+<Step title="Öppna Webhook-sektionen">
+  I din Dodo Payments-instrumentpanel, navigera till <b>Webhooks → + Lägg till slutpunkt</b> och expandera integrationsrullgardinsmenyn.
+  <Frame>
+    <img src="/images/integrations/windmill.png" alt="Lägg till slutpunkt och integrationsrullgardinsmeny" />
+  </Frame>
+</Step>
+
+<Step title="Välj Vindmölla">
+  Välj <b>Vindmölla</b> integrationskortet.
+</Step>
+
+<Step title="Skapa Vindmölla Arbetsflöde">
+  I Vindmölla, skapa ett nytt arbetsflöde och kopiera webhook-URL:en från triggerkonfigurationen.
+</Step>
+
+<Step title="Klistra in Webhook-URL">
+  Klistra in Vindmölla webhook-URL:en i slutpunktens konfiguration.
+</Step>
+
+<Step title="Konfigurera Transformation">
+  Redigera transformationskoden för att formatera händelser för ditt Vindmölla arbetsflöde.
+</Step>
+
+<Step title="Testa & Skapa">
+  Testa med exempelpayloads och klicka på <b>Skapa</b> för att aktivera integrationen.
+</Step>
+
+<Step title="Klart!">
+  🎉 Betalningsevent kommer nu automatiskt att utlösa dina Vindmölla arbetsflöden.
+</Step>
+</Steps>
+
+## Transformationskodsexempel
+
+### Grundläggande Arbetsflödespayload
+
+```javascript basic_workflow.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.payload = {
+      event_type: webhook.eventType,
+      payment_id: p.payment_id,
+      amount: (p.total_amount / 100).toFixed(2),
+      currency: p.currency || "USD",
+      customer_email: p.customer.email,
+      customer_name: p.customer.name,
+      payment_method: p.payment_method || "unknown",
+      timestamp: webhook.payload.timestamp,
+      metadata: {
+        business_id: p.business_id,
+        product_id: p.product_id
+      }
+    };
+  }
+  return webhook;
+}
+```
+
+### Prenumerationsarbetsflödeshanterare
+
+```javascript subscription_workflow.js icon="js" expandable
+function handler(webhook) {
+  const s = webhook.payload.data;
+  switch (webhook.eventType) {
+    case "subscription.active":
+      webhook.payload = {
+        event_type: "subscription_started",
+        subscription_id: s.subscription_id,
+        customer_email: s.customer.email,
+        customer_name: s.customer.name,
+        product_id: s.product_id,
+        amount: (s.recurring_pre_tax_amount / 100).toFixed(2),
+        frequency: s.payment_frequency_interval,
+        next_billing: s.next_billing_date,
+        customer_id: s.customer.customer_id,
+        timestamp: webhook.payload.timestamp
+      };
+      break;
+    case "subscription.cancelled":
+      webhook.payload = {
+        event_type: "subscription_cancelled",
+        subscription_id: s.subscription_id,
+        customer_email: s.customer.email,
+        cancelled_at: s.cancelled_at,
+        cancel_at_next_billing: s.cancel_at_next_billing_date,
+        customer_id: s.customer.customer_id,
+        timestamp: webhook.payload.timestamp
+      };
+      break;
+  }
+  return webhook;
+}
+```
+
+### Tvistarbetsflödeshanterare
+
+```javascript dispute_workflow.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType.startsWith("dispute.")) {
+    const d = webhook.payload.data;
+    webhook.payload = {
+      event_type: webhook.eventType,
+      dispute_id: d.dispute_id,
+      payment_id: d.payment_id,
+      amount: (d.amount / 100).toFixed(2),
+      status: d.dispute_status,
+      stage: d.dispute_stage,
+      remarks: d.remarks || "",
+      urgent: webhook.eventType === "dispute.opened",
+      business_id: d.business_id,
+      timestamp: webhook.payload.timestamp
+    };
+  }
+  return webhook;
+}
+```
+
+## Vanliga Vindmölla Användningsfall
+
+<AccordionGroup>
+<Accordion title="Databasoperationer">
+- Uppdatera kundregister i PostgreSQL/MySQL
+- Logga betalningsevent till datalager
+- Synkronisera data till externa system
+- Uppdatera lagernivåer
+- Spåra analysmetrik
+</Accordion>
+
+<Accordion title="Affärslogik">
+- Beräkna intäktsmetrik
+- Bearbeta återbetalningar och justeringar
+- Hantera prenumerationslivscykel
+- Generera rapporter och exporter
+- Validera betalningsdata
+</Accordion>
+
+<Accordion title="Externa Integrationer">
+- Skicka data till analysplattformar
+- Uppdatera CRM-system
+- Utlösa e-postkampanjer
+- Skapa kalenderhändelser
+- Skicka SMS-meddelanden
+</Accordion>
+</AccordionGroup>
+
+## Tips
+
+- Strukturera payloaddata för enkel arbetsflödesbearbetning
+- Inkludera all relevant metadata för affärslogik
+- Använd konsekvent fältnamn över händelser
+- Inkludera tidsstämplar för arbetsflödets timing
+- Utnyttja Vindmöllas inbyggda felhantering
+
+## Felsökning
+
+<AccordionGroup>
+<Accordion title="Arbetsflöden utlöses inte">
+- Verifiera att webhook-URL:en är korrekt och aktiv
+- Kontrollera att Vindmölla arbetsflödet är publicerat och aktivt
+- Säkerställ att payloadstrukturen matchar arbetsflödets förväntningar
+- Granska Vindmölla exekveringsloggar för fel
+</Accordion>
+
+<Accordion title="Datahanteringsproblem">
+- Kontrollera arbetsflödets inparametermappning
+- Verifiera att datatyper matchar förväntade format
+- Testa arbetsflödet med exempeldata
+- Granska Vindmölla skriptexekveringsloggar
+</Accordion>
+</AccordionGroup>

@@ -1,0 +1,751 @@
+---
+sidebarTitle: सारांश
+title: वेबहुक्स
+description: Dodo Payments में घटनाएँ होने पर वास्तविक समय में सूचनाएँ प्राप्त
+  करें। कार्यप्रवाह को स्वचालित करें और तात्कालिक घटना वितरण के साथ अपने सिस्टम
+  को समन्वयित रखें।
+icon: box
+---
+
+<Frame>
+  <img src="/images/cover-images/Webhooks.webp" alt="Webhook Cover Image"/>
+</Frame>
+
+वेबहुक्स आपके Dodo Payments खाते में विशिष्ट घटनाएँ होने पर वास्तविक समय में सूचनाएँ प्रदान करते हैं। कार्यप्रवाह को स्वचालित करने, अपने डेटाबेस को अपडेट करने, सूचनाएँ भेजने और अपने सिस्टम को समन्वयित रखने के लिए वेबहुक्स का उपयोग करें।
+
+<Info>
+हमारा वेबहुक कार्यान्वयन [Standard Webhooks](https://standardwebhooks.com/) विनिर्देशन का पालन करता है, जो उद्योग के सर्वोत्तम प्रथाओं और मौजूदा वेबहुक पुस्तकालयों के साथ संगतता सुनिश्चित करता है।
+</Info>
+
+## मुख्य विशेषताएँ
+
+<CardGroup cols={2}>
+  <Card title="वास्तविक समय में वितरण" icon="bolt">
+    घटनाएँ होने पर तात्कालिक सूचनाएँ प्राप्त करें
+  </Card>
+  <Card title="डिफ़ॉल्ट रूप से सुरक्षित" icon="shield-check">
+    HMAC SHA256 हस्ताक्षर सत्यापन शामिल है
+  </Card>
+  <Card title="स्वचालित पुनः प्रयास" icon="rotate">
+    गुणनात्मक बैकऑफ के साथ अंतर्निहित पुनः प्रयास तर्क
+  </Card>
+  <Card title="घटना फ़िल्टरिंग" icon="filter">
+    केवल उन घटनाओं की सदस्यता लें जिनकी आपको आवश्यकता है
+  </Card>
+</CardGroup>
+
+## प्रारंभ करना
+
+<Steps>
+<Step title="वेबहुक सेटिंग्स तक पहुँचें">
+    DodoPayments डैशबोर्ड पर जाएँ और `Settings > Webhooks` पर जाएँ।
+</Step>
+
+<Step title="वेबहुक एंडपॉइंट बनाएँ">
+    नया वेबहुक एंडपॉइंट बनाने के लिए `Add Webhook` पर क्लिक करें।
+    
+
+    <Frame>
+        <img src="/images/webhooks/create-endpoint.png" alt="Add Webhook" />
+    </Frame>
+</Step>
+
+<Step title="एंडपॉइंट URL जोड़ें">
+    उस URL को दर्ज करें जहाँ आप वेबहुक घटनाएँ प्राप्त करना चाहते हैं।
+    
+</Step>
+
+<Step title="प्राप्त करने के लिए घटनाएँ चुनें">
+    घटना सूची से उन विशिष्ट घटनाओं का चयन करें जिनके लिए आपका वेबहुक एंडपॉइंट सुनना चाहिए।
+    
+    <Tip>
+    केवल चयनित घटनाएँ आपके एंडपॉइंट के लिए वेबहुक को सक्रिय करेंगी, जिससे आपको अनावश्यक ट्रैफ़िक और प्रसंस्करण से बचने में मदद मिलेगी।
+    </Tip>
+</Step>
+
+<Step title="गुप्त कुंजी प्राप्त करें">
+    सेटिंग्स पृष्ठ से अपना वेबहुक `Secret Key` प्राप्त करें। आप इसका उपयोग प्राप्त वेबहुक की प्रामाणिकता की पुष्टि करने के लिए करेंगे।
+    
+    <Warning>
+    अपनी वेबहुक गुप्त कुंजी को सुरक्षित रखें और इसे क्लाइंट-साइड कोड या सार्वजनिक रिपॉजिटरी में कभी न उजागर करें।
+    </Warning>
+</Step>
+
+<Step title="गुप्त को घुमाएँ (वैकल्पिक)">
+    यदि आवश्यक हो, तो आप सुरक्षा बढ़ाने के लिए अपनी वेबहुक गुप्त को घुमा सकते हैं। अपने वेबहुक सेटिंग्स में **गुप्त घुमाएँ** बटन पर क्लिक करें।
+    
+    <Warning>
+    गुप्त को घुमाने से यह **समाप्त** हो जाएगा और **नए** के साथ बदल दिया जाएगा। पुराना गुप्त केवल अगले 24 घंटों के लिए मान्य होगा। इसके बाद, पुराने गुप्त के साथ सत्यापन करने का प्रयास विफल हो जाएगा।
+    </Warning>
+    
+    <Info>
+    यदि आपको संदेह है कि आपकी वर्तमान गुप्त को समझौता किया गया है, तो समय-समय पर या तुरंत गुप्त घुमाने का उपयोग करें।
+    </Info>
+</Step>
+</Steps>
+
+## सदस्यता ली गई घटनाओं को कॉन्फ़िगर करना
+
+आप प्रत्येक वेबहुक एंडपॉइंट के लिए प्राप्त करने के लिए विशिष्ट घटनाओं को कॉन्फ़िगर कर सकते हैं।
+
+### घटना कॉन्फ़िगरेशन तक पहुँचना
+
+<Steps>
+<Step title="वेबहुक विवरण पर जाएँ">
+    अपने Dodo Payments डैशबोर्ड पर जाएँ और `Settings > Webhooks` पर जाएँ।
+</Step>
+
+<Step title="अपने एंडपॉइंट का चयन करें">
+    उस वेबहुक एंडपॉइंट पर क्लिक करें जिसे आप कॉन्फ़िगर करना चाहते हैं।
+</Step>
+
+<Step title="घटना सेटिंग्स खोलें">
+    वेबहुक विवरण पृष्ठ में, आपको "सदस्यता ली गई घटनाएँ" अनुभाग दिखाई देगा। अपनी घटना सदस्यताओं को संशोधित करने के लिए **संपादित करें** बटन पर क्लिक करें।
+</Step>
+</Steps>
+
+### घटना सदस्यताओं का प्रबंधन
+
+<Steps>
+<Step title="उपलब्ध घटनाएँ देखें">
+    इंटरफ़ेस सभी उपलब्ध वेबहुक घटनाओं को एक पदानुक्रमित संरचना में प्रदर्शित करता है। घटनाएँ श्रेणी के अनुसार समूहित की जाती हैं (जैसे, `dispute`, `payment`, `subscription`)।
+</Step>
+
+<Step title="खोजें और फ़िल्टर करें">
+    घटना नाम या कीवर्ड टाइप करके विशिष्ट घटनाओं को जल्दी से खोजने के लिए खोज बार का उपयोग करें।
+</Step>
+
+<Step title="घटनाएँ चुनें">
+    उन घटनाओं के बगल में स्थित बॉक्सों को चेक करें जिन्हें आप प्राप्त करना चाहते हैं। आप:
+    - व्यक्तिगत उप-घटनाएँ चुन सकते हैं (जैसे, `dispute.accepted`, `dispute.challenged`)
+    - सभी संबंधित उप-घटनाएँ प्राप्त करने के लिए माता-पिता की घटनाएँ चुन सकते हैं
+    - अपनी आवश्यकताओं के आधार पर विशिष्ट घटनाओं को मिलाकर चुन सकते हैं
+</Step>
+
+<Step title="घटना विवरण की समीक्षा करें">
+    प्रत्येक घटना के बगल में जानकारी आइकन (ⓘ) पर होवर करें ताकि यह देखा जा सके कि वह घटना कब सक्रिय होती है।
+</Step>
+
+<Step title="कॉन्फ़िगरेशन सहेजें">
+    अपने परिवर्तनों को लागू करने के लिए **सहेजें** पर क्लिक करें, या संशोधनों को अस्वीकार करने के लिए **रद्द करें** पर क्लिक करें।
+</Step>
+</Steps>
+
+<Warning>
+यदि आप सभी घटनाओं को अस्वीकृत करते हैं, तो आपका वेबहुक एंडपॉइंट कोई सूचनाएँ प्राप्त नहीं करेगा। सुनिश्चित करें कि आप कम से कम उन घटनाओं का चयन करें जिनकी आपके आवेदन को सही ढंग से कार्य करने के लिए आवश्यकता है।
+</Warning>
+
+## वेबहुक वितरण
+
+### टाइमआउट
+
+वेबहुक्स के लिए **15-सेकंड का टाइमआउट विंडो** है, जो कनेक्शन और पढ़ने के संचालन दोनों के लिए है। सुनिश्चित करें कि आपका एंडपॉइंट जल्दी प्रतिक्रिया करता है ताकि टाइमआउट से बचा जा सके।
+
+<Tip>
+वेबहुक्स को असिंक्रोनस रूप से संसाधित करें, तुरंत `200` स्थिति कोड के साथ प्राप्ति की स्वीकृति देकर, फिर वास्तविक प्रसंस्करण को बैकग्राउंड में संभालें।
+</Tip>
+
+### स्वचालित पुनः प्रयास
+
+यदि वेबहुक वितरण विफल हो जाता है, तो Dodo Payments स्वचालित रूप से गुणनात्मक बैकऑफ के साथ पुनः प्रयास करता है ताकि आपके सिस्टम को अधिक बोझ न डाला जा सके।
+
+| प्रयास | देरी | विवरण |
+|---------|------------------------------|-------------|
+| 1 | तुरंत | पहला पुनः प्रयास तुरंत होता है |
+| 2 | 5 सेकंड | थोड़ी देरी के बाद दूसरा प्रयास |
+| 3 | 5 मिनट | बढ़ी हुई बैकऑफ के साथ तीसरा प्रयास |
+| 4 | 30 मिनट | चौथा प्रयास जारी बैकऑफ |
+| 5 | 2 घंटे | विस्तारित देरी के साथ पाँचवाँ प्रयास |
+| 6 | 5 घंटे | लंबे समय तक देरी के साथ छठा प्रयास |
+| 7 | 10 घंटे | अधिकतम देरी के साथ सातवाँ प्रयास |
+| 8 | 10 घंटे | **अंतिम प्रयास** - यदि असफल होता है तो वेबहुक को विफल के रूप में चिह्नित किया जाएगा |
+
+<Info>
+**प्रत्येक वेबहुक घटना के लिए अधिकतम 8 पुनः प्रयास**। उदाहरण के लिए, यदि एक वेबहुक तीन बार विफल होने के बाद सफल होता है, तो कुल वितरण समय पहले प्रयास से लगभग 35 मिनट और 5 सेकंड होगा।
+</Info>
+
+<Tip>
+Dodo Payments डैशबोर्ड का उपयोग करके किसी भी समय व्यक्तिगत संदेशों को मैन्युअल रूप से पुनः प्रयास करें या सभी विफल संदेशों को बल्क में पुनर्प्राप्त करें।
+</Tip>
+
+### आइडेम्पोटेंसी
+
+प्रत्येक वेबहुक घटना में एक अद्वितीय `webhook-id` हेडर शामिल होता है। इस पहचानकर्ता का उपयोग आइडेम्पोटेंसी को लागू करने और डुप्लिकेट प्रसंस्करण से बचने के लिए करें।
+
+```javascript
+// Example: Storing webhook IDs to prevent duplicate processing
+const processedWebhooks = new Set();
+
+app.post('/webhook', (req, res) => {
+  const webhookId = req.headers['webhook-id'];
+  
+  if (processedWebhooks.has(webhookId)) {
+    return res.status(200).json({ received: true });
+  }
+  
+  processedWebhooks.add(webhookId);
+  // Process the webhook...
+});
+```
+
+<Warning>
+हमेशा आइडेम्पोटेंसी जांच लागू करें। पुनः प्रयासों के कारण, आप एक ही घटना को कई बार प्राप्त कर सकते हैं।
+</Warning>
+
+### घटना क्रमबद्धता
+
+वेबहुक घटनाएँ पुनः प्रयासों या नेटवर्क स्थितियों के कारण क्रमबद्धता से बाहर आ सकती हैं। अपने सिस्टम को किसी भी अनुक्रम में घटनाओं को संभालने के लिए डिज़ाइन करें।
+
+<Info>
+आपको **वितरण के समय नवीनतम पेलोड प्राप्त होगा**, चाहे वेबहुक घटना मूल रूप से कब उत्पन्न हुई थी।
+</Info>
+
+## वेबहुक्स को सुरक्षित करना
+
+अपने वेबहुक्स की सुरक्षा सुनिश्चित करने के लिए, हमेशा पेलोड को मान्य करें और HTTPS का उपयोग करें।
+
+### हस्ताक्षरों की पुष्टि करना
+
+प्रत्येक वेबहुक अनुरोध में `webhook-signature` हेडर शामिल होता है, जो वेबहुक पेलोड और टाइमस्टैम्प का HMAC SHA256 हस्ताक्षर है, जिसे आपकी गुप्त कुंजी के साथ हस्ताक्षरित किया गया है।
+
+#### SDK सत्यापन (सिफारिश की गई)
+
+सभी आधिकारिक SDK में आने वाले वेबहुक को सुरक्षित रूप से मान्य और पार्स करने के लिए अंतर्निहित सहायक शामिल हैं। दो विधियाँ उपलब्ध हैं:
+
+* `unwrap()`: आपकी वेबहुक गुप्त कुंजी का उपयोग करके हस्ताक्षरों की पुष्टि करता है
+* `unsafe_unwrap()`: सत्यापन के बिना पेलोड को पार्स करता है
+
+<Tip>
+  Dodo Payments क्लाइंट को प्रारंभ करते समय `DODO_PAYMENTS_WEBHOOK_KEY` के माध्यम से अपनी वेबहुक गुप्त प्रदान करें।
+</Tip>
+
+<CodeGroup>
+
+```typescript TypeScript/Node.js
+import DodoPayments from 'dodopayments';
+import express from 'express';
+
+const app = express();
+app.use(express.raw({ type: 'application/json' }));
+
+const client = new DodoPayments({
+  bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+  environment: process.env.DODO_PAYMENTS_ENVIRONMENT,
+  webhookKey: process.env.DODO_PAYMENTS_WEBHOOK_KEY,
+});
+
+app.post('/webhook', async (req, res) => {
+  try {
+    const unwrapped = client.webhooks.unwrap(req.body.toString(), {
+      headers: {
+        'webhook-id': req.headers['webhook-id'] as string,
+        'webhook-signature': req.headers['webhook-signature'] as string,
+        'webhook-timestamp': req.headers['webhook-timestamp'] as string,
+      },
+    });
+    res.json({ received: true });
+  } catch (error) {
+    res.status(401).json({ error: 'Invalid signature' });
+  }
+});
+```
+
+```python Python
+from fastapi import FastAPI, Request, HTTPException
+from dodopayments import DodoPayments
+import os
+
+app = FastAPI()
+client = DodoPayments(
+    bearer_token=os.getenv("DODO_PAYMENTS_API_KEY"),
+    environment=os.getenv("DODO_PAYMENTS_ENVIRONMENT"),
+    webhook_key=os.getenv("DODO_PAYMENTS_WEBHOOK_KEY"),
+)
+
+@app.post("/webhook")
+async def handle_webhook(request: Request):
+    try:
+        unwrapped = client.webhooks.unwrap(
+            await request.body(),
+            headers={
+                "webhook-id": request.headers.get("webhook-id", ""),
+                "webhook-signature": request.headers.get("webhook-signature", ""),
+                "webhook-timestamp": request.headers.get("webhook-timestamp", ""),
+            },
+        )
+        return {"received": True}
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid signature")
+```
+
+```go Go
+import (
+	"context"
+	"io"
+	"net/http"
+	"os"
+	"github.com/dodopayments/dodopayments-go"
+	"github.com/dodopayments/dodopayments-go/option"
+)
+
+func webhookHandler(w http.ResponseWriter, r *http.Request) {
+	client := dodopayments.NewClient(
+		option.WithBearerToken(os.Getenv("DODO_PAYMENTS_API_KEY")),
+		option.WithEnvironment(os.Getenv("DODO_PAYMENTS_ENVIRONMENT")),
+		option.WithWebhookKey(os.Getenv("DODO_PAYMENTS_WEBHOOK_KEY")),
+	)
+	rawBody, _ := io.ReadAll(r.Body)
+	if _, err := client.Webhooks.Unwrap(context.Background(), rawBody, map[string]string{
+		"webhook-id":       r.Header.Get("webhook-id"),
+		"webhook-signature": r.Header.Get("webhook-signature"),
+		"webhook-timestamp": r.Header.Get("webhook-timestamp"),
+	}); err != nil {
+		http.Error(w, "Invalid signature", http.StatusUnauthorized)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+}
+```
+
+</CodeGroup>
+
+#### मैन्युअल सत्यापन (वैकल्पिक)
+
+यदि आप SDK का उपयोग नहीं कर रहे हैं, तो आप स्वयं हस्ताक्षरों की पुष्टि कर सकते हैं, मानक वेबहुक विनिर्देशन का पालन करते हुए:
+
+1. `webhook-id`, `webhook-timestamp`, और सटीक कच्चा स्ट्रिंगिफाइड `payload` को बिंदुओं (`.`) द्वारा अलग करके जोड़कर हस्ताक्षरित संदेश बनाएं।
+2. अपने डैशबोर्ड से अपनी वेबहुक गुप्त कुंजी का उपयोग करके उस स्ट्रिंग का HMAC SHA256 की गणना करें।
+3. गणना की गई हस्ताक्षर की तुलना `webhook-signature` हेडर से करें। यदि वे मेल खाते हैं, तो वेबहुक प्रामाणिक है।
+
+<Info>
+  हम मानक वेबहुक विनिर्देशन का पालन करते हैं। आप हस्ताक्षरों की पुष्टि करने के लिए उनके पुस्तकालयों का उपयोग कर सकते हैं: [https://github.com/standard-webhooks/standard-webhooks/tree/main/libraries](https://github.com/standard-webhooks/standard-webhooks/tree/main/libraries)। घटना पेलोड प्रारूपों के लिए, [वेबहुक पेलोड](/developer-resources/webhooks/intents/payment) देखें।
+</Info>
+
+### वेबहुक्स का उत्तर देना
+
+* आपका वेबहुक हैंडलर घटना की प्राप्ति की स्वीकृति देने के लिए `2xx status code` लौटाना चाहिए।
+* कोई अन्य प्रतिक्रिया विफलता के रूप में मानी जाएगी, और वेबहुक को पुनः प्रयास किया जाएगा।
+
+### सर्वोत्तम प्रथाएँ
+
+<AccordionGroup>
+<Accordion title="केवल HTTPS एंडपॉइंट का उपयोग करें" icon="lock">
+  हमेशा वेबहुक एंडपॉइंट के लिए HTTPS URL का उपयोग करें। HTTP एंडपॉइंट मैन-इन-द-मिडल हमलों के प्रति संवेदनशील होते हैं और आपके वेबहुक डेटा को उजागर करते हैं।
+</Accordion>
+
+<Accordion title="तुरंत उत्तर दें" icon="bolt">
+  वेबहुक प्राप्त करने पर तुरंत `200` स्थिति कोड लौटाएँ। टाइमआउट से बचने के लिए घटना को असिंक्रोनस रूप से संसाधित करें।
+  
+
+  ```javascript
+  app.post('/webhook', async (req, res) => {
+    // Acknowledge receipt immediately
+    res.status(200).json({ received: true });
+    
+    // Process asynchronously
+    processWebhookAsync(req.body).catch(console.error);
+  });
+  ```
+
+</Accordion>
+
+<Accordion title="डुप्लिकेट घटनाओं को संभालें" icon="rotate">
+  आइडेम्पोटेंसी को लागू करें `webhook-id` हेडर का उपयोग करके बिना साइड इफेक्ट के एक ही घटना को कई बार सुरक्षित रूप से संसाधित करने के लिए।
+</Accordion>
+
+<Accordion title="अपनी वेबहुक गुप्त को सुरक्षित रखें" icon="key">
+  अपनी वेबहुक गुप्त को सुरक्षित रूप से पर्यावरण चर या एक गुप्त प्रबंधक का उपयोग करके संग्रहीत करें। कभी भी गुप्त को संस्करण नियंत्रण में न डालें।
+</Accordion>
+</AccordionGroup>
+
+## वेबहुक पेलोड संरचना
+
+वेबहुक पेलोड संरचना को समझना आपको घटनाओं को सही ढंग से पार्स और संसाधित करने में मदद करता है।
+
+### अनुरोध प्रारूप
+
+```http
+POST /your-webhook-url
+Content-Type: application/json
+```
+
+### हेडर
+
+<ParamField header="webhook-id" type="string" required>
+इस वेबहुक घटना के लिए अद्वितीय पहचानकर्ता। आइडेम्पोटेंसी जांच के लिए इसका उपयोग करें।
+</ParamField>
+
+<ParamField header="webhook-signature" type="string" required>
+वेबहुक प्रामाणिकता की पुष्टि के लिए HMAC SHA256 हस्ताक्षर।
+</ParamField>
+
+<ParamField header="webhook-timestamp" type="string" required>
+जब वेबहुक भेजा गया था तब का यूनिक्स टाइमस्टैम्प (सेकंड में)।
+</ParamField>
+
+### अनुरोध शरीर
+
+<ResponseField name="business_id" type="string" required>
+आपका Dodo Payments व्यवसाय पहचानकर्ता।
+</ResponseField>
+
+<ResponseField name="type" type="string" required>
+घटना प्रकार जिसने इस वेबहुक को सक्रिय किया (जैसे, `payment.succeeded`, `subscription.created`)।
+</ResponseField>
+
+<ResponseField name="timestamp" type="string" required>
+घटना होने का ISO 8601 प्रारूपित टाइमस्टैम्प।
+</ResponseField>
+
+<ResponseField name="data" type="object" required>
+घटना-विशिष्ट पेलोड जिसमें घटना के बारे में विस्तृत जानकारी शामिल है।
+
+<Expandable title="डेटा ऑब्जेक्ट गुण">
+  <ResponseField name="payload_type" type="string">
+  संसाधन का प्रकार: `Payment`, `Subscription`, `Refund`, `Dispute`, या `LicenseKey`।
+  </ResponseField>
+  
+  अतिरिक्त फ़ील्ड घटना प्रकार के अनुसार भिन्न होते हैं। पूर्ण स्कीमाओं के लिए घटना-विशिष्ट दस्तावेज़ देखें।
+</Expandable>
+</ResponseField>
+
+### उदाहरण पेलोड
+
+```json
+{
+  "business_id": "string",
+  "type": "payment.succeeded | payment.failed |...",
+  "timestamp": "2024-01-01T12:00:00Z",
+  "data": {
+    "payload_type": "Payment | Subscription | Refund | Dispute | LicenseKey",
+    // ... event-specific fields (see below)
+  }
+}
+```
+
+<CardGroup cols={2}>
+  <Card title="घटना प्रकार" icon="list" href="/developer-resources/webhooks/intents/webhook-events-guide">
+    सभी उपलब्ध वेबहुक घटना प्रकारों को ब्राउज़ करें
+  </Card>
+  <Card title="घटना पेलोड" icon="code" href="/developer-resources/webhooks/intents/payment">
+    प्रत्येक घटना के लिए विस्तृत पेलोड स्कीमाओं को देखें
+  </Card>
+</CardGroup>
+
+## वेबहुक्स का परीक्षण करना
+
+आप अपने वेबहुक एकीकरण का परीक्षण Dodo Payments डैशबोर्ड से सीधे कर सकते हैं ताकि यह सुनिश्चित हो सके कि आपका एंडपॉइंट सही ढंग से काम कर रहा है।
+
+<Frame>
+    <img src="/images/webhooks/endpoints.png" alt="Endpoint Details" />
+</Frame>
+
+### परीक्षण इंटरफ़ेस तक पहुँचना
+
+<Steps>
+<Step title="वेबहुक्स पर जाएँ">
+    अपने Dodo Payments डैशबोर्ड पर जाएँ और `Settings > Webhooks` पर जाएँ।
+</Step>
+
+<Step title="अपने एंडपॉइंट का चयन करें">
+    अपने वेबहुक एंडपॉइंट पर क्लिक करें ताकि इसके विवरण पृष्ठ तक पहुँच सकें।
+</Step>
+
+<Step title="परीक्षण टैब खोलें">
+    वेबहुक परीक्षण इंटरफ़ेस तक पहुँचने के लिए **परीक्षण** टैब पर क्लिक करें।
+</Step>
+</Steps>
+
+### अपने वेबहुक का परीक्षण करना
+
+परीक्षण इंटरफ़ेस आपके वेबहुक एंडपॉइंट का परीक्षण करने का एक व्यापक तरीका प्रदान करता है:
+
+<Steps>
+<Step title="घटना प्रकार चुनें">
+    परीक्षण करने के लिए विशिष्ट घटना प्रकार का चयन करने के लिए ड्रॉपडाउन मेनू का उपयोग करें (जैसे, `payment.succeeded`, `payment.failed`, आदि)।
+    
+    <Info>
+    ड्रॉपडाउन में सभी उपलब्ध वेबहुक घटना प्रकार शामिल हैं जिन्हें आपका एंडपॉइंट प्राप्त कर सकता है।
+    </Info>
+</Step>
+
+<Step title="स्कीमा और उदाहरण की समीक्षा करें">
+    इंटरफ़ेस चयनित घटना प्रकार के लिए **स्कीमा** (डेटा संरचना) और **उदाहरण** (नमूना पेलोड) दोनों प्रदर्शित करता है।
+</Step>
+
+<Step title="परीक्षण घटना भेजें">
+    अपने एंडपॉइंट पर परीक्षण वेबहुक भेजने के लिए **उदाहरण भेजें** बटन पर क्लिक करें।
+    
+    <Warning>
+    **महत्वपूर्ण**: परीक्षण इंटरफ़ेस के माध्यम से भेजे गए विफल संदेशों को पुनः प्रयास नहीं किया जाएगा। यह केवल परीक्षण उद्देश्यों के लिए है।
+    </Warning>
+</Step>
+</Steps>
+
+### अपने परीक्षण की पुष्टि करना
+
+<Steps>
+<Step title="अपने एंडपॉइंट की जाँच करें">
+    परीक्षण घटना प्राप्त होने की पुष्टि करने के लिए अपने वेबहुक एंडपॉइंट लॉग की निगरानी करें।
+</Step>
+
+<Step title="हस्ताक्षर की पुष्टि करें">
+    सुनिश्चित करें कि आपका हस्ताक्षर सत्यापन परीक्षण पेलोड के साथ सही ढंग से काम कर रहा है।
+</Step>
+
+<Step title="परीक्षण प्रतिक्रिया">
+    पुष्टि करें कि आपका एंडपॉइंट एक `2xx` स्थिति कोड लौटाता है ताकि प्राप्ति की स्वीकृति दी जा सके।
+</Step>
+</Steps>
+
+### कार्यान्वयन उदाहरण
+
+यहाँ एक पूर्ण Express.js कार्यान्वयन है जो वेबहुक सत्यापन और हैंडलिंग को दिखाता है:
+
+<CodeGroup>
+
+```typescript Express.js Webhook Handler
+import { Webhook } from "standardwebhooks";
+import express from "express";
+
+const app = express();
+app.use(express.json());
+
+const webhook = new Webhook(process.env.DODO_WEBHOOK_SECRET);
+
+app.post('/webhook/dodo-payments', async (req, res) => {
+  try {
+    // Extract webhook headers
+    const webhookHeaders = {
+      "webhook-id": req.headers["webhook-id"] as string,
+      "webhook-signature": req.headers["webhook-signature"] as string,
+      "webhook-timestamp": req.headers["webhook-timestamp"] as string,
+    };
+
+    // Verify the webhook signature
+    const payload = JSON.stringify(req.body);
+    await webhook.verify(payload, webhookHeaders);
+    
+    // Acknowledge receipt immediately
+    res.status(200).json({ received: true });
+    
+    // Process webhook asynchronously
+    processWebhookAsync(req.body).catch(console.error);
+    
+  } catch (error) {
+    console.error('Webhook verification failed:', error);
+    res.status(400).json({ error: 'Invalid signature' });
+  }
+});
+
+async function processWebhookAsync(data: any) {
+  // Handle the webhook event based on type
+  switch (data.type) {
+    case 'payment.succeeded':
+      await handlePaymentSucceeded(data);
+      break;
+    case 'subscription.created':
+      await handleSubscriptionCreated(data);
+      break;
+    // Add more event handlers...
+  }
+}
+```
+
+```javascript Testing Webhooks Locally
+const { Webhook } = require("standardwebhooks");
+const axios = require("axios");
+const crypto = require("crypto");
+
+// Generate test webhook
+const timestamp = new Date();
+const webhookId = crypto.randomUUID();
+const payload = {
+  business_id: "biz_test123",
+  type: "payment.succeeded",
+  timestamp: timestamp.toISOString(),
+  data: {
+    payload_type: "Payment",
+    payment_id: "pay_test456",
+    amount: 2999
+  }
+};
+
+// Sign the payload
+const webhookSecret = process.env.DODO_WEBHOOK_SECRET;
+const webhookInstance = new Webhook(webhookSecret);
+const payloadString = JSON.stringify(payload);
+const signature = webhookInstance.sign(webhookId, timestamp, payloadString);
+
+// Send test webhook
+const response = await axios.post('http://localhost:3000/webhook/dodo-payments', payload, {
+  headers: {
+    "webhook-id": webhookId,
+    "webhook-timestamp": Math.floor(timestamp.getTime() / 1000),
+    "webhook-signature": signature,
+    "Content-Type": "application/json"
+  }
+});
+
+console.log("Test webhook sent successfully:", response.data);
+```
+
+</CodeGroup>
+
+<Tip>
+अपने वेबहुक हैंडलर का परीक्षण डैशबोर्ड परीक्षण इंटरफ़ेस का उपयोग करके पूरी तरह से करें, इससे पहले कि आप उत्पादन घटनाओं को संसाधित करें। इससे समस्याओं की पहचान और समाधान में मदद मिलेगी।
+</Tip>
+
+## उन्नत सेटिंग्स
+
+उन्नत सेटिंग्स टैब आपके वेबहुक एंडपॉइंट व्यवहार को ठीक करने के लिए अतिरिक्त कॉन्फ़िगरेशन विकल्प प्रदान करता है।
+
+### दर सीमा (थ्रॉटलिंग)
+
+अपने सिस्टम को अधिक बोझ से बचाने के लिए अपने एंडपॉइंट पर वेबहुक घटनाओं के वितरण की दर को नियंत्रित करें।
+
+<Steps>
+<Step title="दर सीमा सेटिंग्स तक पहुँचें">
+    **उन्नत** टैब में, "दर सीमा (थ्रॉटलिंग)" अनुभाग खोजें।
+</Step>
+
+<Step title="दर सीमा कॉन्फ़िगर करें">
+    दर सीमा सेटिंग्स को संशोधित करने के लिए **संपादित करें** बटन पर क्लिक करें।
+    
+    <Info>
+    डिफ़ॉल्ट रूप से, वेबहुक्स पर "कोई दर सीमा" लागू होती है, जिसका अर्थ है कि घटनाएँ जैसे ही होती हैं वितरित की जाती हैं।
+    </Info>
+</Step>
+
+<Step title="सीमाएँ सेट करें">
+    वेबहुक वितरण की आवृत्ति को नियंत्रित करने और सिस्टम ओवरलोड से बचाने के लिए अपनी इच्छित दर सीमा कॉन्फ़िगर करें।
+</Step>
+</Steps>
+
+<Tip>
+जब आपके वेबहुक हैंडलर को घटनाओं को संसाधित करने के लिए समय की आवश्यकता होती है या जब आप कई घटनाओं को एक साथ बैच करना चाहते हैं, तो दर सीमा का उपयोग करें।
+</Tip>
+
+### कस्टम हेडर
+
+अपने एंडपॉइंट पर भेजे गए सभी वेबहुक अनुरोधों में कस्टम HTTP हेडर जोड़ें। यह प्रमाणीकरण, रूटिंग, या आपके वेबहुक अनुरोधों में मेटाडेटा जोड़ने के लिए उपयोगी है।
+
+<Steps>
+<Step title="कस्टम हेडर जोड़ें">
+    "कस्टम हेडर" अनुभाग में, अपने कस्टम हेडर के लिए एक **कुंजी** और **मान** दर्ज करें।
+</Step>
+
+<Step title="एकाधिक हेडर जोड़ें">
+    आवश्यकतानुसार अतिरिक्त कस्टम हेडर जोड़ने के लिए **+** बटन पर क्लिक करें।
+</Step>
+
+<Step title="कॉन्फ़िगरेशन सहेजें">
+    आपके कस्टम हेडर सभी वेबहुक अनुरोधों में शामिल किए जाएंगे।
+</Step>
+</Steps>
+
+### रूपांतरण
+
+रूपांतरण आपको एक वेबहुक के पेलोड को संशोधित करने और इसे एक अलग URL पर पुनर्निर्देशित करने की अनुमति देता है। यह शक्तिशाली विशेषता आपको सक्षम बनाती है:
+
+- प्रसंस्करण से पहले पेलोड संरचना को संशोधित करें
+- सामग्री के आधार पर वेबहुक को विभिन्न एंडपॉइंट पर रूट करें
+- पेलोड से फ़ील्ड जोड़ें या हटाएँ
+- डेटा प्रारूपों को परिवर्तित करें
+
+<Steps>
+<Step title="रूपांतरण सक्षम करें">
+    रूपांतरण सुविधा को सक्रिय करने के लिए **सक्षम** स्विच को टॉगल करें।
+</Step>
+
+<Step title="रूपांतरण कॉन्फ़िगर करें">
+    अपने रूपांतरण नियमों को परिभाषित करने के लिए **रूपांतरण संपादित करें** पर क्लिक करें।
+    
+    <Info>
+    आप वेबहुक पेलोड को परिवर्तित करने और एक अलग लक्ष्य URL निर्दिष्ट करने के लिए JavaScript का उपयोग कर सकते हैं।
+    </Info>
+</Step>
+
+<Step title="रूपांतरण का परीक्षण करें">
+    लाइव होने से पहले यह सुनिश्चित करने के लिए परीक्षण इंटरफ़ेस का उपयोग करें कि आपका रूपांतरण सही ढंग से काम कर रहा है।
+</Step>
+</Steps>
+
+<Warning>
+रूपांतरण वेबहुक वितरण प्रदर्शन पर महत्वपूर्ण प्रभाव डाल सकते हैं। Thoroughly परीक्षण करें और रूपांतरण तर्क को सरल और कुशल रखें।
+</Warning>
+
+<Tip>
+रूपांतरण विशेष रूप से निम्नलिखित के लिए उपयोगी होते हैं:
+- विभिन्न डेटा प्रारूपों के बीच रूपांतरण
+- विशिष्ट मानदंडों के आधार पर घटनाओं को फ़िल्टर करना
+- पेलोड में गणना की गई फ़ील्ड जोड़ना
+- विभिन्न माइक्रोसर्विसेज़ पर घटनाओं को रूट करना
+</Tip>
+
+## वेबहुक लॉग की निगरानी
+
+लॉग टैब आपके वेबहुक वितरण स्थिति में व्यापक दृश्यता प्रदान करता है, जिससे आप वेबहुक घटनाओं की प्रभावी ढंग से निगरानी, डिबग और प्रबंधन कर सकते हैं।
+
+<Frame>
+    <img src="/images/webhooks/logs.png" alt="Logs" />
+</Frame>
+
+## गतिविधि निगरानी
+
+गतिविधि टैब आपके वेबहुक वितरण प्रदर्शन के बारे में वास्तविक समय की अंतर्दृष्टि प्रदान करता है, जिसमें दृश्य विश्लेषण शामिल है।
+
+<Frame>
+    <img src="/images/webhooks/activity.png" alt="Activity" />
+</Frame>
+
+## ईमेल अलर्ट
+
+अपने वेबहुक स्वास्थ्य के बारे में स्वचालित ईमेल सूचनाओं के साथ सूचित रहें। जब वेबहुक वितरण विफल होने लगते हैं या आपका एंडपॉइंट प्रतिक्रिया देना बंद कर देता है, तो आपको ईमेल अलर्ट प्राप्त होंगे ताकि आप जल्दी से समस्याओं को संबोधित कर सकें और अपने एकीकरण को सुचारू रूप से चलाते रह सकें।
+
+<Frame>
+  <img src="/images/webhooks/alerting.png" alt="Webhook Alerting Settings showing email notifications configuration" />
+</Frame>
+
+### ईमेल अलर्ट सक्षम करें
+
+<Steps>
+<Step title="अलर्ट सेटिंग्स पर जाएँ">
+  अपने Dodo Payments डैशबोर्ड पर जाएँ और **डैशबोर्ड → वेबहुक्स → अलर्टिंग** पर जाएँ।
+</Step>
+
+<Step title="ईमेल सूचनाएँ सक्षम करें">
+  वेबहुक वितरण समस्याओं के बारे में अलर्ट प्राप्त करना शुरू करने के लिए **ईमेल सूचनाएँ** को चालू करें।
+</Step>
+
+<Step title="ईमेल पता कॉन्फ़िगर करें">
+  वह ईमेल पता दर्ज करें जहाँ आप वेबहुक अलर्ट प्राप्त करना चाहते हैं। जब आपके वेबहुक सेटअप के साथ कुछ घटनाएँ होती हैं, जैसे वितरण समस्याएँ जो आपके एकीकरण को प्रभावित कर सकती हैं, तो हम इस पते पर सूचनाएँ भेजेंगे।
+</Step>
+</Steps>
+
+<Tip>
+वेबहुक वितरण समस्याओं को जल्दी पकड़ने और विश्वसनीय एकीकरण बनाए रखने के लिए ईमेल अलर्ट सक्षम करें। जब वितरण विफल होते हैं या आपका एंडपॉइंट अनुप्रतिक्रिया हो जाता है, तो आपको सूचित किया जाएगा।
+</Tip>
+
+## क्लाउड प्लेटफ़ॉर्म पर तैनात करें
+
+क्या आप अपने वेबहुक हैंडलर को उत्पादन में तैनात करने के लिए तैयार हैं? हम लोकप्रिय क्लाउड प्रदाताओं के लिए सर्वश्रेष्ठ प्रथाओं के साथ वेबहुक्स को तैनात करने में मदद करने के लिए प्लेटफ़ॉर्म-विशिष्ट गाइड प्रदान करते हैं।
+
+<CardGroup cols={2}>
+  <Card title="Vercel" icon="triangle" href="/developer-resources/webhooks/examples/vercel-example">
+    सर्वर रहित कार्यों के साथ Vercel पर वेबहुक्स तैनात करें
+  </Card>
+  <Card title="Cloudflare Workers" icon="cloud" href="/developer-resources/webhooks/examples/cloudflare-example">
+    Cloudflare के एज नेटवर्क पर वेबहुक्स चलाएँ
+  </Card>
+  <Card title="Supabase Edge Functions" icon="database" href="/developer-resources/webhooks/examples/supabase-example">
+    Supabase के साथ वेबहुक्स का एकीकरण करें
+  </Card>
+  <Card title="Netlify Functions" icon="circle-nodes" href="/developer-resources/webhooks/examples/netlify-example">
+    Netlify सर्वर रहित कार्यों के रूप में वेबहुक्स तैनात करें
+  </Card>
+</CardGroup>
+
+<Info>
+प्रत्येक प्लेटफ़ॉर्म गाइड में पर्यावरण सेटअप, हस्ताक्षर सत्यापन, और उस प्रदाता के लिए विशिष्ट तैनाती चरण शामिल हैं।
+</Info>

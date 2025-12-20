@@ -1,0 +1,164 @@
+---
+title: Objektlagringsplan
+description: Spåra filuppladdningar och lagringsanvändning för S3, Google Cloud
+  Storage, Azure Blob och andra objektlagringstjänster.
+icon: box-archive
+---
+
+## Användningsfall
+
+Utforska vanliga scenarier som stöds av Objektlagringsplanen:
+
+<CardGroup cols={2}>
+<Card title="Filhosting" icon="folder">
+Debiterar kunder baserat på total lagringsanvändning och uppladdningsvolym.
+</Card>
+<Card title="Backup-tjänster" icon="shield">
+Spåra backupdatauppladdningar och ta betalt per GB lagrad.
+</Card>
+<Card title="Media CDN" icon="photo-film">
+Övervaka mediauppladdningar och debiterar för lagring och bandbredd.
+</Card>
+<Card title="Dokumenthantering" icon="file">
+Spåra dokumentuppladdningar per kund för användningsbaserad prissättning.
+</Card>
+</CardGroup>
+
+<Info>
+Perfekt för att debiterar baserat på lagringsuppladdningar, filhosting, CDN-användning eller backup-tjänster.
+</Info>
+
+## Snabbstart
+
+Spåra objektlagringsuppladdningar med förbrukade byte:
+
+<Steps>
+<Step title="Installera SDK:n">
+
+```bash
+npm install @dodopayments/ingestion-blueprints
+```
+
+</Step>
+
+<Step title="Hämta dina API-nycklar">
+- **Dodo Payments API-nyckel**: Hämta den från [Dodo Payments Dashboard](https://app.dodopayments.com/developer/api-keys)
+- **Lagringsleverantörens API-nyckel**: Från AWS S3, Google Cloud Storage, Azure, etc.
+</Step>
+
+<Step title="Skapa en mätare">
+Skapa en mätare i din [Dodo Payments Dashboard](https://app.dodopayments.com/):
+- **Händelsenamn**: `object_storage_upload` (eller ditt föredragna namn)
+- **Aggregeringstyp**: `sum` för att spåra totala byte som laddats upp
+- **Över egenskap**: `bytes` för att debiterar baserat på lagringsstorlek
+</Step>
+
+<Step title="Spåra lagringsanvändning">
+<CodeGroup>
+
+```javascript AWS S3 Upload
+import { Ingestion, trackObjectStorage } from '@dodopayments/ingestion-blueprints';
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import fs from 'fs';
+
+const ingestion = new Ingestion({
+  apiKey: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'test_mode',
+  eventName: 'object_storage_upload'
+});
+
+const s3 = new S3Client({ region: 'us-east-1' });
+
+// Read the file (example: from disk or request)
+const fileBuffer = fs.readFileSync('./document.pdf');
+
+// Upload to S3
+const command = new PutObjectCommand({
+  Bucket: 'my-bucket',
+  Key: 'uploads/document.pdf',
+  Body: fileBuffer
+});
+
+await s3.send(command);
+
+// Track the upload
+await trackObjectStorage(ingestion, {
+  customerId: 'customer_123',
+  bytes: fileBuffer.length
+});
+```
+
+```javascript Google Cloud Storage
+import { Ingestion, trackObjectStorage } from '@dodopayments/ingestion-blueprints';
+import { Storage } from '@google-cloud/storage';
+import fs from 'fs';
+
+const ingestion = new Ingestion({
+  apiKey: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'test_mode',
+  eventName: 'object_storage_upload'
+});
+
+const storage = new Storage();
+const bucket = storage.bucket('my-bucket');
+
+// Read the file
+const fileBuffer = fs.readFileSync('./image.png');
+
+// Upload to GCS
+await bucket.file('uploads/image.png').save(fileBuffer);
+
+// Track the upload
+await trackObjectStorage(ingestion, {
+  customerId: 'customer_456',
+  bytes: fileBuffer.length,
+  metadata: {
+    bucket: 'my-bucket',
+    key: 'uploads/image.png'
+  }
+});
+```
+
+</CodeGroup>
+</Step>
+</Steps>
+
+## Konfiguration
+
+### Ingestionskonfiguration
+
+<ParamField path="apiKey" type="string" required>
+Din Dodo Payments API-nyckel från instrumentpanelen.
+</ParamField>
+
+<ParamField path="environment" type="string" required>
+Miljöläge: `test_mode` eller `live_mode`.
+</ParamField>
+
+<ParamField path="eventName" type="string" required>
+Händelsenamn som matchar din mätarkonfiguration.
+</ParamField>
+
+### Spåra objektlagringsalternativ
+
+<ParamField path="customerId" type="string" required>
+Kund-ID för debiteringsattribution.
+</ParamField>
+
+<ParamField path="bytes" type="number">
+Antal byte som laddats upp. Krävs för byte-baserad debitering.
+</ParamField>
+
+<ParamField path="metadata" type="object">
+Valfri metadata om uppladdningen som bucket-namn, innehållstyp, etc.
+</ParamField>
+
+## Bästa praxis
+
+<Tip>
+**Spåra före eller efter uppladdning**: Du kan spåra händelsen före eller efter den faktiska uppladdningen beroende på din felhanteringsstrategi.
+</Tip>
+
+<Warning>
+**Hantera uppladdningsfel**: Spåra endast lyckade uppladdningar för att undvika debitering för misslyckade operationer.
+</Warning>

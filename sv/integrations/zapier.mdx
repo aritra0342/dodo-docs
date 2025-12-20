@@ -1,0 +1,179 @@
+---
+title: Zapier
+description: Anslut Dodo Payments till 5000+ appar genom Zapier-webhooks för
+  obegränsade automatiseringsmöjligheter.
+icon: bolt
+---
+
+## Introduktion
+
+Anslut Dodo Payments till tusentals appar och tjänster genom Zapier. Automatisera arbetsflöden genom att utlösa Zaps när betalningsevenemang inträffar, från att skicka e-post till att uppdatera kalkylblad, skapa uppgifter och mycket mer.
+
+<Info>
+Denna integration kräver en Zapier-webhook-URL från din Zap-konfiguration.
+</Info>
+
+## Komma igång
+
+<Steps>
+<Step title="Öppna Webhook-sektionen">
+  I din Dodo Payments-instrumentpanel, navigera till <b>Webhooks → + Lägg till slutpunkt</b> och expandera integrationsrullgardinsmenyn.
+  <Frame>
+    <img src="/images/integrations/zapier.png" alt="Lägg till slutpunkt och integrationsrullgardinsmeny" />
+  </Frame>
+</Step>
+
+<Step title="Välj Zapier">
+  Välj <b>Zapier</b> integrationskortet.
+</Step>
+
+<Step title="Skapa Zap i Zapier">
+  I Zapier, skapa en ny Zap med "Webhooks by Zapier" som utlösare. Kopiera webhook-URL:en.
+</Step>
+
+<Step title="Klistra in Webhook-URL">
+  Klistra in Zapier-webhook-URL:en i slutpunktens konfiguration.
+</Step>
+
+<Step title="Konfigurera Transformation">
+  Redigera transformationskoden för att formatera data för ditt Zapier-arbetsflöde.
+</Step>
+
+<Step title="Testa & Skapa">
+  Testa med exempelpayloads och klicka på <b>Skapa</b> för att aktivera integrationen.
+</Step>
+
+<Step title="Klart!">
+  🎉 Betalningsevenemang kommer nu automatiskt att utlösa dina Zapier-arbetsflöden.
+</Step>
+</Steps>
+
+## Exempel på Transformationskod
+
+### Grundläggande Webhook Payload
+
+```javascript basic_webhook.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.payload = {
+      event_type: webhook.eventType,
+      payment_id: p.payment_id,
+      amount: (p.total_amount / 100).toFixed(2),
+      currency: p.currency || "USD",
+      customer_email: p.customer.email,
+      customer_name: p.customer.name,
+      payment_method: p.payment_method || "unknown",
+      timestamp: webhook.payload.timestamp
+    };
+  }
+  return webhook;
+}
+```
+
+### Prenumerationsevenemangshanterare
+
+```javascript subscription_webhook.js icon="js" expandable
+function handler(webhook) {
+  const s = webhook.payload.data;
+  switch (webhook.eventType) {
+    case "subscription.active":
+      webhook.payload = {
+        event_type: "subscription_started",
+        subscription_id: s.subscription_id,
+        customer_email: s.customer.email,
+        customer_name: s.customer.name,
+        product_id: s.product_id,
+        amount: (s.recurring_pre_tax_amount / 100).toFixed(2),
+        frequency: s.payment_frequency_interval,
+        next_billing: s.next_billing_date,
+        timestamp: webhook.payload.timestamp
+      };
+      break;
+    case "subscription.cancelled":
+      webhook.payload = {
+        event_type: "subscription_cancelled",
+        subscription_id: s.subscription_id,
+        customer_email: s.customer.email,
+        cancelled_at: s.cancelled_at,
+        cancel_at_next_billing: s.cancel_at_next_billing_date,
+        timestamp: webhook.payload.timestamp
+      };
+      break;
+  }
+  return webhook;
+}
+```
+
+### Tvistvarningshanterare
+
+```javascript dispute_webhook.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType.startsWith("dispute.")) {
+    const d = webhook.payload.data;
+    webhook.payload = {
+      event_type: webhook.eventType,
+      dispute_id: d.dispute_id,
+      payment_id: d.payment_id,
+      amount: (d.amount / 100).toFixed(2),
+      status: d.dispute_status,
+      stage: d.dispute_stage,
+      remarks: d.remarks || "",
+      urgent: webhook.eventType === "dispute.opened",
+      timestamp: webhook.payload.timestamp
+    };
+  }
+  return webhook;
+}
+```
+
+## Populära Zapier-användningsfall
+
+<AccordionGroup>
+<Accordion title="E-postnotifikationer">
+- Skicka Gmail/Outlook-e-post för betalningsbekräftelser
+- Skapa e-postsekvenser i Mailchimp/ConvertKit
+- Skicka Slack/Discord-notifikationer
+- Skapa poster i Google Sheets
+</Accordion>
+
+<Accordion title="CRM-uppdateringar">
+- Lägg till kontakter i HubSpot/Salesforce
+- Skapa affärer i Pipedrive/Close
+- Uppdatera kundregister i Airtable
+- Logga aktiviteter i Monday.com
+</Accordion>
+
+<Accordion title="Uppgiftshantering">
+- Skapa uppgifter i Asana/Trello
+- Lägg till att-göra-punkter i Notion
+- Skapa kalenderhändelser
+- Skicka SMS-notifikationer via Twilio
+</Accordion>
+</AccordionGroup>
+
+## Tips
+
+- Håll payload-strukturen enkel för enkel Zapier-parsing
+- Använd konsekventa fältnamn över alla evenemang
+- Inkludera tidsstämplar för arbetsflödets timing
+- Testa din Zap med exempeldata innan du går live
+- Använd Zapier's inbyggda filter för villkorlig logik
+
+## Felsökning
+
+<AccordionGroup>
+<Accordion title="Zap utlöses inte">
+- Verifiera att webhook-URL:en är korrekt och aktiv
+- Kontrollera att Zap är aktiverad i Zapier
+- Se till att payload-strukturen matchar Zapier-förväntningarna
+- Testa webhook-leverans i Zapier-instrumentpanelen
+</Accordion>
+
+<Accordion title="Data mappas inte korrekt">
+- Kontrollera fältnamn i Zapier-åtgärdss steg
+- Verifiera att datatyper matchar förväntade format
+- Använd Zapier's testfunktion för att felsöka mappning
+- Se till att transformationskoden returnerar giltig JSON
+</Accordion>
+</AccordionGroup>

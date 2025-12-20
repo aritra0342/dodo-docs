@@ -1,0 +1,146 @@
+---
+sidebarTitle: Betala Vad Du Vill
+title: Betala Vad Du Vill Prissättning
+description: Låt kunder välja sitt pris över ett minimum. Visa eventuellt ett
+  föreslaget pris. Optimerat för engångsköp.
+icon: dollar-sign
+---
+
+**Betala Vad Du Vill (PWYW)** låter kunder bestämma hur mycket de betalar—på eller över ett minimum som definieras av handlaren. Det ökar engagemanget, uppmuntrar samhällsstöd och ger flexibel prissättning för digitala produkter.
+
+<Frame>
+    <iframe 
+        className="w-full aspect-video rounded-md" 
+        src="https://www.youtube.com/embed/Lh0Q01b33NY"
+        title="Betala Vad Du Vill Prissättning | Dodo Payments"
+        frameBorder="0"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        allowFullScreen
+    ></iframe>
+</Frame>
+
+## Vad Är Betala Vad Du Vill?
+
+PWYW är en prissättningsmodell där kunder sätter sitt eget pris inom de ramar du definierar. Det är idealiskt för:
+
+- **Digitala produkter och media**: Mallar, e‑böcker, kurser, plugins
+- **Experimentella lanseringar**: Tidig åtkomst, beta-releaser, tidsbegränsade kampanjer
+- **Paket och tillägg**: Lägg till en PWYW-nivå för att öka deltagandet
+
+## Nyckelfördelar
+
+- **Kunddriven prissättning**: Köpare väljer vad de betalar
+- **Intäktsgolv**: Tvinga fram ett minimum för att skydda marginalerna
+- **Förankrade förväntningar**: Valfritt föreslaget pris för att vägleda val
+- **Smidig kassa**: Värd för kassa och kvitton hanteras för dig
+- **Utvecklarvänlig**: Tydliga API:er för skapande, återbetalningar och webhooks
+
+<Warning>
+PWYW är endast tillgängligt för **Engångsbetalning** (engångs) produkter.
+</Warning>
+
+## Skapa Betala Vad Du Vill
+
+Skapa en engångsprodukt och aktivera PWYW i din Dodo Payments-instrumentpanel. Avsnitten nedan motsvarar direkt skapelseformuläret.
+
+### Produkt skapande
+
+#### Produktdetaljer
+
+- **Produktnamn** (obligatoriskt): Visningsnamn som visas i kassan och på fakturor
+- **Produktbeskrivning** (obligatoriskt): Tydligt värdeuttalande som kunder ser innan de betalar
+- **Produktbild** (obligatoriskt): PNG/JPG/WebP upp till 3 MB
+- **Varumärke**: Koppla produkten till ett specifikt varumärke för temat och e-post
+- **Skattekategori** (obligatoriskt): Välj rätt kategori för att bestämma skatteregler
+
+<Tip>
+Välj den mest exakta skatte kategorin för att säkerställa korrekt skatteinsamling per region.
+</Tip>
+
+#### Prissättning
+
+- **Prissättningstyp**: Välj <b>Engångsbetalning</b>
+- **Betala Vad Du Vill** (växla): Aktivera för att låta köpare välja beloppet
+- **Minimi pris** (obligatoriskt): Lägsta tillåtna belopp som en kund kan betala
+- **Föreslaget pris** (valfritt): Rekommenderat belopp som visas på produktsidan
+
+<Tip>
+Använd metadata för att lagra identifierare från ditt system (t.ex. orderId) så att du kan avstämma händelser och kvitton senare.
+</Tip>
+
+## API-hantering
+
+<AccordionGroup>
+<Accordion title="Skapa kassa sessioner (PWYW)">
+Använd `POST /checkout-sessions/create` för att skapa engångs kassa sessioner från produkter. Kassan kommer att be köpare att ange ett belopp som uppfyller ditt PWYW-minimum.
+
+<Card title="API-referens" icon="code" href="/api-reference/checkout-sessions/create">
+Visa API:t för att skapa kassa session.
+</Card>
+</Accordion>
+
+<Accordion title="Återbetalningar">
+Använd `POST /refunds` för att skapa fullständiga eller delvisa återbetalningar. Kunder får tillbaka exakt det belopp de betalade.
+
+<Card title="API-referens" icon="code" href="/api-reference/refunds/post-refunds">
+Lär dig hur du återbetalar en betalning.
+</Card>
+</Accordion>
+
+<Accordion title="Lista och hämta">
+Använd `GET /payments` för att lista betalningar och `GET /payments/{payment_id}` för att hämta en. Hämta radobjekt med `GET /payments/{payment_id}/line-items`.
+
+<Card title="Lista Betalningar" icon="code" href="/api-reference/payments/get-payments">
+Bläddra i listnings-API:t.
+</Card>
+
+<Card title="Hämta Betalningsdetaljer" icon="code" href="/api-reference/payments/get-payments-1">
+Se hämtnings-API:t.
+</Card>
+
+<Card title="Hämta Radobjekt" icon="code" href="/api-reference/payments/retrieve-line-items">
+Inspektera köpta objekt för en betalning.
+</Card>
+</Accordion>
+
+<Accordion title="Betalningswebhooks">
+Reagera på händelser som payment.succeeded eller payment.failed i din backend.
+
+<Card title="Webhook-guide" icon="code" href="/developer-resources/webhooks/intents/payment">
+Hantera betalningslivscykelhändelser.
+</Card>
+</Accordion>
+</AccordionGroup>
+
+## Vanliga Användningsfall
+
+- **Digitala tillgångar**: Teman, mallar, ikonset, media eller plugins
+- **Innehåll och utbildning**: E‑böcker, kurser, workshops med supporterprissättning
+- **Gemenskap & donationer**: Insamlingar, öppen källkods sponsring, stöd till skapare
+- **Lanseringsexperiment**: Betaåtkomst och tidsbegränsade kampanjer för att mäta efterfrågan
+
+## Integreringsexempel
+
+### Kassa sessioner (engångsbetalning, PWYW)
+Lägg till en PWYW-produkt i kundvagnen. Kassan samlar in köparens belopp (respekterar ditt minimum) — inga extra fält krävs.
+
+```typescript
+const session = await client.checkoutSessions.create({
+  product_cart: [
+    { product_id: 'prod_pwyw_demo', quantity: 1 }
+  ],
+  return_url: 'https://yoursite.com/checkout/success'
+});
+```
+
+## Bästa Praxis
+
+- **Välj ett rimligt minimum**: Täck kostnader samtidigt som deltagande är enkelt
+- **Använd ett föreslaget pris**: Förankra förväntningar för att förbättra genomsnittligt ordervärde
+- **Förklara värdet tydligt**: Berätta för köpare vad deras bidrag låser upp
+- **A/B-test kampanjer**: Tidsbegränsa erbjudanden och experimentera med meddelanden
+- **Övervaka distribution**: Spåra betalade belopp för att förfina minimum och föreslaget pris
+
+<Info>
+PWYW är ett flexibelt sätt att bjuda in fler kunder samtidigt som ett intäktsgolv bevaras. Börja enkelt, testa noggrant och iterera baserat på konvertering, bidragsdistribution och återbetalningsgrader.
+</Info>

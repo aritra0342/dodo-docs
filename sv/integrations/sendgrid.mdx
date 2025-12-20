@@ -1,0 +1,167 @@
+---
+title: SendGrid
+description: Skicka transaktionsmail baserat på Dodo Payments-händelser med
+  hjälp av SendGrids Mail Send API.
+icon: inbox
+---
+
+## Introduktion
+
+Automatiskt skicka transaktionsmail för betalningsbekräftelser, abonnemangsuppdateringar och viktiga meddelanden med hjälp av SendGrid. Utlös personliga mail baserat på betalningshändelser med dynamiskt innehåll och professionella mallar.
+
+<Info>
+Denna integration kräver en SendGrid API-nyckel med Mail Send-behörigheter.
+</Info>
+
+## Komma igång
+
+<Steps>
+<Step title="Öppna Webhook-sektionen">
+  I din Dodo Payments-instrumentpanel, navigera till <b>Webhooks → + Lägg till slutpunkt</b> och expandera integrationsrullgardinsmenyn.
+  <Frame>
+    <img src="/images/integrations/sendgrid.png" alt="Lägg till slutpunkt och integrationsrullgardinsmeny" />
+  </Frame>
+</Step>
+
+<Step title="Välj SendGrid">
+  Välj <b>SendGrid</b> integrationskortet.
+</Step>
+
+<Step title="Ange API-nyckel">
+  Ange din SendGrid API-nyckel i konfigurationen.
+</Step>
+
+<Step title="Konfigurera transformation">
+  Redigera transformationskoden för att formatera mail för SendGrids Mail Send API.
+</Step>
+
+<Step title="Testa & Skapa">
+  Testa med exempelpayloads och klicka på <b>Skapa</b> för att aktivera mailutskick.
+</Step>
+
+<Step title="Klart!">
+  🎉 Betalningshändelser kommer nu automatiskt att utlösa transaktionsmail via SendGrid.
+</Step>
+</Steps>
+
+## Exempel på transformationskod
+
+### Betalningsbekräftelsemail
+
+```javascript payment_confirmation.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.url = "https://api.sendgrid.com/v3/mail/send";
+    webhook.payload = {
+      personalizations: [
+        {
+          to: [{ email: p.customer.email }],
+          dynamic_template_data: {
+            customer_name: p.customer.name,
+            payment_amount: (p.total_amount / 100).toFixed(2),
+            payment_id: p.payment_id,
+            payment_date: new Date(webhook.payload.timestamp).toLocaleDateString(),
+            currency: p.currency || "USD"
+          }
+        }
+      ],
+      from: {
+        email: "payments@yourdomain.com",
+        name: "Your Company"
+      },
+      template_id: "d-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    };
+  }
+  return webhook;
+}
+```
+
+### Välkomstmail för abonnemang
+
+```javascript subscription_welcome.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "subscription.active") {
+    const s = webhook.payload.data;
+    webhook.url = "https://api.sendgrid.com/v3/mail/send";
+    webhook.payload = {
+      personalizations: [
+        {
+          to: [{ email: s.customer.email }],
+          dynamic_template_data: {
+            customer_name: s.customer.name,
+            subscription_id: s.subscription_id,
+            product_name: s.product_id,
+            amount: (s.recurring_pre_tax_amount / 100).toFixed(2),
+            frequency: s.payment_frequency_interval,
+            next_billing: new Date(s.next_billing_date).toLocaleDateString()
+          }
+        }
+      ],
+      from: {
+        email: "welcome@yourdomain.com",
+        name: "Your Company"
+      },
+      template_id: "d-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    };
+  }
+  return webhook;
+}
+```
+
+### Meddelande om betalningsfel
+
+```javascript payment_failure.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.failed") {
+    const p = webhook.payload.data;
+    webhook.url = "https://api.sendgrid.com/v3/mail/send";
+    webhook.payload = {
+      personalizations: [
+        {
+          to: [{ email: p.customer.email }],
+          dynamic_template_data: {
+            customer_name: p.customer.name,
+            payment_amount: (p.total_amount / 100).toFixed(2),
+            error_message: p.error_message || "Payment processing failed",
+            payment_id: p.payment_id,
+            retry_link: `https://yourdomain.com/retry-payment/${p.payment_id}`
+          }
+        }
+      ],
+      from: {
+        email: "support@yourdomain.com",
+        name: "Your Company Support"
+      },
+      template_id: "d-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    };
+  }
+  return webhook;
+}
+```
+
+## Tips
+
+- Använd SendGrid dynamiska mallar för personligt innehåll
+- Inkludera relevant betalningsdata i mallvariabler
+- Ställ in korrekta avsändaradresser och avsändarnamn
+- Använd mall-ID:n för konsekvent mailformatering
+- Inkludera avregistreringslänkar för efterlevnad
+
+## Felsökning
+
+<AccordionGroup>
+<Accordion title="Mail skickas inte">
+- Verifiera att API-nyckeln har Mail Send-behörigheter
+- Kontrollera att mall-ID:n är giltiga och aktiva
+- Se till att mottagarens e-postadresser är giltiga
+- Granska SendGrid:s sändningsgränser och kvoter
+</Accordion>
+
+<Accordion title="Transformationsfel">
+- Validera att JSON-strukturen matchar SendGrid API-formatet
+- Kontrollera att alla obligatoriska fält är närvarande
+- Se till att mallens datavariabler är korrekt formaterade
+- Verifiera att avsändarens e-postadresser är verifierade i SendGrid
+</Accordion>
+</AccordionGroup>

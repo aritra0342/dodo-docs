@@ -1,0 +1,202 @@
+---
+title: Inngest
+description: Utlös serverlösa funktioner och bakgrundsjobb i Inngest baserat på
+  Dodo Payments-händelser.
+icon: cloud
+---
+
+## Introduktion
+
+Kör serverlösa funktioner och bakgrundsjobb automatiskt när betalningshändelser inträffar. Bearbeta betalningar, skicka meddelanden, uppdatera databaser och kör komplexa arbetsflöden med Inngests pålitliga plattform för funktionskörning.
+
+<Info>
+Denna integration kräver din Inngest webhook-URL från din funktionskonfiguration.
+</Info>
+
+## Komma igång
+
+<Steps>
+<Step title="Öppna Webhook-sektionen">
+  I din Dodo Payments-instrumentpanel, navigera till <b>Webhooks → + Lägg till slutpunkt</b> och expandera integrationsrullgardinsmenyn.
+  <Frame>
+    <img src="/images/integrations/inngest.png" alt="Lägg till slutpunkt och integrationsrullgardinsmeny" />
+  </Frame>
+</Step>
+
+<Step title="Välj Inngest">
+  Välj <b>Inngest</b> integrationskortet.
+</Step>
+
+<Step title="Skapa Inngest-funktion">
+  I Inngest, skapa en ny funktion och kopiera webhook-URL:en från funktionskonfigurationen.
+</Step>
+
+<Step title="Klistra in Webhook-URL">
+  Klistra in Inngest webhook-URL:en i slutpunktens konfiguration.
+</Step>
+
+<Step title="Konfigurera Transformation">
+  Redigera transformationskoden för att formatera händelser för din Inngest-funktion.
+</Step>
+
+<Step title="Testa & Skapa">
+  Testa med exempelpayloads och klicka på <b>Skapa</b> för att aktivera integrationen.
+</Step>
+
+<Step title="Klart!">
+  🎉 Betalningshändelser kommer nu automatiskt att utlösa dina Inngest-funktioner.
+</Step>
+</Steps>
+
+## Exempel på transformationskod
+
+### Grundläggande händelsepayload
+
+```javascript basic_event.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.payload = {
+      name: "payment.succeeded",
+      data: {
+        payment_id: p.payment_id,
+        amount: (p.total_amount / 100).toFixed(2),
+        currency: p.currency || "USD",
+        customer_email: p.customer.email,
+        customer_name: p.customer.name,
+        payment_method: p.payment_method || "unknown"
+      },
+      user: {
+        email: p.customer.email
+      },
+      ts: Math.floor(new Date(webhook.payload.timestamp).getTime() / 1000)
+    };
+  }
+  return webhook;
+}
+```
+
+### Prenumerationshändelsehanterare
+
+```javascript subscription_event.js icon="js" expandable
+function handler(webhook) {
+  const s = webhook.payload.data;
+  switch (webhook.eventType) {
+    case "subscription.active":
+      webhook.payload = {
+        name: "subscription.started",
+        data: {
+          subscription_id: s.subscription_id,
+          customer_email: s.customer.email,
+          customer_name: s.customer.name,
+          product_id: s.product_id,
+          amount: (s.recurring_pre_tax_amount / 100).toFixed(2),
+          frequency: s.payment_frequency_interval,
+          next_billing: s.next_billing_date
+        },
+        user: {
+          email: s.customer.email
+        },
+        ts: Math.floor(new Date(webhook.payload.timestamp).getTime() / 1000)
+      };
+      break;
+    case "subscription.cancelled":
+      webhook.payload = {
+        name: "subscription.cancelled",
+        data: {
+          subscription_id: s.subscription_id,
+          customer_email: s.customer.email,
+          cancelled_at: s.cancelled_at,
+          cancel_at_next_billing: s.cancel_at_next_billing_date
+        },
+        user: {
+          email: s.customer.email
+        },
+        ts: Math.floor(new Date(webhook.payload.timestamp).getTime() / 1000)
+      };
+      break;
+  }
+  return webhook;
+}
+```
+
+### Tvist-händelsehanterare
+
+```javascript dispute_event.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType.startsWith("dispute.")) {
+    const d = webhook.payload.data;
+    webhook.payload = {
+      name: webhook.eventType,
+      data: {
+        dispute_id: d.dispute_id,
+        payment_id: d.payment_id,
+        amount: (d.amount / 100).toFixed(2),
+        status: d.dispute_status,
+        stage: d.dispute_stage,
+        remarks: d.remarks || "",
+        urgent: webhook.eventType === "dispute.opened"
+      },
+      user: {
+        email: d.customer?.email || "unknown"
+      },
+      ts: Math.floor(new Date(webhook.payload.timestamp).getTime() / 1000)
+    };
+  }
+  return webhook;
+}
+```
+
+## Vanliga användningsfall för Inngest
+
+<AccordionGroup>
+<Accordion title="Betalningshantering">
+- Skicka bekräftelsemail
+- Uppdatera kundregister
+- Bearbeta återbetalningar
+- Generera fakturor
+- Uppdatera lager
+</Accordion>
+
+<Accordion title="Prenumerationshantering">
+- Välkomna nya prenumeranter
+- Bearbeta avbokningar
+- Skicka påminnelser om förnyelse
+- Uppdatera faktureringscykler
+- Hantera misslyckade betalningar
+</Accordion>
+
+<Accordion title="Analys & Rapportering">
+- Uppdatera intäktsmått
+- Spåra kundbeteende
+- Generera rapporter
+- Synkronisera data till analysplattformar
+- Beräkna churn-rate
+</Accordion>
+</AccordionGroup>
+
+## Tips
+
+- Använd beskrivande händelsenamn för bättre funktionsorganisation
+- Inkludera användarkontext för funktionskörning
+- Sätt korrekta tidsstämplar för händelseordning
+- Strukturera data konsekvent över händelser
+- Använd Inngests funktioner för omförsök och felhantering
+
+## Felsökning
+
+<AccordionGroup>
+<Accordion title="Funktioner utlöses inte">
+- Verifiera att webhook-URL:en är korrekt och aktiv
+- Kontrollera att Inngest-funktionen är distribuerad och aktiv
+- Se till att händelsenamn matchar funktionsutlösare
+- Granska Inngest-funktionsloggar för fel
+</Accordion>
+
+<Accordion title="Data mottas inte korrekt">
+- Kontrollera att payload-strukturen matchar Inngests förväntningar
+- Verifiera att händelsenamn är korrekt formaterade
+- Se till att alla obligatoriska fält är inkluderade
+- Testa med Inngests webhook-testverktyg
+</Accordion>
+</AccordionGroup>

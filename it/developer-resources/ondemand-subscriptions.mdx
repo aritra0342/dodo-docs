@@ -1,0 +1,459 @@
+---
+title: Abbonamenti On-Demand
+description: Integra abbonamenti on-demand autorizzando mandati, creando
+  addebiti variabili, gestendo webhook e implementando politiche di retry
+  sicure.
+icon: bolt
+---
+
+## Panoramica
+
+Gli abbonamenti on-demand ti consentono di autorizzare il metodo di pagamento di un cliente una sola volta e poi addebitare importi variabili ogni volta che ne hai bisogno, invece di seguire un programma fisso.
+
+Utilizza questa guida per:
+- Creare un abbonamento on-demand (autorizzare un mandato con un prezzo iniziale opzionale)
+- Attivare addebiti successivi con importi personalizzati
+- Monitorare i risultati utilizzando webhook
+
+Per una configurazione generale degli abbonamenti, consulta la [Guida all'Integrazione degli Abbonamenti](/developer-resources/subscription-integration-guide).
+
+## Requisiti
+
+- Account commerciante Dodo Payments e chiave API
+- Segreto del webhook configurato e un endpoint per ricevere eventi
+- Un prodotto in abbonamento nel tuo catalogo
+
+<Tip>
+Se desideri che il cliente approvi il mandato tramite checkout ospitato, imposta `payment_link: true` e fornisci un `return_url`.
+</Tip>
+
+## Come funziona l'on-demand
+
+1. Crei un abbonamento con l'oggetto `on_demand` per autorizzare un metodo di pagamento e, facoltativamente, raccogliere un addebito iniziale.
+2. In seguito, crei addebiti contro quell'abbonamento con importi personalizzati utilizzando l'endpoint di addebito dedicato.
+3. Ascolti i webhook (ad es., `payment.succeeded`, `payment.failed`) per aggiornare il tuo sistema.
+
+## Crea un abbonamento on-demand
+
+Endpoint: [POST /subscriptions](/api-reference/subscriptions/post-subscriptions)
+
+Campi chiave della richiesta (corpo):
+
+<AccordionGroup>
+<Accordion title="Parametri del corpo della richiesta">
+  <ParamField body="product_id" type="string" required>
+    ID del prodotto per l'abbonamento.
+  </ParamField>
+
+  <ParamField body="quantity" type="integer" required>
+    Numero di unità. Minimo 1.
+  </ParamField>
+
+  <ParamField body="billing" type="object" required>
+    Indirizzo di fatturazione per il cliente.
+  </ParamField>
+
+  <ParamField body="customer" type="object" required>
+    Allegare un cliente esistente o fornire i dettagli del cliente.
+  </ParamField>
+
+  <ParamField body="payment_link" type="boolean" default="false">
+    Se vero, crea un link di checkout ospitato per l'autorizzazione del mandato e il pagamento iniziale opzionale.
+  </ParamField>
+
+  <ParamField body="return_url" type="string">
+    Dove reindirizzare il cliente dopo aver completato il checkout ospitato.
+  </ParamField>
+
+  <ParamField body="on_demand.mandate_only" type="boolean" required>
+    Se vero, autorizza il metodo di pagamento senza addebitare il cliente durante la creazione.
+  </ParamField>
+
+  <ParamField body="on_demand.product_price" type="integer">
+    Importo dell'addebito iniziale (nell'unità monetaria più piccola). Se specificato, questo valore sovrascrive il prezzo originale del prodotto impostato durante la creazione del prodotto. Se omesso, viene utilizzato il prezzo memorizzato del prodotto. Esempio: per addebitare $1.00, passa <code>100</code>.
+  </ParamField>
+
+  <ParamField body="on_demand.product_currency" type="string">
+    Sovrascrittura della valuta opzionale per l'addebito iniziale. Predefinito alla valuta del prodotto.
+  </ParamField>
+
+  <ParamField body="on_demand.product_description" type="string">
+    Sovrascrittura della descrizione opzionale per la fatturazione e gli articoli di linea.
+  </ParamField>
+
+  <ParamField body="on_demand.adaptive_currency_fees_inclusive" type="boolean">
+    Se vero, include le spese di valuta adattiva all'interno di <code>product_price</code>. Se falso, le spese vengono aggiunte sopra. Ignorato quando la tariffazione adattiva è disabilitata.
+  </ParamField>
+</Accordion>
+</AccordionGroup>
+
+### Crea un abbonamento on-demand
+
+<Tabs>
+<Tab title="Node.js SDK">
+
+```javascript
+import DodoPayments from 'dodopayments';
+
+const client = new DodoPayments({
+  bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'test_mode', // defaults to 'live_mode'
+});
+
+async function main() {
+  const subscription = await client.subscriptions.create({
+    billing: { city: 'SF', country: 'US', state: 'CA', street: '1 Market St', zipcode: '94105' },
+    customer: { customer_id: 'customer_123' },
+    product_id: 'prod_sub_123',
+    quantity: 1,
+    payment_link: true,
+    return_url: 'https://example.com/billing/success',
+    on_demand: {
+      mandate_only: true, // set false to collect an initial charge
+      // product_price: 1000, // optional: charge $10.00 now if mandate_only is false
+      // product_currency: 'USD',
+      // product_description: 'Custom initial charge',
+      // adaptive_currency_fees_inclusive: false,
+    },
+  });
+
+  // If payment_link was true, redirect the customer to authorize the mandate
+  console.log(subscription.payment_link);
+}
+
+main().catch(console.error);
+```
+
+</Tab>
+<Tab title="Python SDK">
+
+```python
+import os
+from dodopayments import DodoPayments
+
+client = DodoPayments(
+    bearer_token=os.environ.get('DODO_PAYMENTS_API_KEY'),
+    environment="test_mode",  # defaults to "live_mode"
+)
+
+subscription = client.subscriptions.create(
+    billing={
+        "city": "SF",
+        "country": "US",
+        "state": "CA",
+        "street": "1 Market St",
+        "zipcode": "94105",
+    },
+    customer={"customer_id": "customer_123"},
+    product_id="prod_sub_123",
+    quantity=1,
+    payment_link=True,
+    return_url="https://example.com/billing/success",
+    on_demand={
+        "mandate_only": True,
+        # "product_price": 1000,
+        # "product_currency": "USD",
+        # "product_description": "Custom initial charge",
+        # "adaptive_currency_fees_inclusive": False,
+    },
+)
+
+print(subscription.payment_link)
+```
+
+</Tab>
+<Tab title="Go SDK">
+
+```go
+package main
+
+import (
+  "context"
+  "fmt"
+  "github.com/dodopayments/dodopayments-go"
+  "github.com/dodopayments/dodopayments-go/option"
+)
+
+func main() {
+  client := dodopayments.NewClient(
+    option.WithBearerToken("YOUR_API_KEY"),
+  )
+  subscription, err := client.Subscriptions.New(context.TODO(), dodopayments.SubscriptionNewParams{
+    Billing: dodopayments.F(dodopayments.BillingAddressParam{
+      City:    dodopayments.F("SF"),
+      Country: dodopayments.F(dodopayments.CountryCodeUs),
+      State:   dodopayments.F("CA"),
+      Street:  dodopayments.F("1 Market St"),
+      Zipcode: dodopayments.F("94105"),
+    }),
+    Customer: dodopayments.F[dodopayments.CustomerRequestUnionParam](dodopayments.AttachExistingCustomerParam{
+      CustomerID: dodopayments.F("customer_123"),
+    }),
+    ProductID:  dodopayments.F("prod_sub_123"),
+    Quantity:   dodopayments.F(int64(1)),
+    PaymentLink: dodopayments.F(true),
+    ReturnURL:   dodopayments.F("https://example.com/billing/success"),
+    OnDemand: dodopayments.F(dodopayments.OnDemandSubscriptionReqParam{
+      MandateOnly: dodopayments.F(true),
+      // ProductPrice: dodopayments.F(int64(1000)),
+      // ProductCurrency: dodopayments.F(dodopayments.CurrencyUsd),
+      // ProductDescription: dodopayments.F("Custom initial charge"),
+      // AdaptiveCurrencyFeesInclusive: dodopayments.F(false),
+    }),
+  })
+  if err != nil { panic(err) }
+  fmt.Println(subscription.PaymentLink)
+}
+```
+
+</Tab>
+<Tab title="cURL">
+
+```bash
+curl -X POST "$DODO_API/subscriptions" \
+  -H "Authorization: Bearer $DODO_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "billing": {"city": "SF", "country": "US", "state": "CA", "street": "1 Market St", "zipcode": "94105"},
+    "customer": {"customer_id": "customer_123"},
+    "product_id": "prod_sub_123",
+    "quantity": 1,
+    "payment_link": true,
+    "return_url": "https://example.com/billing/success",
+    "on_demand": {
+      "mandate_only": true
+    }
+  }'
+```
+
+</Tab>
+</Tabs>
+
+<Check>
+Imposta `payment_link: true`, reindirizza il cliente a `payment_link` per completare l'autorizzazione del mandato.
+</Check>
+
+```json Success
+{
+  "subscription_id": "sub_123",
+  "payment_link": "https://pay.dodopayments.com/checkout/...",
+  "customer": { "customer_id": "customer_123", "email": "alex@example.com", "name": "Alex Doe" },
+  "metadata": {},
+  "recurring_pre_tax_amount": 0,
+  "addons": []
+}
+```
+
+## Addebita un abbonamento on-demand
+
+Dopo che il mandato è stato autorizzato, crea addebiti secondo necessità.
+
+Endpoint: [POST /subscriptions/\{subscription_id\}/charge](/api-reference/subscriptions/create-charge)
+
+Campi chiave della richiesta (corpo):
+
+<AccordionGroup>
+  <Accordion title="Parametri del corpo della richiesta di addebito">
+    <ParamField body="product_price" type="integer" required>
+      Importo da addebitare (nell'unità monetaria più piccola). Esempio: per addebitare $25.00, passa <code>2500</code>.
+    </ParamField>
+
+    <ParamField body="product_currency" type="string">
+      Sovrascrittura della valuta opzionale per l'addebito.
+    </ParamField>
+
+    <ParamField body="product_description" type="string">
+      Sovrascrittura della descrizione opzionale per questo addebito.
+    </ParamField>
+
+    <ParamField body="adaptive_currency_fees_inclusive" type="boolean">
+      Se vero, include le spese di valuta adattiva all'interno di <code>product_price</code>. Se falso, le spese vengono aggiunte sopra.
+    </ParamField>
+
+    <ParamField body="metadata" type="object">
+      Metadati aggiuntivi per il pagamento. Se omesso, vengono utilizzati i metadati dell'abbonamento.
+    </ParamField>
+  </Accordion>
+</AccordionGroup>
+
+<Tabs>
+<Tab title="Node.js SDK">
+
+```javascript
+import DodoPayments from 'dodopayments';
+
+const client = new DodoPayments({
+  bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'test_mode', // defaults to 'live_mode'
+});
+
+async function chargeNow(subscriptionId) {
+  const res = await client.subscriptions.charge(subscriptionId, { product_price: 2500 });
+  console.log(res.payment_id);
+}
+
+chargeNow('sub_123').catch(console.error);
+```
+
+</Tab>
+<Tab title="Python SDK">
+
+```python
+import os
+from dodopayments import DodoPayments
+
+client = DodoPayments(
+    bearer_token=os.environ.get('DODO_PAYMENTS_API_KEY'),
+    environment="test_mode",  # defaults to "live_mode"
+)
+
+response = client.subscriptions.charge(
+    subscription_id="sub_123",
+    product_price=2500,
+)
+
+print(response.payment_id)
+```
+
+</Tab>
+<Tab title="Go SDK">
+
+```go
+package main
+
+import (
+  "context"
+  "fmt"
+  "github.com/dodopayments/dodopayments-go"
+  "github.com/dodopayments/dodopayments-go/option"
+)
+
+func main() {
+  client := dodopayments.NewClient(option.WithBearerToken("YOUR_API_KEY"))
+  res, err := client.Subscriptions.Charge(context.TODO(), "sub_123", dodopayments.SubscriptionChargeParams{
+    ProductPrice: dodopayments.F(int64(2500)),
+  })
+  if err != nil { panic(err) }
+  fmt.Println(res.PaymentID)
+}
+```
+
+</Tab>
+<Tab title="cURL">
+
+```bash
+curl -X POST "$DODO_API/subscriptions/sub_123/charge" \
+  -H "Authorization: Bearer $DODO_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "product_price": 2500,
+    "product_description": "Extra usage for March"
+  }'
+```
+
+</Tab>
+</Tabs>
+
+```json Success
+{ "payment_id": "pay_abc123" }
+```
+
+<Warning>
+Addebitare un abbonamento che non è on-demand potrebbe fallire. Assicurati che l'abbonamento abbia `on_demand: true` nei suoi dettagli prima di addebitare.
+</Warning>
+
+## Retry dei pagamenti
+
+Il nostro sistema di rilevamento delle frodi potrebbe bloccare schemi di retry aggressivi (e può contrassegnarli come potenziale testing delle carte). Segui una politica di retry sicura.
+
+<Warning>
+Schemi di retry a raffica possono essere contrassegnati come fraudolenti o sospetti di testing delle carte dai nostri sistemi di rischio e dai processori. Evita retry raggruppati; segui il programma di backoff e le linee guida di allineamento temporale qui sotto.
+</Warning>
+
+### Principi per politiche di retry sicure
+
+- **Meccanismo di backoff**: Utilizza il backoff esponenziale tra i retry.
+- **Limiti di retry**: Limita il numero totale di retry (massimo 3-4 tentativi).
+- **Filtraggio intelligente**: Retry solo su errori recuperabili (ad es., errori di rete/emittente, fondi insufficienti); non ripetere mai i rifiuti definitivi.
+- **Prevenzione del testing delle carte**: Non ripetere i rifiuti come `DO_NOT_HONOR`, `STOLEN_CARD`, `LOST_CARD`, `PICKUP_CARD`, `FRAUDULENT`, `AUTHENTICATION_FAILURE`.
+- **Variazione dei metadati (opzionale)**: Se mantieni il tuo sistema di retry, differenzia i retry tramite metadati (ad es., `retry_attempt`).
+
+### Programma di retry suggerito (abbonamenti)
+
+- **1° tentativo**: Immediato quando crei l'addebito
+- **2° tentativo**: Dopo 3 giorni
+- **3° tentativo**: Dopo altri 7 giorni (10 giorni totali)
+- **4° tentativo (finale)**: Dopo altri 7 giorni (17 giorni totali)
+
+Passaggio finale: se ancora non pagato, contrassegna l'abbonamento come non pagato o annullalo, in base alla tua politica. Notifica il cliente durante il periodo per aggiornare il proprio metodo di pagamento.
+
+### Evita retry a raffica; allineati all'orario di autorizzazione
+
+- Ancorare i retry al timestamp di autorizzazione originale per evitare comportamenti a "raffica" nel tuo portafoglio.
+- Esempio: Se il cliente inizia una prova o un mandato alle 13:10 di oggi, programma i retry successivi alle 13:10 nei giorni successivi secondo il tuo backoff (ad es., +3 giorni → 13:10, +7 giorni → 13:10).
+- In alternativa, se memorizzi l'ora dell'ultimo pagamento riuscito `T`, programma il prossimo tentativo a `T + X days` per preservare l'allineamento dell'orario della giornata.
+
+<Note>
+Fuso orario e DST: utilizza uno standard temporale coerente per la programmazione e converti solo per la visualizzazione per mantenere gli intervalli.
+</Note>
+
+### Codici di rifiuto che non dovresti ripetere
+
+- `STOLEN_CARD`
+- `DO_NOT_HONOR`
+- `FRAUDULENT`
+- `PICKUP_CARD`
+- `AUTHENTICATION_FAILURE`
+- `LOST_CARD`
+
+<Note>
+Per un elenco completo delle ragioni di rifiuto e se sono correggibili dall'utente, consulta la
+[Documentazione sui Fallimenti delle Transazioni](/api-reference/transaction-failures).
+</Note>
+
+<Tip>
+Ripeti solo su problemi soft/temporanei (ad es., `insufficient_funds`, `issuer_unavailable`, `processing_error`, timeout di rete). Se lo stesso rifiuto si ripete, interrompi ulteriori retry.
+</Tip>
+
+### Linee guida per l'implementazione (senza codice)
+
+- Utilizza un pianificatore/coda che persiste timestamp precisi; calcola il prossimo tentativo all'orario esatto (ad es., `T + 3 days` alla stessa HH:MM).
+- Mantieni e fai riferimento all'ora dell'ultimo pagamento riuscito `T` per calcolare il prossimo tentativo; non raggruppare più abbonamenti nello stesso istante.
+- Valuta sempre l'ultima ragione di rifiuto; interrompi i retry per i rifiuti definitivi nell'elenco di esclusione sopra.
+- Limita i retry concorrenti per cliente e per account per prevenire picchi accidentali.
+- Comunica proattivamente: invia un'email/SMS al cliente per aggiornare il proprio metodo di pagamento prima del prossimo tentativo programmato.
+- Utilizza i metadati solo per l'osservabilità (ad es., `retry_attempt`); non cercare mai di "evadere" i sistemi di frode/rischio ruotando campi insignificanti.
+
+## Monitora i risultati con i webhook
+
+Implementa la gestione dei webhook per monitorare il percorso del cliente. Consulta [Implementazione dei Webhook](/developer-resources/integration-guide#implementing-webhooks).
+
+- **subscription.active**: Mandato autorizzato e abbonamento attivato
+- **subscription.failed**: Creazione fallita (ad es., fallimento del mandato)
+- **subscription.on_hold**: Abbonamento messo in attesa (ad es., stato non pagato)
+- **payment.succeeded**: Addebito riuscito
+- **payment.failed**: Addebito fallito
+
+<Tip>
+Per i flussi on-demand, concentrati su `payment.succeeded` e `payment.failed` per riconciliare gli addebiti basati sull'uso.
+</Tip>
+
+## Test e prossimi passi
+
+<Steps>
+<Step title="Crea in modalità test">
+Utilizza la tua chiave API di test per creare l'abbonamento con `payment_link: true`, quindi apri il link e completa il mandato.
+</Step>
+<Step title="Attiva un addebito">
+Chiama l'endpoint di addebito con un piccolo `product_price` (ad es., `100`) e verifica di ricevere `payment.succeeded`.
+</Step>
+<Step title="Vai in produzione">
+Passa alla tua chiave API live una volta che hai convalidato eventi e aggiornamenti dello stato interno.
+</Step>
+</Steps>
+
+## Risoluzione dei problemi
+
+- **422 Richiesta non valida**: Assicurati che `on_demand.mandate_only` sia fornito alla creazione e che `product_price` sia fornito per gli addebiti.
+- **Errori di valuta**: Se sovrascrivi `product_currency`, conferma che sia supportato per il tuo account e cliente.
+- **Nessun webhook ricevuto**: Verifica l'URL del tuo webhook e la configurazione del segreto della firma.

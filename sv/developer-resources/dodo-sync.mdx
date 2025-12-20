@@ -1,0 +1,332 @@
+---
+sidebarTitle: Databas Synkronisering
+title: Synkronisera med din Databas
+icon: database
+description: Automatiskt synkronisera dina Dodo Payments-data till din egen
+  databas för analys, rapportering och integrationer.
+---
+
+Dodo Payments erbjuder en inbyggd databas synkroniseringsfunktion som automatiskt synkroniserar dina betalningsdata med din egen databas. Du kan synkronisera **betalningar**, **kunder**, **prenumerationer** och **licenser** för att behålla en lokal kopia av dina data för analys, rapportering eller integration med andra system.
+
+<Info>
+**Implementering**: Tillgänglig via [npm-paket](https://www.npmjs.com/package/dodo-sync) | **Källkod**: [GitHub](https://github.com/dodopayments/dodo-sync)
+</Info>
+
+## Vad Kan Du Synkronisera?
+
+Vår databas synkroniseringsfunktion stöder synkronisering av följande Dodo Payments-enheter till din databas:
+
+<CardGroup cols={2}>
+  <Card title="Betalningar" icon="credit-card">
+    Synkronisera alla betalningstransaktioner, inklusive engångsbetalningar, återbetalningar och uppdateringar av betalningsstatus.
+  </Card>
+  <Card title="Kunder" icon="users">
+    Håll dina kunddata synkroniserade, inklusive kundprofiler, kontaktinformation och metadata.
+  </Card>
+  <Card title="Prenumerationer" icon="repeat">
+    Synkronisera prenumerationsdata, inklusive aktiva prenumerationer, faktureringscykler och ändringar av prenumerationsstatus.
+  </Card>
+  <Card title="Licenser" icon="key">
+    Synkronisera licensinformation, inklusive licensnycklar, aktiveringar och uppdateringar av licensstatus.
+  </Card>
+</CardGroup>
+
+Du kan synkronisera vilken kombination av dessa enheter som helst genom att specificera dem i `scopes` parametern. Alla synkroniseringsoperationer är inkrementella och överför endast nya eller uppdaterade poster för optimal prestanda.
+
+## Databasstöd
+
+Vi stöder för närvarande **MongoDB**, **PostgreSQL**, **MySQL** och **ClickHouse**.
+
+Vi arbetar aktivt med att utöka stödet för:
+- **Databaser**: Snowflake och andra.
+- **Pipelines**: ETL-pipelines, Realtids synkronisering.
+
+<Tip>
+Vi utökar kontinuerligt databasstödet. Om du vill bidra med en ny databasintegration, vänligen skicka en Pull Request till vårt [GitHub-repo](https://github.com/dodopayments/dodo-sync).
+</Tip>
+
+## Komma Igång
+
+Du kan använda vår databas synkroniseringsfunktion via **CLI** eller programmässigt i din **kod**. Båda metoderna erbjuder samma funktionalitet—välj den som passar din arbetsflöde bäst.
+
+### Använda CLI
+
+CLI-verktyget erbjuder ett snabbt sätt att ställa in och köra databas synkronisering. Installera det globalt för att använda det från var som helst i din terminal:
+
+<CodeGroup>
+
+```bash npm
+npm install -g dodo-sync
+```
+
+```bash bun
+bun add -g dodo-sync
+```
+
+</CodeGroup>
+
+#### Köra CLI
+
+CLI stöder två lägen: **Interaktivt Läge** för guidad installation, och **Manuellt Läge** för direkt konfiguration.
+
+**Interaktivt Läge**: Kör helt enkelt kommandot utan argument för att starta den interaktiva installationsguiden.
+
+```bash
+dodo-sync
+```
+
+**Manuellt Läge**: Skicka argument direkt för att hoppa över guiden.
+
+```bash
+dodo-sync -i [interval] -d [database] -u [database_uri] --scopes [scopes] --api-key [api_key] --env [environment]
+```
+
+**Exempel:**
+
+```bash
+# MongoDB
+dodo-sync -i 600 -d mongodb -u mongodb://mymongodb.url --scopes "licences,payments,customers,subscriptions" --api-key YOUR_API_KEY --env test_mode
+
+# PostgreSQL
+dodo-sync -i 600 -d postgres -u postgresql://user:password@localhost:5432/mydb --scopes "licences,payments,customers,subscriptions" --api-key YOUR_API_KEY --env test_mode
+
+# MySQL
+dodo-sync -i 600 -d mysql -u mysql://user:password@localhost:3306/mydb --scopes "licences,payments,customers,subscriptions" --api-key YOUR_API_KEY --env test_mode
+
+# ClickHouse
+dodo-sync -i 600 -d clickhouse -u http://localhost:8123 --scopes "licences,payments,customers,subscriptions" --api-key YOUR_API_KEY --env test_mode
+```
+
+#### CLI-Argument
+
+<ParamField path="--interval" type="number" alias="-i">
+Synkroniseringsintervall i sekunder. Bestämmer hur ofta synkroniseringsoperationen körs. Om det inte anges, kommer synkroniseringen att köras en gång och avslutas.
+</ParamField>
+
+<ParamField path="--database" type="string" alias="-d" required>
+Databas typ att använda. Stödda värden: `"mongodb"`, `"postgres"`, `"mysql"`, eller `"clickhouse"`.
+</ParamField>
+
+<ParamField path="--database-uri" type="string" alias="-u" required>
+Anslutnings-URI för din databas:
+- **MongoDB**: `mongodb://localhost:27017` eller `mongodb+srv://user:pass@cluster.mongodb.net/`
+- **PostgreSQL**: `postgresql://user:password@localhost:5432/mydb`
+- **MySQL**: `mysql://user:password@localhost:3306/mydb`
+- **ClickHouse**: `http://localhost:8123`
+</ParamField>
+
+<ParamField path="--scopes" type="string" required>
+Kommaseparerad lista över dataenheter att synkronisera. Tillgängliga områden: `licences`, `payments`, `customers`, `subscriptions`. Exempel: `"payments,customers"`.
+</ParamField>
+
+<ParamField path="--api-key" type="string" required>
+Din Dodo Payments API-nyckel. Börja med `dp_live_` för live-läge eller `dp_test_` för testläge.
+</ParamField>
+
+<ParamField path="--env" type="string" required>
+Målmiljö. Måste vara antingen `"live_mode"` eller `"test_mode"`. Detta avgör vilken Dodo Payments-miljö som ska synkroniseras från.
+</ParamField>
+
+<ParamField path="--rate-limit" type="number" alias="--rl">
+Hastighetsbegränsning i förfrågningar per sekund. Kontrollerar hur snabbt synkroniseringsmotorn gör API-förfrågningar för att undvika att överbelasta Dodo Payments API.
+</ParamField>
+
+### Använda i Din Kod
+
+För programmatisk kontroll, integrera synkroniseringsfunktionen direkt i din applikation. Installera det som ett beroende i ditt projekt:
+
+<CodeGroup>
+
+```bash npm
+npm install dodo-sync
+```
+
+```bash bun
+bun add dodo-sync
+```
+
+</CodeGroup>
+
+#### Automatisk Synk (Intervallbaserad)
+
+Använd automatisk synk när du vill att synkroniseringen ska köras kontinuerligt med regelbundna intervall:
+
+```typescript
+import { DodoSync } from 'dodo-sync';
+
+const syncDodoPayments = new DodoSync({
+  interval: 60, // Sync every 60 seconds
+  database: 'mongodb',
+  databaseURI: process.env.MONGODB_URI, // e.g., 'mongodb://localhost:27017'
+  scopes: ['licences', 'payments', 'customers', 'subscriptions'],
+  dodoPaymentsOptions: {
+    bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+    environment: 'test_mode' // or 'live_mode'
+  }
+});
+
+// Initialize connection
+await syncDodoPayments.init();
+
+// Start the sync loop
+syncDodoPayments.start();
+```
+
+<Tip>
+Alternativet `interval` är obligatoriskt när du använder `.start()` för automatisk synkronisering. Synkroniseringen kommer att köras kontinuerligt med det angivna intervallet tills processen stoppas.
+</Tip>
+
+#### Manuell Synk
+
+Använd manuell synk när du vill utlösa synkroniseringsoperationer på begäran (t.ex. från ett cron-jobb eller API-slutpunkt):
+
+```typescript
+import { DodoSync } from 'dodo-sync';
+
+const syncDodoPayments = new DodoSync({
+  database: 'mongodb',
+  databaseURI: process.env.MONGODB_URI,
+  scopes: ['licences', 'payments', 'customers', 'subscriptions'],
+  dodoPaymentsOptions: {
+    bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+    environment: 'test_mode'
+  }
+});
+
+// Initialize connection
+await syncDodoPayments.init();
+
+// Trigger a single sync operation
+await syncDodoPayments.run();
+```
+
+<Tip>
+När du använder manuell synk, är alternativet `interval` inte obligatoriskt. Du kan anropa `.run()` när du behöver utföra en synkroniseringsoperation.
+</Tip>
+
+#### PostgreSQL Exempel
+
+Så här använder du `dodo-sync` med PostgreSQL:
+
+```typescript
+import { DodoSync } from 'dodo-sync';
+
+const syncDodoPayments = new DodoSync({
+  interval: 60,
+  database: 'postgres',
+  databaseURI: process.env.POSTGRES_URI, // e.g., 'postgresql://user:password@localhost:5432/mydb'
+  scopes: ['licences', 'payments', 'customers', 'subscriptions'],
+  dodoPaymentsOptions: {
+    bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+    environment: 'test_mode'
+  }
+});
+
+await syncDodoPayments.init();
+syncDodoPayments.start();
+```
+
+#### MySQL Exempel
+
+Så här använder du `dodo-sync` med MySQL:
+
+```typescript
+import { DodoSync } from 'dodo-sync';
+
+const syncDodoPayments = new DodoSync({
+  interval: 60,
+  database: 'mysql',
+  databaseURI: process.env.MYSQL_URI, // e.g., 'mysql://user:password@localhost:3306/mydb'
+  scopes: ['licences', 'payments', 'customers', 'subscriptions'],
+  dodoPaymentsOptions: {
+    bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+    environment: 'test_mode'
+  }
+});
+
+await syncDodoPayments.init();
+syncDodoPayments.start();
+```
+
+#### ClickHouse Exempel
+
+Så här använder du `dodo-sync` med ClickHouse:
+
+```typescript
+import { DodoSync } from 'dodo-sync';
+
+const syncDodoPayments = new DodoSync({
+  interval: 60,
+  database: 'clickhouse',
+  databaseURI: process.env.CLICKHOUSE_URI, // e.g., 'http://localhost:8123'
+  scopes: ['licences', 'payments', 'customers', 'subscriptions'],
+  dodoPaymentsOptions: {
+    bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+    environment: 'test_mode'
+  }
+});
+
+await syncDodoPayments.init();
+syncDodoPayments.start();
+```
+
+#### Konstruktörsoptioner
+
+<ParamField body="database" type="string" required>
+Namn på databasen som ska användas. Stödda värden: `"mongodb"`, `"postgres"`, `"mysql"`, eller `"clickhouse"`.
+</ParamField>
+
+<ParamField body="databaseURI" type="string" required>
+Anslutningssträng för din databas:
+- **MongoDB**: `mongodb://localhost:27017` eller `mongodb+srv://...`
+- **PostgreSQL**: `postgresql://user:password@localhost:5432/mydb`
+- **MySQL**: `mysql://user:password@localhost:3306/mydb`
+- **ClickHouse**: `http://localhost:8123`
+</ParamField>
+
+<ParamField body="scopes" type="string[]" required>
+Array av enheter att synkronisera. Tillgängliga alternativ: `"licences"`, `"payments"`, `"customers"`, `"subscriptions"`. Du kan inkludera vilken kombination av dessa som helst.
+</ParamField>
+
+<ParamField body="dodoPaymentsOptions" type="object" required>
+Dodo Payments API-konfiguration för autentisering och val av miljö. Se [TypeScript SDK-typer](https://github.com/dodopayments/dodopayments-typescript/blob/main/src/client.ts) för kompletta alternativ.
+
+**Obligatoriska egenskaper:**
+- `bearerToken`: Din Dodo Payments API-nyckel
+- `environment`: Antingen `"test_mode"` eller `"live_mode"`
+</ParamField>
+
+<ParamField body="interval" type="number">
+Tid i sekunder mellan automatiska synkroniseringar. Obligatoriskt när du använder `.start()` för automatisk synkronisering. Valfritt när du använder `.run()` för manuell synkronisering.
+</ParamField>
+
+<ParamField body="rateLimit" type="number">
+Antal förfrågningar per sekund. Kontrollerar hur snabbt synkroniseringsmotorn gör API-förfrågningar för att undvika att överbelasta Dodo Payments API.
+</ParamField>
+
+## Viktig Information
+
+<Warning>
+**MongoDB**: En databas med namnet `dodopayments_sync` kommer automatiskt att skapas på din databasserver. All synkdata kommer att lagras där. Detta databasnamn är för närvarande fast och kan inte ändras.
+
+**PostgreSQL**: Tabeller (`Subscriptions`, `Payments`, `Licenses`, `Customers`) kommer att skapas i den databas som anges i din anslutnings-URI. Data lagras som JSONB.
+
+**MySQL**: Tabeller (`Subscriptions`, `Payments`, `Licenses`, `Customers`) kommer att skapas i den databas som anges i din anslutnings-URI. Data lagras som JSON.
+
+**ClickHouse**: Tabeller (`Subscriptions`, `Payments`, `Licenses`, `Customers`) kommer att skapas med ReplacingMergeTree-motorn. När du frågar, använd `FINAL` nyckelord för att säkerställa deduplicerade resultat.
+</Warning>
+
+<Info>
+Synkroniseringsmotorn spårar ändringar och synkroniserar endast nya eller uppdaterade poster, vilket gör efterföljande synkroniseringar effektiva även med stora datamängder.
+</Info>
+
+## Ytterligare Resurser
+
+<CardGroup cols={2}>
+  <Card title="GitHub Repository" icon="github" href="https://github.com/dodopayments/dodo-sync">
+    Visa källkod, rapportera problem eller bidra med förbättringar
+  </Card>
+  <Card title="npm Paket" icon="box-open" href="https://www.npmjs.com/package/dodo-sync">
+    Visa paketdetaljer och installationsinstruktioner
+  </Card>
+</CardGroup>

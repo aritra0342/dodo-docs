@@ -1,0 +1,508 @@
+---
+sidebarTitle: Abbonamenti
+title: Abbonamenti
+description: Offri fatturazione ricorrente per abbonamenti, SaaS o servizi con
+  cicli flessibili, prove, ripartizioni, add-on e addebiti on-demand.
+icon: repeat
+---
+
+<Info>
+Gli abbonamenti ti consentono di vendere accesso continuo con rinnovi automatici. Utilizza cicli di fatturazione flessibili, prove gratuite, cambi di piano e add-on per personalizzare i prezzi per ogni cliente.
+</Info>
+
+<CardGroup cols={2}>
+<Card title="Aggiorna & Riduci" icon="repeat" href="/developer-resources/subscription-upgrade-downgrade">
+Controlla i cambi di piano con ripartizione e aggiornamenti di quantità.
+</Card>
+
+<Card title="Abbonamenti On-Demand" icon="bolt" href="/developer-resources/ondemand-subscriptions">
+Autorizza un mandato ora e addebita in seguito con importi personalizzati.
+</Card>
+
+<Card title="Portale Clienti" icon="id-card" href="/features/customer-portal">
+Consenti ai clienti di gestire piani, fatturazione e cancellazioni.
+</Card>
+
+<Card title="Webhook per Abbonamenti" icon="code" href="/developer-resources/webhooks/intents/subscription">
+Reagisci agli eventi del ciclo di vita come creato, rinnovato e annullato.
+</Card>
+</CardGroup>
+
+## Cosa Sono gli Abbonamenti?
+
+Gli abbonamenti sono prodotti ricorrenti che i clienti acquistano secondo un programma. Sono ideali per:
+
+- **Licenze SaaS**: App, API o accesso alla piattaforma
+- **Abbonamenti**: Comunità, programmi o club
+- **Contenuti digitali**: Corsi, media o contenuti premium
+- **Piani di supporto**: SLA, pacchetti di successo o manutenzione
+
+## Vantaggi Chiave
+
+- **Entrate prevedibili**: Fatturazione ricorrente con rinnovi automatici
+- **Cicli flessibili**: Mensili, annuali, intervalli personalizzati e prove
+- **Agilità del piano**: Ripartizione per aggiornamenti e riduzioni
+- **Add-on e posti**: Allegare aggiornamenti opzionali e quantificabili
+- **Checkout senza soluzione di continuità**: Checkout ospitato e portale clienti
+- **Sviluppatore-first**: API chiare per creazione, modifiche e tracciamento dell'uso
+
+## Creazione di Abbonamenti
+
+Crea prodotti in abbonamento nel tuo dashboard di Dodo Payments, quindi vendili tramite checkout o la tua API. Separare i prodotti dagli abbonamenti attivi ti consente di versionare i prezzi, allegare add-on e monitorare le prestazioni in modo indipendente.
+
+### Creazione di un prodotto in abbonamento
+
+Configura i campi nel dashboard per definire come il tuo abbonamento viene venduto, rinnovato e fatturato. Le sezioni di seguito corrispondono direttamente a ciò che vedi nel modulo di creazione.
+
+#### Dettagli del prodotto
+
+- **Nome del prodotto** (obbligatorio): Il nome visualizzato nel checkout, nel portale clienti e nelle fatture.
+- **Descrizione del prodotto** (obbligatoria): Una chiara dichiarazione di valore che appare nel checkout e nelle fatture.
+- **Immagine del prodotto** (obbligatoria): PNG/JPG/WebP fino a 3 MB. Utilizzata nel checkout e nelle fatture.
+- **Marca**: Associa il prodotto a un marchio specifico per la tematizzazione e le email.
+- **Categoria fiscale** (obbligatoria): Scegli la categoria (ad esempio, SaaS) per determinare le regole fiscali.
+
+<Tip>
+Scegli la categoria fiscale più accurata per garantire una corretta raccolta delle tasse per regione.
+</Tip>
+
+#### Prezzi
+
+- **Tipo di prezzo**: Scegli <b>Abbonamento</b> (questa guida). Le alternative sono Pagamento Singolo e Fatturazione Basata sull'Uso.
+- **Prezzo** (obbligatorio): Prezzo ricorrente di base con valuta.
+- **Sconto applicabile (%)**: Percentuale di sconto opzionale applicata al prezzo di base; riflessa nel checkout e nelle fatture.
+- **Ripeti il pagamento ogni** (obbligatorio): Intervallo per i rinnovi, ad es. ogni 1 mese. Seleziona la cadenza (mesi o anni) e la quantità.
+- **Periodo di abbonamento** (obbligatorio): Termine totale per cui l'abbonamento rimane attivo (ad es. 10 anni). Dopo la scadenza di questo periodo, i rinnovi si fermano a meno che non vengano estesi.
+- **Giorni di periodo di prova** (obbligatorio): Imposta la lunghezza della prova in giorni. Usa 0 per disabilitare le prove. Il primo addebito avviene automaticamente al termine della prova.
+- **Seleziona add-on**: Allegare fino a 3 add-on che i clienti possono acquistare insieme al piano base.
+
+<Warning>
+Modificare il prezzo di un prodotto attivo influisce sui nuovi acquisti. Gli abbonamenti esistenti seguono le impostazioni di modifica del piano e di ripartizione.
+</Warning>
+
+<Info>
+Gli add-on sono ideali per extra quantificabili come posti o spazio di archiviazione. Puoi controllare le quantità consentite e il comportamento di ripartizione quando i clienti li modificano.
+</Info>
+
+#### Impostazioni avanzate
+
+- **Prezzi inclusivi di tasse**: Visualizza i prezzi inclusivi delle tasse applicabili. Il calcolo finale delle tasse varia comunque in base alla posizione del cliente.
+- **Genera chiavi di licenza**: Emissione di una chiave unica a ciascun cliente dopo l'acquisto. Vedi la guida sulle <a href="/features/license-keys">Chiavi di Licenza</a>.
+- **Consegna di prodotti digitali**: Consegna automatica di file o contenuti dopo l'acquisto. Scopri di più in <a href="/features/digital-product-delivery">Consegna di Prodotti Digitali</a>.
+- **Metadati**: Allegare coppie chiave-valore personalizzate per tagging interno o integrazioni client. Vedi <a href="/api-reference/metadata">Metadati</a>.
+
+<Tip>
+Usa i metadati per memorizzare identificatori dal tuo sistema (ad es. accountId) in modo da poter riconciliare eventi e fatture in seguito.
+</Tip>
+
+## Prove di Abbonamento
+
+Le prove consentono ai clienti di accedere agli abbonamenti senza pagamento immediato. Il primo addebito avviene automaticamente al termine della prova.
+
+### Configurazione delle Prove
+
+Imposta **Giorni di Periodo di Prova** nella sezione di prezzo del prodotto (usa `0` per disabilitare). Puoi sovrascrivere questo quando crei abbonamenti:
+
+```typescript
+// Via subscription creation
+const subscription = await client.subscriptions.create({
+  customer_id: 'cus_123',
+  product_id: 'prod_monthly',
+  trial_period_days: 14  // Overrides product's trial period
+});
+
+// Via checkout session
+const session = await client.checkoutSessions.create({
+  product_cart: [{ product_id: 'prod_monthly', quantity: 1 }],
+  subscription_data: { trial_period_days: 14 }
+});
+```
+
+<Warning>
+Il valore `trial_period_days` deve essere compreso tra 0 e 10.000 giorni.
+</Warning>
+
+### Rilevamento dello Stato della Prova
+
+<Warning>
+Attualmente, non esiste un campo diretto per rilevare lo stato della prova. Il seguente è un workaround che richiede di interrogare i pagamenti, il che è inefficiente. Stiamo lavorando a una soluzione più efficiente.
+</Warning>
+
+Per determinare se un abbonamento è in prova, recupera l'elenco dei pagamenti per l'abbonamento. Se c'è esattamente un pagamento con importo 0, l'abbonamento è in periodo di prova:
+
+```typescript
+const subscription = await client.subscriptions.retrieve('sub_123');
+const payments = await client.payments.list({
+  subscription_id: subscription.subscription_id
+});
+
+// Check if subscription is in trial
+const isInTrial = payments.items.length === 1 && 
+                  payments.items[0].total_amount === 0;
+```
+
+### Aggiornamento del Periodo di Prova
+
+Estendi la prova aggiornando `next_billing_date`:
+
+```typescript
+await client.subscriptions.update('sub_123', {
+  next_billing_date: '2025-02-15T00:00:00Z'  // New trial end date
+});
+```
+
+<Warning>
+Non puoi impostare `next_billing_date` a un tempo passato. La data deve essere nel futuro.
+</Warning>
+
+## Modifiche ai Piani di Abbonamento
+
+Le modifiche ai piani ti consentono di aggiornare o ridurre gli abbonamenti, regolare le quantità o migrare a prodotti diversi. Ogni modifica attiva un addebito immediato in base alla modalità di ripartizione che selezioni.
+
+### Modalità di Ripartizione
+
+Scegli come vengono fatturati i clienti quando cambiano piano:
+
+#### `prorated_immediately`
+Addebita un importo ripartito in base al tempo rimanente nel ciclo di fatturazione attuale. Ideale per una fatturazione equa che tiene conto del tempo non utilizzato.
+
+```typescript
+await client.subscriptions.changePlan('sub_123', {
+  product_id: 'prod_pro',
+  quantity: 1,
+  proration_billing_mode: 'prorated_immediately'
+});
+```
+
+#### `difference_immediately`
+Addebita immediatamente la differenza di prezzo (aggiornamento) o aggiunge credito per i rinnovi futuri (riduzione). Ideale per scenari semplici di aggiornamento/riduzione.
+
+```typescript
+// Upgrade: charges $50 (difference between $30 and $80)
+// Downgrade: credits remaining value, auto-applied to renewals
+await client.subscriptions.changePlan('sub_123', {
+  product_id: 'prod_pro',
+  quantity: 1,
+  proration_billing_mode: 'difference_immediately'
+});
+```
+
+<Info>
+I crediti derivanti da riduzioni utilizzando `difference_immediately` sono limitati all'abbonamento e vengono applicati automaticamente ai rinnovi futuri. Sono distinti dai <a href="/features/customer-credit">Crediti Clienti</a>.
+</Info>
+
+#### `full_immediately`
+Addebita immediatamente l'intero importo del nuovo piano, ignorando il tempo rimanente. Ideale per ripristinare i cicli di fatturazione.
+
+```typescript
+await client.subscriptions.changePlan('sub_123', {
+  product_id: 'prod_monthly',
+  quantity: 1,
+  proration_billing_mode: 'full_immediately'
+});
+```
+
+### Modifica dei Piani con Add-on
+
+Modifica gli add-on quando cambi piano. Gli add-on sono inclusi nei calcoli di ripartizione:
+
+```typescript
+await client.subscriptions.changePlan('sub_123', {
+  product_id: 'prod_pro',
+  quantity: 1,
+  proration_billing_mode: 'difference_immediately',
+  addons: [{ addon_id: 'addon_extra_seats', quantity: 2 }]  // Add add-ons
+  // addons: []  // Empty array removes all existing add-ons
+});
+```
+
+<Info>
+Le modifiche ai piani attivano addebiti immediati. Gli addebiti non riusciti possono spostare l'abbonamento nello stato `on_hold`. Monitora le modifiche tramite eventi webhook `subscription.plan_changed`.
+</Info>
+
+### Anteprima delle Modifiche ai Piani
+
+Prima di impegnarti in una modifica del piano, visualizza l'esatto addebito e l'abbonamento risultante:
+
+```typescript
+const preview = await client.subscriptions.previewChangePlan('sub_123', {
+  product_id: 'prod_pro',
+  quantity: 1,
+  proration_billing_mode: 'prorated_immediately'
+});
+
+// Show customer the charge before confirming
+console.log('You will be charged:', preview.immediate_charge.summary);
+```
+
+<Card title="Anteprima Modifica Piano API" icon="eye" href="/api-reference/subscriptions/preview-change-plan">
+  Visualizza in anteprima le modifiche ai piani prima di impegnarti.
+</Card>
+
+## Stati degli Abbonamenti
+
+Gli abbonamenti possono trovarsi in diversi stati durante il loro ciclo di vita:
+
+- **`active`**: L'abbonamento è attivo e si rinnoverà automaticamente
+- **`on_hold`**: L'abbonamento è in pausa a causa di un pagamento non riuscito. È necessario aggiornare il metodo di pagamento per riattivarlo
+- **`cancelled`**: L'abbonamento è annullato e non si rinnoverà
+- **`expired`**: L'abbonamento ha raggiunto la sua data di scadenza
+- **`pending`**: L'abbonamento è in fase di creazione o elaborazione
+
+### Stato In Attesa
+
+Un abbonamento entra nello stato `on_hold` quando:
+
+- Un pagamento di rinnovo non riesce (fondi insufficienti, carta scaduta, ecc.)
+- Un addebito per modifica del piano non riesce
+- L'autorizzazione del metodo di pagamento non riesce
+
+<Warning>
+Quando un abbonamento è nello stato `on_hold`, non si rinnoverà automaticamente. Devi aggiornare il metodo di pagamento per riattivare l'abbonamento.
+</Warning>
+
+### Riattivazione da In Attesa
+
+Per riattivare un abbonamento dallo stato `on_hold`, aggiorna il metodo di pagamento. Questo automaticamente:
+
+1. Crea un addebito per i debiti rimanenti
+2. Genera una fattura
+3. Elabora il pagamento utilizzando il nuovo metodo di pagamento
+4. Riattiva l'abbonamento nello stato `active` dopo un pagamento riuscito
+
+```typescript
+// Reactivate subscription from on_hold
+const response = await client.subscriptions.updatePaymentMethod('sub_123', {
+  type: 'new',
+  return_url: 'https://example.com/return'
+});
+
+// For on_hold subscriptions, a charge is automatically created
+if (response.payment_id) {
+  console.log('Charge created:', response.payment_id);
+  // Redirect customer to response.payment_link to complete payment
+  // Monitor webhooks for payment.succeeded and subscription.active
+}
+```
+
+<Info>
+Dopo aver aggiornato con successo il metodo di pagamento per un abbonamento `on_hold`, riceverai eventi webhook `payment.succeeded` seguiti da `subscription.active`.
+</Info>
+
+## Gestione API
+
+<AccordionGroup>
+<Accordion title="Crea abbonamenti">
+Usa `POST /subscriptions` per creare abbonamenti programmaticamente da prodotti, con prove e add-on opzionali.
+
+<Card title="Riferimento API" icon="code" href="/api-reference/subscriptions/post-subscriptions">
+Visualizza l'API per la creazione di abbonamenti.
+</Card>
+</Accordion>
+
+<Accordion title="Aggiorna abbonamenti">
+Usa `PATCH /subscriptions/{id}` per aggiornare le quantità, annullare alla fine del periodo o modificare i metadati.
+
+<Card title="Riferimento API" icon="code" href="/api-reference/subscriptions/patch-subscriptions">
+Scopri come aggiornare i dettagli dell'abbonamento.
+</Card>
+</Accordion>
+
+<Accordion title="Cambia piani (ripartizione)">
+Cambia il prodotto attivo e le quantità con controlli di ripartizione.
+
+<Card title="Riferimento API" icon="code" href="/api-reference/subscriptions/change-plan">
+Esamina le opzioni di modifica del piano.
+</Card>
+</Accordion>
+
+<Accordion title="Addebiti on-demand">
+Per abbonamenti on-demand, addebita importi specifici su richiesta.
+
+<Card title="Riferimento API" icon="code" href="/api-reference/subscriptions/create-charge">
+Addebita un abbonamento on-demand.
+</Card>
+</Accordion>
+
+<Accordion title="Elenca e recupera">
+Usa `GET /subscriptions` per elencare tutti gli abbonamenti e `GET /subscriptions/{id}` per recuperarne uno.
+
+<Card title="Riferimento API" icon="code" href="/api-reference/subscriptions/get-subscriptions">
+Esplora le API di elencazione e recupero.
+</Card>
+</Accordion>
+
+<Accordion title="Storia dell'uso">
+Recupera l'uso registrato per modelli di prezzo misurati o ibridi.
+
+<Card title="Riferimento API" icon="code" href="/api-reference/subscriptions/get-usage-history">
+Visualizza l'API della storia dell'uso.
+</Card>
+</Accordion>
+
+<Accordion title="Aggiorna metodo di pagamento">
+Aggiorna il metodo di pagamento per un abbonamento. Per abbonamenti attivi, questo aggiorna il metodo di pagamento per i rinnovi futuri. Per abbonamenti nello stato `on_hold`, questo riattiva l'abbonamento creando un addebito per i debiti rimanenti.
+
+<Card title="Riferimento API" icon="code" href="/api-reference/subscriptions/update-payment-method">
+Scopri come aggiornare i metodi di pagamento e riattivare gli abbonamenti.
+</Card>
+</Accordion>
+</AccordionGroup>
+
+## Casi d'uso comuni
+
+- **SaaS e API**: Accesso a livelli con add-on per posti o utilizzo
+- **Contenuti e media**: Accesso mensile con prove introduttive
+- **Piani di supporto B2B**: Contratti annuali con add-on di supporto premium
+- **Strumenti e plugin**: Chiavi di licenza e versioni con numerazione
+
+## Esempi di integrazione
+
+### Sessioni di Checkout (abbonamenti)
+Quando crei sessioni di checkout, includi il tuo prodotto in abbonamento e gli add-on opzionali:
+
+```typescript
+const session = await client.checkoutSessions.create({
+  product_cart: [
+    {
+      product_id: 'prod_subscription',
+      quantity: 1
+    }
+  ]
+});
+```
+
+### Modifiche ai piani con ripartizione
+Aggiorna o riduci un abbonamento e controlla il comportamento di ripartizione:
+
+```typescript
+await client.subscriptions.changePlan('sub_123', {
+  product_id: 'prod_new',
+  quantity: 1,
+  proration_billing_mode: 'difference_immediately'
+});
+```
+
+### Annulla alla fine del periodo
+Pianifica una cancellazione senza terminazione immediata dell'accesso:
+
+```typescript
+await client.subscriptions.update('sub_123', {
+  cancel_at_period_end: true
+});
+```
+
+### Abbonamenti on-demand
+Crea un abbonamento on-demand e addebita in seguito secondo necessità:
+
+```typescript
+const onDemand = await client.subscriptions.create({
+  customer_id: 'cus_123',
+  product_id: 'prod_on_demand',
+  on_demand: true
+});
+
+await client.subscriptions.createCharge(onDemand.id, {
+  amount: 4900,
+  currency: 'USD',
+  description: 'Extra usage for September'
+});
+```
+
+### Aggiorna il metodo di pagamento per abbonamento attivo
+Aggiorna il metodo di pagamento per un abbonamento attivo:
+
+```typescript
+// Update with new payment method
+const response = await client.subscriptions.updatePaymentMethod('sub_123', {
+  type: 'new',
+  return_url: 'https://example.com/return'
+});
+
+// Or use existing payment method
+await client.subscriptions.updatePaymentMethod('sub_123', {
+  type: 'existing',
+  payment_method_id: 'pm_abc123'
+});
+```
+
+### Riattiva l'abbonamento da in attesa
+Riattiva un abbonamento che è stato messo in attesa a causa di un pagamento non riuscito:
+
+```typescript
+// Update payment method - automatically creates charge for remaining dues
+const response = await client.subscriptions.updatePaymentMethod('sub_123', {
+  type: 'new',
+  return_url: 'https://example.com/return'
+});
+
+if (response.payment_id) {
+  // Charge created for remaining dues
+  // Redirect customer to response.payment_link
+  // Monitor webhooks: payment.succeeded → subscription.active
+}
+```
+
+## Abbonamenti con Mandati Conformi al RBI
+
+  Gli abbonamenti UPI e con carta indiana operano secondo le normative RBI (Reserve Bank of India) con requisiti specifici per i mandati:
+
+  ### Limiti del Mandato
+
+  Il tipo di mandato e l'importo dipendono dall'addebito ricorrente del tuo abbonamento:
+
+  - **Addebiti inferiori a Rs 15.000:** Creiamo un mandato on-demand per Rs 15.000 INR. L'importo dell'abbonamento viene addebitato periodicamente secondo la frequenza del tuo abbonamento, fino al limite del mandato.
+  - **Addebiti di Rs 15.000 o superiori:** Creiamo un mandato di abbonamento (o mandato on-demand) per l'importo esatto dell'abbonamento.
+
+  ### Considerazioni su Aggiornamenti e Riduzioni
+
+  **Importante:** Quando aggiorni o riduci gli abbonamenti, considera attentamente i limiti del mandato:
+
+  - Se un aggiornamento/riduzione comporta un importo di addebito che supera Rs 15.000 e va oltre il limite di pagamento on-demand esistente, l'addebito potrebbe non riuscire.
+  - In tali casi, il cliente potrebbe dover aggiornare il proprio metodo di pagamento o modificare nuovamente l'abbonamento per stabilire un nuovo mandato con il limite corretto.
+
+  ### Autorizzazione per Addebiti di Alto Valore
+
+  Per addebiti di abbonamento di Rs 15.000 o più:
+
+  - Il cliente verrà invitato dalla propria banca ad autorizzare la transazione.
+  - Se il cliente non riesce ad autorizzare la transazione, questa fallirà e l'abbonamento verrà messo in attesa.
+
+  ### Ritardo di Elaborazione di 48 Ore
+
+  **Tempistiche di Elaborazione:** Gli addebiti ricorrenti su carte indiane e abbonamenti UPI seguono un modello di elaborazione unico:
+
+  - Gli addebiti vengono **iniziati** nella data programmata secondo la frequenza del tuo abbonamento.
+  - La **detrazione** effettiva dal conto del cliente avviene solo dopo **48 ore** dall'inizio del pagamento.
+  - Questa finestra di 48 ore può estendersi fino a **2-3 ore aggiuntive** a seconda delle risposte dell'API della banca.
+
+  ### Finestra di Cancellazione del Mandato
+
+  Durante la finestra di elaborazione di 48 ore:
+
+  - I clienti possono cancellare il mandato tramite le proprie app bancarie.
+  - Se un cliente cancella il mandato durante questo periodo, l'abbonamento rimarrà **attivo** (questo è un caso limite specifico per gli abbonamenti AutoPay con carta indiana e UPI).
+  - Tuttavia, la detrazione effettiva potrebbe non riuscire e, in tal caso, metteremo l'abbonamento **in attesa**.
+
+  **Gestione dei Casi Limite:** Se fornisci benefici, crediti o utilizzo dell'abbonamento ai clienti immediatamente dopo l'inizio dell'addebito, devi gestire questa finestra di 48 ore in modo appropriato nella tua applicazione. Considera:
+
+  - Ritardare l'attivazione dei benefici fino alla conferma del pagamento
+  - Implementare periodi di grazia o accesso temporaneo
+  - Monitorare lo stato dell'abbonamento per cancellazioni di mandati
+  - Gestire gli stati di attesa dell'abbonamento nella logica della tua applicazione
+
+  <Tip>
+  Monitora i webhook degli abbonamenti per tracciare le modifiche allo stato dei pagamenti e gestire i casi limite in cui i mandati vengono cancellati durante la finestra di 48 ore.
+  </Tip>
+
+## Migliori Pratiche
+
+- **Inizia con livelli chiari**: 2–3 piani con differenze evidenti
+- **Comunica i prezzi**: Mostra totali, ripartizione e prossimo rinnovo
+- **Usa le prove in modo ponderato**: Converti con onboarding, non solo tempo
+- **Sfrutta gli add-on**: Mantieni i piani base semplici e vendi extra
+- **Testa le modifiche**: Valida le modifiche ai piani e la ripartizione in modalità di test
+
+<Info>
+Gli abbonamenti sono una base flessibile per entrate ricorrenti. Inizia in modo semplice, testa a fondo e itera in base all'adozione, al churn e alle metriche di espansione.
+</Info>

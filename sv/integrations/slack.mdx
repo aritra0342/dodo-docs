@@ -1,0 +1,473 @@
+---
+title: Slack
+description: Integrera Dodo Payments med Slack för att ta emot
+  realtidsnotifikationer om dina betalningar.
+icon: slack
+---
+
+## Introduktion
+
+Dodo Payments Slack-integration gör att du kan ta emot realtidsnotifikationer om dina betalningar direkt i din Slack-arbetsyta. Denna integration gör att du kan hålla dig uppdaterad om statusen för dina betalningar, spåra transaktioner och hantera dina betalningar mer effektivt.
+
+<Info>
+Denna integration använder vår webhook-hanteringsportal för att automatiskt omvandla Dodo Payments webhook-händelser till Slack-kompatibla meddelanden. Ingen ytterligare kodning krävs - konfigurera bara kopplingen och börja ta emot notifikationer.
+</Info>
+
+## Komma igång
+
+<Steps>
+<Step title="Öppna Webhook-sektionen">
+  Gå till <b>Webhook</b>-sektionen i din Dodo Payments-instrumentpanel. Klicka på <b>+ Lägg till slutpunkt</b>-knappen, och öppna sedan webhook-rullgardinsmenyn för att avslöja andra integrationer.
+  <Frame>
+    <img src="/images/integrations/slack/1.png" alt="Dodo Payments-instrumentpanel som visar knappen Lägg till slutpunkt och rullgardinsmenyn för integrationer" />
+  </Frame>
+</Step>
+
+<Step title="Välj Slack-integration">
+  Välj <b>Slack</b>-integration och klicka på <b>Anslut din Slack-arbetsyta</b>.
+  <Frame>
+    <img src="/images/integrations/slack/2.png" alt="Slack integrationskort och anslutningsknapp" />
+  </Frame>
+</Step>
+
+<Step title="Ge Slack-behörigheter">
+  Ge de nödvändiga behörigheterna till Incoming Webhooks Slack-app så att den kan posta meddelanden i din valda kanal.
+  <Frame>
+    <img src="/images/integrations/slack/3.png" alt="Slack OAuth-behörighetsskärm för Incoming Webhooks-app" />
+  </Frame>
+</Step>
+
+<Step title="Anpassa transformationskod">
+  Lägg till eller redigera transformationskoden för att anpassa dina Slack-notifikationer för ditt användningsfall. Du kan använda de förgjorda mallarna eller skriva din egen logik.
+  <Frame>
+    <img src="/images/integrations/slack/4.png" alt="Transformationskodredigerare för Slack-integration" />
+  </Frame>
+</Step>
+
+<Step title="Testa och skapa">
+  Testa din transformationskod med anpassade eller förgjorda händelsepayloads. När du är nöjd, klicka på <b>Skapa</b> för att aktivera integrationen.
+  <Frame>
+    <img src="/images/integrations/slack/5.png" alt="Testa transformation och skapa-knapp" />
+  </Frame>
+</Step>
+
+<Step title="Integration klar!">
+  🎉 Du har framgångsrikt skapat Slack-integration! Dina Dodo Payments-händelser kommer nu att levereras till din valda Slack-kanal i realtid.
+</Step>
+</Steps>
+
+## Exempel på transformationskod
+
+### Grundläggande betalningsnotifikationer
+
+Denna transformation skickar enkla textmeddelanden för betalningsevenemang:
+
+```javascript payment_notifs.js icon="js" expandable
+function handler(webhook) {
+  switch (webhook.eventType) {
+    case "payment.succeeded":
+      webhook.payload = {
+        text: `✅ Payment Successful\nAmount: $${(webhook.payload.data.total_amount / 100).toFixed(2)}\nCustomer: ${webhook.payload.data.customer.email}\nPayment ID: ${webhook.payload.data.payment_id}`
+      };
+      break;
+      
+    case "payment.failed":
+      webhook.payload = {
+        text: `❌ Payment Failed\nAmount: $${(webhook.payload.data.total_amount / 100).toFixed(2)}\nCustomer: ${webhook.payload.data.customer.email}\nReason: ${webhook.payload.data.error_message || 'Unknown'}`
+      };
+      break;
+      
+    case "payment.processing":
+      webhook.payload = {
+        text: `⏳ Payment Processing\nAmount: $${(webhook.payload.data.total_amount / 100).toFixed(2)}\nCustomer: ${webhook.payload.data.customer.email}`
+      };
+      break;
+  }
+
+  return webhook;
+}
+```
+
+### Rika prenumerationsnotifikationer
+
+Denna transformation skapar rika Slack-meddelanden med bilagor för prenumerationsevenemang:
+
+```javascript subscription_notifs.js icon="js" expandable
+function handler(webhook) {
+  switch (webhook.eventType) {
+    case "subscription.active":
+      webhook.payload = {
+        attachments: [{
+          color: "good",
+          title: "🎉 Subscription Activated",
+          fields: [
+            {
+              title: "Customer",
+              value: webhook.payload.data.customer.email,
+              short: true
+            },
+            {
+              title: "Product ID",
+              value: webhook.payload.data.product_id,
+              short: true
+            },
+            {
+              title: "Amount",
+              value: `$${(webhook.payload.data.recurring_pre_tax_amount / 100).toFixed(2)}/${webhook.payload.data.payment_frequency_interval}`,
+              short: true
+            },
+            {
+              title: "Next Billing",
+              value: new Date(webhook.payload.data.next_billing_date).toLocaleDateString(),
+              short: true
+            }
+          ],
+          footer: "Dodo Payments",
+          ts: Math.floor(new Date(webhook.payload.timestamp).getTime() / 1000)
+        }]
+      };
+      break;
+      
+    case "subscription.cancelled":
+      webhook.payload = {
+        attachments: [{
+          color: "warning",
+          title: "⚠️ Subscription Cancelled",
+          fields: [
+            {
+              title: "Customer",
+              value: webhook.payload.data.customer.email,
+              short: true
+            },
+            {
+              title: "Product ID",
+              value: webhook.payload.data.product_id,
+              short: true
+            },
+            {
+              title: "Cancellation Date",
+              value: new Date(webhook.payload.data.cancelled_at).toLocaleDateString(),
+              short: true
+            },
+            {
+              title: "Cancel at Next Billing",
+              value: webhook.payload.data.cancel_at_next_billing_date ? "Yes" : "No",
+              short: true
+            }
+          ],
+          footer: "Dodo Payments",
+          ts: Math.floor(new Date(webhook.payload.timestamp).getTime() / 1000)
+        }]
+      };
+      break;
+      
+    case "subscription.renewed":
+      webhook.payload = {
+        attachments: [{
+          color: "good",
+          title: "🔄 Subscription Renewed",
+          fields: [
+            {
+              title: "Customer",
+              value: webhook.payload.data.customer.email,
+              short: true
+            },
+            {
+              title: "Product ID",
+              value: webhook.payload.data.product_id,
+              short: true
+            },
+            {
+              title: "Amount",
+              value: `$${(webhook.payload.data.recurring_pre_tax_amount / 100).toFixed(2)}`,
+              short: true
+            },
+            {
+              title: "Next Billing",
+              value: new Date(webhook.payload.data.next_billing_date).toLocaleDateString(),
+              short: true
+            }
+          ],
+          footer: "Dodo Payments",
+          ts: Math.floor(new Date(webhook.payload.timestamp).getTime() / 1000)
+        }]
+      };
+      break;
+  }
+
+  return webhook;
+}
+```
+
+### Tvistförvaltningsnotifikationer
+
+Denna transformation hanterar tvist-händelser med lämpliga färger och brådska:
+
+```javascript dispute_notifs.js icon="js" expandable
+function handler(webhook) {
+  switch (webhook.eventType) {
+    case "dispute.opened":
+      webhook.payload = {
+        attachments: [{
+          color: "danger",
+          title: "🚨 New Dispute Opened",
+          fields: [
+            {
+              title: "Payment ID",
+              value: webhook.payload.data.payment_id,
+              short: true
+            },
+            {
+              title: "Amount",
+              value: `$${(webhook.payload.data.amount / 100).toFixed(2)}`,
+              short: true
+            },
+            {
+              title: "Status",
+              value: webhook.payload.data.dispute_status,
+              short: true
+            },
+            {
+              title: "Stage",
+              value: webhook.payload.data.dispute_stage,
+              short: true
+            },
+            {
+              title: "Remarks",
+              value: webhook.payload.data.remarks || "No remarks",
+              short: false
+            }
+          ],
+          footer: "Dodo Payments - Action Required",
+          ts: Math.floor(new Date(webhook.payload.timestamp).getTime() / 1000)
+        }]
+      };
+      break;
+      
+    case "dispute.won":
+      webhook.payload = {
+        attachments: [{
+          color: "good",
+          title: "✅ Dispute Won",
+          fields: [
+            {
+              title: "Payment ID",
+              value: webhook.payload.data.payment_id,
+              short: true
+            },
+            {
+              title: "Amount",
+              value: `$${(webhook.payload.data.amount / 100).toFixed(2)}`,
+              short: true
+            },
+            {
+              title: "Status",
+              value: webhook.payload.data.dispute_status,
+              short: true
+            },
+            {
+              title: "Resolution",
+              value: "Dispute resolved in your favor",
+              short: false
+            }
+          ],
+          footer: "Dodo Payments",
+          ts: Math.floor(new Date(webhook.payload.timestamp).getTime() / 1000)
+        }]
+      };
+      break;
+      
+    case "dispute.lost":
+      webhook.payload = {
+        attachments: [{
+          color: "danger",
+          title: "❌ Dispute Lost",
+          fields: [
+            {
+              title: "Payment ID",
+              value: webhook.payload.data.payment_id,
+              short: true
+            },
+            {
+              title: "Amount",
+              value: `$${(webhook.payload.data.amount / 100).toFixed(2)}`,
+              short: true
+            },
+            {
+              title: "Status",
+              value: webhook.payload.data.dispute_status,
+              short: true
+            },
+            {
+              title: "Impact",
+              value: "Funds will be debited from your account",
+              short: false
+            }
+          ],
+          footer: "Dodo Payments - Review Required",
+          ts: Math.floor(new Date(webhook.payload.timestamp).getTime() / 1000)
+        }]
+      };
+      break;
+  }
+
+  return webhook;
+}
+```
+
+### Omfattande hanterare för alla händelser
+
+Denna transformation hanterar alla händelsetyper med konsekvent formatering:
+
+```javascript all_events_notifs.js icon="js" expandable 
+function handler(webhook) {
+  const event = webhook.payload.data;
+  const timestamp = new Date(webhook.payload.timestamp).toLocaleString();
+  
+  let color, emoji, title, fields = [];
+  
+  switch (webhook.eventType) {
+    case "payment.succeeded":
+      color = "good";
+      emoji = "✅";
+      title = "Payment Successful";
+      fields = [
+        { title: "Amount", value: `$${(event.total_amount / 100).toFixed(2)}`, short: true },
+        { title: "Customer", value: event.customer.email, short: true },
+        { title: "Payment ID", value: event.payment_id, short: true },
+        { title: "Method", value: event.payment_method || "Unknown", short: true }
+      ];
+      break;
+      
+    case "payment.failed":
+      color = "danger";
+      emoji = "❌";
+      title = "Payment Failed";
+      fields = [
+        { title: "Amount", value: `$${(event.total_amount / 100).toFixed(2)}`, short: true },
+        { title: "Customer", value: event.customer.email, short: true },
+        { title: "Reason", value: event.error_message || "Unknown", short: false }
+      ];
+      break;
+      
+    case "subscription.active":
+      color = "good";
+      emoji = "🎉";
+      title = "Subscription Activated";
+      fields = [
+        { title: "Customer", value: event.customer.email, short: true },
+        { title: "Product ID", value: event.product_id, short: true },
+        { title: "Amount", value: `$${(event.recurring_pre_tax_amount / 100).toFixed(2)}/${event.payment_frequency_interval}`, short: true },
+        { title: "Next Billing", value: new Date(event.next_billing_date).toLocaleDateString(), short: true }
+      ];
+      break;
+      
+    case "subscription.cancelled":
+      color = "warning";
+      emoji = "⚠️";
+      title = "Subscription Cancelled";
+      fields = [
+        { title: "Customer", value: event.customer.email, short: true },
+        { title: "Product ID", value: event.product_id, short: true },
+        { title: "Cancellation Date", value: new Date(event.cancelled_at).toLocaleDateString(), short: true },
+        { title: "Cancel at Next Billing", value: event.cancel_at_next_billing_date ? "Yes" : "No", short: true }
+      ];
+      break;
+      
+    case "refund.succeeded":
+      color = "good";
+      emoji = "💰";
+      title = "Refund Processed";
+      fields = [
+        { title: "Amount", value: `$${(event.amount / 100).toFixed(2)}`, short: true },
+        { title: "Refund ID", value: event.refund_id, short: true },
+        { title: "Payment ID", value: event.payment_id, short: true },
+        { title: "Reason", value: event.reason || "Not specified", short: true }
+      ];
+      break;
+      
+    case "dispute.opened":
+      color = "danger";
+      emoji = "🚨";
+      title = "New Dispute Opened";
+      fields = [
+        { title: "Payment ID", value: event.payment_id, short: true },
+        { title: "Amount", value: `$${(event.amount / 100).toFixed(2)}`, short: true },
+        { title: "Status", value: event.dispute_status, short: true },
+        { title: "Stage", value: event.dispute_stage, short: true },
+        { title: "Remarks", value: event.remarks || "No remarks", short: false }
+      ];
+      break;
+      
+    case "license_key.created":
+      color = "good";
+      emoji = "🔑";
+      title = "License Key Created";
+      fields = [
+        { title: "License ID", value: event.id, short: true },
+        { title: "Product ID", value: event.product_id, short: true },
+        { title: "License Key", value: event.key.substring(0, 8) + "...", short: true },
+        { title: "Expires", value: event.expires_at ? new Date(event.expires_at).toLocaleDateString() : "Never", short: true }
+      ];
+      break;
+      
+    default:
+      // Handle any other events with a generic format
+      color = "warning";
+      emoji = "ℹ️";
+      title = webhook.eventType.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+      fields = [
+        { title: "Event Type", value: webhook.eventType, short: true },
+        { title: "Timestamp", value: timestamp, short: true }
+      ];
+  }
+  
+  webhook.payload = {
+    attachments: [{
+      color: color,
+      title: `${emoji} ${title}`,
+      fields: fields,
+      footer: "Dodo Payments",
+      ts: Math.floor(new Date(webhook.payload.timestamp).getTime() / 1000)
+    }]
+  };
+
+  return webhook;
+}
+```
+
+## Bästa praxis
+
+För att göra dina Slack-notifikationer effektiva:
+- Använd rika meddelandebilagor med färger, fält och formatering för tydlighet och handlingsbarhet.
+- Inkludera alltid nyckeldata som belopp, kunders e-postadresser och ID:n för snabb identifiering.
+- Välj färger som matchar händelsetypen: grön (`good`) för framgång, röd (`danger`) för tvister eller misslyckanden, gul (`warning`) för avbokningar, och blå (`#36a64f`) för informationshändelser.
+- Lägg till tidsstämplar för att hjälpa till att spåra när varje händelse inträffade.
+
+<Warning>
+**Hantera känslig data**: Var försiktig så att du inte inkluderar känslig information som fullständiga licensnycklar eller personlig data i Slack-meddelanden. Överväg att förkorta eller maskera känsliga värden.
+</Warning>
+
+## Felsökning
+
+<AccordionGroup>
+<Accordion title="Notifikationer visas inte i Slack">
+    - Verifiera att Slack-webhook-URL:en är korrekt och aktiv
+    - Kontrollera att transformationskoden är giltig JavaScript
+    - Se till att de valda händelsetyperna utlöses
+    - Verifiera att din Slack-app har nödvändiga behörigheter
+</Accordion>
+
+<Accordion title="Transformationsfel">
+    - Kontrollera webhook-hanteringsportalen för transformationsfel-loggar
+    - Verifiera att webhook-payloadstrukturen matchar din transformationskod
+    - Testa din transformationskod med exempeldata
+    - Se till att alla nödvändiga fält finns i webhook-payloaden
+</Accordion>
+
+<Accordion title="Saknade händelsetyper">
+    - Bekräfta att de händelser du vill ta emot är aktiverade i din Dodo Payments webhook-konfiguration
+    - Kontrollera att händelsetyperna är valda i din Slack-kopplingskonfiguration
+    - Verifiera att din slutpunkt är korrekt konfigurerad för att ta emot händelserna
+</Accordion>
+</AccordionGroup>

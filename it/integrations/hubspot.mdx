@@ -1,0 +1,151 @@
+---
+title: HubSpot
+description: Crea e aggiorna automaticamente contatti, aziende e affari in
+  HubSpot dagli eventi di Dodo Payments.
+icon: hubspot
+---
+
+## Introduzione
+
+Sincronizza i tuoi dati di pagamento direttamente con HubSpot CRM. Crea contatti da pagamenti riusciti, monitora il ciclo di vita degli abbonamenti e costruisci profili clienti completi—tutto attivato automaticamente dagli eventi di Dodo Payments.
+
+<Info>
+Questa integrazione richiede l'accesso da amministratore di HubSpot per configurare gli ambiti OAuth e i permessi API.
+</Info>
+
+## Iniziare
+
+<Steps>
+<Step title="Apri la Sezione Webhook">
+  Nel tuo dashboard di Dodo Payments, vai su <b>Webhooks → + Aggiungi Endpoint</b> ed espandi il menu a discesa delle integrazioni.
+  <Frame>
+    <img src="/images/integrations/hubspot.png" alt="Aggiungi Endpoint e menu a discesa delle integrazioni" />
+  </Frame>
+</Step>
+
+<Step title="Seleziona HubSpot">
+  Scegli la scheda di integrazione <b>HubSpot</b>.
+</Step>
+
+<Step title="Collega HubSpot">
+  Clicca su <b>Collega a HubSpot</b> e autorizza gli ambiti OAuth richiesti.
+</Step>
+
+<Step title="Configura Trasformazione">
+  Modifica il codice di trasformazione per mappare i dati di pagamento agli oggetti CRM di HubSpot.
+</Step>
+
+<Step title="Testa e Crea">
+  Testa con payload di esempio e clicca su <b>Crea</b> per attivare la sincronizzazione.
+</Step>
+
+<Step title="Fatto!">
+  🎉 Gli eventi di pagamento creeranno/aggiorneranno automaticamente i record nel tuo CRM di HubSpot.
+</Step>
+</Steps>
+
+## Esempi di Codice di Trasformazione
+
+### Crea Contatto da Pagamento
+
+```javascript create_contact.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.url = "https://api.hubapi.com/crm/v3/objects/contacts";
+    webhook.payload = {
+      properties: {
+        email: p.customer.email,
+        firstname: p.customer.name.split(' ')[0] || '',
+        lastname: p.customer.name.split(' ').slice(1).join(' ') || '',
+        phone: p.customer.phone || '',
+        company: p.customer.company || '',
+        amount: (p.total_amount / 100).toString(),
+        payment_method: p.payment_method || '',
+        currency: p.currency || 'USD'
+      }
+    };
+  }
+  return webhook;
+}
+```
+
+### Aggiorna Contatto con Abbonamento
+
+```javascript update_contact.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "subscription.active") {
+    const s = webhook.payload.data;
+    webhook.url = `https://api.hubapi.com/crm/v3/objects/contacts/${s.customer.customer_id}`;
+    webhook.method = "PATCH";
+    webhook.payload = {
+      properties: {
+        subscription_status: "active",
+        subscription_amount: (s.recurring_pre_tax_amount / 100).toString(),
+        subscription_frequency: s.payment_frequency_interval,
+        next_billing_date: s.next_billing_date,
+        product_id: s.product_id
+      }
+    };
+  }
+  return webhook;
+}
+```
+
+### Crea Affare da Pagamento
+
+```javascript create_deal.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.url = "https://api.hubapi.com/crm/v3/objects/deals";
+    webhook.payload = {
+      properties: {
+        dealname: `Payment - ${p.customer.email}`,
+        amount: (p.total_amount / 100).toString(),
+        dealstage: "closedwon",
+        closedate: new Date().toISOString(),
+        hs_currency: p.currency || "USD"
+      },
+      associations: [
+        {
+          to: {
+            id: p.customer.customer_id
+          },
+          types: [
+            {
+              associationCategory: "HUBSPOT_DEFINED",
+              associationTypeId: 3
+            }
+          ]
+        }
+      ]
+    };
+  }
+  return webhook;
+}
+```
+
+## Suggerimenti
+
+- Usa l'esploratore API di HubSpot per testare la creazione di oggetti
+- Mappa gli importi di pagamento ai campi di valuta di HubSpot
+- Includi gli ID cliente per associazioni corrette
+- Imposta le fasi di affare appropriate in base allo stato del pagamento
+
+## Risoluzione dei Problemi
+
+<AccordionGroup>
+<Accordion title="Record non creati in HubSpot">
+- Verifica che gli ambiti OAuth includano i permessi di scrittura
+- Controlla che le proprietà richieste di HubSpot esistano
+- Assicurati che l'email del cliente sia valida e unica
+- Rivedi i limiti di frequenza API di HubSpot
+</Accordion>
+
+<Accordion title="Errori di trasformazione">
+- Valida che la struttura JSON corrisponda al formato API di HubSpot
+- Controlla che tutte le proprietà richieste siano incluse
+- Assicurati che i nomi delle proprietà corrispondano esattamente ai nomi dei campi di HubSpot
+</Accordion>
+</AccordionGroup>

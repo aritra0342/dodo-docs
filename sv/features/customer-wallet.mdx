@@ -1,0 +1,295 @@
+---
+title: Kundplånböcker
+description: Bygg kreditbaserade faktureringssystem som OpenAI eller Claude med
+  kundplånböcker. Spåra saldon, hantera krediter och skapa sofistikerade
+  finansiella arbetsflöden.
+icon: wallet
+tag: NY
+---
+
+<CardGroup cols={3}>
+<Card title="Hämta Kundplånböcker" icon="code" href="/api-reference/customers/get-customer-wallets">
+  Kontrollera kundplånboksaldon över valutor.
+</Card>
+
+<Card title="Skapa Bokföringspost" icon="plus" href="/api-reference/customers/post-customer-wallets-ledger-entries">
+  Lägg till eller ta bort krediter från kundplånböcker.
+</Card>
+
+<Card title="Lista Bokföringsposter" icon="list" href="/api-reference/customers/get-customer-wallets-ledger-entries">
+  Visa komplett transaktionshistorik med paginering.
+</Card>
+</CardGroup>
+
+## Vad är Kundplånböcker?
+
+Tänk på kundplånböcker som digitala spargrisar för dina användare. Varje kund får en automatiskt när du skapar deras konto. Du kan använda dessa plånböcker för:
+
+- **Spåra kreditbalanser** i USD och INR
+- **Bygga API-kreditsystem** som OpenAI eller Claude
+- **Skapa förbetald fakturering** där kunder köper krediter i förskott
+- **Hantera återbetalningar** som plånbokskrediter istället för kontanter
+- **Hantera komplex fakturering** med detaljerad transaktionshistorik
+
+<Info>
+Varje kund får automatiskt en plånbok när du skapar deras konto. Plånböcker stöder USD och INR-valutor med separata saldon för varje.
+</Info>
+
+<Frame>
+  <img src="/images/customer/customer-wallet.png" alt="Kundplånböcker" />
+</Frame>
+
+## Hur Det Fungerar
+
+Kundplånböcker är enkla: de håller pengar (krediter) som kunder kan spendera på dina tjänster. När en kund gör ett köp kontrolleras deras plånboksaldo först, och eventuella tillgängliga krediter används innan deras betalningsmetod debiteras.
+
+### Automatisk Installation
+
+När du skapar en ny kund skapar Dodo Payments automatiskt en plånbok med noll saldo. Den är redo att användas omedelbart genom vårt API.
+
+### Stöd för Flera Valutor
+
+Varje plånbok kan hålla saldon i olika valutor:
+
+<ResponseField name="USD Balance" type="integer">
+Saldo i US Dollar (lagrat i cent)
+</ResponseField>
+
+<ResponseField name="INR Balance" type="integer">
+Saldo i Indiska Rupeer (lagrat i paise)
+</ResponseField>
+
+<Info>
+För närvarande är endast <strong>USD</strong> och <strong>INR</strong> saldon tillgängliga. Fler valutor kommer snart.
+</Info>
+
+## Arbeta med Plånböcker
+
+### Kontrollera Kunders Saldo
+
+Se hur mycket kredit en kund har över alla valutor. Perfekt för att kontrollera om de har tillräckligt med medel innan du behandlar ett köp.
+
+<Card title="Hämta Kundplånboksaldon" icon="wallet" href="/api-reference/customers/get-customer-wallets">
+  Kontrollera en kunds plånbokskreditsaldon i alla stödda valutor.
+</Card>
+
+### Lägg till eller Ta Bort Krediter
+
+Ge kunder krediter (som välkomstbonusar) eller dra av krediter (som användningsavgifter). Du kan lägga till anledningar för varje transaktion för att hålla reda på vad som hände.
+
+<Card title="Skapa Bokföringspost för Kundplånbok" icon="plus" href="/api-reference/customers/post-customer-wallets-ledger-entries">
+  Lägg till eller ta bort krediter från en kunds plånbok.
+</Card>
+
+### Visa Transaktionshistorik
+
+Se varje kredit- och debettransaktion för en kund. Utmärkt för att felsöka faktureringsproblem eller visa kunder deras utgiftshistorik.
+
+<Card title="Lista Bokföringsposter för Kundplånbok" icon="list" href="/api-reference/customers/get-customer-wallets-ledger-entries">
+  Visa varje kredit- och debettransaktion för en kund.
+</Card>
+
+## Exempel från Verkligheten
+
+### API-kreditsystem (Som OpenAI)
+
+Bygg ett system där kunder köper krediter och spenderar dem på API-anrop:
+
+```javascript
+// Give new customers welcome credits
+async function giveWelcomeCredits(customerId) {
+  await client.customers.wallets.ledgerEntries.create(customerId, {
+    amount: 10000, // $100 in cents
+    currency: 'USD',
+    entry_type: 'credit',
+    reason: 'Welcome bonus - 100 API credits',
+    idempotency_key: `welcome_${customerId}_${Date.now()}`
+  });
+}
+
+// Charge customers for API usage
+async function chargeForApiUsage(customerId, usageCost) {
+  try {
+    await client.customers.wallets.ledgerEntries.create(customerId, {
+      amount: usageCost, // Cost in cents
+      currency: 'USD',
+      entry_type: 'debit',
+      reason: `API usage - ${usageCost} credits consumed`,
+      idempotency_key: `usage_${customerId}_${Date.now()}`
+    });
+  } catch (error) {
+    if (error.status === 400) {
+      console.log('Customer needs to buy more credits');
+    }
+  }
+}
+```
+
+### Förbetalt Faktureringssystem
+
+Låt kunder köpa krediter i förskott och spendera dem över tid:
+
+<Steps>
+<Step title="Välkomna Nya Kunder">
+Ge nya kunder några gratis krediter för att komma igång.
+
+```javascript
+await client.customers.wallets.ledgerEntries.create(customerId, {
+  amount: 5000, // $50 welcome bonus
+  currency: 'USD',
+  entry_type: 'credit',
+  reason: 'Welcome bonus for new customer',
+  idempotency_key: `welcome_${customerId}`
+});
+```
+
+</Step>
+
+<Step title="Hantera Kreditköp">
+När kunder köper krediter, lägg till dem i deras plånbok.
+
+```javascript
+await client.customers.wallets.ledgerEntries.create(customerId, {
+  amount: purchaseAmount, // Amount paid in cents
+  currency: 'USD',
+  entry_type: 'credit',
+  reason: `Credit purchase - ${purchaseAmount} credits`,
+  idempotency_key: `purchase_${paymentId}`
+});
+```
+
+</Step>
+
+<Step title="Debitering för Användning">
+Dra av krediter när kunder använder din tjänst.
+
+```javascript
+await client.customers.wallets.ledgerEntries.create(customerId, {
+  amount: usageCost,
+  currency: 'USD', 
+  entry_type: 'debit',
+  reason: `Service usage - ${usageCost} credits`,
+  idempotency_key: `usage_${usageId}`
+});
+```
+
+</Step>
+
+<Step title="Övervaka Saldo">
+Kontrollera om kunder har lågt med krediter.
+
+```javascript
+const wallets = await client.customers.wallets.list(customerId);
+const usdWallet = wallets.items.find(w => w.currency === 'USD');
+const balance = usdWallet.balance;
+
+if (balance < 1000) { // Less than $10
+  // Send low balance notification
+  await sendLowBalanceNotification(customerId, balance);
+}
+```
+
+</Step>
+</Steps>
+
+### Stöd för Flera Valutor
+
+Hantera kunder i olika länder:
+
+<AccordionGroup>
+<Accordion title="Kunder i USA">
+Ge USD-krediter till kunder baserade i USA.
+
+```javascript
+await client.customers.wallets.ledgerEntries.create(customerId, {
+  amount: 20000, // $200 in cents
+  currency: 'USD',
+  entry_type: 'credit',
+  reason: 'USD credit purchase',
+  idempotency_key: `usd_purchase_${paymentId}`
+});
+```
+
+</Accordion>
+
+<Accordion title="Indiska Kunder">
+Ge INR-krediter till indiska kunder.
+
+```javascript
+await client.customers.wallets.ledgerEntries.create(customerId, {
+  amount: 1500000, // Rs 15,000 in paise
+  currency: 'INR',
+  entry_type: 'credit',
+  reason: 'INR credit purchase',
+  idempotency_key: `inr_purchase_${paymentId}`
+});
+```
+
+</Accordion>
+</AccordionGroup>
+
+## Bästa Praxis
+
+### Förhindra Duplicerade Transaktioner
+
+Använd idempotensnycklar för att säkerställa att du inte av misstag debiterar kunder två gånger för samma sak:
+
+```javascript
+async function addCreditsSafely(customerId, amount, reason) {
+  const idempotencyKey = `${reason}_${customerId}_${Date.now()}`;
+  
+  try {
+    const result = await client.customers.wallets.ledgerEntries.create(customerId, {
+      amount: amount,
+      currency: 'USD',
+      entry_type: 'credit',
+      reason: reason,
+      idempotency_key: idempotencyKey
+    });
+    
+    return { success: true, wallet: result };
+  } catch (error) {
+    if (error.status === 400 && error.message.includes('Insufficient balance')) {
+      return { success: false, error: 'INSUFFICIENT_BALANCE' };
+    }
+    
+    if (error.status === 409) {
+      // Transaction already processed
+      return { success: true, wallet: null, duplicate: true };
+    }
+    
+    throw error;
+  }
+}
+```
+
+### Kontrollera Saldo Innan Debitering
+
+Verifiera alltid att kunder har tillräckligt med krediter innan du behandlar dyra operationer:
+
+```javascript
+async function checkBalanceBeforeOperation(customerId, requiredAmount) {
+  const wallets = await client.customers.wallets.list(customerId);
+  const usdWallet = wallets.items.find(w => w.currency === 'USD');
+  
+  if (!usdWallet || usdWallet.balance < requiredAmount) {
+    throw new Error('Not enough credits for this operation');
+  }
+  
+  return usdWallet.balance;
+}
+```
+
+## Vad Som Kommer Nästa
+
+<Warning>
+Dessa funktioner är planerade för framtida versioner:
+</Warning>
+
+- **Kreditutgång**: Ställ in krediter att gå ut efter en viss tid
+- **Bättre Analys**: Detaljerade utgiftsrapporter och användningsinsikter  
+- **Fler Webhooks**: Realtidsnotifikationer för saldoförändringar och låga krediter
+
+<Tip>
+Börja enkelt med grundläggande kredit-/debitoperationer, och lägg sedan till mer komplexa funktioner när ditt företag växer.
+</Tip>

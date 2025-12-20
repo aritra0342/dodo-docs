@@ -1,0 +1,211 @@
+---
+title: N8N
+description: Integra Dodo Payments con N8N per automatizzare i flussi di lavoro
+  e connetterti con oltre 5.000 app utilizzando webhook—potenzia automazioni
+  potenti e personalizzabili in ambienti N8N auto-ospitati o cloud.
+icon: diagram-project
+---
+
+## Introduzione
+
+Collega Dodo Payments a migliaia di app e servizi tramite N8N. Automatizza i flussi di lavoro attivando i flussi di lavoro N8N quando si verificano eventi di pagamento, dall'invio di email all'aggiornamento di fogli di calcolo, creazione di attività, operazioni su database e molto altro.
+
+<Info>
+Questa integrazione richiede un URL webhook N8N dalla configurazione del tuo flusso di lavoro.
+</Info>
+
+## Iniziare
+
+<Steps>
+<Step title="Apri la Sezione Webhook">
+  Nel tuo dashboard di Dodo Payments, vai a <b>Webhooks → + Aggiungi Endpoint</b> ed espandi il menu a discesa delle integrazioni.
+  <Frame>
+    <img src="/images/integrations/n8n.png" alt="Aggiungi Endpoint e menu a discesa delle integrazioni" />
+  </Frame>
+</Step>
+
+<Step title="Seleziona N8N">
+  Scegli la scheda di integrazione <b>N8N</b>.
+</Step>
+
+<Step title="Crea Webhook in N8N">
+  In N8N, crea un nuovo flusso di lavoro e aggiungi un nodo <b>Webhook</b> come attivatore. Configuralo come un webhook POST e copia l'URL del webhook.
+</Step>
+
+<Step title="Incolla l'URL del Webhook">
+  Incolla l'URL del webhook N8N nella configurazione dell'endpoint.
+</Step>
+
+<Step title="Configura Trasformazione">
+  Modifica il codice di trasformazione per formattare i dati per il tuo flusso di lavoro N8N.
+</Step>
+
+<Step title="Testa & Crea">
+  Testa con payload di esempio e clicca su <b>Crea</b> per attivare l'integrazione.
+</Step>
+
+<Step title="Attiva Flusso di Lavoro">
+  In N8N, attiva il tuo flusso di lavoro per iniziare a ricevere eventi webhook.
+</Step>
+
+<Step title="Fatto!">
+  🎉 Gli eventi di pagamento attiveranno ora automaticamente i tuoi flussi di lavoro N8N.
+</Step>
+</Steps>
+
+## Esempi di Codice di Trasformazione
+
+### Payload Webhook di Base
+
+```javascript basic_webhook.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.payload = {
+      event_type: webhook.eventType,
+      payment_id: p.payment_id,
+      amount: (p.total_amount / 100).toFixed(2),
+      currency: p.currency || "USD",
+      customer_email: p.customer.email,
+      customer_name: p.customer.name,
+      payment_method: p.payment_method || "unknown",
+      timestamp: webhook.payload.timestamp
+    };
+  }
+  return webhook;
+}
+```
+
+### Gestore di Eventi di Abbonamento
+
+```javascript subscription_webhook.js icon="js" expandable
+function handler(webhook) {
+  const s = webhook.payload.data;
+  switch (webhook.eventType) {
+    case "subscription.active":
+      webhook.payload = {
+        event_type: "subscription_started",
+        subscription_id: s.subscription_id,
+        customer_email: s.customer.email,
+        customer_name: s.customer.name,
+        product_id: s.product_id,
+        amount: (s.recurring_pre_tax_amount / 100).toFixed(2),
+        frequency: s.payment_frequency_interval,
+        next_billing: s.next_billing_date,
+        timestamp: webhook.payload.timestamp
+      };
+      break;
+    case "subscription.cancelled":
+      webhook.payload = {
+        event_type: "subscription_cancelled",
+        subscription_id: s.subscription_id,
+        customer_email: s.customer.email,
+        cancelled_at: s.cancelled_at,
+        cancel_at_next_billing: s.cancel_at_next_billing_date,
+        timestamp: webhook.payload.timestamp
+      };
+      break;
+  }
+  return webhook;
+}
+```
+
+### Gestore di Avvisi di Controversia
+
+```javascript dispute_webhook.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType.startsWith("dispute.")) {
+    const d = webhook.payload.data;
+    webhook.payload = {
+      event_type: webhook.eventType,
+      dispute_id: d.dispute_id,
+      payment_id: d.payment_id,
+      amount: (d.amount / 100).toFixed(2),
+      status: d.dispute_status,
+      stage: d.dispute_stage,
+      remarks: d.remarks || "",
+      urgent: webhook.eventType === "dispute.opened",
+      timestamp: webhook.payload.timestamp
+    };
+  }
+  return webhook;
+}
+```
+
+## Casi d'Uso Popolari di N8N
+
+<AccordionGroup>
+<Accordion title="Notifiche Email">
+- Invia email Gmail/Outlook per conferme di pagamento
+- Crea sequenze email in Mailchimp/ConvertKit
+- Invia notifiche Slack/Discord tramite webhook
+- Crea record Google Sheets automaticamente
+- Invia messaggi Telegram/WhatsApp
+</Accordion>
+
+<Accordion title="Aggiornamenti CRM">
+- Aggiungi contatti a HubSpot/Salesforce
+- Crea affari in Pipedrive/Close
+- Aggiorna record clienti in Airtable
+- Registra attività in Monday.com
+- Sincronizza dati con database PostgreSQL/MySQL
+</Accordion>
+
+<Accordion title="Gestione Attività">
+- Crea attività in Asana/Trello
+- Aggiungi elementi da fare in Notion
+- Crea eventi nel calendario di Google Calendar
+- Invia notifiche SMS tramite Twilio
+- Crea problemi GitHub per controversie
+</Accordion>
+
+<Accordion title="Elaborazione Dati">
+- Trasforma e arricchisci i dati di pagamento
+- Memorizza eventi in database (PostgreSQL, MongoDB)
+- Aggrega metriche e analisi
+- Genera report ed esportazioni
+- Attiva flussi di lavoro complessi a più passaggi
+</Accordion>
+</AccordionGroup>
+
+## Suggerimenti
+
+- Mantieni la struttura del payload semplice per una facile analisi dei nodi N8N
+- Usa nomi di campo coerenti in tutti gli eventi
+- Includi timestamp per il timing e la programmazione del flusso di lavoro
+- Testa il tuo flusso di lavoro con dati di esempio prima di attivarlo
+- Usa il nodo IF di N8N per logica condizionale e instradamento
+- Sfrutta il nodo Code di N8N per trasformazioni di dati personalizzate
+- Usa il nodo Switch per instradare diversi tipi di eventi su percorsi diversi
+- Imposta flussi di lavoro di errore per gestire le consegne webhook non riuscite
+
+## Risoluzione dei Problemi
+
+<AccordionGroup>
+<Accordion title="Flusso di lavoro non attivato">
+- Verifica che l'URL del webhook sia corretto e accessibile
+- Controlla che il flusso di lavoro sia attivato in N8N
+- Assicurati che il nodo webhook sia configurato come metodo POST
+- Testa la consegna del webhook nella cronologia di esecuzione di N8N
+- Verifica che le impostazioni del firewall/rete consentano webhook in entrata
+- Controlla le impostazioni di autenticazione del webhook N8N se configurate
+</Accordion>
+
+<Accordion title="Dati non mappati correttamente">
+- Controlla i nomi dei campi nelle configurazioni dei nodi N8N
+- Verifica che i tipi di dati corrispondano ai formati attesi nei nodi
+- Usa la funzione di test di N8N per ispezionare i dati in arrivo
+- Assicurati che il codice di trasformazione restituisca JSON valido
+- Controlla le impostazioni del formato di risposta del nodo webhook
+- Usa il nodo Set per rinominare o ristrutturare i campi
+</Accordion>
+
+<Accordion title="Errori di esecuzione del flusso di lavoro">
+- Rivedi i log di esecuzione in N8N per messaggi di errore dettagliati
+- Controlla le impostazioni di connessione dei nodi e le credenziali
+- Verifica che tutti i campi richiesti siano presenti nel payload
+- Testa i singoli nodi con dati di esempio
+- Abilita flussi di lavoro di errore per catturare e gestire i fallimenti
+- Controlla i limiti di frequenza e le quote API per i servizi connessi
+</Accordion>
+</AccordionGroup>

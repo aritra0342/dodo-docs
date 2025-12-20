@@ -1,0 +1,295 @@
+---
+title: Portafogli Clienti
+description: Costruisci sistemi di fatturazione basati su crediti come OpenAI o
+  Claude con portafogli clienti. Tieni traccia dei saldi, gestisci i crediti e
+  crea flussi di lavoro finanziari sofisticati.
+icon: wallet
+tag: NUOVO
+---
+
+<CardGroup cols={3}>
+<Card title="Ottieni Portafogli Clienti" icon="code" href="/api-reference/customers/get-customer-wallets">
+  Controlla i saldi dei portafogli clienti in diverse valute.
+</Card>
+
+<Card title="Crea Voce di Libro Mastro" icon="plus" href="/api-reference/customers/post-customer-wallets-ledger-entries">
+  Aggiungi o rimuovi crediti dai portafogli clienti.
+</Card>
+
+<Card title="Elenca Voci di Libro Mastro" icon="list" href="/api-reference/customers/get-customer-wallets-ledger-entries">
+  Visualizza la cronologia completa delle transazioni con paginazione.
+</Card>
+</CardGroup>
+
+## Cosa sono i Portafogli Clienti?
+
+Pensa ai portafogli clienti come a salvadanai digitali per i tuoi utenti. Ogni cliente ne riceve uno automaticamente quando crei il loro account. Puoi utilizzare questi portafogli per:
+
+- **Tenere traccia dei saldi di credito** in USD e INR
+- **Costruire sistemi di credito API** come OpenAI o Claude
+- **Creare fatturazione prepagata** in cui i clienti acquistano crediti in anticipo
+- **Gestire rimborsi** come crediti nel portafoglio invece di contante
+- **Gestire fatturazioni complesse** con una cronologia dettagliata delle transazioni
+
+<Info>
+Ogni cliente riceve automaticamente un portafoglio quando crei il loro account. I portafogli supportano le valute USD e INR con saldi separati per ciascuna.
+</Info>
+
+<Frame>
+  <img src="/images/customer/customer-wallet.png" alt="Portafogli Clienti" />
+</Frame>
+
+## Come Funziona
+
+I portafogli clienti sono semplici: contengono denaro (crediti) che i clienti possono spendere per i tuoi servizi. Quando un cliente effettua un acquisto, il saldo del suo portafoglio viene controllato per primo e i crediti disponibili vengono utilizzati prima di addebitare il metodo di pagamento.
+
+### Configurazione Automatica
+
+Quando crei un nuovo cliente, Dodo Payments crea automaticamente un portafoglio con saldo zero. È pronto per essere utilizzato immediatamente tramite la nostra API.
+
+### Supporto Multi-Valuta
+
+Ogni portafoglio può contenere saldi in diverse valute:
+
+<ResponseField name="USD Balance" type="integer">
+Saldo in Dollari Statunitensi (memorizzato in centesimi)
+</ResponseField>
+
+<ResponseField name="INR Balance" type="integer">
+Saldo in Rupie Indiane (memorizzato in paise)
+</ResponseField>
+
+<Info>
+Attualmente, sono disponibili solo saldi in <strong>USD</strong> e <strong>INR</strong>. Altre valute in arrivo presto.
+</Info>
+
+## Lavorare con i Portafogli
+
+### Controlla i Saldi dei Clienti
+
+Vedi quanti crediti ha un cliente in tutte le valute. Perfetto per controllare se hanno fondi sufficienti prima di elaborare un acquisto.
+
+<Card title="Ottieni Saldi dei Portafogli Clienti" icon="wallet" href="/api-reference/customers/get-customer-wallets">
+  Controlla i saldi di credito del portafoglio di un cliente in tutte le valute supportate.
+</Card>
+
+### Aggiungi o Rimuovi Crediti
+
+Dai ai clienti crediti (come bonus di benvenuto) o deduci crediti (come costi di utilizzo). Puoi aggiungere motivi per ogni transazione per tenere traccia di cosa è successo.
+
+<Card title="Crea Voce di Libro Mastro Portafoglio Cliente" icon="plus" href="/api-reference/customers/post-customer-wallets-ledger-entries">
+  Aggiungi o rimuovi crediti dal portafoglio di un cliente.
+</Card>
+
+### Visualizza la Cronologia delle Transazioni
+
+Vedi ogni transazione di credito e addebito per un cliente. Ottimo per il debug dei problemi di fatturazione o per mostrare ai clienti la loro cronologia di spesa.
+
+<Card title="Elenca Voci di Libro Mastro Portafoglio Cliente" icon="list" href="/api-reference/customers/get-customer-wallets-ledger-entries">
+  Visualizza ogni transazione di credito e addebito per un cliente.
+</Card>
+
+## Esempi del Mondo Reale
+
+### Sistema di Credito API (Come OpenAI)
+
+Costruisci un sistema in cui i clienti acquistano crediti e li spendono per chiamate API:
+
+```javascript
+// Give new customers welcome credits
+async function giveWelcomeCredits(customerId) {
+  await client.customers.wallets.ledgerEntries.create(customerId, {
+    amount: 10000, // $100 in cents
+    currency: 'USD',
+    entry_type: 'credit',
+    reason: 'Welcome bonus - 100 API credits',
+    idempotency_key: `welcome_${customerId}_${Date.now()}`
+  });
+}
+
+// Charge customers for API usage
+async function chargeForApiUsage(customerId, usageCost) {
+  try {
+    await client.customers.wallets.ledgerEntries.create(customerId, {
+      amount: usageCost, // Cost in cents
+      currency: 'USD',
+      entry_type: 'debit',
+      reason: `API usage - ${usageCost} credits consumed`,
+      idempotency_key: `usage_${customerId}_${Date.now()}`
+    });
+  } catch (error) {
+    if (error.status === 400) {
+      console.log('Customer needs to buy more credits');
+    }
+  }
+}
+```
+
+### Sistema di Fatturazione Prepagata
+
+Consenti ai clienti di acquistare crediti in anticipo e spenderli nel tempo:
+
+<Steps>
+<Step title="Dai il Benvenuto ai Nuovi Clienti">
+Dai ai nuovi clienti alcuni crediti gratuiti per iniziare.
+
+```javascript
+await client.customers.wallets.ledgerEntries.create(customerId, {
+  amount: 5000, // $50 welcome bonus
+  currency: 'USD',
+  entry_type: 'credit',
+  reason: 'Welcome bonus for new customer',
+  idempotency_key: `welcome_${customerId}`
+});
+```
+
+</Step>
+
+<Step title="Gestisci gli Acquisti di Crediti">
+Quando i clienti acquistano crediti, aggiungili al loro portafoglio.
+
+```javascript
+await client.customers.wallets.ledgerEntries.create(customerId, {
+  amount: purchaseAmount, // Amount paid in cents
+  currency: 'USD',
+  entry_type: 'credit',
+  reason: `Credit purchase - ${purchaseAmount} credits`,
+  idempotency_key: `purchase_${paymentId}`
+});
+```
+
+</Step>
+
+<Step title="Addebita per l'Uso">
+Deduci crediti quando i clienti utilizzano il tuo servizio.
+
+```javascript
+await client.customers.wallets.ledgerEntries.create(customerId, {
+  amount: usageCost,
+  currency: 'USD', 
+  entry_type: 'debit',
+  reason: `Service usage - ${usageCost} credits`,
+  idempotency_key: `usage_${usageId}`
+});
+```
+
+</Step>
+
+<Step title="Monitora i Saldi">
+Controlla se i clienti stanno esaurendo i crediti.
+
+```javascript
+const wallets = await client.customers.wallets.list(customerId);
+const usdWallet = wallets.items.find(w => w.currency === 'USD');
+const balance = usdWallet.balance;
+
+if (balance < 1000) { // Less than $10
+  // Send low balance notification
+  await sendLowBalanceNotification(customerId, balance);
+}
+```
+
+</Step>
+</Steps>
+
+### Supporto Multi-Valuta
+
+Gestisci clienti in diversi paesi:
+
+<AccordionGroup>
+<Accordion title="Clienti Statunitensi">
+Dai crediti in USD ai clienti con sede negli Stati Uniti.
+
+```javascript
+await client.customers.wallets.ledgerEntries.create(customerId, {
+  amount: 20000, // $200 in cents
+  currency: 'USD',
+  entry_type: 'credit',
+  reason: 'USD credit purchase',
+  idempotency_key: `usd_purchase_${paymentId}`
+});
+```
+
+</Accordion>
+
+<Accordion title="Clienti Indiani">
+Dai crediti in INR ai clienti indiani.
+
+```javascript
+await client.customers.wallets.ledgerEntries.create(customerId, {
+  amount: 1500000, // Rs 15,000 in paise
+  currency: 'INR',
+  entry_type: 'credit',
+  reason: 'INR credit purchase',
+  idempotency_key: `inr_purchase_${paymentId}`
+});
+```
+
+</Accordion>
+</AccordionGroup>
+
+## Migliori Pratiche
+
+### Prevenire Transazioni Duplicati
+
+Usa chiavi di idempotenza per assicurarti di non addebitare accidentalmente i clienti due volte per la stessa cosa:
+
+```javascript
+async function addCreditsSafely(customerId, amount, reason) {
+  const idempotencyKey = `${reason}_${customerId}_${Date.now()}`;
+  
+  try {
+    const result = await client.customers.wallets.ledgerEntries.create(customerId, {
+      amount: amount,
+      currency: 'USD',
+      entry_type: 'credit',
+      reason: reason,
+      idempotency_key: idempotencyKey
+    });
+    
+    return { success: true, wallet: result };
+  } catch (error) {
+    if (error.status === 400 && error.message.includes('Insufficient balance')) {
+      return { success: false, error: 'INSUFFICIENT_BALANCE' };
+    }
+    
+    if (error.status === 409) {
+      // Transaction already processed
+      return { success: true, wallet: null, duplicate: true };
+    }
+    
+    throw error;
+  }
+}
+```
+
+### Controlla i Saldi Prima di Addebitare
+
+Verifica sempre che i clienti abbiano crediti sufficienti prima di elaborare operazioni costose:
+
+```javascript
+async function checkBalanceBeforeOperation(customerId, requiredAmount) {
+  const wallets = await client.customers.wallets.list(customerId);
+  const usdWallet = wallets.items.find(w => w.currency === 'USD');
+  
+  if (!usdWallet || usdWallet.balance < requiredAmount) {
+    throw new Error('Not enough credits for this operation');
+  }
+  
+  return usdWallet.balance;
+}
+```
+
+## Cosa Arriverà Dopo
+
+<Warning>
+Queste funzionalità sono pianificate per future versioni:
+</Warning>
+
+- **Scadenza dei Crediti**: Imposta i crediti per scadere dopo un certo periodo
+- **Migliori Analisi**: Rapporti dettagliati sulle spese e approfondimenti sull'uso  
+- **Più Webhook**: Notifiche in tempo reale per cambiamenti di saldo e crediti bassi
+
+<Tip>
+Inizia semplice con operazioni di credito/debito di base, poi aggiungi funzionalità più complesse man mano che la tua attività cresce.
+</Tip>

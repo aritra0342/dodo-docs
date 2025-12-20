@@ -1,0 +1,53 @@
+---
+openapi: post /subscriptions/{subscription_id}/update-payment-method
+title: Uppdatera betalningsmetod
+description: Uppdatera betalningsmetoden för en befintlig prenumeration. Du kan
+  antingen lägga till en ny betalningsmetod eller använda en befintlig från
+  kundens sparade betalningsmetoder.
+---
+
+Uppdatera betalningsmetoden för en prenumeration. Denna slutpunkt stöder både aktiva prenumerationer och prenumerationer i `on_hold` tillstånd.
+
+<Info>
+För prenumerationer i `on_hold` tillstånd, skapar uppdatering av betalningsmetoden automatiskt en avgift för kvarstående skulder, genererar en faktura och reaktiverar prenumerationen till `active` tillstånd vid lyckad betalning.
+</Info>
+
+### Användningsfall
+
+- **Aktiva prenumerationer**: Uppdatera betalningsmetod när ett kort går ut eller kunden vill använda en annan betalningsmetod
+- **Pausade prenumerationer**: Reaktivera prenumerationer som har pausats på grund av misslyckade betalningar genom att uppdatera betalningsmetoden
+- **Hantering av betalningsmetoder**: Växla mellan sparade betalningsmetoder eller lägg till nya
+
+<Info>
+För att lista befintliga betalningsmetoder för en kund, använd [List Payment Methods API](/api-reference/customers/get-customer-payment-methods). Detta hjälper dig att hämta tillgängliga betalningsmetod-ID:n när du använder `type: "existing"` för att uppdatera en prenumerations betalningsmetod.
+</Info>
+
+### Beteende för aktiva prenumerationer
+
+När betalningsmetoden uppdateras för en aktiv prenumeration:
+
+- Betalningsmetoden uppdateras omedelbart
+- Ingen avgift skapas
+- Prenumerationen förblir aktiv
+- Framtida förnyelser kommer att använda den nya betalningsmetoden
+
+### Beteende för pausade prenumerationer
+
+När betalningsmetoden uppdateras för en prenumeration i `on_hold` tillstånd:
+
+1. En avgift skapas automatiskt för kvarstående skulder
+2. En faktura genereras för avgiften
+3. Betalningen behandlas med den nya betalningsmetoden
+4. Vid lyckad betalning reaktiveras prenumerationen till `active` tillstånd
+5. Du kommer att få webhook-händelser: `payment.succeeded` följt av `subscription.active`
+
+<Warning>
+Om betalningen misslyckas efter att betalningsmetoden har uppdaterats för en `on_hold` prenumeration, kommer prenumerationen att förbli i `on_hold` tillstånd. Övervaka webhook-händelser för att spåra betalningsstatus.
+</Warning>
+
+### Webhook-händelser
+
+När betalningsmetoden uppdateras för en `on_hold` prenumeration, kommer du att få följande webhook-händelser:
+
+1. **`payment.succeeded`** - Avgiften för kvarstående skulder var framgångsrik
+2. **`subscription.active`** - Prenumerationen har reaktiverats

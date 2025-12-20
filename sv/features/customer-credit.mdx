@@ -1,0 +1,303 @@
+---
+title: Kundkrediter
+description: Lär dig hur du hanterar kundkreditbalanser, utfärdar
+  tjänstekrediter och hanterar faktureringsjusteringar sömlöst med Dodo
+  Payments.
+icon: credit-card
+---
+
+<CardGroup cols={1}>
+<Card title="API Referens - Kundkrediter" icon="code" href="/api-reference/customers/get-customer-wallets">
+  Få tillgång till den kompletta API-dokumentationen för att hantera kundkrediter och testa kreditoperationer interaktivt.
+</Card>
+</CardGroup>
+
+## Vad är Kundkredit?
+
+Kundkrediter ger ett flexibelt sätt att hantera kundbalanser och förbättra faktureringsrelationer. Med kundkrediter kan du:
+
+- **Belöna lojala kunder** med kontokrediter för exceptionell service eller lojalitetsprogram
+- **Utfärda tjänstekrediter** för att kompensera för serviceavbrott eller faktureringsjusteringar
+- **Hantera manuella justeringar** utan att störa befintliga faktureringscykler
+- **Ge återbetalningar** som kunder kan använda för framtida köp
+
+<Info>
+Kundkrediter skapar en positiv balans på en kunds konto som automatiskt tillämpas på framtida prenumerationsbetalningar, vilket minskar det belopp som debiteras deras betalningsmetod.
+</Info>
+
+## Hur Kundkrediter Fungerar
+
+Kundkrediter fungerar på en enkel princip: tillgänglig kredit tillämpas automatiskt på prenumerationsbetalningar innan kundens betalningsmetod debiteras.
+
+### Automatisk Kreditapplikation
+
+När en prenumerationsbetalning förfaller följer Dodo Payments denna betalningssekvens:
+
+<Steps>
+<Step title="Kontrollera Kreditbalans">
+Systemet kontrollerar om kunden har tillgänglig kredit på sitt konto.
+</Step>
+
+<Step title="Tillämpa Tillgänglig Kredit">
+Om kredit är tillgänglig tillämpas den automatiskt för att minska betalningsbeloppet.
+</Step>
+
+<Step title="Beräkna Återstående Balans">
+Eventuellt återstående belopp efter kreditapplikation debiteras kundens betalningsmetod.
+</Step>
+
+<Step title="Behandla Betalning">
+Den slutliga betalningen behandlas för den återstående balansen, om någon.
+</Step>
+</Steps>
+
+<Info>
+Dodo Payments stöder separata kreditplånböcker för INR och USD. Krediter som läggs till en INR-plånbok kan endast användas för INR-prenumerationer, medan USD-plånbokskrediter tillämpas uteslutande på USD-prenumerationer. Du kan inte använda krediter från en valuta-plånbok för att betala för prenumerationer i en annan valuta.
+</Info>
+
+### Betalningsscenarier
+
+<Tabs>
+<Tab title="Full Kredit Täckning">
+**Scenario**: Kunden har 60 USD kredit, prenumerationen kostar 20 USD
+
+**Resultat**: 
+- $20 dras från kreditbalansen
+- $0 debiteras betalningsmetoden
+- Återstående kredit: $40
+
+<Check>
+Ingen debitering av betalningsmetoden krävs när kredit helt täcker prenumerationskostnaden.
+</Check>
+</Tab>
+
+<Tab title="Delvis Kredit Täckning">
+**Scenario**: Kunden har 60 USD kredit, prenumerationen kostar 100 USD
+
+**Resultat**:
+- $60 dras från kreditbalansen
+- $40 debiteras betalningsmetoden
+- Återstående kredit: $0
+
+<Info>
+Krediter tillämpas alltid först, vilket minimerar debiteringen av kundens betalningsmetod.
+</Info>
+</Tab>
+
+<Tab title="Ingen Kredit Tillgänglig">
+**Scenario**: Kunden har 0 USD kredit, prenumerationen kostar 50 USD
+
+**Resultat**:
+- $0 dras från kreditbalansen
+- $50 debiteras betalningsmetoden
+- Återstående kredit: $0
+
+</Tab>
+</Tabs>
+
+## Hantera Kundkrediter
+
+Effektiv hantering av kundkreditbalanser genom Dodo Payments dashboard med omfattande kredit- och debetoperationer.
+
+### Lägga till Krediter till Kundkonton
+
+Öka kundkontobalanser genom att lägga till krediter för olika affärsscenarier:
+
+<Steps>
+<Step title="Navigera till Kunddetaljer">
+Gå till **Kunder** i din dashboard och välj den specifika kunden du vill hantera.
+</Step>
+
+<Step title="Åtkomst till Kreditbok">
+Navigera till avsnittet **Kreditbok** på kundens detaljsida.
+
+<Info>
+Kreditboken ger en komplett transaktionshistorik och översikt över nuvarande balans för kunden.
+</Info>
+</Step>
+
+<Step title="Initiera Kreditapplikation">
+Klicka på **Tillämpa Kredit** för att öppna gränssnittet för kreditförvaltning.
+</Step>
+
+<Step title="Konfigurera Kreditdetaljer">
+Ställ in kredittransaktionen med följande information:
+
+<ParamField path="Transaktionstyp" type="string" required>
+Välj **Kredit** för att lägga till medel till kundens kontobalans.
+</ParamField>
+
+<ParamField path="Belopp" type="number" required>
+Ange kreditbeloppet som ska läggas till kundens konto.
+</ParamField>
+
+<ParamField path="Valuta" type="string" required>
+Välj valutan för kredittransaktionen:
+- **USD** - US Dollar
+- **INR** - Indiska Rupee
+</ParamField>
+
+<ParamField path="Orsak" type="string">
+Ge en valfri förklaring för kreditapplikationen, såsom "Tjänstekompensation" eller "Lojalitetsbelöning".
+</ParamField>
+</Step>
+
+<Step title="Tillämpa Kredit">
+Granska kreditdetaljerna och klicka på **Tillämpa** för att lägga till krediten till kundens konto.
+
+<Check>
+Krediten är omedelbart tillgänglig för användning vid kundens nästa prenumerationsbetalning.
+</Check>
+</Step>
+</Steps>
+
+### Ta bort Krediter (Debetoperationer)
+
+Ta bort medel från kundkonton när justeringar eller korrigeringar behövs:
+
+<Steps>
+<Step title="Åtkomst till Kreditförvaltning">
+Följ samma navigeringsväg: **Kunder** → **Kunddetaljsida** → **Kreditbok** → **Tillämpa Kredit**.
+</Step>
+
+<Step title="Konfigurera Debettransaktion">
+Ställ in debetoperationen:
+
+<ParamField path="Transaktionstyp" type="string" required>
+Välj **Debet** för att ta bort medel från kundens kontobalans.
+</ParamField>
+
+<ParamField path="Belopp" type="number" required>
+Ange beloppet som ska dras från kundens kreditbalans.
+</ParamField>
+
+<ParamField path="Valuta" type="string" required>
+Välj lämplig valuta (USD eller INR).
+</ParamField>
+
+<ParamField path="Orsak" type="string">
+Ge en förklaring för debetet, såsom "Faktureringskorrigering" eller "Kreditjustering".
+</ParamField>
+
+<Warning>
+Se till att kunden har tillräcklig kreditbalans innan du tillämpar ett debet. Negativa saldon stöds inte.
+</Warning>
+</Step>
+
+<Step title="Tillämpa Debet">
+Granska och bekräfta debettransaktionen för att ta bort det angivna beloppet från kundens konto.
+</Step>
+</Steps>
+
+## Förstå Kreditboken
+
+Kreditboken ger omfattande spårning och transparens för alla kundkredittransaktioner.
+
+### Tillgänglig Kreditbalans
+
+Kundens tillgängliga kreditbalans visas tydligt högst upp i Kreditbokens gränssnitt, vilket ger omedelbar insyn i deras nuvarande kreditstatus.
+
+**Total Balansöversikt**  
+Den huvudsakliga balansvisningen visar det sammanlagda kreditbeloppet över alla stödda valutor, omvandlat till en enda valuta för enkel referens. Denna enhetliga vy hjälper dig att snabbt bedöma kundens totala tillgängliga kredit utan att behöva beräkna över flera valutor.
+
+<Tip>
+Den totala balansen beräknas automatiskt med aktuella växelkurser för att ge en exakt sammanlagd vy av flervalutakrediter.
+</Tip>
+
+**Valutabreakdown**
+Klicka på knappen "Visa Breakdown" för att expandera den detaljerade vyn och se individuella saldon för varje valuta:
+
+- **USD Balans**: Visar det exakta beloppet som är tillgängligt i US Dollar  
+- **INR Balans**: Visar det exakta beloppet som är tillgängligt i Indiska Rupee
+- **Ytterligare Valutor**: Eventuella andra valutor med tillgängliga kreditbalanser
+
+<Note>
+Breakdown-vyn är särskilt användbar när du hanterar kunder som gör betalningar i flera valutor eller när du behöver verifiera specifika valutafördelningar.
+</Note>
+
+### Bokföringspostkomponenter
+
+Varje transaktion i Kreditboken innehåller följande information:
+
+<ResponseField name="Post-ID" type="string">
+Unik identifierare för varje kredittransaktion, vilket säkerställer fullständig revisorgranskning.
+</ResponseField>
+
+<ResponseField name="Referens-ID" type="string">
+Betalnings-ID när transaktionen är kopplad till en specifik betalning eller faktureringshändelse.
+</ResponseField>
+
+<ResponseField name="Händelsetyp" type="string">
+Typen av transaktion som skapade denna bokföringspost:
+
+- **Betalning** - Kredit använd för prenumerationsbetalning
+- **Betalningsåterställning** - Återställning av betalning som skapar kredit
+- **Återbetalning** - Återbetalning som behandlas som kredit
+- **Återbetalningsåterställning** - Återställning av återbetalning som tar bort kredit
+- **Tvist** - Justering av kredit relaterad till tvist
+- **Tviståterställning** - Justering av tvistlösning
+- **Handelsjustering** - Manuell kredit/debet av handlare
+</ResponseField>
+
+<ResponseField name="Belopp" type="number">
+Transaktionsbeloppet, som visar positiva värden för krediter och negativa värden för debiteringar.
+</ResponseField>
+
+<ResponseField name="Före Balans" type="number">
+Kundens kreditbalans innan denna transaktion behandlades.
+</ResponseField>
+
+<ResponseField name="Efter Balans" type="number">
+Kundens kreditbalans efter att denna transaktion slutfördes.
+</ResponseField>
+
+<ResponseField name="Orsak" type="string">
+Valfri förklaring som ges när transaktionen skapades.
+</ResponseField>
+
+<ResponseField name="Skapad Vid" type="timestamp">
+När transaktionen behandlades, i ISO 8601-format.
+</ResponseField>
+
+## Verkliga Kredit Scenarier
+
+Att förstå praktiska tillämpningar hjälper dig att utnyttja kundkrediter effektivt för affärstillväxt och kundnöjdhet.
+
+### Scenarioexempel
+
+<AccordionGroup>
+<Accordion title="Tjänstekredit för Driftstopp">
+**Situation**: Din tjänst upplevde ett 2-timmars avbrott som påverkade en premiumkund.
+
+**Åtgärd**: Tillämpa en 25 USD tjänstekredit med orsaken "Kompensation för tjänsteavbrott den [datum]"
+
+**Resultat**: Kunden får kredit som automatiskt tillämpas på deras nästa USD 50-prenumeration, vilket minskar deras avgift till $25.
+
+**Affärspåverkan**: Upprätthåller kundnöjdhet och visar engagemang för tjänstekvalitet.
+</Accordion>
+
+<Accordion title="Lojalitetsbelöningsprogram">
+**Situation**: En kund har varit prenumererad i 12 på varandra följande månader.
+
+**Åtgärd**: Tillämpa en $10 lojalitetskredit med orsaken "Årlig lojalitetsbelöning - Tack för att du är med oss!"
+
+**Resultat**: Kunden får oväntat värde, vilket stärker retention och varumärkeslojalitet.
+
+**Affärspåverkan**: Proaktiv kunduppskattning som uppmuntrar fortsatt prenumeration.
+</Accordion>
+
+</AccordionGroup>
+
+## Nuvarande Begränsningar
+
+<Warning>
+Följande funktioner är planerade för fas 2-release och är för närvarande inte tillgängliga:
+</Warning>
+
+### Kassa Integration
+Kundkrediter kan för närvarande inte tillämpas under kassa-processen. Kunder kan inte se eller använda sin tillgängliga kreditbalans när de gör nya köp genom betalningssidor.
+
+**Planerad Förbättring**: Framtida versioner kommer att inkludera visning av kreditbalans och tillämpningsalternativ i kassa-flöden.
+
+### Engångsbetalningsprodukter
+Krediter är för närvarande endast tillämpliga på återkommande prenumerationsbetalningar. De kan inte användas för engångsbetalningsprodukter eller enskilda köp.

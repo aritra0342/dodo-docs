@@ -1,0 +1,142 @@
+---
+title: Discord
+description: अपने Discord चैनलों पर वास्तविक समय के Dodo Payments सूचनाएँ भेजें।
+icon: discord
+---
+
+## परिचय
+
+अपने टीम को सूचित रखें जहाँ वे पहले से सहयोग कर रहे हैं। Discord एकीकरण भुगतान, सदस्यता, विवाद, और अन्य महत्वपूर्ण घटनाओं को सीधे किसी भी चैनल में भेजता है जिसे आप चुनते हैं—कोई पोलिंग या डैशबोर्ड की आवश्यकता नहीं।
+
+<Info>
+यह गाइड मानती है कि आपके पास Dodo Payments डैशबोर्ड के एकीकरण अनुभाग तक पहुंच है।
+</Info>
+
+## प्रारंभ करना
+
+<Steps>
+<Step title="Webhook अनुभाग खोलें">
+  अपने Dodo Payments डैशबोर्ड में, <b>Webhooks → + Add Endpoint</b> खोलें और एकीकरणों को प्रकट करने के लिए ड्रॉपडाउन को विस्तारित करें।
+  <Frame>
+    <img src="/images/integrations/discord.png" alt="Add Endpoint और एकीकरण ड्रॉपडाउन" />
+  </Frame>
+</Step>
+
+<Step title="Discord चुनें">
+  <b>Discord</b> कार्ड चुनें फिर <b>अपने Discord कार्यक्षेत्र से कनेक्ट करें</b> पर क्लिक करें।
+</Step>
+
+<Step title="बॉट को अधिकृत करें">
+  आवश्यक अनुमतियाँ दें ताकि बॉट आपके चयनित चैनल में संदेश पोस्ट कर सके।
+</Step>
+
+<Step title="परिवर्तन कोड संपादित करें">
+  अपने आवश्यकताओं के अनुसार पेलोड → एम्बेड मैपिंग को अनुकूलित करें—या नीचे दिए गए टेम्पलेट्स से शुरू करें।
+</Step>
+
+<Step title="परीक्षण और बनाएँ">
+  एम्बेड का पूर्वावलोकन करने के लिए नमूना पेलोड का उपयोग करें, फिर <b>बनाएँ</b> पर क्लिक करें।
+</Step>
+
+<Step title="हो गया!">
+  🎉 आपका Discord चैनल अब लाइव Dodo Payments अपडेट प्राप्त करेगा।
+</Step>
+</Steps>
+
+## परिवर्तन कोड उदाहरण
+
+### न्यूनतम भुगतान एम्बेड
+
+```javascript payment_embed.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.payload = {
+      embeds: [{
+        title: "✅ Payment Successful",
+        description: `**Amount:** $${(p.total_amount / 100).toFixed(2)}\n**Customer:** ${p.customer.email}`,
+        color: 0x2ecc71 // green
+      }]
+    };
+  }
+  return webhook;
+}
+```
+
+### सदस्यता घटनाएँ
+
+```javascript subscription_embed.js icon="js" expandable
+function handler(webhook) {
+  const s = webhook.payload.data;
+  switch (webhook.eventType) {
+    case "subscription.active":
+      webhook.payload = {
+        embeds: [{
+          title: "📄 Subscription Activated",
+          fields: [
+            { name: "Customer", value: s.customer.email, inline: true },
+            { name: "Product", value: s.product_id, inline: true },
+            { name: "Next Billing", value: new Date(s.next_billing_date).toLocaleDateString(), inline: true }
+          ],
+          color: 0x2ecc71
+        }]
+      };
+      break;
+    case "subscription.cancelled":
+      webhook.payload = {
+        embeds: [{
+          title: "⚠️ Subscription Cancelled",
+          fields: [
+            { name: "Customer", value: s.customer.email, inline: true },
+            { name: "Product", value: s.product_id, inline: true }
+          ],
+          color: 0xf1c40f
+        }]
+      };
+      break;
+  }
+  return webhook;
+}
+```
+
+### विवाद अलर्ट
+
+```javascript dispute_embed.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType.startsWith("dispute.")) {
+    const d = webhook.payload.data;
+    webhook.payload = {
+      embeds: [{
+        title: d.dispute_status === "won" ? "🏆 Dispute Won" : d.dispute_status === "lost" ? "❌ Dispute Lost" : "🚨 Dispute Update",
+        fields: [
+          { name: "Payment ID", value: d.payment_id, inline: true },
+          { name: "Amount", value: `$${(d.amount / 100).toFixed(2)}`, inline: true },
+          { name: "Status", value: d.dispute_status, inline: true }
+        ],
+        color: d.dispute_status === "won" ? 0x2ecc71 : d.dispute_status === "lost" ? 0xe74c3c : 0xe67e22
+      }]
+    };
+  }
+  return webhook;
+}
+```
+
+## सुझाव
+
+- समृद्ध प्रारूपण और रंगों के लिए एम्बेड का उपयोग करें।
+- शीर्षकों को संक्षिप्त रखें; विवरण फ़ील्ड में डालें।
+- सहज रंगों का उपयोग करें: हरा (सफलता), लाल (विफलता), नारंगी (चेतावनियाँ)।
+
+## समस्या निवारण
+
+<AccordionGroup>
+<Accordion title="Discord में कोई संदेश नहीं">
+- पुष्टि करें कि बॉट के पास चैनल तक पहुंच है।
+- जांचें कि परिवर्तन एक JSON ऑब्जेक्ट लौटाता है जिसमें `embeds` है।
+</Accordion>
+
+<Accordion title="परिवर्तन त्रुटियाँ">
+- संपादक में अपने कोड को मान्य करें – सिंटैक्स त्रुटियाँ डिलीवरी को अवरुद्ध करेंगी।
+- सुनिश्चित करें कि फ़ील्ड नाम वेबहुक पेलोड संरचना से मेल खाते हैं।
+</Accordion>
+</AccordionGroup>

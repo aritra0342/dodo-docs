@@ -1,0 +1,817 @@
+---
+title: सदस्यता अपग्रेड और डाउनग्रेड गाइड
+description: एक ग्राहक की सदस्यता योजना को बदलने, प्रोरशन को संभालने और वेबहुक
+  को विश्वसनीयता से प्रोसेस करने के तरीके जानें।
+icon: arrows-rotate
+---
+
+<CardGroup cols={2}>
+<Card title="योजना परिवर्तन API संदर्भ" icon="code" href="/api-reference/subscriptions/change-plan">
+  सदस्यता योजनाओं को बदलने के लिए पूर्ण API दस्तावेज़ तक पहुँचें और इंटरैक्टिव रूप से योजना परिवर्तन अनुरोधों का परीक्षण करें।
+</Card>
+
+<Card title="योजना परिवर्तन API पूर्वावलोकन" icon="eye" href="/api-reference/subscriptions/preview-change-plan">
+  योजना परिवर्तन की पुष्टि करने से पहले सटीक चार्ज राशि का पूर्वावलोकन करें।
+</Card>
+
+<Card title="सदस्यता एकीकरण गाइड" icon="book" href="/developer-resources/subscription-integration-guide">
+  हमारे व्यापक एकीकरण गाइड के साथ शून्य से सदस्यता बनाने और प्रबंधित करने के तरीके जानें।
+</Card>
+</CardGroup>
+
+## सदस्यता अपग्रेड या डाउनग्रेड क्या है?
+
+योजनाओं को बदलने से आप एक ग्राहक को सदस्यता स्तरों या मात्राओं के बीच स्थानांतरित कर सकते हैं। इसका उपयोग करें:
+- उपयोग या सुविधाओं के साथ मूल्य संरेखित करने के लिए
+- मासिक से वार्षिक (या इसके विपरीत) जाने के लिए
+- सीट-आधारित उत्पादों के लिए मात्रा समायोजित करने के लिए
+
+<Info>
+योजना परिवर्तन आपके द्वारा चुने गए प्रोरशन मोड के आधार पर तत्काल चार्ज को ट्रिगर कर सकता है।
+</Info>
+
+## योजना परिवर्तनों का उपयोग कब करें
+
+- अपग्रेड करें जब ग्राहक को अधिक सुविधाओं, उपयोग या सीटों की आवश्यकता हो
+- डाउनग्रेड करें जब उपयोग कम हो
+- उपयोगकर्ताओं को बिना उनकी सदस्यता रद्द किए नए उत्पाद या मूल्य में स्थानांतरित करें
+
+## पूर्वापेक्षाएँ
+
+सदस्यता योजना परिवर्तनों को लागू करने से पहले, सुनिश्चित करें कि आपके पास है:
+
+- सक्रिय सदस्यता उत्पादों के साथ एक डोडो पेमेंट्स व्यापारी खाता
+- डैशबोर्ड से API क्रेडेंशियल (API कुंजी और वेबहुक गुप्त कुंजी)
+- संशोधित करने के लिए एक मौजूदा सक्रिय सदस्यता
+- सदस्यता घटनाओं को संभालने के लिए वेबहुक एंडपॉइंट कॉन्फ़िगर किया गया है
+
+<Info>
+विस्तृत सेटअप निर्देशों के लिए, हमारे [एकीकरण गाइड](/developer-resources/integration-guide#dashboard-setup) को देखें।
+</Info>
+
+## चरण-दर-चरण कार्यान्वयन गाइड
+
+अपने एप्लिकेशन में सदस्यता योजना परिवर्तनों को लागू करने के लिए इस व्यापक गाइड का पालन करें:
+
+<Steps>
+<Step title="योजना परिवर्तन आवश्यकताओं को समझें">
+लागू करने से पहले, निर्धारित करें:
+- कौन सी सदस्यता उत्पादों को किन अन्य उत्पादों में बदला जा सकता है
+- आपके व्यवसाय मॉडल के लिए कौन सा प्रोरशन मोड उपयुक्त है
+- विफल योजना परिवर्तनों को सुचारू रूप से कैसे संभालें
+- स्थिति प्रबंधन के लिए कौन से वेबहुक घटनाओं को ट्रैक करें
+
+<Tip>
+उत्पादन में लागू करने से पहले परीक्षण मोड में योजना परिवर्तनों का पूरी तरह से परीक्षण करें।
+</Tip>
+</Step>
+
+<Step title="अपना प्रोरशन रणनीति चुनें">
+उस बिलिंग दृष्टिकोण का चयन करें जो आपके व्यवसाय की आवश्यकताओं के साथ मेल खाता है:
+
+<Tabs>
+<Tab title="prorated_immediately">
+सर्वश्रेष्ठ के लिए: SaaS अनुप्रयोग जो अप्रयुक्त समय के लिए उचित रूप से चार्ज करना चाहते हैं
+- शेष चक्र समय के आधार पर सटीक प्रोरटेड राशि की गणना करता है
+- चक्र में शेष अप्रयुक्त समय के आधार पर प्रोरटेड राशि चार्ज करता है
+- ग्राहकों को पारदर्शी बिलिंग प्रदान करता है
+</Tab>
+
+<Tab title="difference_immediately">
+सर्वश्रेष्ठ के लिए: स्पष्ट अपग्रेड/डाउनग्रेड परिदृश्य
+- अपग्रेड: तत्काल अंतर चार्ज करें (जैसे, $30→$80 = $50 चार्ज करें)
+- डाउनग्रेड: भविष्य के नवीनीकरण के लिए शेष मूल्य का क्रेडिट
+- बिलिंग लॉजिक और ग्राहक संचार को सरल बनाता है
+</Tab>
+
+<Tab title="full_immediately">
+सर्वश्रेष्ठ के लिए: जब आप बिलिंग चक्र को रीसेट करना चाहते हैं
+- नए योजना की पूर्ण राशि तुरंत चार्ज करता है
+- पुराने योजना से शेष समय की अनदेखी करता है
+- वार्षिक से मासिक संक्रमण के लिए उपयोगी
+</Tab>
+</Tabs>
+</Step>
+
+<Step title="परिवर्तन योजना API लागू करें">
+सदस्यता विवरण को संशोधित करने के लिए परिवर्तन योजना API का उपयोग करें:
+
+<ParamField path="subscription_id" type="string" required>
+संशोधित करने के लिए सक्रिय सदस्यता की ID।
+</ParamField>
+
+<ParamField path="product_id" type="string" required>
+सदस्यता को बदलने के लिए नया उत्पाद ID।
+</ParamField>
+
+<ParamField path="quantity" type="integer" default="1">
+नए योजना के लिए इकाइयों की संख्या (सीट-आधारित उत्पादों के लिए)।
+</ParamField>
+
+<ParamField path="proration_billing_mode" type="string" required>
+तत्काल बिलिंग को संभालने का तरीका: `prorated_immediately`, `full_immediately`, या `difference_immediately`।
+</ParamField>
+
+<ParamField path="addons" type="array">
+नए योजना के लिए वैकल्पिक ऐडऑन। इसे खाली छोड़ने से किसी भी मौजूदा ऐडऑन को हटा दिया जाएगा।
+</ParamField>
+</Step>
+
+<Step title="वेबहुक घटनाओं को संभालें">
+योजना परिवर्तन परिणामों को ट्रैक करने के लिए वेबहुक हैंडलिंग सेट करें:
+
+- `subscription.active`: योजना परिवर्तन सफल, सदस्यता अपडेट की गई
+- `subscription.plan_changed`: सदस्यता योजना बदली गई (अपग्रेड/डाउनग्रेड/ऐडऑन अपडेट)
+- `subscription.on_hold`: योजना परिवर्तन चार्ज विफल, सदस्यता निलंबित
+- `payment.succeeded`: योजना परिवर्तन के लिए तत्काल चार्ज सफल
+- `payment.failed`: तत्काल चार्ज विफल
+
+<Warning>
+हमेशा वेबहुक हस्ताक्षरों की पुष्टि करें और इडेम्पोटेंट इवेंट प्रोसेसिंग लागू करें।
+</Warning>
+</Step>
+
+<Step title="अपने एप्लिकेशन की स्थिति अपडेट करें">
+वेबहुक घटनाओं के आधार पर, अपने एप्लिकेशन को अपडेट करें:
+- नए योजना के आधार पर सुविधाएँ प्रदान/रद्द करें
+- नए योजना विवरण के साथ ग्राहक डैशबोर्ड अपडेट करें
+- योजना परिवर्तनों के बारे में पुष्टि ईमेल भेजें
+- ऑडिट उद्देश्यों के लिए बिलिंग परिवर्तनों को लॉग करें
+</Step>
+
+<Step title="परीक्षण और निगरानी">
+अपने कार्यान्वयन का पूरी तरह से परीक्षण करें:
+- विभिन्न परिदृश्यों के साथ सभी प्रोरशन मोड का परीक्षण करें
+- सत्यापित करें कि वेबहुक हैंडलिंग सही ढंग से काम करती है
+- योजना परिवर्तन सफलता दर की निगरानी करें
+- विफल योजना परिवर्तनों के लिए अलर्ट सेट करें
+
+<Check>
+आपका सदस्यता योजना परिवर्तन कार्यान्वयन अब उत्पादन उपयोग के लिए तैयार है।
+</Check>
+</Step>
+</Steps>
+
+## योजना परिवर्तनों का पूर्वावलोकन
+
+योजना परिवर्तन की पुष्टि करने से पहले, ग्राहकों को दिखाने के लिए पूर्वावलोकन API का उपयोग करें कि उन्हें सटीक रूप से क्या चार्ज किया जाएगा:
+
+<Tabs>
+<Tab title="Node.js SDK">
+
+```javascript
+const preview = await client.subscriptions.previewChangePlan('sub_123', {
+  product_id: 'prod_pro',
+  quantity: 1,
+  proration_billing_mode: 'prorated_immediately'
+});
+
+// Show customer the charge before confirming
+console.log('Immediate charge:', preview.immediate_charge.summary);
+console.log('New plan details:', preview.new_plan);
+```
+
+</Tab>
+
+<Tab title="Python SDK">
+
+```python
+preview = client.subscriptions.preview_change_plan(
+    subscription_id="sub_123",
+    product_id="prod_pro",
+    quantity=1,
+    proration_billing_mode="prorated_immediately"
+)
+
+# Show customer the charge before confirming
+print("Immediate charge:", preview.immediate_charge.summary)
+print("New plan details:", preview.new_plan)
+```
+
+</Tab>
+</Tabs>
+
+<Tip>
+ग्राहकों को योजना परिवर्तन की पुष्टि करने से पहले उन्हें चार्ज की जाने वाली सटीक राशि दिखाने के लिए पूर्वावलोकन API का उपयोग करें।
+</Tip>
+
+## परिवर्तन योजना API
+
+सक्रिय सदस्यता के लिए उत्पाद, मात्रा और प्रोरशन व्यवहार को संशोधित करने के लिए परिवर्तन योजना API का उपयोग करें।
+
+### त्वरित प्रारंभ उदाहरण
+
+<Tabs>
+  <Tab title="Node.js SDK">
+
+    ```javascript
+    import DodoPayments from 'dodopayments';
+
+    const client = new DodoPayments({
+      bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+      environment: 'test_mode', // defaults to 'live_mode'
+    });
+
+    async function changePlan() {
+      const result = await client.subscriptions.changePlan('sub_123', {
+        product_id: 'prod_new',
+        quantity: 3,
+        proration_billing_mode: 'prorated_immediately',
+      });
+      console.log(result.status, result.invoice_id, result.payment_id);
+    }
+
+    changePlan();
+    ```
+
+  </Tab>
+  <Tab title="Python SDK">
+
+    ```python
+    import os
+    from dodopayments import DodoPayments
+
+    client = DodoPayments(
+        bearer_token=os.environ.get("DODO_PAYMENTS_API_KEY"),
+        environment="test_mode",  # defaults to "live_mode"
+    )
+
+    result = client.subscriptions.change_plan(
+        subscription_id="sub_123",
+        product_id="prod_new",
+        quantity=3,
+        proration_billing_mode="prorated_immediately",
+    )
+    print(result.status, result.get("invoice_id"), result.get("payment_id"))
+    ```
+
+  </Tab>
+  <Tab title="Go SDK">
+
+    ```go
+    package main
+
+    import (
+      "context"
+      "fmt"
+      "github.com/dodopayments/dodopayments-go"
+      "github.com/dodopayments/dodopayments-go/option"
+    )
+
+    func main() {
+      client := dodopayments.NewClient(option.WithBearerToken("YOUR_TOKEN"))
+      res, err := client.Subscriptions.ChangePlan(context.TODO(), dodopayments.SubscriptionChangePlanParams{
+        SubscriptionID: dodopayments.F("sub_123"),
+        ProductID:             dodopayments.F("prod_new"),
+        Quantity:              dodopayments.F(int64(3)),
+        ProrationBillingMode:  dodopayments.F(dodopayments.SubscriptionChangePlanParamsProrationBillingModeProratedImmediately),
+      })
+      if err != nil { panic(err) }
+      fmt.Println(res.Status, res.InvoiceID, res.PaymentID)
+    }
+    ```
+
+  </Tab>
+  <Tab title="HTTP">
+
+    ```bash
+    curl -X POST "$DODO_API_BASE/subscriptions/sub_123/change-plan" \
+      -H "Authorization: Bearer $DODO_PAYMENTS_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "product_id": "prod_new",
+        "quantity": 3,
+        "proration_billing_mode": "prorated_immediately"
+      }'
+    ```
+
+  </Tab>
+</Tabs>
+
+```json Success
+{
+  "status": "processing",
+  "subscription_id": "sub_123",
+  "invoice_id": "inv_789",
+  "payment_id": "pay_456",
+  "proration_billing_mode": "prorated_immediately"
+}
+```
+
+<Note>
+जैसे <code>invoice_id</code> और <code>payment_id</code> जैसे फ़ील्ड केवल तभी लौटाए जाते हैं जब योजना परिवर्तन के दौरान तत्काल चार्ज और/या चालान बनाया जाता है। हमेशा परिणामों की पुष्टि करने के लिए वेबहुक घटनाओं (जैसे, <code>payment.succeeded</code>, <code>subscription.plan_changed</code>) पर भरोसा करें।
+</Note>
+
+<Warning>
+यदि तत्काल चार्ज विफल होता है, तो सदस्यता `subscription.on_hold` पर जा सकती है जब तक कि भुगतान सफल न हो।
+</Warning>
+
+## ऐडऑन प्रबंधन
+
+सदस्यता योजनाओं को बदलते समय, आप ऐडऑन को भी संशोधित कर सकते हैं:
+
+```javascript
+// Add addons to the new plan
+await client.subscriptions.changePlan('sub_123', {
+  product_id: 'prod_new',
+  quantity: 1,
+  proration_billing_mode: 'difference_immediately',
+  addons: [
+    { addon_id: 'addon_123', quantity: 2 }
+  ]
+});
+
+// Remove all existing addons
+await client.subscriptions.changePlan('sub_123', {
+  product_id: 'prod_new',
+  quantity: 1,
+  proration_billing_mode: 'difference_immediately',
+  addons: [] // Empty array removes all existing addons
+});
+```
+
+<Info>
+ऐडऑन प्रोरशन गणना में शामिल होते हैं और चयनित प्रोरशन मोड के अनुसार चार्ज किए जाएंगे।
+</Info>
+
+## प्रोरशन मोड
+
+योजनाओं को बदलते समय ग्राहक को बिल करने का तरीका चुनें:
+
+#### `prorated_immediately`
+- वर्तमान चक्र में आंशिक अंतर के लिए चार्ज करता है
+- यदि परीक्षण में है, तो तुरंत चार्ज करता है और अब नए योजना में स्विच करता है
+- डाउनग्रेड: भविष्य के नवीनीकरण के लिए लागू होने वाला प्रोरटेड क्रेडिट उत्पन्न कर सकता है
+
+#### `full_immediately`
+- नए योजना की पूर्ण राशि तुरंत चार्ज करता है
+- पुराने योजना से शेष समय की अनदेखी करता है
+
+<Info>
+<code>difference_immediately</code> का उपयोग करके किए गए डाउनग्रेड द्वारा उत्पन्न क्रेडिट सदस्यता-स्कोप वाले होते हैं और <a href="/features/customer-credit">ग्राहक क्रेडिट</a> से भिन्न होते हैं। ये स्वचालित रूप से उसी सदस्यता के भविष्य के नवीनीकरण पर लागू होते हैं और सदस्यताओं के बीच स्थानांतरित नहीं किए जा सकते।
+</Info>
+
+#### `difference_immediately`
+- अपग्रेड: पुराने और नए योजनाओं के बीच मूल्य अंतर को तुरंत चार्ज करें
+- डाउनग्रेड: सदस्यता में शेष मूल्य को आंतरिक क्रेडिट के रूप में जोड़ें और नवीनीकरण पर स्वचालित रूप से लागू करें
+
+### उदाहरण परिदृश्य
+
+<AccordionGroup>
+  <Accordion title="अपग्रेड: बेसिक ($30) → प्रो ($80) के साथ difference_immediately">
+
+    ```javascript
+    await client.subscriptions.changePlan('sub_123', {
+      product_id: 'prod_pro',
+      quantity: 1,
+      proration_billing_mode: 'difference_immediately'
+    })
+    // Immediate charge: $50
+    ```
+
+  </Accordion>
+  <Accordion title="डाउनग्रेड: प्लस ($50) → स्टार्ट ($20) के साथ difference_immediately">
+
+    ```javascript
+    await client.subscriptions.changePlan('sub_123', {
+      product_id: 'prod_starter',
+      quantity: 1,
+      proration_billing_mode: 'difference_immediately'
+    })
+    // Credit added: $30 (auto-applied to future renewals for this subscription)
+    ```
+
+  </Accordion>
+  <Accordion title="प्रोरटेड_immediately के साथ मध्य चक्र में अपग्रेड">
+
+    ```javascript
+    await client.subscriptions.changePlan('sub_123', {
+      product_id: 'prod_new',
+      quantity: 1,
+      proration_billing_mode: 'prorated_immediately'
+    })
+    // Immediate prorated charge based on remaining days in cycle
+    ```
+
+  </Accordion>
+  <Accordion title="पूर्ण_immediately के साथ बिलिंग रीसेट">
+
+    ```javascript
+    await client.subscriptions.changePlan('sub_123', {
+      product_id: 'prod_new',
+      quantity: 1,
+      proration_billing_mode: 'full_immediately'
+    })
+    // Immediate full charge for new plan; no credits calculated
+    ```
+
+  </Accordion>
+</AccordionGroup>
+
+<Tip>
+निष्पक्ष समय लेखांकन के लिए `prorated_immediately` चुनें; बिलिंग को फिर से शुरू करने के लिए `full_immediately` चुनें; सरल अपग्रेड और डाउनग्रेड पर स्वचालित क्रेडिट के लिए `difference_immediately` का उपयोग करें।
+</Tip>
+
+## वेबहुक को संभालना
+
+योजना परिवर्तनों और भुगतानों की पुष्टि करने के लिए वेबहुक के माध्यम से सदस्यता स्थिति को ट्रैक करें।
+
+### संभालने के लिए घटना प्रकार
+- `subscription.active`: सदस्यता सक्रिय की गई
+- `subscription.plan_changed`: सदस्यता योजना बदली गई (अपग्रेड/डाउनग्रेड/ऐडऑन परिवर्तन)
+- `subscription.on_hold`: चार्ज विफल, सदस्यता निलंबित
+- `subscription.renewed`: नवीनीकरण सफल
+- `payment.succeeded`: योजना परिवर्तन या नवीनीकरण के लिए भुगतान सफल
+- `payment.failed`: भुगतान विफल
+
+<Info>
+हम अनुशंसा करते हैं कि सदस्यता घटनाओं से व्यावसायिक लॉजिक चलाएं और पुष्टि और सामंजस्य के लिए भुगतान घटनाओं का उपयोग करें।
+</Info>
+
+### हस्ताक्षरों की पुष्टि करें और इरादों को संभालें
+
+<Tabs>
+  <Tab title="Next.js रूट हैंडलर">
+
+    ```javascript
+    import { NextRequest, NextResponse } from 'next/server';
+    
+    export async function POST(req) {
+      const webhookId = req.headers.get('webhook-id');
+      const webhookSignature = req.headers.get('webhook-signature');
+      const webhookTimestamp = req.headers.get('webhook-timestamp');
+      const secret = process.env.DODO_WEBHOOK_SECRET;
+    
+      const payload = await req.text();
+      // verifySignature is a placeholder – in production, use a Standard Webhooks library
+      const { valid, event } = await verifySignature(
+        payload,
+        { id: webhookId, signature: webhookSignature, timestamp: webhookTimestamp },
+        secret
+      );
+      if (!valid) return NextResponse.json({ error: 'Invalid signature' }, { status: 400 });
+    
+      switch (event.type) {
+        case 'subscription.active':
+          // mark subscription active in your DB
+          break;
+        case 'subscription.plan_changed':
+          // refresh entitlements and reflect the new plan in your UI
+          break;
+        case 'subscription.on_hold':
+          // notify user to update payment method
+          break;
+        case 'subscription.renewed':
+          // extend access window
+          break;
+        case 'payment.succeeded':
+          // reconcile payment for plan change
+          break;
+        case 'payment.failed':
+          // log and alert
+          break;
+        default:
+          // ignore unknown events
+          break;
+      }
+    
+      return NextResponse.json({ received: true });
+    }
+    ```
+
+  </Tab>
+  <Tab title="Express.js">
+
+    ```javascript
+    import express from 'express';
+    
+    const app = express();
+    app.post('/webhooks/dodo', express.raw({ type: 'application/json' }), async (req, res) => {
+      const webhookId = req.header('webhook-id');
+      const webhookSignature = req.header('webhook-signature');
+      const webhookTimestamp = req.header('webhook-timestamp');
+      const secret = process.env.DODO_WEBHOOK_SECRET;
+      const payload = req.body.toString('utf8');
+    
+      const { valid, event } = await verifySignature(
+        payload,
+        { id: webhookId, signature: webhookSignature, timestamp: webhookTimestamp },
+        secret
+      );
+      if (!valid) return res.status(400).send('Invalid signature');
+    
+      // handle events like above
+      res.json({ received: true });
+    });
+    
+    app.listen(3000);
+    ```
+
+  </Tab>
+</Tabs>
+
+<Note>
+विस्तृत पेलोड स्कीमाओं के लिए, <a href="/developer-resources/webhooks/intents/subscription">सदस्यता वेबहुक पेलोड</a> और <a href="/developer-resources/webhooks/intents/payment">भुगतान वेबहुक पेलोड</a> देखें।
+</Note>
+
+## सर्वोत्तम प्रथाएँ
+
+सदस्यता योजना परिवर्तनों के लिए इन सिफारिशों का पालन करें:
+
+### योजना परिवर्तन रणनीति
+- **पूरी तरह से परीक्षण करें**: उत्पादन से पहले हमेशा परीक्षण मोड में योजना परिवर्तनों का परीक्षण करें
+- **प्रोरशन को सावधानी से चुनें**: उस प्रोरशन मोड का चयन करें जो आपके व्यवसाय मॉडल के साथ मेल खाता है
+- **विफलताओं को सुचारू रूप से संभालें**: उचित त्रुटि हैंडलिंग और पुनः प्रयास लॉजिक लागू करें
+- **सफलता दर की निगरानी करें**: योजना परिवर्तन सफलता/विफलता दरों को ट्रैक करें और मुद्दों की जांच करें
+
+### वेबहुक कार्यान्वयन
+- **हस्ताक्षरों की पुष्टि करें**: प्रामाणिकता सुनिश्चित करने के लिए हमेशा वेबहुक हस्ताक्षरों को मान्य करें
+- **इडेम्पोटेंसी लागू करें**: डुप्लिकेट वेबहुक घटनाओं को सुचारू रूप से संभालें
+- **असिंक्रोनस रूप से प्रोसेस करें**: भारी संचालन के साथ वेबहुक प्रतिक्रियाओं को अवरुद्ध न करें
+- **सब कुछ लॉग करें**: डिबगिंग और ऑडिट उद्देश्यों के लिए विस्तृत लॉग बनाए रखें
+
+### उपयोगकर्ता अनुभव
+- **स्पष्ट रूप से संवाद करें**: ग्राहकों को बिलिंग परिवर्तनों और समय के बारे में सूचित करें
+- **पुष्टिकरण प्रदान करें**: सफल योजना परिवर्तनों के लिए ईमेल पुष्टिकरण भेजें
+- **किनारे के मामलों को संभालें**: परीक्षण अवधि, प्रोरशन और विफल भुगतानों पर विचार करें
+- **UI को तुरंत अपडेट करें**: अपने एप्लिकेशन इंटरफ़ेस में योजना परिवर्तनों को दर्शाएं
+
+## सामान्य समस्याएँ और समाधान
+
+सदस्यता योजना परिवर्तनों के दौरान उत्पन्न होने वाली सामान्य समस्याओं को हल करें:
+
+<AccordionGroup>
+<Accordion title="चार्ज बनाया गया लेकिन सदस्यता अपडेट नहीं हुई">
+**लक्षण**: API कॉल सफल होता है लेकिन सदस्यता पुरानी योजना पर बनी रहती है
+
+**सामान्य कारण**:
+- वेबहुक प्रोसेसिंग विफल या विलंबित हुई
+- वेबहुक प्राप्त करने के बाद एप्लिकेशन की स्थिति अपडेट नहीं हुई
+- स्थिति अपडेट के दौरान डेटाबेस लेनदेन की समस्याएँ
+
+**समाधान**:
+- पुनः प्रयास लॉजिक के साथ मजबूत वेबहुक हैंडलिंग लागू करें
+- स्थिति अपडेट के लिए इडेम्पोटेंट ऑपरेशंस का उपयोग करें
+- छूटे हुए वेबहुक घटनाओं का पता लगाने और अलर्ट करने के लिए निगरानी जोड़ें
+- सुनिश्चित करें कि वेबहुक एंडपॉइंट सुलभ है और सही ढंग से प्रतिक्रिया दे रहा है
+</Accordion>
+
+<Accordion title="डाउनग्रेड के बाद क्रेडिट लागू नहीं हुए">
+**लक्षण**: ग्राहक डाउनग्रेड करता है लेकिन क्रेडिट बैलेंस नहीं देखता है
+
+**सामान्य कारण**:
+- प्रोरशन मोड की अपेक्षाएँ: डाउनग्रेड `difference_immediately` के साथ पूर्ण योजना मूल्य अंतर का क्रेडिट देते हैं, जबकि `prorated_immediately` चक्र में शेष समय के आधार पर प्रोरटेड क्रेडिट उत्पन्न करता है
+- क्रेडिट सदस्यता-विशिष्ट होते हैं और सदस्यताओं के बीच स्थानांतरित नहीं होते
+- ग्राहक डैशबोर्ड में क्रेडिट बैलेंस दिखाई नहीं देता है
+
+**समाधान**:
+- जब आप स्वचालित क्रेडिट चाहते हैं तो डाउनग्रेड के लिए `difference_immediately` का उपयोग करें
+- ग्राहकों को समझाएं कि क्रेडिट उसी सदस्यता के भविष्य के नवीनीकरण पर लागू होते हैं
+- क्रेडिट बैलेंस दिखाने के लिए ग्राहक पोर्टल लागू करें
+- लागू क्रेडिट देखने के लिए अगले चालान पूर्वावलोकन की जांच करें
+</Accordion>
+
+<Accordion title="वेबहुक हस्ताक्षर सत्यापन विफल">
+**लक्षण**: अवैध हस्ताक्षर के कारण वेबहुक घटनाएँ अस्वीकृत हो गईं
+
+**सामान्य कारण**:
+- गलत वेबहुक गुप्त कुंजी
+- हस्ताक्षर सत्यापन से पहले कच्चे अनुरोध शरीर में संशोधन किया गया
+- गलत हस्ताक्षर सत्यापन एल्गोरिदम
+
+**समाधान**:
+- सुनिश्चित करें कि आप डैशबोर्ड से सही `DODO_WEBHOOK_SECRET` का उपयोग कर रहे हैं
+- किसी भी JSON पार्सिंग मिडलवेयर से पहले कच्चे अनुरोध शरीर को पढ़ें
+- अपने प्लेटफ़ॉर्म के लिए मानक वेबहुक सत्यापन पुस्तकालय का उपयोग करें
+- विकास वातावरण में वेबहुक हस्ताक्षर सत्यापन का परीक्षण करें
+</Accordion>
+
+<Accordion title="योजना परिवर्तन 422 त्रुटि के साथ विफल">
+**लक्षण**: API 422 Unprocessable Entity त्रुटि लौटाता है
+
+**सामान्य कारण**:
+- अवैध सदस्यता ID या उत्पाद ID
+- सदस्यता सक्रिय स्थिति में नहीं है
+- आवश्यक पैरामीटर गायब हैं
+- योजना परिवर्तनों के लिए उत्पाद उपलब्ध नहीं है
+
+**समाधान**:
+- सुनिश्चित करें कि सदस्यता मौजूद है और सक्रिय है
+- जांचें कि उत्पाद ID मान्य और उपलब्ध है
+- सुनिश्चित करें कि सभी आवश्यक पैरामीटर प्रदान किए गए हैं
+- पैरामीटर आवश्यकताओं के लिए API दस्तावेज़ की समीक्षा करें
+</Accordion>
+
+<Accordion title="योजना परिवर्तन के दौरान तत्काल चार्ज विफल">
+**लक्षण**: योजना परिवर्तन शुरू किया गया लेकिन तत्काल चार्ज विफल हो गया
+
+**सामान्य कारण**:
+- ग्राहक के भुगतान विधि पर अपर्याप्त धन
+- भुगतान विधि समाप्त या अवैध
+- बैंक ने लेनदेन को अस्वीकृत किया
+- धोखाधड़ी पहचान ने चार्ज को अवरुद्ध कर दिया
+
+**समाधान**:
+- `payment.failed` वेबहुक घटनाओं को उचित रूप से संभालें
+- ग्राहक को भुगतान विधि अपडेट करने के लिए सूचित करें
+- अस्थायी विफलताओं के लिए पुनः प्रयास लॉजिक लागू करें
+- विफल तत्काल चार्ज के साथ योजना परिवर्तनों की अनुमति देने पर विचार करें
+</Accordion>
+
+<Accordion title="योजना परिवर्तन के बाद सदस्यता होल्ड पर">
+**लक्षण**: योजना परिवर्तन चार्ज विफल हो जाता है और सदस्यता `on_hold` स्थिति में चली जाती है
+
+**क्या होता है**:
+जब योजना परिवर्तन चार्ज विफल होता है, तो सदस्यता स्वचालित रूप से `on_hold` स्थिति में रखी जाती है। सदस्यता तब तक स्वचालित रूप से नवीनीकरण नहीं करेगी जब तक कि भुगतान विधि अपडेट न हो।
+
+**समाधान**: सदस्यता को पुनः सक्रिय करने के लिए भुगतान विधि अपडेट करें
+
+एक विफल योजना परिवर्तन के बाद `on_hold` स्थिति से सदस्यता को पुनः सक्रिय करने के लिए:
+
+1. **भुगतान विधि अपडेट करें** Update Payment Method API का उपयोग करके
+2. **स्वचालित चार्ज निर्माण**: API स्वचालित रूप से बकाया के लिए चार्ज बनाता है
+3. **चालान निर्माण**: चार्ज के लिए एक चालान उत्पन्न होता है
+4. **भुगतान प्रोसेसिंग**: नए भुगतान विधि का उपयोग करके भुगतान प्रोसेस किया जाता है
+5. **पुनः सक्रियण**: सफल भुगतान पर, सदस्यता को `active` स्थिति में पुनः सक्रिय किया जाता है
+
+<CodeGroup>
+
+```javascript Node.js
+// Reactivate subscription from on_hold after failed plan change
+async function reactivateAfterFailedPlanChange(subscriptionId) {
+  // Update payment method - automatically creates charge for remaining dues
+  const response = await client.subscriptions.updatePaymentMethod(subscriptionId, {
+    type: 'new',
+    return_url: 'https://example.com/return'
+  });
+  
+  if (response.payment_id) {
+    console.log('Charge created for remaining dues:', response.payment_id);
+    console.log('Payment link:', response.payment_link);
+    
+    // Redirect customer to payment_link to complete payment
+    // Monitor webhooks for:
+    // 1. payment.succeeded - charge succeeded
+    // 2. subscription.active - subscription reactivated
+  }
+  
+  return response;
+}
+
+// Or use existing payment method if available
+async function reactivateWithExistingPaymentMethod(subscriptionId, paymentMethodId) {
+  const response = await client.subscriptions.updatePaymentMethod(subscriptionId, {
+    type: 'existing',
+    payment_method_id: paymentMethodId
+  });
+  
+  // Monitor webhooks for payment.succeeded and subscription.active
+  return response;
+}
+```
+
+```python Python
+# Reactivate subscription from on_hold after failed plan change
+def reactivate_after_failed_plan_change(subscription_id):
+    # Update payment method - automatically creates charge for remaining dues
+    response = client.subscriptions.update_payment_method(
+        subscription_id=subscription_id,
+        type="new",
+        return_url="https://example.com/return"
+    )
+    
+    if response.payment_id:
+        print("Charge created for remaining dues:", response.payment_id)
+        print("Payment link:", response.payment_link)
+        
+        # Redirect customer to payment_link to complete payment
+        # Monitor webhooks for:
+        # 1. payment.succeeded - charge succeeded
+        # 2. subscription.active - subscription reactivated
+    
+    return response
+
+# Or use existing payment method if available
+def reactivate_with_existing_payment_method(subscription_id, payment_method_id):
+    response = client.subscriptions.update_payment_method(
+        subscription_id=subscription_id,
+        type="existing",
+        payment_method_id=payment_method_id
+    )
+    
+    # Monitor webhooks for payment.succeeded and subscription.active
+    return response
+```
+
+</CodeGroup>
+
+**निगरानी करने के लिए वेबहुक घटनाएँ**:
+- `subscription.on_hold`: सदस्यता होल्ड पर रखी गई (जब योजना परिवर्तन चार्ज विफल होता है)
+- `payment.succeeded`: शेष बकाया के लिए भुगतान सफल (भुगतान विधि अपडेट करने के बाद)
+- `subscription.active`: सफल भुगतान के बाद सदस्यता पुनः सक्रिय की गई
+
+**सर्वोत्तम प्रथाएँ**:
+- जब योजना परिवर्तन चार्ज विफल होता है तो ग्राहकों को तुरंत सूचित करें
+- उनकी भुगतान विधि अपडेट करने के लिए स्पष्ट निर्देश प्रदान करें
+- पुनः सक्रियण स्थिति को ट्रैक करने के लिए वेबहुक घटनाओं की निगरानी करें
+- अस्थायी भुगतान विफलताओं के लिए स्वचालित पुनः प्रयास लॉजिक लागू करने पर विचार करें
+
+<Card title="भुगतान विधि अपडेट API संदर्भ" icon="code" href="/api-reference/subscriptions/update-payment-method">
+भुगतान विधियों को अपडेट करने और सदस्यताओं को पुनः सक्रिय करने के लिए पूर्ण API दस्तावेज़ देखें।
+</Card>
+</Accordion>
+</AccordionGroup>
+
+## अपने कार्यान्वयन का परीक्षण करना
+
+अपने सदस्यता योजना परिवर्तन कार्यान्वयन का पूरी तरह से परीक्षण करने के लिए इन चरणों का पालन करें:
+
+<Steps>
+<Step title="परीक्षण वातावरण सेट करें">
+- परीक्षण API कुंजी और परीक्षण उत्पादों का उपयोग करें
+- विभिन्न योजना प्रकारों के साथ परीक्षण सदस्यता बनाएं
+- परीक्षण वेबहुक एंडपॉइंट कॉन्फ़िगर करें
+- निगरानी और लॉगिंग सेट करें
+</Step>
+
+<Step title="विभिन्न प्रोरशन मोड का परीक्षण करें">
+- विभिन्न बिलिंग चक्र स्थितियों के साथ `prorated_immediately` का परीक्षण करें
+- अपग्रेड और डाउनग्रेड के लिए `difference_immediately` का परीक्षण करें
+- बिलिंग चक्र को रीसेट करने के लिए `full_immediately` का परीक्षण करें
+- सुनिश्चित करें कि क्रेडिट गणनाएँ सही हैं
+</Step>
+
+<Step title="वेबहुक हैंडलिंग का परीक्षण करें">
+- सुनिश्चित करें कि सभी प्रासंगिक वेबहुक घटनाएँ प्राप्त हो रही हैं
+- वेबहुक हस्ताक्षर सत्यापन का परीक्षण करें
+- डुप्लिकेट वेबहुक घटनाओं को सुचारू रूप से संभालें
+- वेबहुक प्रोसेसिंग विफलता परिदृश्यों का परीक्षण करें
+</Step>
+
+<Step title="त्रुटि परिदृश्यों का परीक्षण करें">
+- अवैध सदस्यता IDs के साथ परीक्षण करें
+- समाप्त भुगतान विधियों के साथ परीक्षण करें
+- नेटवर्क विफलताओं और टाइमआउट के साथ परीक्षण करें
+- अपर्याप्त धन के साथ परीक्षण करें
+</Step>
+
+<Step title="उत्पादन में निगरानी करें">
+- विफल योजना परिवर्तनों के लिए अलर्ट सेट करें
+- वेबहुक प्रोसेसिंग समय की निगरानी करें
+- योजना परिवर्तन सफलता दर को ट्रैक करें
+- योजना परिवर्तन मुद्दों के लिए ग्राहक सहायता टिकट की समीक्षा करें
+</Step>
+</Steps>
+
+## त्रुटि हैंडलिंग
+
+अपने कार्यान्वयन में सामान्य API त्रुटियों को सुचारू रूप से संभालें:
+
+### HTTP स्थिति कोड
+
+<AccordionGroup>
+<Accordion title="200 OK">
+योजना परिवर्तन अनुरोध सफलतापूर्वक संसाधित किया गया। सदस्यता अपडेट की जा रही है और भुगतान प्रोसेसिंग शुरू हो गई है।
+</Accordion>
+
+<Accordion title="400 Bad Request">
+अवैध अनुरोध पैरामीटर। सुनिश्चित करें कि सभी आवश्यक फ़ील्ड प्रदान किए गए हैं और सही ढंग से स्वरूपित हैं।
+</Accordion>
+
+<Accordion title="401 Unauthorized">
+अवैध या गायब API कुंजी। सुनिश्चित करें कि आपकी `DODO_PAYMENTS_API_KEY` सही है और उचित अनुमतियाँ हैं।
+</Accordion>
+
+<Accordion title="404 Not Found">
+सदस्यता ID नहीं मिली या आपके खाते से संबंधित नहीं है।
+</Accordion>
+
+<Accordion title="422 Unprocessable Entity">
+सदस्यता को नहीं बदला जा सकता (जैसे, पहले से रद्द, उत्पाद उपलब्ध नहीं है, आदि)।
+</Accordion>
+
+<Accordion title="500 Internal Server Error">
+सर्वर त्रुटि हुई। थोड़ी देर बाद अनुरोध को पुनः प्रयास करें।
+</Accordion>
+</AccordionGroup>
+
+### त्रुटि प्रतिक्रिया प्रारूप
+
+```json
+{
+  "error": {
+    "code": "subscription_not_found",
+    "message": "The subscription with ID 'sub_123' was not found",
+    "details": {
+      "subscription_id": "sub_123"
+    }
+  }
+}
+```
+
+## अगले कदम
+
+- [परिवर्तन योजना API](/api-reference/subscriptions/change-plan) की समीक्षा करें
+- [ग्राहक क्रेडिट](/features/customer-credit) का अन्वेषण करें
+- `subscription.on_hold` के लिए अलर्ट लागू करें
+- हमारे [वेबहुक एकीकरण गाइड](/developer-resources/webhooks) को देखें

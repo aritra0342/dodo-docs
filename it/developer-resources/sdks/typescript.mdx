@@ -1,0 +1,334 @@
+---
+title: TypeScript
+description: Integra Dodo Payments nelle tue applicazioni TypeScript e Node.js
+  con sicurezza dei tipi e supporto moderno per async/await
+icon: js
+---
+
+Il SDK TypeScript fornisce un accesso conveniente al server all'API REST di Dodo Payments per applicazioni TypeScript e JavaScript. Presenta definizioni di tipo complete, gestione degli errori, ritentativi, timeout e auto-paginazione per un'elaborazione dei pagamenti senza soluzione di continuità.
+
+## Installazione
+
+Installa il SDK utilizzando il tuo gestore di pacchetti preferito:
+<CodeGroup>
+
+```bash npm
+npm install dodopayments
+```
+
+```bash yarn
+yarn add dodopayments
+```
+
+```bash pnpm
+pnpm add dodopayments
+```
+
+</CodeGroup>
+
+## Inizio Veloce
+
+Inizializza il client con la tua chiave API e inizia a elaborare i pagamenti:
+
+```javascript
+import DodoPayments from 'dodopayments';
+
+const client = new DodoPayments({
+  bearerToken: process.env['DODO_PAYMENTS_API_KEY'], // This is the default and can be omitted
+  environment: 'test_mode', // defaults to 'live_mode'
+});
+
+const checkoutSessionResponse = await client.checkoutSessions.create({
+  product_cart: [{ product_id: 'product_id', quantity: 1 }],
+});
+
+console.log(checkoutSessionResponse.session_id);
+```
+
+<Warning>
+Conserva sempre le tue chiavi API in modo sicuro utilizzando variabili di ambiente. Non commetterle mai nel controllo di versione o esporle nel codice lato client.
+</Warning>
+
+## Caratteristiche Principali
+
+<CardGroup cols={2}>
+<Card title="TypeScript First" icon="shield-check">
+  Supporto completo per TypeScript con definizioni di tipo complete per tutti gli endpoint API
+</Card>
+
+<Card title="Auto-Paginazione" icon="arrows-rotate">
+  Paginazione automatica per le risposte delle liste rende il lavoro con grandi set di dati senza sforzo
+</Card>
+
+<Card title="Gestione degli Errori" icon="triangle-exclamation">
+  Tipi di errore integrati con messaggi dettagliati per diversi scenari di errore
+</Card>
+
+<Card title="Ritenti Intelligenti" icon="repeat">
+  Ritentativi automatici configurabili con backoff esponenziale per errori transitori
+</Card>
+</CardGroup>
+
+## Configurazione
+
+### Variabili di Ambiente
+
+Imposta variabili di ambiente per una configurazione sicura:
+
+```bash .env
+DODO_PAYMENTS_API_KEY=your_api_key_here
+```
+
+### Configurazione del Timeout
+
+Configura i timeout delle richieste globalmente o per richiesta:
+
+```typescript
+// Configure default timeout for all requests (default is 1 minute)
+const client = new DodoPayments({
+  timeout: 20 * 1000, // 20 seconds
+});
+
+// Override per-request
+await client.checkoutSessions.create(
+  { product_cart: [{ product_id: 'product_id', quantity: 0 }] },
+  { timeout: 5 * 1000 }
+);
+```
+
+### Configurazione dei Ritenti
+
+Configura il comportamento dei ritentativi automatici:
+
+```javascript
+// Configure default for all requests (default is 2 retries)
+const client = new DodoPayments({
+  maxRetries: 0, // disable retries
+});
+
+// Override per-request
+await client.checkoutSessions.create(
+  { product_cart: [{ product_id: 'product_id', quantity: 0 }] },
+  { maxRetries: 5 }
+);
+```
+
+<Tip>
+Il SDK ritenta automaticamente le richieste che falliscono a causa di errori di rete o problemi del server (risposte 5xx) con backoff esponenziale.
+</Tip>
+
+## Operazioni Comuni
+
+### Crea una Sessione di Checkout
+
+Genera una sessione di checkout per raccogliere informazioni di pagamento:
+
+```typescript
+const session = await client.checkoutSessions.create({
+  product_cart: [
+    {
+      product_id: 'prod_123',
+      quantity: 1
+    }
+  ],
+  return_url: 'https://yourdomain.com/return'
+});
+
+console.log('Redirect to:', session.url);
+```
+
+### Gestisci i Clienti
+
+Crea e recupera informazioni sui clienti:
+
+```typescript
+// Create a customer
+const customer = await client.customers.create({
+  email: 'customer@example.com',
+  name: 'John Doe',
+  metadata: {
+    user_id: '12345'
+  }
+});
+
+// Retrieve customer
+const retrieved = await client.customers.retrieve('cus_123');
+console.log(`Customer: ${retrieved.name} (${retrieved.email})`);
+```
+
+### Gestisci Abbonamenti
+
+Crea e gestisci abbonamenti ricorrenti:
+
+```typescript
+// Create a subscription
+const subscription = await client.subscriptions.create({
+  customer_id: 'cus_123',
+  product_id: 'prod_456',
+  price_id: 'price_789'
+});
+
+// Retrieve subscription usage history
+const usageHistory = await client.subscriptions.retrieveUsageHistory('sub_123', {
+  start_date: '2024-01-01T00:00:00Z',
+  end_date: '2024-03-31T23:59:59Z'
+});
+```
+
+## Fatturazione Basata sull'Uso
+
+### Ingestione di Eventi di Utilizzo
+
+Monitora eventi personalizzati per la fatturazione basata sull'uso:
+
+```typescript
+await client.usageEvents.ingest({
+  events: [
+    {
+      event_id: 'api_call_12345',
+      customer_id: 'cus_abc123',
+      event_name: 'api_request',
+      timestamp: '2024-01-15T10:30:00Z',
+      metadata: {
+        endpoint: '/api/v1/users',
+        method: 'GET',
+        tokens_used: '150'
+      }
+    }
+  ]
+});
+```
+
+<Info>
+Gli eventi devono avere valori unici `event_id` per l'idempotenza. ID duplicati all'interno della stessa richiesta vengono rifiutati e richieste successive con ID esistenti vengono ignorate.
+</Info>
+
+### Recupera Eventi di Utilizzo
+
+Recupera informazioni dettagliate sugli eventi di utilizzo:
+
+```typescript
+// Get a specific event
+const event = await client.usageEvents.retrieve('api_call_12345');
+
+// List events with filtering
+const events = await client.usageEvents.list({
+  customer_id: 'cus_abc123',
+  event_name: 'api_request',
+  start: '2024-01-14T10:30:00Z',
+  end: '2024-01-15T10:30:00Z'
+});
+```
+
+## Configurazione del Proxy
+
+Configura le impostazioni del proxy per diversi runtime:
+
+### Node.js (utilizzando undici)
+
+```typescript
+import DodoPayments from 'dodopayments';
+import * as undici from 'undici';
+
+const proxyAgent = new undici.ProxyAgent('http://localhost:8888');
+const client = new DodoPayments({
+  fetchOptions: {
+    dispatcher: proxyAgent,
+  },
+});
+```
+
+### Bun
+
+```typescript
+import DodoPayments from 'dodopayments';
+
+const client = new DodoPayments({
+  fetchOptions: {
+    proxy: 'http://localhost:8888',
+  },
+});
+```
+
+### Deno
+
+```typescript
+import DodoPayments from 'npm:dodopayments';
+
+const httpClient = Deno.createHttpClient({ proxy: { url: 'http://localhost:8888' } });
+const client = new DodoPayments({
+  fetchOptions: {
+    client: httpClient,
+  },
+});
+```
+
+## Logging
+
+Controlla la verbosità dei log utilizzando variabili di ambiente o opzioni del client:
+
+```typescript
+// Via client option
+const client = new DodoPayments({
+  logLevel: 'debug', // Show all log messages
+});
+```
+
+```bash
+# Via environment variable
+export DODO_PAYMENTS_LOG=debug
+```
+
+**Livelli di log disponibili:**
+- `'debug'` - Mostra messaggi di debug, info, avvisi ed errori
+- `'info'` - Mostra messaggi informativi, avvisi ed errori  
+- `'warn'` - Mostra avvisi ed errori (predefinito)
+- `'error'` - Mostra solo errori
+- `'off'` - Disabilita tutti i log
+
+<Warning>
+A livello di debug, tutte le richieste e risposte HTTP vengono registrate, inclusi intestazioni e corpi. Alcune intestazioni di autenticazione vengono oscurate, ma i dati sensibili nei corpi potrebbero essere ancora visibili.
+</Warning>
+
+## Migrazione dal SDK Node.js
+
+Se stai aggiornando dal SDK Node.js legacy, il SDK TypeScript offre una maggiore sicurezza dei tipi e funzionalità migliorate:
+
+<Card
+  title="Visualizza la Guida alla Migrazione"
+  icon="arrow-right"
+  href="https://github.com/dodopayments/dodopayments-typescript/blob/main/MIGRATION.md">
+  Scopri come migrare dal SDK Node.js al SDK TypeScript
+</Card>
+
+## Risorse
+
+<CardGroup cols={2}>
+<Card title="Repository GitHub" icon="github" href="https://github.com/dodopayments/dodopayments-typescript">
+  Visualizza il codice sorgente e contribuisci
+</Card>
+
+<Card title="Riferimento API" icon="book" href="/api-reference/introduction">
+  Documentazione API completa
+</Card>
+
+<Card title="Comunità Discord" icon="discord" href="https://discord.gg/bYqAp4ayYh">
+  Ottieni aiuto e connettiti con gli sviluppatori
+</Card>
+
+<Card title="Segnala Problemi" icon="bug" href="https://github.com/dodopayments/dodopayments-typescript/issues">
+  Segnala bug o richiedi funzionalità
+</Card>
+</CardGroup>
+
+## Supporto
+
+Hai bisogno di aiuto con il SDK TypeScript?
+
+- **Discord**: Unisciti al nostro [server della comunità](https://discord.gg/bYqAp4ayYh) per supporto in tempo reale
+- **Email**: Contattaci a support@dodopayments.com  
+- **GitHub**: Apri un problema nel [repository](https://github.com/dodopayments/dodopayments-typescript)
+
+## Contribuire
+
+Accogliamo con favore i contributi! Controlla le [linee guida per i contributi](https://github.com/dodopayments/dodopayments-typescript/blob/main/CONTRIBUTING.md) per iniziare.

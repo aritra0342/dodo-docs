@@ -1,0 +1,151 @@
+---
+title: HubSpot
+description: Automatiskt skapa och uppdatera kontakter, företag och affärer i
+  HubSpot från Dodo Payments-händelser.
+icon: hubspot
+---
+
+## Introduktion
+
+Synkronisera dina betalningsdata direkt till HubSpot CRM. Skapa kontakter från framgångsrika betalningar, spåra prenumerationslivscykler och bygg omfattande kundprofiler—allt automatiskt utlösts av Dodo Payments-händelser.
+
+<Info>
+Denna integration kräver administratörsbehörighet i HubSpot för att konfigurera OAuth-scopes och API-behörigheter.
+</Info>
+
+## Komma igång
+
+<Steps>
+<Step title="Öppna Webhook-sektionen">
+  I din Dodo Payments-instrumentpanel, gå till <b>Webhooks → + Lägg till slutpunkt</b> och expandera integrationsrullgardinsmenyn.
+  <Frame>
+    <img src="/images/integrations/hubspot.png" alt="Lägg till slutpunkt och integrationsrullgardinsmeny" />
+  </Frame>
+</Step>
+
+<Step title="Välj HubSpot">
+  Välj <b>HubSpot</b> integrationskortet.
+</Step>
+
+<Step title="Anslut HubSpot">
+  Klicka på <b>Anslut till HubSpot</b> och auktorisera de nödvändiga OAuth-scopes.
+</Step>
+
+<Step title="Konfigurera transformation">
+  Redigera transformationskoden för att mappa betalningsdata till HubSpot CRM-objekt.
+</Step>
+
+<Step title="Testa & Skapa">
+  Testa med exempelpayloads och klicka på <b>Skapa</b> för att aktivera synkroniseringen.
+</Step>
+
+<Step title="Klart!">
+  🎉 Betalningshändelser kommer nu automatiskt att skapa/uppdatera poster i din HubSpot CRM.
+</Step>
+</Steps>
+
+## Exempel på transformationskod
+
+### Skapa kontakt från betalning
+
+```javascript create_contact.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.url = "https://api.hubapi.com/crm/v3/objects/contacts";
+    webhook.payload = {
+      properties: {
+        email: p.customer.email,
+        firstname: p.customer.name.split(' ')[0] || '',
+        lastname: p.customer.name.split(' ').slice(1).join(' ') || '',
+        phone: p.customer.phone || '',
+        company: p.customer.company || '',
+        amount: (p.total_amount / 100).toString(),
+        payment_method: p.payment_method || '',
+        currency: p.currency || 'USD'
+      }
+    };
+  }
+  return webhook;
+}
+```
+
+### Uppdatera kontakt med prenumeration
+
+```javascript update_contact.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "subscription.active") {
+    const s = webhook.payload.data;
+    webhook.url = `https://api.hubapi.com/crm/v3/objects/contacts/${s.customer.customer_id}`;
+    webhook.method = "PATCH";
+    webhook.payload = {
+      properties: {
+        subscription_status: "active",
+        subscription_amount: (s.recurring_pre_tax_amount / 100).toString(),
+        subscription_frequency: s.payment_frequency_interval,
+        next_billing_date: s.next_billing_date,
+        product_id: s.product_id
+      }
+    };
+  }
+  return webhook;
+}
+```
+
+### Skapa affär från betalning
+
+```javascript create_deal.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.url = "https://api.hubapi.com/crm/v3/objects/deals";
+    webhook.payload = {
+      properties: {
+        dealname: `Payment - ${p.customer.email}`,
+        amount: (p.total_amount / 100).toString(),
+        dealstage: "closedwon",
+        closedate: new Date().toISOString(),
+        hs_currency: p.currency || "USD"
+      },
+      associations: [
+        {
+          to: {
+            id: p.customer.customer_id
+          },
+          types: [
+            {
+              associationCategory: "HUBSPOT_DEFINED",
+              associationTypeId: 3
+            }
+          ]
+        }
+      ]
+    };
+  }
+  return webhook;
+}
+```
+
+## Tips
+
+- Använd HubSpots API-explorer för att testa objektsskapande
+- Mappa betalningsbelopp till HubSpot-valutafält
+- Inkludera kund-ID:n för korrekta kopplingar
+- Ställ in lämpliga affärssteg baserat på betalningsstatus
+
+## Felsökning
+
+<AccordionGroup>
+<Accordion title="Poster skapades inte i HubSpot">
+- Verifiera att OAuth-scopes inkluderar skrivbehörigheter
+- Kontrollera att nödvändiga HubSpot-egenskaper finns
+- Se till att kundens e-postadress är giltig och unik
+- Granska HubSpot API-hastighetsgränser
+</Accordion>
+
+<Accordion title="Transformationsfel">
+- Validera att JSON-strukturen matchar HubSpot API-formatet
+- Kontrollera att alla nödvändiga egenskaper är inkluderade
+- Se till att egenskapsnamnen matchar HubSpot-fältnamnen exakt
+</Accordion>
+</AccordionGroup>

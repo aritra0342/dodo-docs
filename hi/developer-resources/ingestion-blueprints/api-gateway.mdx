@@ -1,0 +1,201 @@
+---
+title: API गेटवे ब्लूप्रिंट
+description: API कॉल और गेटवे-स्तरीय उपयोग को ट्रैक करें। उच्च मात्रा में अनुरोध
+  ट्रैकिंग के साथ API-as-a-service प्लेटफार्मों के लिए आदर्श।
+icon: cloud
+---
+
+## उपयोग के मामले
+
+API गेटवे ब्लूप्रिंट द्वारा समर्थित सामान्य परिदृश्यों का अन्वेषण करें:
+
+<CardGroup cols={2}>
+<Card title="API-as-a-Service" icon="server">
+API प्लेटफार्मों के लिए ग्राहक के अनुसार उपयोग को ट्रैक करें और कॉल की संख्या के आधार पर चार्ज करें।
+</Card>
+<Card title="रेट लिमिटिंग" icon="gauge">
+API उपयोग पैटर्न की निगरानी करें और उपयोग के आधार पर रेट लिमिटिंग लागू करें।
+</Card>
+<Card title="प्रदर्शन निगरानी" icon="chart-line">
+बिलिंग डेटा के साथ प्रतिक्रिया समय और त्रुटि दरों को ट्रैक करें।
+</Card>
+<Card title="मल्टी-टेनेंट SaaS" icon="users">
+विभिन्न एंडपॉइंट्स के बीच उनके API उपभोग के आधार पर ग्राहकों को बिल करें।
+</Card>
+</CardGroup>
+
+<Info>
+API एंडपॉइंट उपयोग, रेट लिमिटिंग, और उपयोग के आधार पर API बिलिंग को ट्रैक करने के लिए आदर्श।
+</Info>
+
+## त्वरित प्रारंभ
+
+उच्च मात्रा के परिदृश्यों के लिए स्वचालित बैचिंग के साथ गेटवे स्तर पर API कॉल को ट्रैक करें:
+
+<Steps>
+<Step title="SDK स्थापित करें">
+
+```bash
+npm install @dodopayments/ingestion-blueprints
+```
+
+</Step>
+
+<Step title="अपने API कुंजी प्राप्त करें">
+- **Dodo Payments API कुंजी**: इसे [Dodo Payments Dashboard](https://app.dodopayments.com/developer/api-keys) से प्राप्त करें
+</Step>
+
+<Step title="एक मीटर बनाएं">
+अपने [Dodo Payments Dashboard](https://app.dodopayments.com/) में एक मीटर बनाएं:
+- **इवेंट नाम**: `api_call` (या आपका पसंदीदा नाम)
+- **संघटन प्रकार**: `count` कॉल की संख्या को ट्रैक करने के लिए
+- प्रतिक्रिया समय, स्थिति कोड आदि जैसे मेटाडेटा को ट्रैक करने के लिए अतिरिक्त गुण कॉन्फ़िगर करें।
+</Step>
+
+<Step title="API कॉल ट्रैक करें">
+<CodeGroup>
+
+```javascript Single API Call
+import { Ingestion, trackAPICall } from '@dodopayments/ingestion-blueprints';
+
+const ingestion = new Ingestion({
+  apiKey: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'test_mode',
+  eventName: 'api_call'
+});
+
+// Track a single API call
+await trackAPICall(ingestion, {
+  customerId: 'customer_123',
+  metadata: {
+    endpoint: '/api/v1/users',
+    method: 'GET',
+    status_code: 200,
+    response_time_ms: 45
+  }
+});
+```
+
+```javascript High-Volume with Batching
+import { Ingestion, createBatch } from '@dodopayments/ingestion-blueprints';
+
+const ingestion = new Ingestion({
+  apiKey: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'live_mode',
+  eventName: 'api_call'
+});
+
+// Create batch for high-volume tracking
+const batch = createBatch(ingestion, {
+  maxSize: 100,      // Flush after 100 events
+  flushInterval: 5000 // Or flush every 5 seconds
+});
+
+// Add API calls to batch
+batch.add({
+  customerId: 'customer_123',
+  metadata: {
+    endpoint: '/api/v1/products',
+    method: 'GET',
+    status_code: 200
+  }
+});
+
+// Clean up when done
+await batch.cleanup();
+```
+
+```javascript Express.js Middleware
+import express from 'express';
+import { Ingestion, createBatch } from '@dodopayments/ingestion-blueprints';
+
+const app = express();
+
+const ingestion = new Ingestion({
+  apiKey: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'live_mode',
+  eventName: 'api_call'
+});
+
+const batch = createBatch(ingestion, {
+  maxSize: 50,
+  flushInterval: 10000
+});
+
+// Middleware to track all API calls
+app.use((req, res, next) => {
+  const startTime = Date.now();
+  
+  res.on('finish', () => {
+    const responseTime = Date.now() - startTime;
+    
+    batch.add({
+      customerId: req.user?.id || 'anonymous',
+      metadata: {
+        endpoint: req.path,
+        method: req.method,
+        status_code: res.statusCode,
+        response_time_ms: responseTime
+      }
+    });
+  });
+  
+  next();
+});
+
+// Cleanup on shutdown
+process.on('SIGTERM', async () => {
+  await batch.cleanup();
+  process.exit(0);
+});
+```
+
+</CodeGroup>
+</Step>
+</Steps>
+
+## कॉन्फ़िगरेशन
+
+### इनजेशन कॉन्फ़िगरेशन
+
+<ParamField path="apiKey" type="string" required>
+आपकी Dodo Payments API कुंजी डैशबोर्ड से।
+</ParamField>
+
+<ParamField path="environment" type="string" required>
+पर्यावरण मोड: `test_mode` या `live_mode`।
+</ParamField>
+
+<ParamField path="eventName" type="string" required>
+इवेंट नाम जो आपके मीटर कॉन्फ़िगरेशन से मेल खाता है।
+</ParamField>
+
+### API कॉल विकल्प ट्रैक करें
+
+<ParamField path="customerId" type="string" required>
+बिलिंग एट्रिब्यूशन के लिए ग्राहक आईडी।
+</ParamField>
+
+<ParamField path="metadata" type="object">
+API कॉल के बारे में वैकल्पिक मेटाडेटा जैसे एंडपॉइंट, विधि, स्थिति कोड, प्रतिक्रिया समय आदि।
+</ParamField>
+
+### बैच कॉन्फ़िगरेशन
+
+<ParamField path="maxSize" type="number">
+ऑटो-फ्लश से पहले अधिकतम संख्या में इवेंट। डिफ़ॉल्ट: `100`।
+</ParamField>
+
+<ParamField path="flushInterval" type="number">
+मिलीसेकंड में ऑटो-फ्लश अंतराल। डिफ़ॉल्ट: `5000` (5 सेकंड)।
+</ParamField>
+
+## सर्वोत्तम प्रथाएँ
+
+<Tip>
+**उच्च मात्रा के लिए बैचिंग का उपयोग करें**: उन अनुप्रयोगों के लिए जो प्रति सेकंड 10 से अधिक अनुरोध संभालते हैं, ओवरहेड को कम करने और प्रदर्शन में सुधार के लिए `createBatch()` का उपयोग करें।
+</Tip>
+
+<Warning>
+**हमेशा बैच को साफ करें**: डेटा हानि से बचने के लिए एप्लिकेशन शटडाउन पर `batch.cleanup()` को कॉल करें ताकि लंबित इवेंट्स को फ्लश किया जा सके।
+</Warning>

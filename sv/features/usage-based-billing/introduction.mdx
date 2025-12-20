@@ -1,0 +1,168 @@
+---
+sidebarTitle: Introduktion
+title: Användningsbaserad fakturering
+description: Debiterar kunder baserat på vad de faktiskt använder med flexibel
+  mätning och automatiserad fakturering.
+icon: box
+---
+
+Användningsbaserad fakturering låter dig debitera kunder för vad de faktiskt använder—API-anrop, lagring, AI-token eller vilken mätning du definierar. Kunder betalar för konsumtion, inte fasta avgifter.
+
+<Info>
+**Perfekt för**: API:er, AI-tjänster, infrastrukturplattformar och alla produkter där värdet ökar med användning.
+</Info>
+
+## Hur Det Fungerar
+
+<Steps>
+<Step title="Skicka Användningsevenemang">
+Din applikation skickar händelser när debiterbara åtgärder inträffar.
+
+```javascript
+{
+  "event_id": "evt_123",
+  "customer_id": "cus_abc",
+  "event_name": "api.call",
+  "metadata": { "endpoint": "/v1/users" }
+}
+```
+
+</Step>
+
+<Step title="Mätare Samlar Användning">
+Mätare samlar händelser till debiterbara kvantiteter med hjälp av Count, Sum, Max eller Last-aggregat.
+</Step>
+
+<Step title="Automatisk Fakturering">
+Ställ in priser per enhet och fria trösklar. Kunder faktureras automatiskt varje cykel.
+</Step>
+</Steps>
+
+## Kärnkoncept
+
+### Händelser
+
+Händelser representerar användningsåtgärder i din applikation. Varje händelse inkluderar:
+- **Händelsenamn**: Typ av användning (t.ex. `api.call`)
+- **Kund-ID**: Vem som använde det
+- **Metadata**: Ytterligare egenskaper för aggregation
+
+### Mätare
+
+Mätare samlar händelser till debiterbara kvantiteter:
+- **Count**: Totalt antal händelser (API-anrop)
+- **Sum**: Lägg till värden (totala byte)
+- **Max**: Högsta värde (toppar användare)
+- **Last**: Senaste värde
+
+<Frame>
+<img src="/images/usage-based/UBB-2.png" alt="Skapa mätargränssnitt" />
+</Frame>
+
+### Produkter med Användningsprissättning
+
+Ställ in priser per enhet och valfria fria trösklar:
+
+<Frame>
+<img src="/images/usage-based/UBB-4.png" alt="Prissättningskonfiguration" />
+</Frame>
+
+**Exempel**: 2 500 anrop - 1 000 gratis = 1 500 × $0.02 = $30.00
+
+### Kundkrediter
+
+Ge kunder inkluderade användningskrediter som förnyas varje faktureringscykel. Krediter tillämpas före betald användning.
+
+## Snabbstart
+
+<Steps>
+<Step title="Skapa en Mätare">
+I din instrumentpanel: **Mätare** → **Skapa Mätare**
+
+1. Ställ in händelsenamn (t.ex. `api.call`)
+2. Välj aggregation (Count, Sum, Max, Last)
+3. Lägg till valfria filter
+</Step>
+
+<Step title="Lägg till Produkt">
+Koppla mätaren till en produkt med prissättning:
+
+<Frame>
+<img src="/images/usage-based/UBB-5.png" alt="Lägga till mätare till produkt" />
+</Frame>
+
+1. Välj **Användningsbaserad Fakturering**
+2. Välj din mätare
+3. Ställ in pris per enhet och fri tröskel
+</Step>
+
+<Step title="Skicka Händelser">
+
+```javascript
+await fetch('https://test.dodopayments.com/events/ingest', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${process.env.DODO_API_KEY}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    events: [{
+      event_id: "unique_event_id",
+      customer_id: "cus_abc123",
+      event_name: "api.call",
+      metadata: { endpoint: "/v1/users" }
+    }]
+  })
+});
+```
+
+</Step>
+
+<Step title="Övervaka Användning">
+<Frame>
+<img src="/images/guides/usage-based-billing/meter-quantities-chart.png" alt="Mätardashboard" />
+</Frame>
+
+Kontrollera din mätardashboard för att se händelser och användningsaggregation. Kunder faktureras automatiskt varje cykel.
+</Step>
+</Steps>
+
+## Användningsfall
+
+<CardGroup cols={2}>
+<Card title="API:er & Infrastruktur" icon="cloud">
+Spåra API-anrop, beräknings timmar, bandbredd, lagring. Exempel: $0.001 per anrop efter 10 000 gratis.
+</Card>
+
+<Card title="AI Användningsspårning" icon="brain">
+Spåra token, generationer, bearbetningstid. Exempel: \$0.04 per standardbild, \$0.08 per HD.
+</Card>
+
+<Card title="Data & Analys" icon="chart-line">
+Debitering baserat på bearbetad data, körda frågor, analyserade poster. Exempel: $5 per GB efter 10 GB gratis.
+</Card>
+
+<Card title="Kommunikation" icon="message">
+Räkna meddelanden, minuter, överförd data. Exempel: $0.01 per skickat SMS.
+</Card>
+</CardGroup>
+
+## Nästa Steg
+
+<CardGroup cols={2}>
+<Card title="Händelseinmatning" icon="bolt" href="/features/usage-based-billing/event-ingestion">
+Lär dig hur du strukturerar och skickar användningsevenemang från din applikation.
+</Card>
+
+<Card title="Mätarguide" icon="sliders" href="/features/usage-based-billing/meters">
+Behärska mätarkonfiguration, aggregattyper och händelsefilter.
+</Card>
+
+<Card title="Komplett Tutorial" icon="code" href="/developer-resources/usage-based-billing-build-ai-image-generator">
+Bygg en komplett AI-bildgenerator med användningsbaserad fakturering från grunden.
+</Card>
+
+<Card title="Integrationsguide" icon="book" href="/developer-resources/usage-based-billing-guide">
+Omfattande guide för att implementera användningsbaserad fakturering i din applikation.
+</Card>
+</CardGroup>

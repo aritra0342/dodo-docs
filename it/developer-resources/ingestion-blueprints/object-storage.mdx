@@ -1,0 +1,164 @@
+---
+title: Blueprint di Archiviazione Oggetti
+description: Monitora i caricamenti di file e l'utilizzo dello storage per S3,
+  Google Cloud Storage, Azure Blob e altri servizi di archiviazione oggetti.
+icon: box-archive
+---
+
+## Casi d'Uso
+
+Esplora scenari comuni supportati dal Blueprint di Archiviazione Oggetti:
+
+<CardGroup cols={2}>
+<Card title="Hosting di File" icon="folder">
+Fattura i clienti in base all'utilizzo totale dello storage e al volume di caricamento.
+</Card>
+<Card title="Servizi di Backup" icon="shield">
+Monitora i caricamenti di dati di backup e addebita per GB memorizzati.
+</Card>
+<Card title="Media CDN" icon="photo-film">
+Monitora i caricamenti di media e fattura per storage e larghezza di banda.
+</Card>
+<Card title="Gestione Documenti" icon="file">
+Monitora i caricamenti di documenti per cliente per una tariffazione basata sull'utilizzo.
+</Card>
+</CardGroup>
+
+<Info>
+Perfetto per la fatturazione basata sui caricamenti di storage, hosting di file, utilizzo di CDN o servizi di backup.
+</Info>
+
+## Avvio Veloce
+
+Monitora i caricamenti di archiviazione oggetti con i byte consumati:
+
+<Steps>
+<Step title="Installa l'SDK">
+
+```bash
+npm install @dodopayments/ingestion-blueprints
+```
+
+</Step>
+
+<Step title="Ottieni le tue Chiavi API">
+- **Chiave API di Dodo Payments**: Ottienila dal [Dashboard di Dodo Payments](https://app.dodopayments.com/developer/api-keys)
+- **Chiave API del Fornitore di Storage**: Da AWS S3, Google Cloud Storage, Azure, ecc.
+</Step>
+
+<Step title="Crea un Meter">
+Crea un meter nel tuo [Dashboard di Dodo Payments](https://app.dodopayments.com/):
+- **Nome Evento**: `object_storage_upload` (o il tuo nome preferito)
+- **Tipo di Aggregazione**: `sum` per monitorare il totale dei byte caricati
+- **Su Proprietà**: `bytes` per fatturare in base alla dimensione dello storage
+</Step>
+
+<Step title="Monitora l'Utilizzo dello Storage">
+<CodeGroup>
+
+```javascript AWS S3 Upload
+import { Ingestion, trackObjectStorage } from '@dodopayments/ingestion-blueprints';
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import fs from 'fs';
+
+const ingestion = new Ingestion({
+  apiKey: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'test_mode',
+  eventName: 'object_storage_upload'
+});
+
+const s3 = new S3Client({ region: 'us-east-1' });
+
+// Read the file (example: from disk or request)
+const fileBuffer = fs.readFileSync('./document.pdf');
+
+// Upload to S3
+const command = new PutObjectCommand({
+  Bucket: 'my-bucket',
+  Key: 'uploads/document.pdf',
+  Body: fileBuffer
+});
+
+await s3.send(command);
+
+// Track the upload
+await trackObjectStorage(ingestion, {
+  customerId: 'customer_123',
+  bytes: fileBuffer.length
+});
+```
+
+```javascript Google Cloud Storage
+import { Ingestion, trackObjectStorage } from '@dodopayments/ingestion-blueprints';
+import { Storage } from '@google-cloud/storage';
+import fs from 'fs';
+
+const ingestion = new Ingestion({
+  apiKey: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'test_mode',
+  eventName: 'object_storage_upload'
+});
+
+const storage = new Storage();
+const bucket = storage.bucket('my-bucket');
+
+// Read the file
+const fileBuffer = fs.readFileSync('./image.png');
+
+// Upload to GCS
+await bucket.file('uploads/image.png').save(fileBuffer);
+
+// Track the upload
+await trackObjectStorage(ingestion, {
+  customerId: 'customer_456',
+  bytes: fileBuffer.length,
+  metadata: {
+    bucket: 'my-bucket',
+    key: 'uploads/image.png'
+  }
+});
+```
+
+</CodeGroup>
+</Step>
+</Steps>
+
+## Configurazione
+
+### Configurazione di Ingestione
+
+<ParamField path="apiKey" type="string" required>
+La tua chiave API di Dodo Payments dal dashboard.
+</ParamField>
+
+<ParamField path="environment" type="string" required>
+Modalità ambiente: `test_mode` o `live_mode`.
+</ParamField>
+
+<ParamField path="eventName" type="string" required>
+Nome evento che corrisponde alla configurazione del tuo meter.
+</ParamField>
+
+### Opzioni di Monitoraggio dell'Archiviazione Oggetti
+
+<ParamField path="customerId" type="string" required>
+L'ID cliente per l'attribuzione della fatturazione.
+</ParamField>
+
+<ParamField path="bytes" type="number">
+Numero di byte caricati. Richiesto per la fatturazione basata sui byte.
+</ParamField>
+
+<ParamField path="metadata" type="object">
+Metadata opzionali sul caricamento come nome del bucket, tipo di contenuto, ecc.
+</ParamField>
+
+## Migliori Pratiche
+
+<Tip>
+**Monitora Prima o Dopo il Caricamento**: Puoi monitorare l'evento prima o dopo il caricamento effettivo a seconda della tua strategia di gestione degli errori.
+</Tip>
+
+<Warning>
+**Gestisci i Fallimenti di Caricamento**: Monitora solo i caricamenti riusciti per evitare di fatturare operazioni fallite.
+</Warning>

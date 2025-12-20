@@ -1,0 +1,174 @@
+---
+title: Customer.io
+description: Dodo Payments घटनाओं को Customer.io पर भेजें ताकि ईमेल स्वचालन और
+  ग्राहक यात्रा को ट्रिगर किया जा सके।
+icon: chart-area
+---
+
+## परिचय
+
+भुगतान घटनाओं के आधार पर व्यक्तिगत ईमेल अभियान और ग्राहक यात्राएँ ट्रिगर करें। नए ग्राहकों के लिए स्वागत ईमेल, सदस्यता अपडेट, और भुगतान विफलता सूचनाएँ स्वचालित रूप से Customer.io के माध्यम से भेजें।
+
+<Info>
+इस एकीकरण के लिए आपके Customer.io साइट आईडी और एपीआई कुंजी की आवश्यकता है।
+</Info>
+
+## प्रारंभ करना
+
+<Steps>
+<Step title="Webhook अनुभाग खोलें">
+  अपने Dodo Payments डैशबोर्ड में, <b>Webhooks → + Add Endpoint</b> पर जाएँ और एकीकरण ड्रॉपडाउन का विस्तार करें।
+  <Frame>
+    <img src="/images/integrations/customer-io.png" alt="Add Endpoint और एकीकरण ड्रॉपडाउन" />
+  </Frame>
+</Step>
+
+<Step title="Customer.io चुनें">
+  <b>Customer.io</b> एकीकरण कार्ड चुनें।
+</Step>
+
+<Step title="क्रेडेंशियल दर्ज करें">
+  कॉन्फ़िगरेशन में अपने Customer.io साइट आईडी और एपीआई कुंजी प्रदान करें।
+</Step>
+
+<Step title="रूपांतरण कॉन्फ़िगर करें">
+  Customer.io के ट्रैक एपीआई के लिए घटनाओं को प्रारूपित करने के लिए रूपांतरण कोड संपादित करें।
+</Step>
+
+<Step title="परीक्षण और बनाएँ">
+  नमूना पेलोड के साथ परीक्षण करें और समन्वय सक्रिय करने के लिए <b>Create</b> पर क्लिक करें।
+</Step>
+
+<Step title="हो गया!">
+  🎉 भुगतान घटनाएँ अब Customer.io ईमेल स्वचालन को ट्रिगर करेंगी।
+</Step>
+</Steps>
+
+## रूपांतरण कोड उदाहरण
+
+### भुगतान घटनाओं को ट्रैक करें
+
+```javascript track_payments.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.url = "https://track.customer.io/api/v2/entity";
+    webhook.payload = {
+      type: "person",
+      identifiers: {
+        id: p.customer.customer_id
+      },
+      action: "payment_completed",
+      name: "Payment Completed",
+      attributes: {
+        email: p.customer.email,
+        name: p.customer.name,
+        payment_amount: (p.total_amount / 100).toFixed(2),
+        payment_method: p.payment_method || "unknown",
+        payment_id: p.payment_id,
+        currency: p.currency || "USD"
+      }
+    };
+  }
+  return webhook;
+}
+```
+
+### सदस्यता जीवनचक्र को ट्रैक करें
+
+```javascript track_subscriptions.js icon="js" expandable
+function handler(webhook) {
+  const s = webhook.payload.data;
+  switch (webhook.eventType) {
+    case "subscription.active":
+      webhook.url = "https://track.customer.io/api/v2/entity";
+      webhook.payload = {
+        type: "person",
+        identifiers: {
+          id: s.customer.customer_id
+        },
+        action: "subscription_started",
+        name: "Subscription Started",
+        attributes: {
+          email: s.customer.email,
+          subscription_id: s.subscription_id,
+          product_id: s.product_id,
+          amount: (s.recurring_pre_tax_amount / 100).toFixed(2),
+          frequency: s.payment_frequency_interval,
+          next_billing: s.next_billing_date
+        }
+      };
+      break;
+    case "subscription.cancelled":
+      webhook.url = "https://track.customer.io/api/v2/entity";
+      webhook.payload = {
+        type: "person",
+        identifiers: {
+          id: s.customer.customer_id
+        },
+        action: "subscription_cancelled",
+        name: "Subscription Cancelled",
+        attributes: {
+          email: s.customer.email,
+          subscription_id: s.subscription_id,
+          cancelled_at: s.cancelled_at,
+          cancel_at_next_billing: s.cancel_at_next_billing_date
+        }
+      };
+      break;
+  }
+  return webhook;
+}
+```
+
+### ग्राहक विशेषताओं को ट्रैक करें
+
+```javascript track_attributes.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.url = "https://track.customer.io/api/v2/entity";
+    webhook.payload = {
+      type: "person",
+      identifiers: {
+        id: p.customer.customer_id
+      },
+      action: "identify",
+      name: "Customer Identified",
+      attributes: {
+        email: p.customer.email,
+        name: p.customer.name,
+        total_spent: (p.total_amount / 100).toFixed(2),
+        payment_method: p.payment_method || "unknown",
+        last_payment_date: webhook.payload.timestamp,
+        customer_since: webhook.payload.timestamp
+      }
+    };
+  }
+  return webhook;
+}
+```
+
+## सुझाव
+
+- उन घटनाओं के नामों का उपयोग करें जो आपके Customer.io अभियानों से मेल खाते हैं
+- व्यक्तिगतकरण के लिए प्रासंगिक विशेषताओं को शामिल करें
+- सटीक ट्रैकिंग के लिए उचित ग्राहक पहचानकर्ता सेट करें
+- अभियान ट्रिगर्स के लिए अर्थपूर्ण घटना नामों का उपयोग करें
+
+## समस्या निवारण
+
+<AccordionGroup>
+<Accordion title="घटनाएँ अभियान को ट्रिगर नहीं कर रही हैं">
+- सत्यापित करें कि साइट आईडी और एपीआई कुंजी सही हैं
+- जांचें कि घटना नाम आपके Customer.io अभियानों से मेल खाते हैं
+- सुनिश्चित करें कि ग्राहक पहचानकर्ता सही ढंग से सेट हैं
+- Customer.io एपीआई दर सीमाओं की समीक्षा करें
+</Accordion>
+
+<Accordion title="रूपांतरण त्रुटियाँ">
+- सत्यापित करें कि JSON संरचना Customer.io एपीआई प्रारूप से मेल खाती है
+- जांचें कि सभी आवश्यक फ़ील्ड मौजूद हैं
+- सुनिश्चित करें कि घटना नाम और विशेषताएँ सही ढंग से प्रारूपित हैं
+</Accordion>
+</AccordionGroup>

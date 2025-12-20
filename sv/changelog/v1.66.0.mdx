@@ -1,0 +1,121 @@
+---
+title: v1.66.0 (8 december 2025)
+description: Subscription.updated webhook, minimal address checkout, read-only
+  API-nycklar, UPI AutoPay & RuPay-prenumerationer för alla företag
+icon: arrows-turn-right
+---
+
+## Nya funktioner 🚀
+
+1. **`subscription.updated` Webhook**  
+   En ny webhook-händelse som utlöses vid varje uppdatering av prenumerationsobjekt, vilket ger dig realtidsnotifikationer om eventuella ändringar i dina prenumerationer.
+   
+   Använd denna webhook för att:
+   - Få omedelbara notifikationer när prenumerationsdetaljer ändras
+   - Hålla din applikationsstatus synkroniserad med Dodo Payments
+   - Reagera på prenumerationsuppdateringar utan att behöva pollera API:et
+   
+   <Tip>
+   Prenumerera på `subscription.updated` för att eliminera behovet av polling och hålla ditt system synkroniserat med realtidsändringar i prenumerationer.
+   </Tip>
+   
+   Läs mer: [Prenumerationswebhooks](/developer-resources/webhooks/intents/subscription)
+
+2. **Minimal adressstöd i kassan**  
+
+   <Frame>
+   <img src="/images/changelog/minimal-address.png" alt="Minimal Address Support in Checkout" />
+   </Frame>
+
+   Minska friktionen i kassan med det nya läget för insamling av minimal adress. Istället för att samla in fullständiga adressuppgifter samlar läget för minimal adress endast in:
+   
+   - **Land**: Alltid nödvändigt för skatteberäkning
+   - **ZIP/Postnummer**: Samlas endast in i regioner där det är nödvändigt för försäljningsskatt, moms eller GST-beräkning
+   
+   <Check>
+   Resultat: Betydligt snabbare slutförande av kassan med färre formulärfält för kunder.
+   </Check>
+   
+   **Aktivera minimal adress:**
+   
+   <Tabs>
+   <Tab title="Kassasessioner">
+
+   ```javascript
+   const session = await client.checkoutSessions.create({
+     product_cart: [{ product_id: 'prod_123', quantity: 1 }],
+     minimal_address: true
+   });
+   ```
+
+   </Tab>
+   
+   <Tab title="Statisk betalningslänkar">
+   Lägg till `minimalAddress=true` till din betalningslänk-URL:
+   
+
+   ```
+   https://checkout.dodopayments.com/buy/prod_123?minimalAddress=true
+   ```
+
+   </Tab>
+   </Tabs>
+   
+   <Info>
+   Som standard fortsätter kassan att samla in kompletta adresser. Vi kommer gradvis att övergå alla kassalänkar till läget för minimal adress. Aktivera funktionsflaggan nu för att börja dra nytta av minskad friktion i kassan.
+   </Info>
+
+3. **Endast läsbehörighet för API-nycklar**  
+   Skapa API-nycklar med endast läsbehörighet för säkrare integrationer. När du skapar en ny API-nyckel, avmarkera **Aktivera skrivåtkomst** för att skapa en nyckel med endast läsbehörighet.
+   
+   Endast läsnycklar kan:
+   - Hämta betalnings-, prenumerations- och kunddata
+   - Lista produkter och hämta detaljer
+   - Få tillgång till rapporter och analyser
+   
+   Endast läsnycklar **kan inte**:
+   - Skapa eller ändra betalningar
+   - Uppdatera prenumerationer
+   - Ändra produktkonfigurationer
+   
+   <Tip>
+   Avmarkera "Aktivera skrivåtkomst" för instrumentpanelintegrationer, analysverktyg och alla system som endast behöver visa data utan att göra ändringar.
+   </Tip>
+
+4. **UPI AutoPay & RuPay-kortprenumerationer - Full utrullning**  
+   UPI AutoPay och RuPay-kortprenumerationer är nu tillgängliga för alla företag. Detta möjliggör återkommande betalningar för indiska kunder med:
+   
+   - **UPI AutoPay**: Automatiserade återkommande avgifter via UPI-mandat
+   - **RuPay-kort**: Prenumerationsstöd för Indiens inhemska kortnätverk
+   
+   <Check>
+   Resultat: Utvidgade prenumerationsbetalningsalternativ för den indiska marknaden med RBI-kompatibel mandatbehandling.
+   </Check>
+   
+   Läs mer: [Prenumerationer med RBI-kompatibla mandat](/features/subscription#subscriptions-with-rbi-compliant-mandates)
+
+5. **API för förhandsgranskning av planändringar**  
+   En ny API-slutpunkt för att förhandsgranska ändringar av prenumerationsplaner innan du åtar dig dem. Få den exakta avgiftsbeloppet och se hur prenumerationen kommer att se ut efter ändringen - utan att göra några faktiska modifieringar.
+   
+
+   ```javascript
+   const preview = await client.subscriptions.previewChangePlan('sub_123', {
+     product_id: 'prod_pro_plan',
+     proration_billing_mode: 'prorated_immediately',
+     quantity: 1
+   });
+   
+   console.log('Charge amount:', preview.immediate_charge.summary);
+   console.log('New plan details:', preview.new_plan);
+   ```
+
+   
+   Använd detta för att:
+   - Visa kunder exakt vad de kommer att betala innan de bekräftar uppgraderingar/nedgraderingar
+   - Bygga priskalkylatorer och planjämförelseverktyg
+   - Minska supportärenden genom att förbättra pristransparensen
+   
+   Läs mer: [API för förhandsgranskning av planändring](/api-reference/subscriptions/preview-change-plan)
+
+6. **Allmänna buggfixar och förbättringar**  
+   Denna version inkluderar UI-förbättringar, prestandaförbättringar och löser mindre buggar för en mer pålitlig och strömlinjeformad upplevelse.

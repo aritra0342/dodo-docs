@@ -1,0 +1,189 @@
+---
+title: Windmill
+description: Attiva i flussi di lavoro e gli script di Windmill in base agli
+  eventi dei pagamenti Dodo per automazioni personalizzate.
+icon: wind
+---
+
+## Introduzione
+
+Esegui flussi di lavoro e script personalizzati in Windmill quando si verificano eventi di pagamento. Esegui operazioni su database, invia notifiche, elabora dati e automatizza logiche aziendali complesse con il potente motore di flusso di lavoro di Windmill.
+
+<Info>
+Questa integrazione richiede l'URL del webhook di Windmill dalla configurazione del tuo flusso di lavoro.
+</Info>
+
+## Iniziare
+
+<Steps>
+<Step title="Apri la Sezione Webhook">
+  Nel tuo dashboard di Dodo Payments, vai su <b>Webhooks → + Aggiungi Endpoint</b> ed espandi il menu a discesa delle integrazioni.
+  <Frame>
+    <img src="/images/integrations/windmill.png" alt="Aggiungi Endpoint e menu a discesa delle integrazioni" />
+  </Frame>
+</Step>
+
+<Step title="Seleziona Windmill">
+  Scegli la scheda di integrazione <b>Windmill</b>.
+</Step>
+
+<Step title="Crea Flusso di Lavoro Windmill">
+  In Windmill, crea un nuovo flusso di lavoro e copia l'URL del webhook dalla configurazione del trigger.
+</Step>
+
+<Step title="Incolla l'URL del Webhook">
+  Incolla l'URL del webhook di Windmill nella configurazione dell'endpoint.
+</Step>
+
+<Step title="Configura Trasformazione">
+  Modifica il codice di trasformazione per formattare gli eventi per il tuo flusso di lavoro Windmill.
+</Step>
+
+<Step title="Testa e Crea">
+  Testa con payload di esempio e fai clic su <b>Crea</b> per attivare l'integrazione.
+</Step>
+
+<Step title="Fatto!">
+  🎉 Gli eventi di pagamento attiveranno ora automaticamente i tuoi flussi di lavoro Windmill.
+</Step>
+</Steps>
+
+## Esempi di Codice di Trasformazione
+
+### Payload di Flusso di Lavoro di Base
+
+```javascript basic_workflow.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.payload = {
+      event_type: webhook.eventType,
+      payment_id: p.payment_id,
+      amount: (p.total_amount / 100).toFixed(2),
+      currency: p.currency || "USD",
+      customer_email: p.customer.email,
+      customer_name: p.customer.name,
+      payment_method: p.payment_method || "unknown",
+      timestamp: webhook.payload.timestamp,
+      metadata: {
+        business_id: p.business_id,
+        product_id: p.product_id
+      }
+    };
+  }
+  return webhook;
+}
+```
+
+### Gestore di Flusso di Lavoro per Abbonamenti
+
+```javascript subscription_workflow.js icon="js" expandable
+function handler(webhook) {
+  const s = webhook.payload.data;
+  switch (webhook.eventType) {
+    case "subscription.active":
+      webhook.payload = {
+        event_type: "subscription_started",
+        subscription_id: s.subscription_id,
+        customer_email: s.customer.email,
+        customer_name: s.customer.name,
+        product_id: s.product_id,
+        amount: (s.recurring_pre_tax_amount / 100).toFixed(2),
+        frequency: s.payment_frequency_interval,
+        next_billing: s.next_billing_date,
+        customer_id: s.customer.customer_id,
+        timestamp: webhook.payload.timestamp
+      };
+      break;
+    case "subscription.cancelled":
+      webhook.payload = {
+        event_type: "subscription_cancelled",
+        subscription_id: s.subscription_id,
+        customer_email: s.customer.email,
+        cancelled_at: s.cancelled_at,
+        cancel_at_next_billing: s.cancel_at_next_billing_date,
+        customer_id: s.customer.customer_id,
+        timestamp: webhook.payload.timestamp
+      };
+      break;
+  }
+  return webhook;
+}
+```
+
+### Gestore di Flusso di Lavoro per Controversie
+
+```javascript dispute_workflow.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType.startsWith("dispute.")) {
+    const d = webhook.payload.data;
+    webhook.payload = {
+      event_type: webhook.eventType,
+      dispute_id: d.dispute_id,
+      payment_id: d.payment_id,
+      amount: (d.amount / 100).toFixed(2),
+      status: d.dispute_status,
+      stage: d.dispute_stage,
+      remarks: d.remarks || "",
+      urgent: webhook.eventType === "dispute.opened",
+      business_id: d.business_id,
+      timestamp: webhook.payload.timestamp
+    };
+  }
+  return webhook;
+}
+```
+
+## Casi d'Uso Comuni di Windmill
+
+<AccordionGroup>
+<Accordion title="Operazioni su Database">
+- Aggiorna i record dei clienti in PostgreSQL/MySQL
+- Registra eventi di pagamento nei data warehouse
+- Sincronizza i dati con sistemi esterni
+- Aggiorna i livelli di inventario
+- Monitora le metriche analitiche
+</Accordion>
+
+<Accordion title="Logica Aziendale">
+- Calcola le metriche di fatturato
+- Elabora rimborsi e aggiustamenti
+- Gestisci il ciclo di vita degli abbonamenti
+- Genera report ed esportazioni
+- Valida i dati di pagamento
+</Accordion>
+
+<Accordion title="Integrazioni Esterne">
+- Invia dati a piattaforme di analisi
+- Aggiorna i sistemi CRM
+- Attiva campagne email
+- Crea eventi nel calendario
+- Invia notifiche SMS
+</Accordion>
+</AccordionGroup>
+
+## Suggerimenti
+
+- Struttura i dati del payload per un'elaborazione facile del flusso di lavoro
+- Includi tutti i metadati rilevanti per la logica aziendale
+- Usa nomi di campo coerenti tra gli eventi
+- Includi timestamp per il timing del flusso di lavoro
+- Sfrutta la gestione degli errori integrata di Windmill
+
+## Risoluzione dei Problemi
+
+<AccordionGroup>
+<Accordion title="Flussi di lavoro non attivati">
+- Verifica che l'URL del webhook sia corretto e attivo
+- Controlla che il flusso di lavoro di Windmill sia pubblicato e attivo
+- Assicurati che la struttura del payload corrisponda alle aspettative del flusso di lavoro
+- Rivedi i log di esecuzione di Windmill per errori
+</Accordion>
+
+<Accordion title="Problemi di elaborazione dei dati">
+- Controlla il mapping dei parametri di input del flusso di lavoro
+- Verifica che i tipi di dati corrispondano ai formati attesi
+- Testa il flusso di lavoro con dati di esempio
+- Rivedi i log di esecuzione degli script di Windmill
+</Accordion>
+</AccordionGroup>

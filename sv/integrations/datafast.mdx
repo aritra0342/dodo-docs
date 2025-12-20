@@ -1,0 +1,302 @@
+---
+title: DataFast
+description: Attributera intäkter till marknadsföringskanaler med
+  DataFast-analys. Spåra vilka trafik källor som driver betalande kunder och
+  optimera din tillväxt.
+icon: chart-bar
+---
+
+## Introduktion
+
+DataFast är ett intäktsfokuserat analysverktyg som hjälper dig att upptäcka vilka marknadsföringskanaler som driver betalande kunder. Genom att integrera Dodo Payments med DataFast kan du attributera intäkter till dina trafik källor, identifiera högvärdiga kundsegment och fatta datadrivna beslut för att växa ditt företag.
+
+<Info>
+Denna integration kräver din DataFast API-nyckel, som du kan få från din [DataFast-instrumentpanel](https://datafa.st/).
+</Info>
+
+## Hur Det Fungerar
+
+DataFast spårar besökare genom ett unikt besökar-ID som lagras i en cookie. För att attributera intäkter till marknadsföringskanaler behöver du:
+
+1. **Fånga DataFast's besökar-ID** från `datafast_visitor_id` cookien när du skapar kassa sessioner
+2. **Lagra besökar-ID** i din betalningsmetadata
+3. **Skicka betalningsdata till DataFast** när betalningar lyckas med deras Betalnings-API
+
+Detta gör att DataFast kan matcha lyckade betalningar med den ursprungliga trafik källan, vilket ger dig fullständig intäktsattribution.
+
+## Komma Igång
+
+<Steps>
+<Step title="Installera DataFast Script">
+  Först, installera DataFast spårningsscript på din webbplats. Detta skapar `datafast_visitor_id` cookien som spårar dina besökare.
+  
+  Besök [DataFast-dokumentationen](https://datafa.st/docs) för installationsinstruktioner specifika för din plattform.
+</Step>
+
+<Step title="Få Din API-nyckel">
+  Logga in på din [DataFast-instrumentpanel](https://datafa.st/) och navigera till dina webbplatsinställningar för att få din API-nyckel.
+  
+  <Warning>
+  Håll din API-nyckel säker och exponera den aldrig i klientkod.
+  </Warning>
+</Step>
+
+<Step title="Fånga Besökar-ID i Kassa">
+  När du skapar en kassa session, fånga DataFast besökar-ID från cookien och lägg till det i din betalningsmetadata.
+</Step>
+
+<Step title="Skicka Betalningsdata via Webhook">
+  Konfigurera en webhook för att skicka betalningsdata till DataFast's Betalnings-API när betalningar lyckas.
+</Step>
+
+<Step title="Klart!">
+  🎉 Intäktsdata kommer nu att visas i din DataFast-instrumentpanel med full attribution till marknadsföringskanaler.
+</Step>
+</Steps>
+
+## Implementeringsguide
+
+### Steg 1: Lägg till Besökar-ID i Kassa Metadata
+
+När du skapar en kassa session, fånga DataFast besökar-ID från cookien och inkludera det i din betalningsmetadata.
+
+<CodeGroup>
+
+```typescript Next.js
+import { cookies } from 'next/headers';
+import { dodopayments } from '@/lib/dodopayments';
+
+export async function createCheckout(productId: string) {
+  // Capture DataFast visitor ID from cookie
+  const datafastVisitorId = cookies().get('datafast_visitor_id')?.value;
+
+  const payment = await dodopayments.payments.create({
+    product_id: productId,
+    // ... other payment configuration
+    metadata: {
+      datafast_visitor_id: datafastVisitorId, // Store visitor ID in metadata
+    },
+  });
+
+  return payment;
+}
+```
+
+```javascript Express.js
+const express = require('express');
+const router = express.Router();
+
+router.post('/create-checkout', async (req, res) => {
+  // Capture DataFast visitor ID from cookie
+  const datafastVisitorId = req.cookies?.datafast_visitor_id;
+
+  const payment = await dodopayments.payments.create({
+    product_id: req.body.productId,
+    // ... other payment configuration
+    metadata: {
+      datafast_visitor_id: datafastVisitorId, // Store visitor ID in metadata
+    },
+  });
+
+  res.json({ payment });
+});
+```
+
+```javascript Other Frameworks
+// Capture DataFast visitor ID from cookie
+const datafastVisitorId = getCookie('datafast_visitor_id'); // Use your framework's cookie method
+
+const payment = await dodopayments.payments.create({
+  product_id: productId,
+  // ... other payment configuration
+  metadata: {
+    datafast_visitor_id: datafastVisitorId, // Store visitor ID in metadata
+  },
+});
+```
+
+</CodeGroup>
+
+### Steg 2: Skicka Betalningsdata till DataFast
+
+Konfigurera en webhook-endpoint för att skicka betalningsdata till DataFast's Betalnings-API när betalningar lyckas.
+
+<Steps>
+<Step title="Öppna Webhook Sektionen">
+  I din Dodo Payments-instrumentpanel, navigera till <b>Webhooks → + Lägg till Endpoint</b> och expandera integrationsrullgardinen.
+  <Frame>
+    <img src="/images/integrations/datafast/add.png" alt="Lägg till Endpoint och integrationsrullgardin" />
+  </Frame>
+</Step>
+
+<Step title="Välj DataFast">
+  Välj <b>DataFast</b> integrationskortet.
+</Step>
+
+<Step title="Ange API-nyckel">
+  Ange din DataFast API-nyckel i konfigurationsfältet.
+  <Frame>
+    <img src="/images/integrations/datafast/api-key.png" alt="Lägg till API-nyckel" />
+  </Frame>
+</Step>
+
+<Step title="Konfigurera Transformation">
+  Redigera transformationskoden för att formatera betalningsdata för DataFast's Betalnings-API.
+</Step>
+
+<Step title="Testa & Skapa">
+  Testa med exempelpayloads och klicka på <b>Skapa</b> för att aktivera integrationen.
+</Step>
+</Steps>
+
+## Transformationskodsexempel
+
+### Grundläggande Betalningsattribution
+
+```javascript basic_payment.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const payment = webhook.payload.data;
+    
+    // Only send to DataFast if visitor ID exists in metadata
+    if (payment.metadata?.datafast_visitor_id) {
+      webhook.url = "https://datafa.st/api/v1/payments";
+      webhook.payload = {
+        amount: payment.total_amount / 100, // Convert from cents to dollars
+        currency: payment.currency,
+        transaction_id: payment.payment_id,
+        datafast_visitor_id: payment.metadata.datafast_visitor_id,
+      };
+    } else {
+      // Skip if no visitor ID (prevents unnecessary API calls)
+      return null;
+    }
+  }
+  return webhook;
+}
+```
+
+### Hantera Valutor Utan Decimaler
+
+Vissa valutor (som JPY) använder inte decimaler. Justera beloppsberäkningen därefter:
+
+```javascript zero_decimal.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const payment = webhook.payload.data;
+    
+    if (payment.metadata?.datafast_visitor_id) {
+      // Zero decimal currencies: JPY, KRW, CLP, etc.
+      const zeroDecimalCurrencies = ['JPY', 'KRW', 'CLP', 'VND', 'UGX', 'MGA'];
+      const isZeroDecimal = zeroDecimalCurrencies.includes(payment.currency);
+      
+      webhook.url = "https://datafa.st/api/v1/payments";
+      webhook.payload = {
+        amount: isZeroDecimal 
+          ? payment.total_amount // Use amount as-is for zero decimal currencies
+          : payment.total_amount / 100, // Convert from cents for other currencies
+        currency: payment.currency,
+        transaction_id: payment.payment_id,
+        datafast_visitor_id: payment.metadata.datafast_visitor_id,
+      };
+    } else {
+      return null;
+    }
+  }
+  return webhook;
+}
+```
+
+### Prenumerationsbetalningar
+
+För återkommande prenumerationsbetalningar kan du spåra varje betalning:
+
+```javascript subscription_payment.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const payment = webhook.payload.data;
+    
+    // Check if this is a subscription payment
+    const isSubscription = payment.subscription_id !== null;
+    
+    if (payment.metadata?.datafast_visitor_id) {
+      webhook.url = "https://datafa.st/api/v1/payments";
+      webhook.payload = {
+        amount: payment.total_amount / 100,
+        currency: payment.currency,
+        transaction_id: payment.payment_id,
+        datafast_visitor_id: payment.metadata.datafast_visitor_id,
+        // Optional: Add subscription context
+        ...(isSubscription && {
+          subscription_id: payment.subscription_id,
+        }),
+      };
+    } else {
+      return null;
+    }
+  }
+  return webhook;
+}
+```
+
+## Bästa Praxis
+
+<Tip>
+**Fånga besökar-ID tidigt**: Lagra DataFast besökar-ID så tidigt som möjligt i din kassa-flöde för att säkerställa korrekt attribution, även om användaren navigerar bort och återvänder senare.
+</Tip>
+
+- **Inkludera alltid besökar-ID i metadata**: Utan besökar-ID kan DataFast inte attributera intäkter till marknadsföringskanaler
+- **Hantera valutor utan decimaler**: Vissa valutor (JPY, KRW, etc.) använder inte decimaler—justera din beloppsberäkning därefter
+- **Testa med exempelbetalningar**: Verifiera att integrationen fungerar korrekt innan du går live
+- **Övervaka din DataFast-instrumentpanel**: Kontrollera att betalningar visas korrekt med rätt attribution
+- **Använd webhook-retries**: DataFast's Betalnings-API är idempotent, så retries är säkra om en webhook misslyckas
+
+## Felsökning
+
+<AccordionGroup>
+<Accordion title="Betalningar visas inte i DataFast">
+- Verifiera att din DataFast API-nyckel är korrekt och aktiv
+- Kontrollera att `datafast_visitor_id` fångas och lagras i betalningsmetadata
+- Säkerställ att webhook-transformationen korrekt formaterar payloaden
+- Verifiera att webhooken triggas på `payment.succeeded` händelser
+- Kontrollera DataFast-instrumentpanelen för eventuella felmeddelanden eller API-loggar
+</Accordion>
+
+<Accordion title="Intäktsattribution fungerar inte">
+- Bekräfta att DataFast spårningsscript är installerat och fungerar på din webbplats
+- Verifiera att `datafast_visitor_id` cookien sätts korrekt
+- Kontrollera att besökar-ID matchar mellan kassa skapande och betalningsslutförande
+- Säkerställ att du fångar besökar-ID innan du skapar kassa sessionen
+- Granska DataFast's [Betalnings-API-dokumentation](https://datafa.st/docs/payments-api) för ytterligare vägledning
+</Accordion>
+
+<Accordion title="Transformationsfel">
+- Validera att JSON-strukturen matchar DataFast's Betalnings-API-format
+- Kontrollera att alla obligatoriska fält (`amount`, `currency`, `transaction_id`, `datafast_visitor_id`) är närvarande
+- Säkerställ att beloppet konverteras korrekt (dela med 100 för de flesta valutor, utom valutor utan decimaler)
+- Verifiera att API-endpoint-URL:en är korrekt: `https://datafa.st/api/v1/payments`
+- Testa transformationen med exempel webhook payloads
+</Accordion>
+
+<Accordion title="Valuta konverteringsproblem">
+- För valutor utan decimaler (JPY, KRW, CLP, VND, UGX, MGA), skicka beloppet som det är utan att dela med 100
+- För alla andra valutor, dela beloppet med 100 för att konvertera från cent till basenhet
+- Dubbelkolla att valutakoden matchar ISO 4217-formatet (t.ex. "USD", "EUR", "JPY")
+</Accordion>
+</AccordionGroup>
+
+## Ytterligare Resurser
+
+<CardGroup cols={2}>
+<Card title="DataFast Dokumentation" icon="book" href="https://datafa.st/docs/payments-api">
+  Lär dig mer om DataFast's Betalnings-API och intäktsattributionsfunktioner.
+</Card>
+
+<Card title="DataFast Instrumentpanel" icon="chart-bar" href="https://datafa.st/">
+  Få tillgång till din DataFast-instrumentpanel för att se intäktsanalys och attributionsdata.
+</Card>
+</CardGroup>
+
+<Info>
+Behöver du hjälp? Kontakta Dodo Payments support på [support@dodopayments.com](mailto:support@dodopayments.com) för hjälp med integrationen.
+</Info>

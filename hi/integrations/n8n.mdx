@@ -1,0 +1,212 @@
+---
+title: N8N
+description: Dodo Payments को N8N के साथ एकीकृत करें ताकि कार्यप्रवाह को
+  स्वचालित किया जा सके और वेबहुक का उपयोग करके 5,000 से अधिक ऐप्स के साथ कनेक्ट
+  किया जा सके—स्व-होस्टेड या क्लाउड N8N वातावरण में शक्तिशाली, अनुकूलन योग्य
+  स्वचालन को शक्ति दें।
+icon: diagram-project
+---
+
+## परिचय
+
+Dodo Payments को N8N के माध्यम से हजारों ऐप्स और सेवाओं से कनेक्ट करें। भुगतान घटनाओं के होने पर N8N कार्यप्रवाह को ट्रिगर करके कार्यप्रवाह को स्वचालित करें, ईमेल भेजने से लेकर स्प्रेडशीट को अपडेट करने, कार्य बनाने, डेटाबेस संचालन और बहुत कुछ।
+
+<Info>
+इस एकीकरण के लिए आपके कार्यप्रवाह कॉन्फ़िगरेशन से N8N वेबहुक URL की आवश्यकता है।
+</Info>
+
+## प्रारंभ करना
+
+<Steps>
+<Step title="Webhook अनुभाग खोलें">
+  अपने Dodo Payments डैशबोर्ड में, <b>Webhooks → + Add Endpoint</b> पर जाएं और एकीकरण ड्रॉपडाउन का विस्तार करें।
+  <Frame>
+    <img src="/images/integrations/n8n.png" alt="एंडपॉइंट और एकीकरण ड्रॉपडाउन जोड़ें" />
+  </Frame>
+</Step>
+
+<Step title="N8N चुनें">
+  <b>N8N</b> एकीकरण कार्ड चुनें।
+</Step>
+
+<Step title="N8N में वेबहुक बनाएं">
+  N8N में, एक नया कार्यप्रवाह बनाएं और ट्रिगर के रूप में <b>Webhook</b> नोड जोड़ें। इसे POST वेबहुक के रूप में कॉन्फ़िगर करें और वेबहुक URL कॉपी करें।
+</Step>
+
+<Step title="वेबहुक URL चिपकाएँ">
+  एंडपॉइंट कॉन्फ़िगरेशन में N8N वेबहुक URL चिपकाएँ।
+</Step>
+
+<Step title="रूपांतरण कॉन्फ़िगर करें">
+  अपने N8N कार्यप्रवाह के लिए डेटा को स्वरूपित करने के लिए रूपांतरण कोड संपादित करें।
+</Step>
+
+<Step title="परीक्षण और बनाएँ">
+  नमूना पेलोड के साथ परीक्षण करें और एकीकरण को सक्रिय करने के लिए <b>Create</b> पर क्लिक करें।
+</Step>
+
+<Step title="कार्यप्रवाह सक्रिय करें">
+  N8N में, अपने कार्यप्रवाह को सक्रिय करें ताकि वेबहुक घटनाएँ प्राप्त करना शुरू किया जा सके।
+</Step>
+
+<Step title="हो गया!">
+  🎉 भुगतान घटनाएँ अब स्वचालित रूप से आपके N8N कार्यप्रवाह को ट्रिगर करेंगी।
+</Step>
+</Steps>
+
+## रूपांतरण कोड उदाहरण
+
+### बुनियादी वेबहुक पेलोड
+
+```javascript basic_webhook.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.payload = {
+      event_type: webhook.eventType,
+      payment_id: p.payment_id,
+      amount: (p.total_amount / 100).toFixed(2),
+      currency: p.currency || "USD",
+      customer_email: p.customer.email,
+      customer_name: p.customer.name,
+      payment_method: p.payment_method || "unknown",
+      timestamp: webhook.payload.timestamp
+    };
+  }
+  return webhook;
+}
+```
+
+### सदस्यता घटना हैंडलर
+
+```javascript subscription_webhook.js icon="js" expandable
+function handler(webhook) {
+  const s = webhook.payload.data;
+  switch (webhook.eventType) {
+    case "subscription.active":
+      webhook.payload = {
+        event_type: "subscription_started",
+        subscription_id: s.subscription_id,
+        customer_email: s.customer.email,
+        customer_name: s.customer.name,
+        product_id: s.product_id,
+        amount: (s.recurring_pre_tax_amount / 100).toFixed(2),
+        frequency: s.payment_frequency_interval,
+        next_billing: s.next_billing_date,
+        timestamp: webhook.payload.timestamp
+      };
+      break;
+    case "subscription.cancelled":
+      webhook.payload = {
+        event_type: "subscription_cancelled",
+        subscription_id: s.subscription_id,
+        customer_email: s.customer.email,
+        cancelled_at: s.cancelled_at,
+        cancel_at_next_billing: s.cancel_at_next_billing_date,
+        timestamp: webhook.payload.timestamp
+      };
+      break;
+  }
+  return webhook;
+}
+```
+
+### विवाद चेतावनी हैंडलर
+
+```javascript dispute_webhook.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType.startsWith("dispute.")) {
+    const d = webhook.payload.data;
+    webhook.payload = {
+      event_type: webhook.eventType,
+      dispute_id: d.dispute_id,
+      payment_id: d.payment_id,
+      amount: (d.amount / 100).toFixed(2),
+      status: d.dispute_status,
+      stage: d.dispute_stage,
+      remarks: d.remarks || "",
+      urgent: webhook.eventType === "dispute.opened",
+      timestamp: webhook.payload.timestamp
+    };
+  }
+  return webhook;
+}
+```
+
+## लोकप्रिय N8N उपयोग के मामले
+
+<AccordionGroup>
+<Accordion title="ईमेल सूचनाएँ">
+- भुगतान पुष्टियों के लिए Gmail/Outlook ईमेल भेजें
+- Mailchimp/ConvertKit में ईमेल अनुक्रम बनाएं
+- वेबहुक के माध्यम से Slack/Discord सूचनाएँ भेजें
+- स्वचालित रूप से Google Sheets रिकॉर्ड बनाएं
+- Telegram/WhatsApp संदेश भेजें
+</Accordion>
+
+<Accordion title="CRM अपडेट">
+- HubSpot/Salesforce में संपर्क जोड़ें
+- Pipedrive/Close में सौदे बनाएं
+- Airtable में ग्राहक रिकॉर्ड अपडेट करें
+- Monday.com में गतिविधियों को लॉग करें
+- PostgreSQL/MySQL डेटाबेस में डेटा समन्वयित करें
+</Accordion>
+
+<Accordion title="कार्य प्रबंधन">
+- Asana/Trello में कार्य बनाएं
+- Notion में टू-डू आइटम जोड़ें
+- Google Calendar में कैलेंडर इवेंट बनाएं
+- Twilio के माध्यम से SMS सूचनाएँ भेजें
+- विवादों के लिए GitHub मुद्दे बनाएं
+</Accordion>
+
+<Accordion title="डेटा प्रसंस्करण">
+- भुगतान डेटा को रूपांतरित और समृद्ध करें
+- घटनाओं को डेटाबेस (PostgreSQL, MongoDB) में स्टोर करें
+- मैट्रिक्स और विश्लेषण को संचित करें
+- रिपोर्ट और निर्यात उत्पन्न करें
+- जटिल बहु-चरण कार्यप्रवाह को ट्रिगर करें
+</Accordion>
+</AccordionGroup>
+
+## सुझाव
+
+- N8N नोड पार्सिंग के लिए पेलोड संरचना को सरल रखें
+- सभी घटनाओं में समान फ़ील्ड नामों का उपयोग करें
+- कार्यप्रवाह समय और अनुसूची के लिए टाइमस्टैम्प शामिल करें
+- सक्रिय करने से पहले नमूना डेटा के साथ अपने कार्यप्रवाह का परीक्षण करें
+- शर्तीय तर्क और रूटिंग के लिए N8N के IF नोड का उपयोग करें
+- कस्टम डेटा रूपांतरण के लिए N8N के कोड नोड का लाभ उठाएं
+- विभिन्न घटना प्रकारों को विभिन्न पथों पर रूट करने के लिए स्विच नोड का उपयोग करें
+- विफल वेबहुक डिलीवरी को संभालने के लिए त्रुटि कार्यप्रवाह सेट करें
+
+## समस्या निवारण
+
+<AccordionGroup>
+<Accordion title="कार्यप्रवाह ट्रिगर नहीं हो रहा">
+- सुनिश्चित करें कि वेबहुक URL सही और सुलभ है
+- जांचें कि N8N में कार्यप्रवाह सक्रिय है
+- सुनिश्चित करें कि वेबहुक नोड को POST विधि के रूप में कॉन्फ़िगर किया गया है
+- N8N के निष्पादन इतिहास में वेबहुक डिलीवरी का परीक्षण करें
+- सुनिश्चित करें कि फ़ायरवॉल/नेटवर्क सेटिंग्स आने वाले वेबहुक की अनुमति देती हैं
+- यदि कॉन्फ़िगर किया गया है तो N8N वेबहुक प्रमाणीकरण सेटिंग्स की जांच करें
+</Accordion>
+
+<Accordion title="डेटा सही ढंग से मैप नहीं हो रहा">
+- N8N नोड कॉन्फ़िगरेशन में फ़ील्ड नामों की जांच करें
+- सुनिश्चित करें कि डेटा प्रकार नोड में अपेक्षित प्रारूप से मेल खाते हैं
+- आने वाले डेटा का निरीक्षण करने के लिए N8N की परीक्षण सुविधा का उपयोग करें
+- सुनिश्चित करें कि रूपांतरण कोड मान्य JSON लौटाता है
+- वेबहुक नोड की प्रतिक्रिया प्रारूप सेटिंग्स की जांच करें
+- फ़ील्ड का नाम बदलने या पुनर्गठन के लिए सेट नोड का उपयोग करें
+</Accordion>
+
+<Accordion title="कार्यप्रवाह निष्पादन त्रुटियाँ">
+- विस्तृत त्रुटि संदेशों के लिए N8N में निष्पादन लॉग की समीक्षा करें
+- नोड कनेक्शन सेटिंग्स और क्रेडेंशियल्स की जांच करें
+- सुनिश्चित करें कि पेलोड में सभी आवश्यक फ़ील्ड मौजूद हैं
+- नमूना डेटा के साथ व्यक्तिगत नोड का परीक्षण करें
+- विफलताओं को पकड़ने और संभालने के लिए त्रुटि कार्यप्रवाह सक्षम करें
+- जुड़े सेवाओं के लिए दर सीमाओं और API कोटा की जांच करें
+</Accordion>
+</AccordionGroup>

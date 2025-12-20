@@ -1,0 +1,409 @@
+---
+title: PHP
+description: Integrera Dodo Payments i dina PHP-applikationer med ett modernt,
+  PSR-4-kompatibelt SDK
+icon: php
+tag: BETA
+---
+
+PHP SDK:n erbjuder ett robust och flexibelt sätt att integrera Dodo Payments i dina PHP-applikationer. Byggd enligt moderna PHP-standarder med PSR-4 autoloading, erbjuder den omfattande testtäckning och detaljerad dokumentation.
+
+<Note>
+  Dodo Payments PHP API-biblioteket är för närvarande i **beta**. Vi är glada att
+  du får experimentera med det! Vänligen dela eventuella förslag, buggrapporter eller
+  funktionsförfrågningar genom att [skapa ett
+  ärende](https://github.com/dodopayments/dodopayments-php/issues).
+</Note>
+
+## Installation
+
+Installera SDK:n med Composer:
+
+```bash
+composer require dodopayments/client
+```
+
+<Info>
+  SDK:n kräver PHP 8.1.0 eller högre och Composer för beroendehantering.
+</Info>
+
+## Snabbstart
+
+Initiera klienten och skapa en checkout-session:
+
+```php
+<?php
+
+use Dodopayments\Client;
+
+$client = new Client(
+  bearerToken: getenv('DODO_PAYMENTS_API_KEY') ?: 'My Bearer Token',
+  // use 'https://test.dodopayments.com' for test mode
+  baseUrl: 'https://live.dodopayments.com'
+);
+
+$checkoutSessionResponse = $client->checkoutSessions->create(
+  productCart: [["productID" => "product_id", "quantity" => 1]]
+);
+
+var_dump($checkoutSessionResponse->session_id);
+```
+
+<Warning>
+  Förvara dina API-nycklar säkert med hjälp av miljövariabler. Exponera dem aldrig i
+  din kodbas eller kommitta dem till versionskontroll.
+</Warning>
+
+## Kärnfunktioner
+
+<CardGroup cols={2}>
+<Card title="PSR-4 Kompatibel" icon="check">
+  Följer PHP Standards Recommendations för modern PHP-utveckling
+</Card>
+
+<Card title="Modern PHP" icon="php">
+  Byggd för PHP 8.1+ med typdeklarationer och strikta typer
+</Card>
+
+<Card title="Omfattande Testning" icon="vial">
+  Omfattande testtäckning för tillförlitlighet och stabilitet
+</Card>
+
+<Card title="Undantagshantering" icon="shield-check">
+  Tydliga undantagstyper för olika fel-scenarier
+</Card>
+</CardGroup>
+
+## Värdeobjekt
+
+SDK:n använder namngivna parametrar för att specificera valfria argument. Du kan initiera värdeobjekt med den statiska `with` konstruktorn:
+
+```php
+<?php
+
+use Dodopayments\Customers\AttachExistingCustomer;
+
+// Recommended: Use static 'with' constructor with named parameters
+$customer = AttachExistingCustomer::with(customerID: "customer_id");
+```
+
+Byggare finns också tillgängliga som ett alternativt mönster:
+
+```php
+<?php
+
+use Dodopayments\Customers\AttachExistingCustomer;
+
+// Alternative: Use builder pattern
+$customer = (new AttachExistingCustomer)->withCustomerID("customer_id");
+```
+
+## Konfiguration
+
+### Återförsökskonfiguration
+
+Vissa fel försöks automatiskt 2 gånger som standard med en kort exponentiell backoff. Följande fel utlöser automatiska återförsök:
+
+- Anslutningsfel (nätverksanslutningsproblem)
+- 408 Begärningstidsgräns
+- 409 Konflikt
+- 429 Hastighetsbegränsning
+- 500+ Interna fel
+- Tidsgränser
+
+Konfigurera återförsöksbeteende globalt eller per begäran:
+
+```php
+<?php
+
+use Dodopayments\Client;
+use Dodopayments\RequestOptions;
+
+// Configure default for all requests (disable retries)
+$client = new Client(maxRetries: 0);
+
+// Or, configure per-request
+$result = $client->checkoutSessions->create(
+  productCart: [["productID" => "product_id", "quantity" => 1]],
+  requestOptions: RequestOptions::with(maxRetries: 5),
+);
+```
+
+## Vanliga operationer
+
+### Skapa en Checkout-session
+
+Generera en checkout-session:
+
+```php
+$session = $client->checkoutSessions->create(
+  productCart: [
+    ["productID" => "prod_123", "quantity" => 1]
+  ],
+  returnUrl: "https://yourdomain.com/return"
+);
+
+header('Location: ' . $session->url);
+```
+
+### Hantera Kunder
+
+Skapa och hämta kundinformation:
+
+```php
+// Create a customer
+$customer = $client->customers->create(
+  email: "customer@example.com",
+  name: "John Doe",
+  metadata: [
+    "user_id" => "12345"
+  ]
+);
+
+// Retrieve customer
+$customer = $client->customers->retrieve("cus_123");
+echo "Customer: {$customer->name} ({$customer->email})";
+```
+
+### Hantera Prenumerationer
+
+Skapa och hantera återkommande prenumerationer:
+
+```php
+// Create a subscription
+$subscription = $client->subscriptions->create(
+  customerID: "cus_123",
+  productID: "prod_456",
+  priceID: "price_789"
+);
+
+// Cancel subscription
+$client->subscriptions->cancel($subscription->id);
+```
+
+## Sidor
+
+Arbeta med paginerade listor:
+
+```php
+$page = $client->payments->list();
+
+var_dump($page);
+
+// Fetch items from the current page
+foreach ($page->getItems() as $item) {
+  var_dump($item->brand_id);
+}
+
+// Auto-paginate: fetch items from all pages
+foreach ($page->pagingEachItem() as $item) {
+  var_dump($item->brand_id);
+}
+```
+
+## Felhantering
+
+När biblioteket inte kan ansluta till API:t eller får en icke-framgångsrik statuskod (4xx eller 5xx), kastas en underklass av `APIException`:
+
+```php
+<?php
+
+use Dodopayments\Core\Exceptions\APIConnectionException;
+use Dodopayments\Core\Exceptions\RateLimitException;
+use Dodopayments\Core\Exceptions\APIStatusException;
+
+try {
+  $checkoutSessionResponse = $client->checkoutSessions->create(
+    productCart: [["productID" => "product_id", "quantity" => 1]]
+  );
+} catch (APIConnectionException $e) {
+  echo "The server could not be reached", PHP_EOL;
+  var_dump($e->getPrevious());
+} catch (RateLimitException $_) {
+  echo "A 429 status code was received; we should back off a bit.", PHP_EOL;
+} catch (APIStatusException $e) {
+  echo "Another non-200-range status code was received", PHP_EOL;
+  echo $e->getMessage();
+}
+```
+
+### Feltyper
+
+| Orsak            | Feltyp                     |
+| ---------------- | ------------------------------ |
+| HTTP 400         | `BadRequestException`          |
+| HTTP 401         | `AuthenticationException`      |
+| HTTP 403         | `PermissionDeniedException`    |
+| HTTP 404         | `NotFoundException`            |
+| HTTP 409         | `ConflictException`            |
+| HTTP 422         | `UnprocessableEntityException` |
+| HTTP 429         | `RateLimitException`           |
+| HTTP >= 500      | `InternalServerException`      |
+| Annan HTTP-fel | `APIStatusException`           |
+| Tidsgräns          | `APITimeoutException`          |
+| Nätverksfel    | `APIConnectionException`       |
+
+<Tip>
+  Wrap alltid API-anrop i try-catch-block för att hantera potentiella fel
+  på ett smidigt sätt och ge meningsfull feedback till användarna.
+</Tip>
+
+## Avancerad användning
+
+### Odocumenterade slutpunkter
+
+Gör begärningar till odocumenterade slutpunkter:
+
+```php
+<?php
+
+$response = $client->request(
+  method: "post",
+  path: '/undocumented/endpoint',
+  query: ['dog' => 'woof'],
+  headers: ['useful-header' => 'interesting-value'],
+  body: ['hello' => 'world']
+);
+```
+
+### Odocumenterade parametrar
+
+Skicka odocumenterade parametrar till valfri slutpunkt eller läs odocumenterade svarsegenskaper:
+
+```php
+<?php
+
+use Dodopayments\RequestOptions;
+
+$checkoutSessionResponse = $client->checkoutSessions->create(
+  productCart: [["productID" => "product_id", "quantity" => 1]],
+  requestOptions: RequestOptions::with(
+    extraQueryParams: ["my_query_parameter" => "value"],
+    extraBodyParams: ["my_body_parameter" => "value"],
+    extraHeaders: ["my-header" => "value"],
+  ),
+);
+```
+
+<Note>
+  De `extra*` parametrarna med samma namn åsidosätter dokumenterade parametrar.
+</Note>
+
+## Ramverksintegration
+
+### Laravel
+
+Skapa en tjänst för Laravel-applikationer:
+
+```php
+<?php
+
+namespace App\Services;
+
+use Dodopayments\Client;
+
+class PaymentService
+{
+    protected $client;
+
+    public function __construct()
+    {
+        $this->client = new Client(
+            bearerToken: config('services.dodo.api_key')
+        );
+    }
+
+    public function createCheckout(array $items)
+    {
+        return $this->client->checkoutSessions->create(
+            productCart: $items,
+            returnUrl: route('checkout.return')
+        );
+    }
+}
+```
+
+Lägg till konfiguration i `config/services.php`:
+
+```php
+'dodo' => [
+    'api_key' => env('DODO_API_KEY'),
+    'environment' => env('DODO_ENVIRONMENT', 'sandbox')
+],
+```
+
+### Symfony
+
+Skapa en tjänst i Symfony:
+
+```php
+<?php
+
+namespace App\Service;
+
+use Dodopayments\Client;
+
+class DodoPaymentService
+{
+    private Client $client;
+
+    public function __construct(string $apiKey)
+    {
+        $this->client = new Client(bearerToken: $apiKey);
+    }
+
+    public function createPayment(int $amount, string $currency, string $customerId): object
+    {
+        return $this->client->payments->create(
+            amount: $amount,
+            currency: $currency,
+            customerID: $customerId
+        );
+    }
+}
+```
+
+Registrera i `config/services.yaml`:
+
+```yaml
+services:
+  App\Service\DodoPaymentService:
+    arguments:
+      $apiKey: "%env(DODO_API_KEY)%"
+```
+
+## Resurser
+
+<CardGroup cols={2}>
+<Card title="GitHub Repository" icon="github" href="https://github.com/dodopayments/dodopayments-php">
+  Visa källkod och bidra
+</Card>
+
+<Card title="API Referens" icon="book" href="/api-reference/introduction">
+  Komplett API-dokumentation
+</Card>
+
+<Card
+  title="Discord Community"
+  icon="discord"
+  href="https://discord.gg/bYqAp4ayYh"
+>
+  Få hjälp och koppla samman med utvecklare
+</Card>
+
+<Card title="Rapportera problem" icon="bug" href="https://github.com/dodopayments/dodopayments-php/issues">
+  Rapportera buggar eller begära funktioner
+</Card>
+</CardGroup>
+
+## Support
+
+Behöver du hjälp med PHP SDK:n?
+
+- **Discord**: Gå med i vår [community-server](https://discord.gg/bYqAp4ayYh) för realtidsstöd
+- **E-post**: Kontakta oss på support@dodopayments.com
+- **GitHub**: Öppna ett ärende på [repositoryn](https://github.com/dodopayments/dodopayments-php)
+
+## Bidra
+
+Vi välkomnar bidrag! Kolla in [bidragsriktlinjerna](https://github.com/dodopayments/dodopayments-php/blob/main/CONTRIBUTING.md) för att komma igång.

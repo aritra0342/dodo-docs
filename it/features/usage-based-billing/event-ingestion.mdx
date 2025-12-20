@@ -1,0 +1,207 @@
+---
+sidebarTitle: Ingestione Eventi
+title: Ingestione Eventi
+description: Invia eventi di utilizzo dalla tua applicazione per monitorare il
+  consumo dei clienti e alimentare la fatturazione.
+icon: bolt
+---
+
+Gli eventi sono la base della fatturazione basata sull'uso. Invia eventi quando si verificano azioni fatturabili e i contatori li aggregano in addebiti.
+
+<Card title="Riferimento API - Ingestione Eventi" icon="code" href="/api-reference/usage-events/ingest-events">
+Documentazione API completa con esempi e codici di risposta.
+</Card>
+
+## Struttura dell'Evento
+
+<Accordion title="Campi Obbligatori">
+<ParamField body="event_id" type="string" required>
+Identificatore unico. Usa UUID o combina ID cliente + timestamp + azione.
+</ParamField>
+
+<ParamField body="customer_id" type="string" required>
+ID cliente di Dodo Payments. Deve essere un cliente esistente valido.
+</ParamField>
+
+<ParamField body="event_name" type="string" required>
+Tipo di evento che corrisponde al nome dell'evento del tuo contatore (case-sensitive). Esempi: `api.call`, `image.generated`
+</ParamField>
+</Accordion>
+
+<Accordion title="Campi Facoltativi">
+
+<ParamField body="timestamp" type="string">
+Timestamp ISO 8601. Predefinito all'ora del server se omesso. Includi per una fatturazione accurata con eventi ritardati/batch.
+</ParamField>
+
+<ParamField body="metadata" type="object">
+Proprietà aggiuntive per aggregazione e filtraggio:
+- Valori numerici: `bytes`, `tokens`, `duration_ms`
+- Filtri: `endpoint`, `method`, `quality`
+
+```javascript
+metadata: {
+  endpoint: "/v1/orders",
+  method: "POST",
+  tokens: 1024
+}
+```
+
+</ParamField>
+</Accordion>
+
+## Invio di Eventi
+
+<CodeGroup>
+
+```javascript Single Event
+await fetch('https://test.dodopayments.com/events/ingest', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${process.env.DODO_API_KEY}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    events: [{
+      event_id: "api_call_1234",
+      customer_id: "cus_abc123",
+      event_name: "api.call",
+      metadata: { endpoint: "/v1/orders" }
+    }]
+  })
+});
+```
+
+```javascript Batch Events
+await fetch('https://test.dodopayments.com/events/ingest', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${process.env.DODO_API_KEY}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    events: [
+      { event_id: "call_1", customer_id: "cus_abc", event_name: "api.call" },
+      { event_id: "call_2", customer_id: "cus_abc", event_name: "api.call" },
+      { event_id: "call_3", customer_id: "cus_abc", event_name: "api.call" }
+    ]
+  })
+});
+```
+
+```python Python
+import requests
+
+requests.post(
+    'https://test.dodopayments.com/events/ingest',
+    headers={'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'},
+    json={'events': [{'event_id': 'call_1', 'customer_id': 'cus_abc', 'event_name': 'api.call'}]}
+)
+```
+
+```curl cURL
+curl -X POST 'https://test.dodopayments.com/events/ingest' \
+  -H 'Authorization: Bearer YOUR_API_KEY' \
+  -H 'Content-Type: application/json' \
+  -d '{"events": [{"event_id": "call_1", "customer_id": "cus_abc", "event_name": "api.call"}]}'
+```
+
+</CodeGroup>
+
+<Tip>
+Batch fino a 100 eventi per richiesta per migliori prestazioni.
+</Tip>
+
+## Modelli di Ingestione
+
+Modelli di eventi pronti all'uso per casi d'uso comuni. Inizia con un modello collaudato invece di costruire da zero.
+
+<CardGroup cols={2}>
+<Card title="Modello LLM" icon="brain-circuit" href="/developer-resources/ingestion-blueprints/llm">
+Monitora l'uso dei token AI attraverso OpenAI, Anthropic, Groq, Gemini e altro.
+</Card>
+
+<Card title="Modello API Gateway" icon="cloud" href="/developer-resources/ingestion-blueprints/api-gateway">
+Misura le richieste API con supporto per filtraggio degli endpoint e limitazione della velocità.
+</Card>
+
+<Card title="Modello Object Storage" icon="box-archive" href="/developer-resources/ingestion-blueprints/object-storage">
+Monitora i caricamenti di file e il consumo di archiviazione per i servizi di archiviazione cloud.
+</Card>
+
+<Card title="Modello Stream" icon="tower-broadcast" href="/developer-resources/ingestion-blueprints/stream">
+Misura la larghezza di banda in streaming per video, audio e dati in tempo reale.
+</Card>
+
+<Card title="Modello Intervallo di Tempo" icon="clock" href="/developer-resources/ingestion-blueprints/time-range">
+Fattura in base al tempo trascorso per funzioni serverless e istanze di calcolo.
+</Card>
+
+<Card title="Visualizza Tutti i Modelli" icon="copy" href="/features/usage-based-billing/ingestion-blueprints">
+Vedi tutti i modelli disponibili con guide dettagliate per l'implementazione.
+</Card>
+</CardGroup>
+
+## Migliori Pratiche
+
+<AccordionGroup>
+<Accordion title="Usa ID Evento Unici">
+Usa ID deterministici per prevenire duplicati: `${customerId}_${action}_${timestamp}`
+</Accordion>
+
+<Accordion title="Implementa Riprova">
+Ritenta in caso di errori 5xx con backoff esponenziale. Non riprovare per errori 4xx.
+</Accordion>
+
+<Accordion title="Includi Timestamp">
+Ometti per eventi in tempo reale. Includi per eventi ritardati/batch per accuratezza.
+</Accordion>
+
+<Accordion title="Monitora la Consegna">
+Monitora i tassi di successo e metti in coda gli eventi falliti per la ripetizione.
+</Accordion>
+</AccordionGroup>
+
+## Risoluzione dei Problemi
+
+<AccordionGroup>
+<Accordion title="Eventi non visibili">
+- Il nome dell'evento deve corrispondere esattamente al contatore (case-sensitive)
+- L'ID cliente deve esistere
+- Controlla che i filtri del contatore non stiano escludendo eventi
+- Verifica che i timestamp siano recenti
+</Accordion>
+
+<Accordion title="Errori di autenticazione (401)">
+Verifica che la chiave API sia corretta e usa il formato: `Bearer YOUR_API_KEY`
+</Accordion>
+
+<Accordion title="Errori di validazione (400)">
+Assicurati che tutti i campi obbligatori siano presenti: `event_id`, `customer_id`, `event_name`
+</Accordion>
+
+<Accordion title="Metadata non aggregata">
+- Le chiavi metadata devono corrispondere esattamente a "Over Property" del contatore
+- Usa numeri, non stringhe: `tokens: 150` non `tokens: "150"`
+</Accordion>
+</AccordionGroup>
+
+## Prossimi Passi
+
+<CardGroup cols={2}>
+<Card title="Crea Contatori" icon="sliders" href="/features/usage-based-billing/meters">
+Definisci come i tuoi eventi vengono aggregati in quantità fatturabili con filtri e funzioni di aggregazione.
+</Card>
+
+<Card title="Modelli di Ingestione" icon="copy" href="/features/usage-based-billing/ingestion-blueprints">
+Usa modelli pronti all'uso per casi d'uso comuni come il monitoraggio LLM, gateway API e archiviazione.
+</Card>
+
+<Card title="Tutorial Completo" icon="code" href="/developer-resources/usage-based-billing-build-ai-image-generator">
+Costruisci un generatore di immagini AI completo con fatturazione basata sull'uso da zero.
+</Card>
+
+<Card title="Riferimento API" icon="terminal" href="/api-reference/usage-events/ingest-events">
+Documentazione API completa con tutti i parametri, codici di risposta e test interattivi.
+</Card>
+</CardGroup>

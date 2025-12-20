@@ -1,0 +1,625 @@
+---
+title: Next.js Adaptor
+description: Scopri come integrare Dodo Payments con il tuo progetto Next.js App
+  Router utilizzando il nostro NextJS Adaptor. Copre checkout, portale clienti,
+  webhook e configurazione dell'ambiente sicuro.
+icon: code-merge
+---
+
+<CardGroup cols={2}>
+<Card title="Gestore Checkout" icon="cart-shopping" href="#checkout-route-handler">
+    Integra il checkout di Dodo Payments con flussi statici, dinamici e di sessione.
+</Card>
+<Card title="Portale Clienti" icon="user" href="#customer-portal-route-handler">
+    Consenti ai clienti di gestire abbonamenti e dettagli.
+</Card>
+<Card title="Webhook" icon="bell" href="#webhook-route-handler">
+    Ricevi e gestisci eventi webhook di Dodo Payments.
+</Card>
+</CardGroup>
+
+## Installazione
+
+<Steps>
+<Step title="Installa il pacchetto">
+Esegui il seguente comando nella radice del tuo progetto:
+
+```bash
+npm install @dodopayments/nextjs
+```
+
+</Step>
+<Step title="Configura le variabili d'ambiente">
+Crea un file <code>.env</code> nella radice del tuo progetto:
+
+```env
+DODO_PAYMENTS_API_KEY=your-api-key
+DODO_PAYMENTS_WEBHOOK_KEY=your-webhook-secret
+DODO_PAYMENTS_RETURN_URL=https://yourdomain.com/checkout/success
+DODO_PAYMENTS_ENVIRONMENT="test_mode"or"live_mode"
+```
+
+<Warning>
+Non impegnare mai il tuo file <code>.env</code> o segreti nel controllo di versione.
+</Warning>
+</Step>
+</Steps>
+
+## Esempi di Gestore Route
+
+<Info>
+Tutti gli esempi presuppongono che tu stia utilizzando il Next.js App Router.
+</Info>
+
+<Tabs>
+<Tab title="Gestore Checkout">
+  <Info>
+  Usa questo gestore per integrare il checkout di Dodo Payments nella tua app Next.js. Supporta flussi di pagamento statici (GET), dinamici (POST) e di sessione di checkout (POST).
+  </Info>
+  <CodeGroup>
+
+  ```typescript Next.js Route Handler expandable
+  // app/checkout/route.ts
+  import { Checkout } from "@dodopayments/nextjs";
+
+  export const GET = Checkout({
+    bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+    returnUrl: process.env.DODO_PAYMENTS_RETURN_URL,
+    environment: process.env.DODO_PAYMENTS_ENVIRONMENT,
+    type: "static", // optional, defaults to 'static'
+  });
+
+  export const POST = Checkout({
+    bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+    returnUrl: process.env.DODO_PAYMENTS_RETURN_URL,
+    environment: process.env.DODO_PAYMENTS_ENVIRONMENT,
+    type: "dynamic", // for dynamic checkout
+  });
+
+  export const POST = Checkout({
+    bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+    returnUrl: process.env.DODO_PAYMENTS_RETURN_URL,
+    environment: process.env.DODO_PAYMENTS_ENVIRONMENT,
+    type: "session", // for checkout sessions
+  });
+  ```
+
+  </CodeGroup>
+  <CodeGroup>
+
+  ```curl Static Checkout Curl example expandable
+  curl --request GET \
+  --url 'https://example.com/api/checkout?productId=pdt_fqJhl7pxKWiLhwQR042rh' \
+  --header 'User-Agent: insomnia/11.2.0' \
+  --cookie mode=test
+  ```
+
+  </CodeGroup>
+  <CodeGroup>
+
+  ```curl Dynamic Checkout Curl example expandable
+  curl --request POST \
+  --url https://example.com/api/checkout \
+  --header 'Content-Type: application/json' \
+  --header 'User-Agent: insomnia/11.2.0' \
+  --cookie mode=test \
+  --data '{
+  "billing": {
+    "city": "Texas",
+    "country": "US",
+    "state": "Texas",
+    "street": "56, hhh",
+    "zipcode": "560000"
+  },
+  "customer": {
+    "email": "test@example.com",
+		"name": "test"
+  },
+  "metadata": {},
+  "payment_link": true,
+	"product_id": "pdt_QMDuvLkbVzCRWRQjLNcs",
+	"quantity": 1,
+	"billing_currency": "USD",
+	"discount_code": "IKHZ23M9GQ",
+    "return_url": "https://example.com",
+	"trial_period_days": 10
+}'
+  ```
+
+  </CodeGroup>
+  <CodeGroup>
+
+  ```curl Checkout Session Curl example expandable
+  curl --request POST \
+  --url https://example.com/api/checkout \
+  --header 'Content-Type: application/json' \
+  --header 'User-Agent: insomnia/11.2.0' \
+  --cookie mode=test \
+  --data '{
+  "product_cart": [
+    {
+      "product_id": "pdt_QMDuvLkbVzCRWRQjLNcs",
+      "quantity": 1
+    }
+  ],
+  "customer": {
+    "email": "test@example.com",
+    "name": "test"
+  },
+  "return_url": "https://example.com/success"
+}'
+  ```
+
+  </CodeGroup>
+
+</Tab>
+<Tab title="Gestore Portale Clienti">
+  <Info>
+  Usa questo gestore per consentire ai clienti di gestire i loro abbonamenti e dettagli tramite il portale clienti di Dodo Payments.
+  </Info>
+  <CodeGroup>
+
+  ```typescript Next.js Route Handler expandable
+  // app/customer-portal/route.ts
+  import { CustomerPortal } from "@dodopayments/nextjs";
+
+  export const GET = CustomerPortal({
+    bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+    environment: process.env.DODO_PAYMENTS_ENVIRONMENT,
+  });
+  ```
+
+  </CodeGroup>
+  <CodeGroup>
+
+  ```curl Customer Portal Curl example expandable
+  curl --request GET \
+  --url 'https://example.com/api/customer-portal?customer_id=cus_9VuW4K7O3GHwasENg31m&send_email=true' \
+  --header 'User-Agent: insomnia/11.2.0' \
+  --cookie mode=test
+  ```
+
+  </CodeGroup>
+</Tab>
+<Tab title="Gestore Webhook">
+  <Info>
+  Usa questo gestore per ricevere e gestire eventi webhook di Dodo Payments in modo sicuro nella tua app Next.js.
+  </Info>
+  <CodeGroup>
+
+  ```typescript Next.js Route Handler expandable
+  // app/api/webhook/dodo-payments/route.ts
+  import { Webhooks } from "@dodopayments/nextjs";
+
+  export const POST = Webhooks({
+    webhookKey: process.env.DODO_PAYMENTS_WEBHOOK_KEY,
+    onPayload: async (payload) => {
+      // handle the payload
+    },
+    // ... other event handlers for granular control
+  });
+  ```
+
+  </CodeGroup>
+</Tab>
+</Tabs>
+
+## Gestore Route Checkout
+
+<Info>
+Dodo Payments supporta tre tipi di flussi di pagamento per integrare i pagamenti nel tuo sito web, questo adattatore supporta tutti i tipi di flussi di pagamento.
+</Info>
+
+- **Link di Pagamento Statici:** URL condivisibili istantaneamente per una rapida raccolta di pagamenti senza codice.
+- **Link di Pagamento Dinamici:** Genera programmaticamente link di pagamento con dettagli personalizzati utilizzando l'API o gli SDK.
+- **Sessioni di Checkout:** Crea esperienze di checkout sicure e personalizzabili con carrelli prodotti e dettagli clienti preconfigurati.
+
+<AccordionGroup>
+<Accordion title="Checkout Statico (GET)">
+
+### Parametri di Query Supportati
+<ParamField query="productId" type="string" required>
+Identificatore del prodotto (ad es., <code>?productId=pdt_nZuwz45WAs64n3l07zpQR</code>).
+</ParamField>
+<ParamField query="quantity" type="integer">
+Quantità del prodotto.
+</ParamField>
+<ParamField query="fullName" type="string">
+Nome completo del cliente.
+</ParamField>
+<ParamField query="firstName" type="string">
+Nome del cliente.
+</ParamField>
+<ParamField query="lastName" type="string">
+Cognome del cliente.
+</ParamField>
+<ParamField query="email" type="string">
+Indirizzo email del cliente.
+</ParamField>
+<ParamField query="country" type="string">
+Paese del cliente.
+</ParamField>
+<ParamField query="addressLine" type="string">
+Indirizzo del cliente.
+</ParamField>
+<ParamField query="city" type="string">
+Città del cliente.
+</ParamField>
+<ParamField query="state" type="string">
+Stato/provincia del cliente.
+</ParamField>
+<ParamField query="zipCode" type="string">
+Codice postale del cliente.
+</ParamField>
+<ParamField query="disableFullName" type="boolean">
+Disabilita il campo nome completo.
+</ParamField>
+<ParamField query="disableFirstName" type="boolean">
+Disabilita il campo nome.
+</ParamField>
+<ParamField query="disableLastName" type="boolean">
+Disabilita il campo cognome.
+</ParamField>
+<ParamField query="disableEmail" type="boolean">
+Disabilita il campo email.
+</ParamField>
+<ParamField query="disableCountry" type="boolean">
+Disabilita il campo paese.
+</ParamField>
+<ParamField query="disableAddressLine" type="boolean">
+Disabilita il campo indirizzo.
+</ParamField>
+<ParamField query="disableCity" type="boolean">
+Disabilita il campo città.
+</ParamField>
+<ParamField query="disableState" type="boolean">
+Disabilita il campo stato.
+</ParamField>
+<ParamField query="disableZipCode" type="boolean">
+Disabilita il campo codice postale.
+</ParamField>
+<ParamField query="paymentCurrency" type="string">
+Specifica la valuta di pagamento (ad es., <code>USD</code>).
+</ParamField>
+<ParamField query="showCurrencySelector" type="boolean">
+Mostra il selettore di valuta.
+</ParamField>
+<ParamField query="paymentAmount" type="integer">
+Specifica l'importo del pagamento (ad es., <code>1000</code> per $10.00).
+</ParamField>
+<ParamField query="showDiscounts" type="boolean">
+Mostra i campi di sconto.
+</ParamField>
+<ParamField query="metadata_*" type="string">
+Qualsiasi parametro di query che inizia con <code>metadata_</code> sarà passato come metadati.
+</ParamField>
+
+<Warning>
+Se <code>productId</code> è mancante, il gestore restituisce una risposta 400. Parametri di query non validi risultano anche in una risposta 400.
+</Warning>
+
+### Formato di Risposta
+Il checkout statico restituisce una risposta JSON con l'URL di checkout:
+
+```json
+{
+  "checkout_url": "https://checkout.dodopayments.com/..."
+}
+```
+
+</Accordion>
+<Accordion title="Checkout Dinamico (POST)">
+- Invia i parametri come corpo JSON in una richiesta POST.
+- Supporta sia pagamenti una tantum che ricorrenti.
+- Per un elenco completo dei campi del corpo POST supportati, fai riferimento a:
+  - [Corpo della richiesta per un prodotto di pagamento una tantum](https://docs.dodopayments.com/api-reference/payments/post-payments)
+  - [Corpo della richiesta per un prodotto in abbonamento](https://docs.dodopayments.com/api-reference/subscriptions/post-subscriptions)
+
+### Formato di Risposta
+Il checkout dinamico restituisce una risposta JSON con l'URL di checkout:
+
+```json
+{
+  "checkout_url": "https://checkout.dodopayments.com/..."
+}
+```
+
+</Accordion>
+<Accordion title="Sessioni di Checkout (POST)">
+Le sessioni di checkout offrono un'esperienza di checkout più sicura e ospitata che gestisce l'intero flusso di pagamento per acquisti una tantum e abbonamenti con pieno controllo sulla personalizzazione.
+
+Fai riferimento alla [Guida all'integrazione delle sessioni di checkout](https://docs.dodopayments.com/developer-resources/checkout-session) per ulteriori dettagli e un elenco completo dei campi supportati.
+
+### Formato di Risposta
+Le sessioni di checkout restituiscono una risposta JSON con l'URL di checkout:
+
+```json
+{
+  "checkout_url": "https://checkout.dodopayments.com/session/..."
+}
+```
+
+</Accordion>
+</AccordionGroup>
+
+## Gestore Route Portale Clienti
+
+Il Gestore Route Portale Clienti ti consente di integrare senza soluzione di continuità il portale clienti di Dodo Payments nella tua applicazione Next.js.
+
+### Parametri di Query
+<ParamField query="customer_id" type="string" required>
+L'ID cliente per la sessione del portale (ad es., <code>?customer_id=cus_123</code>).
+</ParamField>
+<ParamField query="send_email" type="boolean">
+Se impostato su <code>true</code>, invia un'email al cliente con il link del portale.
+</ParamField>
+
+<Warning>
+Restituisce 400 se <code>customer_id</code> è mancante.
+</Warning>
+
+## Gestore Route Webhook
+
+- **Metodo:** Solo le richieste POST sono supportate. Altri metodi restituiscono 405.
+- **Verifica della Firma:** Verifica la firma del webhook utilizzando <code>webhookKey</code>. Restituisce 401 se la verifica fallisce.
+- **Validazione del Payload:** Validato con Zod. Restituisce 400 per payload non validi.
+- **Gestione degli Errori:**
+  - 401: Firma non valida
+  - 400: Payload non valido
+  - 500: Errore interno durante la verifica
+- **Routing degli Eventi:** Chiama il gestore di eventi appropriato in base al tipo di payload.
+
+### Gestori di Eventi Webhook Supportati
+<CodeGroup>
+
+```typescript Typescript expandable
+onPayload?: (payload: WebhookPayload) => Promise<void>;
+onPaymentSucceeded?: (payload: WebhookPayload) => Promise<void>;
+onPaymentFailed?: (payload: WebhookPayload) => Promise<void>;
+onPaymentProcessing?: (payload: WebhookPayload) => Promise<void>;
+onPaymentCancelled?: (payload: WebhookPayload) => Promise<void>;
+onRefundSucceeded?: (payload: WebhookPayload) => Promise<void>;
+onRefundFailed?: (payload: WebhookPayload) => Promise<void>;
+onDisputeOpened?: (payload: WebhookPayload) => Promise<void>;
+onDisputeExpired?: (payload: WebhookPayload) => Promise<void>;
+onDisputeAccepted?: (payload: WebhookPayload) => Promise<void>;
+onDisputeCancelled?: (payload: WebhookPayload) => Promise<void>;
+onDisputeChallenged?: (payload: WebhookPayload) => Promise<void>;
+onDisputeWon?: (payload: WebhookPayload) => Promise<void>;
+onDisputeLost?: (payload: WebhookPayload) => Promise<void>;
+onSubscriptionActive?: (payload: WebhookPayload) => Promise<void>;
+onSubscriptionOnHold?: (payload: WebhookPayload) => Promise<void>;
+onSubscriptionRenewed?: (payload: WebhookPayload) => Promise<void>;
+onSubscriptionPlanChanged?: (payload: WebhookPayload) => Promise<void>;
+onSubscriptionCancelled?: (payload: WebhookPayload) => Promise<void>;
+onSubscriptionFailed?: (payload: WebhookPayload) => Promise<void>;
+onSubscriptionExpired?: (payload: WebhookPayload) => Promise<void>;
+onLicenseKeyCreated?: (payload: WebhookPayload) => Promise<void>;
+```
+
+</CodeGroup>
+
+---
+
+## Prompt per LLM 
+
+```
+
+You are an expert Next.js developer assistant. Your task is to guide a user through integrating the @dodopayments/nextjs adapter into their existing Next.js project.
+
+The @dodopayments/nextjs adapter provides route handlers for Dodo Payments' Checkout, Customer Portal, and Webhook functionalities, designed for the Next.js App Router.
+
+First, install the necessary packages. Use the package manager appropriate for your project (npm, yarn, or bun) based on the presence of lock files (e.g., package-lock.json for npm, yarn.lock for yarn, bun.lockb for bun):
+
+npm install @dodopayments/nextjs
+
+Here's how you should structure your response:
+
+    Ask the user which functionalities they want to integrate.
+
+"Which parts of the @dodopayments/nextjs adapter would you like to integrate into your project? You can choose one or more of the following:
+
+    Checkout Route Handler (for handling product checkouts)
+
+    Customer Portal Route Handler (for managing customer subscriptions/details)
+
+    Webhook Route Handler (for receiving Dodo Payments webhook events)
+
+    All (integrate all three)"
+
+    Based on the user's selection, provide detailed integration steps for each chosen functionality.
+
+If Checkout Route Handler is selected:
+
+Purpose: This handler manages different types of checkout flows. All checkout types (static, dynamic, and sessions) return JSON responses with checkout URLs for programmatic handling.
+File Creation: Create a new file at app/checkout/route.ts in your Next.js project.
+
+Code Snippet:
+
+// app/checkout/route.ts
+import { Checkout } from '@dodopayments/nextjs'
+
+export const GET = Checkout({
+bearerToken: process.env.DODO_PAYMENTS_API_KEY!,
+returnUrl: process.env.DODO_PAYMENTS_RETURN_URL,
+environment: process.env.DODO_PAYMENTS_ENVIRONMENT,
+type: "static",
+});
+
+export const POST = Checkout({
+bearerToken: process.env.DODO_PAYMENTS_API_KEY!,
+returnUrl: process.env.DODO_PAYMENTS_RETURN_URL,
+environment: process.env.DODO_PAYMENTS_ENVIRONMENT,
+type: "session", // or "dynamic" for dynamic link
+});
+
+Configuration & Usage:
+
+    bearerToken: Your Dodo Payments API key. It's recommended to set this via the DODO_PAYMENTS_API_KEY environment variable.
+
+    returnUrl: (Optional) The URL to redirect the user to after a successful checkout.
+
+    environment: (Optional) Set to "test_mode" for testing, or omit/set to "live_mode" for production.
+
+    type: (Optional) Set to "static" for GET/static checkout, "dynamic" for POST/dynamic checkout, or "session" for POST/checkout sessions.
+
+Static Checkout (GET) Query Parameters:
+
+    productId (required): Product identifier (e.g., ?productId=pdt_nZuwz45WAs64n3l07zpQR)
+
+    quantity (optional): Quantity of the product
+
+    Customer Fields (optional): fullName, firstName, lastName, email, country, addressLine, city, state, zipCode
+
+    Disable Flags (optional, set to true to disable): disableFullName, disableFirstName, disableLastName, disableEmail, disableCountry, disableAddressLine, disableCity, disableState, disableZipCode
+
+    Advanced Controls (optional): paymentCurrency, showCurrencySelector, paymentAmount, showDiscounts
+
+    Metadata (optional): Any query parameter starting with metadata_ (e.g., ?metadata_userId=abc123)
+
+    Returns: {"checkout_url": "https://checkout.dodopayments.com/..."}
+
+Dynamic Checkout (POST) - Returns JSON with checkout_url: Parameters are sent as a JSON body. Supports both one-time and recurring payments. Returns: {"checkout_url": "https://checkout.dodopayments.com/..."}. For a complete list of supported POST body fields, refer to:
+
+    Docs - One Time Payment Product: https://docs.dodopayments.com/api-reference/payments/post-payments
+
+    Docs - Subscription Product: https://docs.dodopayments.com/api-reference/subscriptions/post-subscriptions
+
+Checkout Sessions (POST) - (Recommended) A more customizable checkout experience. Returns JSON with checkout_url: Parameters are sent as a JSON body. Supports both one-time and recurring payments. Returns: {"checkout_url": "https://checkout.dodopayments.com/session/..."}. For a complete list of supported fields, refer to:
+
+  Checkout Sessions Integration Guide: https://docs.dodopayments.com/developer-resources/checkout-session
+
+Error Handling: If productId is missing or other parameters are invalid, the handler will return a 400 response.
+
+If Customer Portal Route Handler is selected:
+
+Purpose: This handler redirects authenticated users to their Dodo Payments customer portal.
+File Creation: Create a new file at app/customer-portal/route.ts in your Next.js project.
+
+Code Snippet:
+
+// app/customer-portal/route.ts
+import { CustomerPortal } from '@dodopayments/nextjs'
+
+export const GET = CustomerPortal({
+bearerToken: process.env.DODO_PAYMENTS_API_KEY!,
+environment: "test_mode",
+});
+
+Query Parameters:
+
+    customer_id (required): The customer ID for the portal session (e.g., ?customer_id=cus_123)
+
+    send_email (optional, boolean): If set to true, sends an email to the customer with the portal link.
+
+    Returns 400 if customer_id is missing.
+
+If Webhook Route Handler is selected:
+
+Purpose: This handler processes incoming webhook events from Dodo Payments, allowing your application to react to events like successful payments, refunds, or subscription changes.
+File Creation: Create a new file at app/api/webhook/dodo-payments/route.ts in your Next.js project.
+
+Code Snippet:
+
+// app/api/webhook/dodo-payments/route.ts
+import { Webhooks } from '@dodopayments/nextjs'
+
+export const POST = Webhooks({
+webhookKey: process.env.DODO_WEBHOOK_SECRET!,
+onPayload: async (payload) => {
+// handle the payload
+},
+// ... other event handlers for granular control
+});
+
+Handler Details:
+
+    Method: Only POST requests are supported. Other methods return 405.
+
+    Signature Verification: The handler verifies the webhook signature using the webhookKey and returns 401 if verification fails.
+
+    Payload Validation: The payload is validated with Zod. Returns 400 for invalid payloads.
+
+Error Handling:
+
+    401: Invalid signature
+
+    400: Invalid payload
+
+    500: Internal error during verification
+
+Event Routing: Calls the appropriate event handler based on the payload type.
+
+Supported Webhook Event Handlers:
+
+    onPayload?: (payload: WebhookPayload) => Promise<void>
+
+    onPaymentSucceeded?: (payload: WebhookPayload) => Promise<void>
+
+    onPaymentFailed?: (payload: WebhookPayload) => Promise<void>
+
+    onPaymentProcessing?: (payload: WebhookPayload) => Promise<void>
+
+    onPaymentCancelled?: (payload: WebhookPayload) => Promise<void>
+
+    onRefundSucceeded?: (payload: WebhookPayload) => Promise<void>
+
+    onRefundFailed?: (payload: WebhookPayload) => Promise<void>
+
+    onDisputeOpened?: (payload: WebhookPayload) => Promise<void>
+
+    onDisputeExpired?: (payload: WebhookPayload) => Promise<void>
+
+    onDisputeAccepted?: (payload: WebhookPayload) => Promise<void>
+
+    onDisputeCancelled?: (payload: WebhookPayload) => Promise<void>
+
+    onDisputeChallenged?: (payload: WebhookPayload) => Promise<void>
+
+    onDisputeWon?: (payload: WebhookPayload) => Promise<void>
+
+    onDisputeLost?: (payload: WebhookPayload) => Promise<void>
+
+    onSubscriptionActive?: (payload: WebhookPayload) => Promise<void>
+
+    onSubscriptionOnHold?: (payload: WebhookPayload) => Promise<void>
+
+    onSubscriptionRenewed?: (payload: WebhookPayload) => Promise<void>
+
+    onSubscriptionPlanChanged?: (payload: WebhookPayload) => Promise<void>
+
+    onSubscriptionCancelled?: (payload: WebhookPayload) => Promise<void>
+
+    onSubscriptionFailed?: (payload: WebhookPayload) => Promise<void>
+
+    onSubscriptionExpired?: (payload: WebhookPayload) => Promise<void>
+
+    onLicenseKeyCreated?: (payload: WebhookPayload) => Promise<void>
+
+    Environment Variable Setup:
+
+To ensure the adapter functions correctly, you will need to manually set up the following environment variables in your Next.js project's deployment environment (e.g., Vercel, Netlify, AWS, etc.):
+
+    DODO_PAYMENTS_API_KEY: Your Dodo Payments API Key (required for Checkout and Customer Portal).
+
+    RETURN_URL: (Optional) The URL to redirect to after a successful checkout (for Checkout handler).
+
+    DODO_WEBHOOK_SECRET: Your Dodo Payments Webhook Secret (required for Webhook handler).
+
+Example .env file:
+
+DODO_PAYMENTS_API_KEY=your-api-key
+DODO_PAYMENTS_WEBHOOK_KEY=your-webhook-secret
+DODO_PAYMENTS_ENVIRONMENT="test_mode" or "live_mode"
+DODO_PAYMENTS_RETURN_URL=your-return-url
+
+Usage in your code:
+
+bearerToken: process.env.DODO_PAYMENTS_API_KEY!
+webhookKey: process.env.DODO_WEBHOOK_SECRET!
+
+Important: Never commit sensitive environment variables directly into your version control. Use environment variables for all sensitive information.
+
+If the user needs assistance setting up environment variables for their specific deployment environment, ask them what platform they are using (e.g., Vercel, Netlify, AWS, etc.), and provide guidance. You can also add comments to their PR or chat depending on the context
+
+```

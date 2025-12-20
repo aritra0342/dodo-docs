@@ -1,0 +1,267 @@
+---
+sidebarTitle: Next.js
+title: Next.js न्यूनतम बुनियाद
+description: अपने Next.js एप्लिकेशन में Dodo Payments को एकीकृत करने के लिए
+  हमारे न्यूनतम Next.js बुनियाद के साथ जल्दी शुरू करें
+icon: react
+---
+
+## अवलोकन
+
+Next.js न्यूनतम बुनियाद आपके Next.js एप्लिकेशन के साथ Dodo Payments को एकीकृत करने के लिए एक तैयार-से-उपयोग प्रारंभिक बिंदु प्रदान करता है। इस टेम्पलेट में चेकआउट सत्र, वेबहुक हैंडलिंग, ग्राहक पोर्टल, और आधुनिक UI घटक शामिल हैं जो आपको जल्दी से भुगतान स्वीकार करने में मदद करते हैं।
+
+<Info>
+यह बुनियाद Next.js 16 ऐप राउटर, TypeScript, Tailwind CSS 4, और `@dodopayments/nextjs` एडेप्टर का उपयोग करता है।
+</Info>
+
+### विशेषताएँ
+
+- **त्वरित सेटअप** - 5 मिनट से कम समय में शुरू करें
+- **भुगतान एकीकरण** - `@dodopayments/nextjs` का उपयोग करके पूर्व-कॉन्फ़िगर किया गया चेकआउट प्रवाह
+- **आधुनिक UI** - Tailwind CSS के साथ साफ, डार्क-थीम वाला मूल्य निर्धारण पृष्ठ
+- **वेबहुक हैंडलर** - भुगतान घटनाओं के लिए तैयार-से-उपयोग वेबहुक एंडपॉइंट
+- **ग्राहक पोर्टल** - एक-क्लिक सदस्यता प्रबंधन
+- **TypeScript** - न्यूनतम, केंद्रित प्रकारों के साथ पूरी तरह से टाइप किया गया
+- **पूर्व-भरे हुए चेकआउट** - UX में सुधार के लिए ग्राहक डेटा पास करने का प्रदर्शन
+
+## पूर्वापेक्षाएँ
+
+शुरू करने से पहले, सुनिश्चित करें कि आपके पास है:
+
+- **Node.js 20.9+** (Next.js 16 के लिए आवश्यक)
+- **Dodo Payments खाता** (डैशबोर्ड से API और वेबहुक कुंजी तक पहुँचने के लिए)
+
+## त्वरित प्रारंभ
+
+<Steps>
+<Step title="गिट रिपॉजिटरी क्लोन करें">
+
+```bash
+git clone https://github.com/dodopayments/dodo-nextjs-minimal-boilerplate.git
+cd dodo-nextjs-minimal-boilerplate
+```
+
+</Step>
+
+<Step title="निर्भरता स्थापित करें">
+
+```bash
+npm install
+```
+
+</Step>
+
+<Step title="API क्रेडेंशियल प्राप्त करें">
+[Dodo Payments](https://dodopayments.com/) पर साइन अप करें और डैशबोर्ड से अपने क्रेडेंशियल प्राप्त करें:
+
+- **API कुंजी:** [डैशबोर्ड → डेवलपर → API कुंजी](https://app.dodopayments.com/developer/api-keys)
+- **वेबहुक कुंजी:** [डैशबोर्ड → डेवलपर → वेबहुक](https://app.dodopayments.com/developer/webhooks)
+
+<Tip>
+विकास करते समय सुनिश्चित करें कि आप **परीक्षण मोड** में हैं!
+</Tip>
+</Step>
+
+<Step title="पर्यावरण चर कॉन्फ़िगर करें">
+रूट निर्देशिका में एक `.env` फ़ाइल बनाएं:
+
+```bash
+cp .env.example .env
+```
+
+अपने Dodo Payments क्रेडेंशियल के साथ मान अपडेट करें:
+
+```env
+DODO_PAYMENTS_API_KEY=your_api_key_here
+DODO_PAYMENTS_WEBHOOK_KEY=your_webhook_signing_key_here
+DODO_PAYMENTS_RETURN_URL=http://localhost:3000
+DODO_PAYMENTS_ENVIRONMENT=test_mode
+```
+
+<Warning>
+कभी भी अपने `.env` फ़ाइल को संस्करण नियंत्रण में कमिट न करें। यह पहले से ही `.gitignore` में शामिल है।
+</Warning>
+</Step>
+
+<Step title="अपने उत्पाद जोड़ें">
+`src/lib/products.ts` को अपने वास्तविक उत्पाद IDs के साथ अपडेट करें जो Dodo Payments से हैं:
+
+```typescript
+export const products: Product[] = [
+  {
+    product_id: "pdt_001", // Replace with your product ID
+    name: "Basic Plan",
+    description: "Get access to basic features and support",
+    price: 9999, // in cents
+    features: [
+      "Access to basic features",
+      "Email support",
+      "1 Team member",
+      "Basic analytics",
+    ],
+  },
+  // ... add more products
+];
+```
+
+</Step>
+
+<Step title="विकास सर्वर चलाएँ">
+
+```bash
+npm run dev
+```
+
+अपने मूल्य निर्धारण पृष्ठ को देखने के लिए [http://localhost:3000](http://localhost:3000) खोलें!
+</Step>
+</Steps>
+
+## परियोजना संरचना
+
+```text
+src/
+├── app/
+│   ├── api/
+│   │   ├── checkout/          # Checkout session handler
+│   │   ├── customer-portal/   # Customer portal redirect
+│   │   └── webhook/           # Webhook event handler
+│   ├── components/
+│   │   ├── Footer.tsx         # Reusable footer
+│   │   ├── Header.tsx         # Navigation header
+│   │   └── ProductCard.tsx    # Product pricing card
+│   ├── globals.css            # Global styles
+│   ├── layout.tsx             # Root layout
+│   └── page.tsx               # Pricing page (home)
+└── lib/
+    └── products.ts            # Product definitions
+```
+
+## अनुकूलन
+
+### उत्पाद जानकारी अपडेट करें
+
+`src/lib/products.ts` को संपादित करें:
+- उत्पाद IDs (आपके Dodo डैशबोर्ड से)
+- मूल्य निर्धारण
+- विशेषताएँ
+- विवरण
+
+### ग्राहक डेटा पूर्व-भरे
+
+`src/app/components/ProductCard.tsx` में, हार्डकोडेड मानों को अपने वास्तविक उपयोगकर्ता डेटा के साथ बदलें:
+
+```typescript
+customer: {
+  name: "John Doe",
+  email: "john@example.com",
+},
+```
+
+### ग्राहक पोर्टल अपडेट करें
+
+`src/app/components/Header.tsx` में, हार्डकोडेड ग्राहक ID को बदलें:
+
+```typescript
+const CUSTOMER_ID = "cus_001"; // Replace with actual customer ID
+```
+
+आप परीक्षण के लिए ग्राहक ID प्राप्त करने के लिए एक परीक्षण खरीदारी पूरी कर सकते हैं।
+
+## वेबहुक घटनाएँ
+
+यह बुनियाद `src/app/api/webhook/route.ts` में दो वेबहुक घटनाओं को संभालने का प्रदर्शन करता है:
+
+- `onSubscriptionActive` - जब एक सदस्यता सक्रिय होती है तो ट्रिगर होता है
+- `onPaymentSucceeded` - जब एक भुगतान सफल होता है तो ट्रिगर होता है
+
+इन हैंडलरों के अंदर अपना व्यावसायिक लॉजिक जोड़ें:
+
+```typescript
+onSubscriptionActive: async (payload) => {
+  // Grant access to your product
+  // Update user database
+  // Send welcome email
+},
+```
+
+आवश्यकतानुसार अधिक वेबहुक घटनाएँ जोड़ें।
+
+स्थानीय विकास के लिए, आप अपने स्थानीय सर्वर के लिए एक सुरक्षित टनल बनाने के लिए [ngrok](https://ngrok.com/) जैसे उपकरणों का उपयोग कर सकते हैं और इसे अपने वेबहुक URL के रूप में उपयोग कर सकते हैं।
+
+## तैनाती
+
+### उत्पादन के लिए निर्माण करें
+
+```bash
+npm run build
+npm start
+```
+
+### Vercel पर तैनात करें
+
+[
+
+![Vercel के साथ तैनात करें](https://vercel.com/button)
+
+](https://vercel.com/new/clone?repository-url=https://github.com/dodopayments/dodo-nextjs-minimal-boilerplate)
+
+अपने Vercel डैशबोर्ड में अपने पर्यावरण चर जोड़ना न भूलें!
+
+### वेबहुक URL अपडेट करें
+
+तैनाती के बाद, अपने वेबहुक URL को [Dodo Payments डैशबोर्ड](https://app.dodopayments.com/developer/webhooks) में अपडेट करें:
+
+```
+https://example.com/api/webhook
+```
+
+## समस्या निवारण
+
+<AccordionGroup>
+<Accordion title="मॉड्यूल नहीं मिला या निर्माण त्रुटियाँ">
+`node_modules` को हटाएँ और निर्भरताएँ फिर से स्थापित करें:
+
+```bash
+rm -rf node_modules package-lock.json
+npm install
+```
+
+</Accordion>
+
+<Accordion title="चेकआउट रीडायरेक्ट विफल">
+**सामान्य कारण:**
+- अमान्य उत्पाद ID - सत्यापित करें कि यह आपके Dodo डैशबोर्ड में मौजूद है
+- `.env` में गलत API कुंजी या पर्यावरण सेटिंग
+- त्रुटियों के लिए ब्राउज़र कंसोल और टर्मिनल की जांच करें
+</Accordion>
+
+<Accordion title="वेबहुक घटनाएँ प्राप्त नहीं कर रहे हैं">
+स्थानीय परीक्षण के लिए, अपने सर्वर को उजागर करने के लिए [ngrok](https://ngrok.com) का उपयोग करें:
+
+```bash
+ngrok http 3000
+```
+
+ngrok URL पर अपने [Dodo डैशबोर्ड](https://app.dodopayments.com/developer/webhooks) में वेबहुक URL अपडेट करें। सही वेबहुक सत्यापन कुंजी के साथ अपने .env फ़ाइल को अपडेट करना न भूलें।
+</Accordion>
+
+<Accordion title="ग्राहक पोर्टल लिंक काम नहीं कर रहा">
+`CUSTOMER_ID` को `src/app/components/Header.tsx` में हार्डकोडेड के बजाय अपने Dodo डैशबोर्ड से वास्तविक ग्राहक ID के साथ बदलें।
+
+या ग्राहक ID को गतिशील रूप से लाने के लिए अपने प्रमाणीकरण प्रणाली और डेटाबेस को एकीकृत करें।
+</Accordion>
+</AccordionGroup>
+
+## अधिक जानें
+
+- [Dodo Payments दस्तावेज़ीकरण](https://docs.dodopayments.com/)
+- [चेकआउट सत्र दस्तावेज़ीकरण](https://docs.dodopayments.com/developer-resources/checkout-sessions)
+- [वेबहुक दस्तावेज़ीकरण](https://docs.dodopayments.com/developer-resources/webhooks)
+
+## सहायता
+
+बुनियाद के साथ मदद चाहिए?
+
+- प्रश्नों और चर्चाओं के लिए हमारे [Discord समुदाय](https://discord.gg/bYqAp4ayYh) में शामिल हों
+- मुद्दों और अपडेट के लिए [GitHub रिपॉजिटरी](https://github.com/dodopayments/dodo-nextjs-minimal-boilerplate) की जांच करें
+- सहायता के लिए हमारी [सहायता टीम](mailto:support@dodopayments.com) से संपर्क करें

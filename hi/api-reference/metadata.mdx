@@ -1,0 +1,191 @@
+---
+title: मेटाडेटा गाइड
+description: जानें कि अपने डोडो पेमेंट्स ऑब्जेक्ट्स के बारे में अतिरिक्त जानकारी
+  स्टोर करने के लिए मेटाडेटा का उपयोग कैसे करें
+icon: tags
+---
+
+## परिचय
+
+मेटाडेटा आपको डोडो पेमेंट्स में अपने ऑब्जेक्ट्स के बारे में अतिरिक्त, संरचित जानकारी स्टोर करने की अनुमति देता है। आप अधिकांश डोडो पेमेंट्स ऑब्जेक्ट्स, जैसे कि भुगतान, सदस्यताएँ, और अधिक पर मेटाडेटा संलग्न कर सकते हैं।
+
+## अवलोकन
+
+- मेटाडेटा कुंजी 40 अक्षरों तक लंबी हो सकती है
+- मेटाडेटा मान 500 अक्षरों तक लंबा हो सकता है
+- प्रति ऑब्जेक्ट 50 मेटाडेटा कुंजी-मूल्य जोड़े तक हो सकते हैं
+- कुंजी में केवल अल्फ़ान्यूमेरिक वर्ण, डैश और अंडरस्कोर होने चाहिए
+- मेटाडेटा हमारे API का उपयोग करके खोजा नहीं जा सकता लेकिन API प्रतिक्रियाओं और वेबहुक्स में लौटाया जाता है
+
+## उपयोग के मामले
+
+मेटाडेटा निम्नलिखित के लिए उपयोगी है:
+
+- बाहरी आईडी या संदर्भ स्टोर करना
+- आंतरिक टिप्पणियाँ जोड़ना
+- डोडो पेमेंट्स ऑब्जेक्ट्स को अपने सिस्टम से लिंक करना
+- लेनदेन को श्रेणीबद्ध करना
+- रिपोर्टिंग के लिए कस्टम विशेषताएँ जोड़ना
+
+## मेटाडेटा जोड़ना
+
+आप API के माध्यम से ऑब्जेक्ट्स बनाते या अपडेट करते समय मेटाडेटा जोड़ सकते हैं। उत्पादों के लिए, आपके पास डैशबोर्ड UI से सीधे मेटाडेटा जोड़ने का विकल्प भी है।
+
+### API के माध्यम से
+
+```javascript
+// Adding metadata when creating a checkout session
+const checkoutSession = await client.checkoutSessions.create({
+    product_cart: [{ product_id: 'product_id', quantity: 1 }],
+    return_url: 'https://example.com/return',
+    metadata: {
+        order_id: 'ORD-123',
+        campaign_source: 'email',
+        customer_segment: 'premium'
+    }
+});
+
+// Adding metadata when creating a payment
+const payment = await client.payments.create({
+    billing: { city: 'city', country: 'AF', state: 'state', street: 'street', zipcode: 0 },
+    customer: { customer_id: 'customer_id' },
+    product_cart: [{ product_id: 'product_id', quantity: 0 }],
+    metadata:{order_id: 'ORD-123', customer_notes: 'Customer notes'}
+  });
+
+// Adding metadata when creating a product
+const product = await client.products.create({
+    name: 'Premium Software License',
+    price: 9900,
+    currency: 'USD',
+    metadata: {
+        category: 'software',
+        license_type: 'premium',
+        support_tier: 'priority'
+    }
+});
+
+// Adding metadata when creating a customer
+const customer = await client.customers.create({
+    email: 'customer@example.com',
+    name: 'John Doe',
+    metadata: {
+        crm_id: 'CRM-12345',
+        customer_segment: 'enterprise',
+        referral_source: 'website'
+    }
+});
+```
+
+### डैशबोर्ड UI के माध्यम से (केवल उत्पाद)
+
+उत्पादों के लिए, आप उत्पाद बनाते या संपादित करते समय डोडो पेमेंट्स डैशबोर्ड से सीधे मेटाडेटा जोड़ सकते हैं। मेटाडेटा अनुभाग आपको कोड लिखे बिना आसानी से कस्टम कुंजी-मूल्य जोड़ने की अनुमति देता है।
+
+<Frame>
+<img src="/images/product-catalog/product-metadata-ui.png" alt="डोडो पेमेंट्स डैशबोर्ड में उत्पाद मेटाडेटा इंटरफेस" />
+</Frame>
+
+<Tip>
+उत्पाद मेटाडेटा के लिए डैशबोर्ड UI का उपयोग विशेष रूप से गैर-तकनीकी टीम के सदस्यों के लिए उपयोगी है जिन्हें उत्पाद जानकारी और श्रेणियों का प्रबंधन करने की आवश्यकता होती है।
+</Tip>
+
+## मेटाडेटा पुनः प्राप्त करना
+
+मेटाडेटा ऑब्जेक्ट्स को पुनः प्राप्त करते समय API प्रतिक्रियाओं में शामिल होता है:
+
+```javascript
+// Retrieving checkout session metadata
+const checkoutSession = await client.checkoutSessions.retrieve('cs_123');
+console.log(checkoutSession.metadata.order_id); // 'ORD-123'
+
+// Retrieving payment metadata
+const payment = await client.payments.retrieve('pay_123');
+console.log(payment.metadata.order_id); // '6735'
+
+// Retrieving customer metadata
+const customer = await client.customers.retrieve('customer_123');
+console.log(customer.metadata.crm_id); // 'CRM-12345'
+
+// Retrieving refund metadata
+const refund = await client.refunds.retrieve('refund_123');
+console.log(refund.metadata.refund_reason); // 'customer_request'
+```
+
+## खोज और फ़िल्टरिंग
+
+हालांकि मेटाडेटा को हमारे API के माध्यम से सीधे खोजा नहीं जा सकता, आप:
+
+1. मेटाडेटा में महत्वपूर्ण पहचानकर्ता स्टोर करें
+2. उनके प्राथमिक आईडी का उपयोग करके ऑब्जेक्ट्स को पुनः प्राप्त करें
+3. अपने एप्लिकेशन कोड में परिणामों को फ़िल्टर करें
+
+```javascript
+// Example: Find a checkout session using metadata
+const checkoutSessions = await client.checkoutSessions.list({
+  limit: 100
+});
+
+const matchingSession = checkoutSessions.data.find(
+  session => session.metadata?.order_id === 'ORD-123'
+);
+
+// Example: Find a payment using your order ID
+const payments = await client.payments.list({
+  limit: 100
+});
+
+const matchingPayment = payments.data.find(
+  payment => payment.metadata.order_id === '6735'
+);
+```
+
+## सर्वोत्तम प्रथाएँ
+
+### करें:
+- मेटाडेटा कुंजियों के लिए सुसंगत नामकरण मानकों का उपयोग करें
+- अपने मेटाडेटा स्कीमा को आंतरिक रूप से दस्तावेज़ित करें
+- मानों को संक्षिप्त और अर्थपूर्ण रखें
+- केवल स्थिर डेटा के लिए मेटाडेटा का उपयोग करें
+- विभिन्न सिस्टम के लिए उपसर्गों का उपयोग करने पर विचार करें (जैसे, `crm_id`, `inventory_sku`)
+
+### न करें:
+- मेटाडेटा में संवेदनशील डेटा स्टोर करें
+- अक्सर बदलने वाले मानों के लिए मेटाडेटा का उपयोग करें
+- महत्वपूर्ण व्यावसायिक तर्क के लिए मेटाडेटा पर निर्भर रहें
+- ऑब्जेक्ट में कहीं और उपलब्ध डुप्लिकेट जानकारी स्टोर करें
+- मेटाडेटा कुंजियों में विशेष वर्णों का उपयोग करें
+
+## समर्थित ऑब्जेक्ट्स
+
+मेटाडेटा निम्नलिखित ऑब्जेक्ट्स पर समर्थित है:
+
+| ऑब्जेक्ट प्रकार | समर्थन |
+|------------|---------|
+| भुगतान | ✓ |
+| सदस्यताएँ | ✓ |
+| उत्पाद | ✓ |
+| रिफंड | ✓ |
+| चेकआउट सत्र | ✓ |
+| ग्राहक | ✓ |
+
+## वेबहुक्स और मेटाडेटा
+
+मेटाडेटा वेबहुक इवेंट्स में शामिल होता है, जिससे आपके कस्टम डेटा के साथ सूचनाओं को संभालना आसान हो जाता है:
+
+```javascript
+// Example webhook handler
+app.post('/webhook', (req, res) => {
+  const event = req.body;
+
+  if (event.type === 'payment.succeeded') {
+    const orderId = event.data.object.metadata.order_id;
+    // Process order using your internal order ID
+  }
+  
+  if (event.type === 'checkout.session.completed') {
+    const orderId = event.data.object.metadata.order_id;
+    const campaignSource = event.data.object.metadata.campaign_source;
+    // Handle checkout session completion with custom metadata
+  }
+});
+```

@@ -1,0 +1,462 @@
+---
+title: Python
+description: अपने Python अनुप्रयोगों में Dodo Payments को एक Pythonic इंटरफ़ेस
+  और आधुनिक async/await समर्थन के साथ एकीकृत करें
+icon: python
+---
+
+Python SDK Dodo Payments API के लिए एक Pythonic इंटरफ़ेस प्रदान करता है, जो अनुरोधों और प्रतिक्रियाओं के लिए प्रकार परिभाषाएँ के साथ समकालिक और असमकालिक दोनों क्लाइंट प्रदान करता है। यह Python 3.7+ का समर्थन करता है और इसमें व्यापक परीक्षण कवरेज शामिल है।
+
+## स्थापना
+
+SDK को pip का उपयोग करके स्थापित करें:
+
+```bash
+pip install dodopayments
+```
+
+aiohttp के साथ बेहतर असमकालिक प्रदर्शन के लिए:
+
+```bash
+pip install dodopayments[aiohttp]
+```
+
+<Info>
+SDK को Python 3.7 या उच्चतर की आवश्यकता है। हम सर्वोत्तम अनुभव और सुरक्षा अपडेट के लिए Python का नवीनतम स्थिर संस्करण उपयोग करने की सिफारिश करते हैं।
+</Info>
+
+## त्वरित प्रारंभ
+
+### समकालिक क्लाइंट
+
+```python
+import os
+from dodopayments import DodoPayments
+
+client = DodoPayments(
+    bearer_token=os.environ.get("DODO_PAYMENTS_API_KEY"),  # This is the default and can be omitted
+    environment="test_mode",  # defaults to "live_mode"
+)
+
+checkout_session_response = client.checkout_sessions.create(
+    product_cart=[
+        {
+            "product_id": "product_id",
+            "quantity": 1
+        }
+    ],
+)
+print(checkout_session_response.session_id)
+```
+
+### असमकालिक क्लाइंट
+
+```python
+import os
+import asyncio
+from dodopayments import AsyncDodoPayments
+
+client = AsyncDodoPayments(
+    bearer_token=os.environ.get("DODO_PAYMENTS_API_KEY"),
+    environment="test_mode",
+)
+
+async def main() -> None:
+    checkout_session_response = await client.checkout_sessions.create(
+        product_cart=[
+            {
+                "product_id": "product_id",
+                "quantity": 1,
+            }
+        ],
+    )
+    print(checkout_session_response.session_id)
+
+asyncio.run(main())
+```
+
+<Warning>
+हमेशा अपने API कुंजियों को सुरक्षित रूप से पर्यावरण चर का उपयोग करके संग्रहीत करें। उन्हें कभी भी संस्करण नियंत्रण में न डालें।
+</Warning>
+
+## मुख्य विशेषताएँ
+
+<CardGroup cols={2}>
+<Card title="Pythonic इंटरफ़ेस" icon="code">
+  साफ, आदर्श Python कोड जो PEP 8 दिशानिर्देशों और Python परंपराओं का पालन करता है
+</Card>
+
+<Card title="Async/Await" icon="bolt">
+  asyncio के साथ असमकालिक संचालन के लिए पूर्ण समर्थन और वैकल्पिक aiohttp एकीकरण
+</Card>
+
+<Card title="Type Hints" icon="check">
+  बेहतर IDE समर्थन और mypy के साथ प्रकार जांच के लिए पूर्ण प्रकार संकेत
+</Card>
+
+<Card title="Auto-Pagination" icon="arrows-rotate">
+  सरल पुनरावृत्ति के साथ सूची प्रतिक्रियाओं के लिए स्वचालित पृष्ठन
+</Card>
+</CardGroup>
+
+## कॉन्फ़िगरेशन
+
+### पर्यावरण चर
+
+पर्यावरण चर का उपयोग करके कॉन्फ़िगर करें:
+
+```bash .env
+DODO_PAYMENTS_API_KEY=your_api_key_here
+```
+
+### टाइमआउट
+
+वैश्विक रूप से या प्रति अनुरोध अनुरोध टाइमआउट कॉन्फ़िगर करें:
+
+```python
+import httpx
+from dodopayments import DodoPayments
+
+# Configure default for all requests (default is 1 minute)
+client = DodoPayments(
+    timeout=20.0,  # 20 seconds
+)
+
+# More granular control
+client = DodoPayments(
+    timeout=httpx.Timeout(60.0, read=5.0, write=10.0, connect=2.0),
+)
+
+# Override per-request
+client.with_options(timeout=5.0).checkout_sessions.create(
+    product_cart=[
+        {
+            "product_id": "product_id",
+            "quantity": 0,
+        }
+    ],
+)
+```
+
+### पुनः प्रयास
+
+स्वचालित पुनः प्रयास व्यवहार कॉन्फ़िगर करें:
+
+```python
+from dodopayments import DodoPayments
+
+# Configure default for all requests (default is 2)
+client = DodoPayments(
+    max_retries=0,  # disable retries
+)
+
+# Override per-request
+client.with_options(max_retries=5).checkout_sessions.create(
+    product_cart=[
+        {
+            "product_id": "product_id",
+            "quantity": 0,
+        }
+    ],
+)
+```
+
+## सामान्य संचालन
+
+### चेकआउट सत्र बनाएँ
+
+एक चेकआउट सत्र उत्पन्न करें:
+
+```python
+session = client.checkout_sessions.create(
+    product_cart=[
+        {
+            "product_id": "prod_123",
+            "quantity": 1
+        }
+    ],
+    return_url="https://yourdomain.com/return"
+)
+
+print(f"Checkout URL: {session.url}")
+```
+
+### ग्राहकों का प्रबंधन करें
+
+ग्राहक जानकारी बनाएँ और पुनः प्राप्त करें:
+
+```python
+# Create a customer
+customer = client.customers.create(
+    email="customer@example.com",
+    name="John Doe",
+    metadata={
+        "user_id": "12345"
+    }
+)
+
+# Retrieve customer
+customer = client.customers.retrieve("cus_123")
+print(f"Customer: {customer.name} ({customer.email})")
+```
+
+### सदस्यताओं को संभालें
+
+आवर्ती सदस्यताएँ बनाएँ और प्रबंधित करें:
+
+```python
+# Create a subscription
+subscription = client.subscriptions.create(
+    customer_id="cus_123",
+    product_id="prod_456",
+    price_id="price_789"
+)
+
+# Retrieve usage history
+usage_history = client.subscriptions.retrieve_usage_history(
+    subscription.id,
+    start_date="2024-01-01T00:00:00Z"
+)
+```
+
+## उपयोग-आधारित बिलिंग
+
+### उपयोग घटनाएँ इकट्ठा करें
+
+उपयोग-आधारित बिलिंग के लिए कस्टम घटनाओं को ट्रैक करें:
+
+```python
+response = client.usage_events.ingest(
+    events=[
+        {
+            "event_id": "api_call_12345",
+            "customer_id": "cus_abc123",
+            "event_name": "api_request",
+            "timestamp": "2024-01-15T10:30:00Z",
+            "metadata": {
+                "endpoint": "/api/v1/users",
+                "method": "GET",
+                "tokens_used": "150"
+            }
+        }
+    ]
+)
+```
+
+### घटनाओं की सूची और पुनः प्राप्त करें
+
+```python
+# Get a specific event
+event = client.usage_events.retrieve("api_call_12345")
+
+# List events with filtering
+events = client.usage_events.list(
+    customer_id="cus_abc123",
+    event_name="api_request",
+    limit=20
+)
+
+for event in events.data:
+    print(f"Event: {event.event_id} at {event.timestamp}")
+```
+
+## पृष्ठन
+
+### स्वचालित पृष्ठन
+
+सभी वस्तुओं के माध्यम से स्वचालित रूप से पुनरावृत्त करें:
+
+```python
+from dodopayments import DodoPayments
+
+client = DodoPayments()
+all_payments = []
+
+# Automatically fetches more pages as needed
+for payment in client.payments.list():
+    all_payments.append(payment)
+print(all_payments)
+```
+
+### असमकालिक पृष्ठन
+
+```python
+import asyncio
+from dodopayments import AsyncDodoPayments
+
+client = AsyncDodoPayments()
+
+async def main() -> None:
+    all_payments = []
+    # Iterate through items across all pages
+    async for payment in client.payments.list():
+        all_payments.append(payment)
+    print(all_payments)
+
+asyncio.run(main())
+```
+
+### मैनुअल पृष्ठन
+
+पृष्ठन पर अधिक नियंत्रण के लिए:
+
+```python
+# Access items from current page
+first_page = client.payments.list()
+for payment in first_page.items:
+    print(payment.brand_id)
+
+# Check for more pages
+if first_page.has_next_page():
+    next_page = first_page.get_next_page()
+    print(f"Fetched {len(next_page.items)} more items")
+```
+
+## HTTP क्लाइंट कॉन्फ़िगरेशन
+
+नीचे दिए गए `httpx` क्लाइंट को अनुकूलित करें:
+
+```python
+import httpx
+from dodopayments import DodoPayments, DefaultHttpxClient
+
+client = DodoPayments(
+    base_url="http://my.test.server.example.com:8083",
+    http_client=DefaultHttpxClient(
+        proxy="http://my.test.proxy.example.com",
+        transport=httpx.HTTPTransport(local_address="0.0.0.0"),
+    ),
+)
+```
+
+## aiohttp के साथ असमकालिक
+
+बेहतर असमकालिक प्रदर्शन के लिए aiohttp का उपयोग करें:
+
+```python
+import asyncio
+from dodopayments import DefaultAioHttpClient
+from dodopayments import AsyncDodoPayments
+
+async def main() -> None:
+    async with AsyncDodoPayments(
+        bearer_token="My Bearer Token",
+        http_client=DefaultAioHttpClient(),
+    ) as client:
+        checkout_session_response = await client.checkout_sessions.create(
+            product_cart=[
+                {
+                    "product_id": "product_id",
+                    "quantity": 0,
+                }
+            ],
+        )
+        print(checkout_session_response.session_id)
+
+asyncio.run(main())
+```
+
+## लॉगिंग
+
+पर्यावरण चर सेट करके लॉगिंग सक्षम करें:
+
+```bash
+export DODO_PAYMENTS_LOG=info
+```
+
+या डिबग-स्तर की लॉगिंग के लिए:
+
+```bash
+export DODO_PAYMENTS_LOG=debug
+```
+
+## ढांचा एकीकरण
+
+### FastAPI
+
+```python
+from fastapi import FastAPI, HTTPException
+from dodopayments import AsyncDodoPayments
+from pydantic import BaseModel
+import os
+
+app = FastAPI()
+dodo = AsyncDodoPayments(bearer_token=os.getenv("DODO_API_KEY"))
+
+class CheckoutRequest(BaseModel):
+    product_id: str
+    quantity: int
+
+@app.post("/create-checkout")
+async def create_checkout(request: CheckoutRequest):
+    try:
+        session = await dodo.checkout_sessions.create(
+            product_cart=[{
+                "product_id": request.product_id,
+                "quantity": request.quantity
+            }],
+            return_url="https://yourdomain.com/return"
+        )
+        return {"checkout_url": session.url}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+```
+
+### Django
+
+```python
+from django.http import JsonResponse
+from dodopayments import DodoPayments
+import os
+
+dodo = DodoPayments(bearer_token=os.getenv("DODO_API_KEY"))
+
+def create_payment(request):
+    try:
+        payment = dodo.payments.create(
+            amount=5000,
+            currency="USD",
+            customer_id=request.user.customer_id
+        )
+        return JsonResponse({
+            "status": "success",
+            "payment_id": payment.id
+        })
+    except Exception as e:
+        return JsonResponse({
+            "status": "error",
+            "message": str(e)
+        }, status=400)
+```
+
+## संसाधन
+
+<CardGroup cols={2}>
+<Card title="GitHub रिपॉजिटरी" icon="github" href="https://github.com/dodopayments/dodopayments-python">
+  स्रोत कोड देखें और योगदान करें
+</Card>
+
+<Card title="API संदर्भ" icon="book" href="/api-reference/introduction">
+  पूर्ण API दस्तावेज़ीकरण
+</Card>
+
+<Card title="Discord समुदाय" icon="discord" href="https://discord.gg/bYqAp4ayYh">
+  मदद प्राप्त करें और डेवलपर्स से जुड़ें
+</Card>
+
+<Card title="समस्याएँ रिपोर्ट करें" icon="bug" href="https://github.com/dodopayments/dodopayments-python/issues">
+  बग रिपोर्ट करें या सुविधाएँ अनुरोध करें
+</Card>
+</CardGroup>
+
+## समर्थन
+
+Python SDK के साथ मदद चाहिए?
+
+- **Discord**: वास्तविक समय समर्थन के लिए हमारे [समुदाय सर्वर](https://discord.gg/bYqAp4ayYh) में शामिल हों
+- **ईमेल**: हमें support@dodopayments.com पर संपर्क करें
+- **GitHub**: [रिपॉजिटरी](https://github.com/dodopayments/dodopayments-python) पर एक समस्या खोलें
+
+## योगदान
+
+हम योगदान का स्वागत करते हैं! आरंभ करने के लिए [योगदान दिशानिर्देश](https://github.com/dodopayments/dodopayments-python/blob/main/CONTRIBUTING.md) की जांच करें.

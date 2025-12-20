@@ -1,0 +1,478 @@
+---
+title: सीट-आधारित मूल्य निर्धारण के साथ ऐड-ऑन और भुगतान लिंक
+description: सीट-आधारित मूल्य निर्धारण के लिए ऐड-ऑन बनाने और कस्टम ऐड-ऑन मात्रा
+  के साथ भुगतान लिंक उत्पन्न करने के लिए Dodo Payments का उपयोग करना सीखें
+icon: users
+---
+
+इस ट्यूटोरियल में, आप Dodo Payments ऐड-ऑन का उपयोग करके सीट-आधारित मूल्य निर्धारण को लागू करना सीखेंगे। हम अतिरिक्त सीटों के लिए ऐड-ऑन के साथ एक सदस्यता उत्पाद बनाएंगे और आपको कस्टम ऐड-ऑन मात्रा के साथ भुगतान लिंक उत्पन्न करना दिखाएंगे।
+
+<Note>
+यह ट्यूटोरियल एक Node.js/Express एप्लिकेशन के लिए नमूना कार्यान्वयन कोड प्रदान करता है। आप इस कोड को अपने विशेष ढांचे (Next.js, React, Vue, आदि) के लिए संशोधित कर सकते हैं और अपने एप्लिकेशन की आवश्यकताओं के अनुसार उपयोगकर्ता इंटरफ़ेस को अनुकूलित कर सकते हैं।
+</Note>
+
+इस ट्यूटोरियल के अंत तक, आप जानेंगे कि:
+- सीट-आधारित मूल्य निर्धारण के साथ सदस्यता उत्पाद कैसे बनाएं
+- अतिरिक्त सीटों के लिए ऐड-ऑन कैसे सेट करें
+- कस्टम ऐड-ऑन मात्रा के साथ भुगतान लिंक कैसे उत्पन्न करें
+- गतिशील सीट गिनती के साथ चेकआउट सत्र कैसे संभालें
+
+## हम क्या बना रहे हैं
+
+आइए एक सीट-आधारित मूल्य निर्धारण मॉडल बनाते हैं:
+
+- **बेस प्लान**: 5 टीम सदस्यों के लिए $49/माह
+- **सीट ऐड-ऑन**: प्रति अतिरिक्त सीट $2/माह
+- **भुगतान लिंक**: कस्टम सीट मात्रा के साथ गतिशील चेकआउट
+
+<Info>
+शुरू करने से पहले, सुनिश्चित करें कि आपके पास:
+- एक Dodo Payments खाता
+- TypeScript/Node.js की मूलभूत जानकारी
+</Info>
+
+## चरण 1: अपना सीट ऐड-ऑन बनाएं
+
+अब हमें एक ऐड-ऑन बनाने की आवश्यकता है जो अतिरिक्त सीटों का प्रतिनिधित्व करता है। यह ऐड-ऑन हमारे बेस सदस्यता से जुड़ा होगा और ग्राहकों को अतिरिक्त सीटें खरीदने की अनुमति देगा।
+
+<Frame>
+  <img src="/images/cookbooks/seat-based/seat-based-addons-creation.png" alt="बेस सदस्यता उत्पाद बनाना" />
+</Frame>
+
+<Tip>
+**हम क्या बना रहे हैं**: एक ऐड-ऑन जो प्रति सीट $2/माह की लागत है और इसे किसी भी बेस सदस्यता में जोड़ा जा सकता है।
+</Tip>
+
+<Steps>
+<Step title="ऐड-ऑन पर जाएं">
+1. अपने Dodo Payments डैशबोर्ड में, **उत्पाद** अनुभाग में रहें
+2. **ऐड-ऑन** टैब पर क्लिक करें
+3. **ऐड-ऑन बनाएं** पर क्लिक करें
+
+यह ऐड-ऑन निर्माण फॉर्म खोलेगा।
+</Step>
+
+<Step title="ऐड-ऑन विवरण दर्ज करें">
+हमारे सीट ऐड-ऑन के लिए इन मानों को भरें:
+
+**ऐड-ऑन नाम**: `Additional Team Seat`
+
+**विवरण**: `Add extra team members to your workspace with full access to all features`
+
+**कीमत**: दर्ज करें → `2.00`
+
+**मुद्रा**: आपकी बेस सदस्यता मुद्रा से मेल खाना चाहिए
+
+**कर श्रेणी**: अपने उत्पाद के लिए उपयुक्त श्रेणी चुनें।
+
+</Step>
+
+<Step title="अपने ऐड-ऑन को सहेजें">
+1. अपने सभी सेटिंग्स की समीक्षा करें:
+   - नाम: अतिरिक्त टीम सीट
+   - कीमत: $2.00/माह
+2. **ऐड-ऑन बनाएं** पर क्लिक करें
+
+<Check>
+**ऐड-ऑन बनाया गया!** आपका सीट ऐड-ऑन अब सदस्यताओं से जोड़ने के लिए उपलब्ध है।
+</Check>
+</Step>
+</Steps>
+
+## चरण 2: अपना बेस सदस्यता उत्पाद बनाएं
+
+हम 5 टीम सदस्यों के साथ एक बेस सदस्यता उत्पाद बनाने से शुरू करेंगे। यह हमारे सीट-आधारित मूल्य निर्धारण मॉडल की नींव होगी।
+
+<Frame>
+  <img src="/images/cookbooks/seat-based/seat-based-subscription.png" alt="बेस सदस्यता उत्पाद बनाना" />
+</Frame>
+
+<Steps>
+<Step title="उत्पादों पर जाएं">
+1. अपने Dodo Payments डैशबोर्ड में लॉग इन करें
+2. बाईं साइडबार में **उत्पाद** पर क्लिक करें
+3. **उत्पाद बनाएं** बटन पर क्लिक करें
+4. उत्पाद प्रकार के रूप में **सदस्यता** चुनें
+
+आपको एक फॉर्म दिखाई देना चाहिए जहां हम अपने बेस सदस्यता को कॉन्फ़िगर करेंगे।
+</Step>
+
+<Step title="सदस्यता विवरण भरें">
+अब हम अपने बेस प्लान के लिए विशिष्ट विवरण दर्ज करेंगे:
+
+**उत्पाद नाम**: `Motion`
+
+**विवरण**: `Where your team's documentation lives.`
+
+**आवर्ती मूल्य**: दर्ज करें → `49.00`
+
+**बिलिंग चक्र**: चुनें → `Monthly`
+
+**मुद्रा**: अपनी पसंदीदा मुद्रा चुनें (जैसे, `USD`)
+
+</Step>
+
+</Steps>
+
+## चरण 3: सदस्यता से ऐड-ऑन को कनेक्ट करें
+
+अब हमें अपने सीट ऐड-ऑन को बेस सदस्यता से जोड़ने की आवश्यकता है ताकि ग्राहक चेकआउट के दौरान अतिरिक्त सीटें खरीद सकें।
+
+<Steps>
+
+<Step title="सीट ऐड-ऑन संलग्न करें">
+
+<Frame>
+  <img src="/images/cookbooks/seat-based/seat-based-addons.png" alt="सदस्यता से ऐड-ऑन संलग्न करना" />
+</Frame>
+
+1. **ऐड-ऑन** अनुभाग में स्क्रॉल करें
+2. **ऐड-ऑन जोड़ें** पर क्लिक करें
+3. ड्रॉपडाउन से अपने सीट ऐड-ऑन का चयन करें
+4. पुष्टि करें कि यह आपकी सदस्यता कॉन्फ़िगरेशन में दिखाई दे रहा है
+
+</Step>
+
+<Step title="सदस्यता परिवर्तनों को सहेजें">
+1. अपनी पूरी सदस्यता सेटअप की समीक्षा करें:
+   - बेस प्लान: 5 सीटों के लिए $49/माह
+   - ऐड-ऑन: प्रति अतिरिक्त सीट $2/माह
+   - मुफ्त परीक्षण: 14 दिन
+2. **परिवर्तन सहेजें** पर क्लिक करें
+
+<Check>
+**सीट-आधारित मूल्य निर्धारण कॉन्फ़िगर किया गया!** ग्राहक अब आपकी बेस योजना खरीद सकते हैं और आवश्यकता अनुसार अतिरिक्त सीटें जोड़ सकते हैं।
+</Check>
+</Step>
+</Steps>
+
+## चरण 4: कस्टम ऐड-ऑन मात्रा के साथ भुगतान लिंक उत्पन्न करें
+
+अब आइए एक Express.js एप्लिकेशन बनाते हैं जो कस्टम ऐड-ऑन मात्रा के साथ भुगतान लिंक उत्पन्न करता है। यही वह जगह है जहां सीट-आधारित मूल्य निर्धारण की असली शक्ति आती है - आप किसी भी संख्या में अतिरिक्त सीटों के साथ गतिशील रूप से चेकआउट सत्र बना सकते हैं।
+
+<Steps>
+<Step title="अपने प्रोजेक्ट को सेट करें">
+एक नया Node.js प्रोजेक्ट बनाएं और आवश्यक निर्भरताएँ स्थापित करें:
+
+```bash
+mkdir seat-based-pricing
+cd seat-based-pricing
+npm init -y
+npm install dodopayments express dotenv
+npm install -D @types/node @types/express typescript ts-node
+```
+
+एक `tsconfig.json` फ़ाइल बनाएं:
+
+```json
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "commonjs",
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true
+  }
+}
+```
+
+</Step>
+
+<Step title="अपनी पर्यावरण फ़ाइल बनाएं">
+एक `.env` फ़ाइल बनाएं जिसमें आपका Dodo Payments API कुंजी हो:
+
+```bash
+DODO_PAYMENTS_API_KEY=your_actual_dodo_api_key_here
+```
+
+<Warning>
+कभी भी अपने API कुंजी को संस्करण नियंत्रण में कमिट न करें। `.env` को अपने `.gitignore` फ़ाइल में जोड़ें।
+</Warning>
+</Step>
+
+<Step title="चेकआउट सत्र निर्माण को लागू करें">
+एक `src/server.ts` फ़ाइल बनाएं जिसमें निम्नलिखित कोड हो:
+
+<CodeGroup>
+
+```typescript server.ts expandable
+// Add this new endpoint for dynamic seat quantities
+import 'dotenv/config';
+import DodoPayments from 'dodopayments';
+import express, { Request, Response } from 'express';
+
+const app = express();
+
+// Initialize the Dodo Payments client
+const client = new DodoPayments({
+  bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'test_mode'
+});
+
+async function createCheckoutSession(seatCount: number) {
+  try {
+    const session = await client.checkoutSessions.create({
+      // Products to sell - use IDs from your Dodo Payments dashboard
+      product_cart: [
+        {
+          product_id: 'pdt_7Rl9OWT2Mz4wwUTKz74iZ', // Replace with your actual product ID
+          quantity: 1,
+          addons: [
+            {
+              addon_id: 'adn_eKQbNakKrivDpaxmI8wKI', // Replace with your actual addon ID
+              quantity: seatCount
+            }
+          ]
+        }
+      ],
+      
+      // Pre-fill customer information to reduce friction
+      customer: {
+        email: 'steve@example.com',
+        name: 'Steve Irwin',
+      },
+      // Where to redirect after successful payment
+      return_url: 'https://example.com/checkout/success',
+    });
+
+    // Redirect your customer to this URL to complete payment
+    console.log('Checkout URL:', session.checkout_url);
+    console.log('Session ID:', session.session_id);
+    
+    return session;
+    
+  } catch (error) {
+    console.error('Failed to create checkout session:', error);
+    throw error;
+  }
+}
+
+// Example usage in an Express.js route
+app.post('/create-checkout/:seatCount', async (req: Request, res: Response) => {
+  try {
+    const seatCount = parseInt(req.params.seatCount);
+    const session = await createCheckoutSession(seatCount);
+    res.json({ checkout_url: session.checkout_url });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to create checkout session' });
+  }
+});
+
+// Add this line after your other middleware
+app.use(express.static('public'));
+
+// Add this route to serve the demo page
+app.get('/', (req, res) => {
+  res.sendFile(__dirname + '/../public/index.html');
+});
+
+app.listen(3000, () => {
+  console.log('Server is running on port 3000');
+});
+```
+
+</CodeGroup>
+
+</Step>
+
+<Step title="एक सरल वेब इंटरफ़ेस जोड़ें">
+आसान परीक्षण के लिए एक `public/index.html` फ़ाइल बनाएं:
+
+<CodeGroup>
+
+```html index.html expandable
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Seat-Based Pricing Demo</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; }
+        .form-group { margin: 20px 0; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; }
+        button { background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        .result { margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <h1>Seat-Based Pricing Demo</h1>
+    <p>Generate checkout links with custom seat quantities:</p>
+    
+    <div class="form-group">
+        <label for="seatCount">Number of Additional Seats:</label>
+        <input type="number" id="seatCount" value="3" min="0" max="50">
+    </div>
+    
+    <button onclick="createCheckout()">Generate Checkout Link</button>
+    
+    <div id="result" class="result" style="display: none;">
+        <h3>Checkout Link Generated!</h3>
+        <p><strong>Seat Count:</strong> <span id="seatCountDisplay"></span></p>
+        <p><strong>Total Cost:</strong> $<span id="totalCost"></span>/month</p>
+        <p><strong>Checkout URL:</strong></p>
+        <a id="checkoutUrl" href="#" target="_blank">Click here to checkout</a>
+    </div>
+
+    <script>
+        async function createCheckout() {
+            const seatCount = document.getElementById('seatCount').value;
+            
+            try {
+                const response = await fetch(`/create-checkout/${seatCount}`, {
+                    method: 'POST'
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    document.getElementById('seatCountDisplay').textContent = seatCount;
+                    document.getElementById('totalCost').textContent = data.total_cost;
+                    document.getElementById('checkoutUrl').href = data.checkout_url;
+                    document.getElementById('result').style.display = 'block';
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            } catch (error) {
+                alert('Error creating checkout session');
+            }
+        }
+    </script>
+</body>
+</html>
+```
+
+</CodeGroup>
+
+<Check>
+**वेब इंटरफ़ेस बनाया गया!** आपके पास विभिन्न सीट मात्रा का परीक्षण करने के लिए एक सरल UI है।
+</Check>
+</Step>
+
+<Step title="स्थिर फ़ाइलें सर्व करें">
+इसको अपने `src/server.ts` में जोड़ें ताकि HTML फ़ाइल सर्व की जा सके:
+
+```typescript
+// Add this line after your other middleware
+app.use(express.static('public'));
+
+// Add this route to serve the demo page
+app.get('/', (req, res) => {
+  res.sendFile(__dirname + '/../public/index.html');
+});
+```
+
+<Check>
+**स्थिर फ़ाइलें कॉन्फ़िगर की गई!** अपने डेमो इंटरफ़ेस को देखने के लिए `http://localhost:3000` पर जाएं।
+</Check>
+</Step>
+</Steps>
+
+## चरण 5: अपने कार्यान्वयन का परीक्षण करें
+
+आइए अपने सीट-आधारित मूल्य निर्धारण कार्यान्वयन का परीक्षण करें ताकि यह सुनिश्चित हो सके कि सब कुछ सही ढंग से काम कर रहा है।
+
+<Steps>
+<Step title="अपने सर्वर को प्रारंभ करें">
+1. सुनिश्चित करें कि आपके पास सही API कुंजी के साथ `.env` फ़ाइल है
+2. अपने कोड में उत्पाद और ऐड-ऑन आईडी को अपने Dodo Payments डैशबोर्ड से वास्तविक मानों के साथ अपडेट करें
+3. अपने सर्वर को प्रारंभ करें:
+
+```bash
+npm run dev
+```
+
+<Check>
+आपका सर्वर सफलतापूर्वक प्रारंभ होना चाहिए और "सर्वर http://localhost:3000 पर चल रहा है" दिखाना चाहिए
+</Check>
+</Step>
+
+<Step title="वेब इंटरफ़ेस का परीक्षण करें">
+
+<Frame>
+  <img src="/images/cookbooks/seat-based/seat-based-billing-ui.png" alt="बेस सदस्यता उत्पाद बनाना" />
+</Frame>
+
+1. अपने ब्राउज़र को खोलें और `http://localhost:3000` पर जाएं
+2. आपको सीट-आधारित मूल्य निर्धारण डेमो इंटरफ़ेस दिखाई देना चाहिए
+3. विभिन्न सीट मात्रा (0, 3, 10, आदि) का प्रयास करें
+4. प्रत्येक मात्रा के लिए "चेकआउट लिंक उत्पन्न करें" पर क्लिक करें
+5. सत्यापित करें कि चेकआउट URL सही ढंग से उत्पन्न हो रहे हैं
+
+</Step>
+
+<Step title="चेकआउट सत्र का परीक्षण करें">
+1. 3 अतिरिक्त सीटों के साथ एक चेकआउट लिंक उत्पन्न करें
+2. Dodo Payments चेकआउट खोलने के लिए चेकआउट URL पर क्लिक करें
+3. सत्यापित करें कि चेकआउट में दिखाता है:
+   - बेस प्लान: $49/माह
+   - अतिरिक्त सीटें: 3 × 2 डॉलर = $6/माह
+4. परीक्षण खरीदारी पूरी करें
+
+<Check>
+चेकआउट को सही मूल्य निर्धारण विवरण दिखाना चाहिए और आपको खरीदारी पूरी करने की अनुमति देनी चाहिए।
+</Check>
+</Step>
+
+<Step title="वेबहुक के लिए सुनें और अपने DB को अपडेट करें">
+अपने डेटाबेस को सदस्यता और सीट परिवर्तनों के साथ समन्वय में रखने के लिए, आपको Dodo Payments से वेबहुक घटनाओं के लिए सुनने की आवश्यकता है। वेबहुक आपके बैकएंड को सूचित करते हैं जब कोई ग्राहक चेकआउट पूरा करता है, अपनी सदस्यता अपडेट करता है, या सीट गिनती बदलता है।
+
+वेबहुक एंडपॉइंट सेट करने और घटनाओं को संभालने के लिए चरण-दर-चरण निर्देशों के लिए आधिकारिक Dodo Payments वेबहुक गाइड का पालन करें:
+
+<Card title="Dodo Payments वेबहुक दस्तावेज़" icon="bell" href="/developer-resources/webhooks">
+सदस्यता और सीट प्रबंधन के लिए वेबहुक घटनाओं को सुरक्षित रूप से प्राप्त और संसाधित करने के लिए सीखें।
+</Card>
+
+</Step>
+
+</Steps>
+
+## समस्या निवारण
+
+सामान्य समस्याएँ और उनके समाधान:
+
+<AccordionGroup>
+<Accordion title="चेकआउट निर्माण विफल होना">
+**संभावित कारण:**
+- अमान्य उत्पाद आईडी या ऐड-ऑन आईडी
+- API कुंजी में पर्याप्त अनुमतियाँ नहीं हैं
+- ऐड-ऑन सदस्यता के साथ ठीक से जुड़ा नहीं है
+- नेटवर्क कनेक्टिविटी समस्याएँ
+
+**समाधान:**
+1. सुनिश्चित करें कि उत्पाद और ऐड-ऑन आईडी आपके Dodo Payments डैशबोर्ड में मौजूद हैं
+2. जांचें कि ऐड-ऑन सदस्यता से ठीक से जुड़ा हुआ है
+3. सुनिश्चित करें कि API कुंजी में चेकआउट सत्र निर्माण की अनुमतियाँ हैं
+4. एक साधारण GET अनुरोध के साथ API कनेक्टिविटी का परीक्षण करें
+</Accordion>
+
+</AccordionGroup>
+
+## बधाई! आपने सीट-आधारित मूल्य निर्धारण लागू किया है
+
+आपने Dodo Payments के साथ एक सीट-आधारित मूल्य निर्धारण प्रणाली सफलतापूर्वक बनाई है! आपने जो हासिल किया है वह यहाँ है:
+
+<CardGroup cols={2}>
+<Card title="बेस सदस्यता">
+5 शामिल सीटों के साथ $49/माह की सदस्यता उत्पाद बनाई
+</Card>
+
+<Card title="सीट ऐड-ऑन">
+$2/माह प्रति सीट के लिए अतिरिक्त सीटों के लिए ऐड-ऑन कॉन्फ़िगर किया
+</Card>
+
+<Card title="चेकआउट">
+कस्टम सीट मात्रा के साथ चेकआउट सत्र उत्पन्न करने वाला API बनाया
+</Card>
+
+<Card title="वेब इंटरफ़ेस">
+विभिन्न सीट मात्रा का परीक्षण करने के लिए एक सरल वेब इंटरफ़ेस बनाया
+</Card>
+</CardGroup>
+
+<Info>
+यह उदाहरण केवल सीट-आधारित मूल्य निर्धारण का एक न्यूनतम कार्यान्वयन प्रदर्शित करता है। उत्पादन उपयोग के लिए, आपको मजबूत त्रुटि हैंडलिंग, प्रमाणीकरण, डेटा मान्यता, सुरक्षा उपायों को जोड़ना चाहिए, और अपने एप्लिकेशन की आवश्यकताओं के अनुसार लॉजिक को अनुकूलित करना चाहिए।
+</Info>

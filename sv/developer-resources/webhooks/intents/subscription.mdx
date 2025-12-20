@@ -1,0 +1,54 @@
+---
+openapi-schema: SubscriptionResponse
+title: Prenumeration
+description: Payloaden som skickas till din webhook-endpoint när en
+  prenumeration skapas, uppdateras eller ändrar tillstånd.
+icon: repeat
+---
+
+## Prenumerations Webhook Händelser
+
+Följande webhook-händelser är tillgängliga för att spåra förändringar i prenumerationens livscykel:
+
+| Händelse | Beskrivning |
+|-------|-------------|
+| `subscription.active` | Prenumerationen har aktiverats framgångsrikt |
+| `subscription.updated` | Prenumerationsobjektet har uppdaterats (ändring av något fält utlöser denna händelse) |
+| `subscription.on_hold` | Prenumerationen har satts på paus på grund av misslyckad förnyelse |
+| `subscription.renewed` | Prenumerationen har förnyats för nästa faktureringsperiod |
+| `subscription.plan_changed` | Prenumerationsplanen har uppgraderats, nedgraderats eller modifierats |
+| `subscription.cancelled` | Prenumerationen har avbrutits |
+| `subscription.failed` | Skapandet av prenumerationen misslyckades under skapandet av mandatet |
+| `subscription.expired` | Prenumerationen har nått slutet av sin period |
+
+### Använda `subscription.updated` för Realtids-Synkronisering
+
+Webhooken `subscription.updated` utlöses när som helst något prenumerationsfält ändras, vilket gör att du kan hålla din applikationsstatus synkroniserad utan att behöva poll:a:
+
+```javascript
+app.post('/webhooks/dodo', async (req, res) => {
+  const event = req.body;
+  
+  if (event.type === 'subscription.updated') {
+    const subscription = event.data;
+    
+    // Sync subscription changes to your database
+    await syncSubscription(subscription.subscription_id, {
+      status: subscription.status,
+      next_billing_date: subscription.next_billing_date,
+      metadata: subscription.metadata,
+      // ... other fields you want to track
+    });
+    
+    console.log(`Subscription ${subscription.subscription_id} updated`);
+  }
+  
+  res.json({ received: true });
+});
+```
+
+<Tip>
+Prenumerera på `subscription.updated` för att få realtidsnotifikationer om eventuella prenumerationsändringar, vilket eliminerar behovet av att poll:a API:et för uppdateringar.
+</Tip>
+
+## Webhook Payload Schema

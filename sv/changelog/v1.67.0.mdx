@@ -1,0 +1,113 @@
+---
+title: v1.67.0 (17 december 2025)
+description: Blandad kassa för engångs- och prenumerationsprodukter, Enhetlig
+  kundportal, invoice_id i betalningssvar
+icon: arrows-turn-right
+---
+
+## Nya funktioner 🚀
+
+1. **Blandad kassa: Engångs- och prenumerationsprodukter i en och samma kassa**  
+   Kassan stöder nu att kombinera både engångsbetalningsprodukter och prenumerationsprodukter i en och samma kassa, vilket öppnar upp för kraftfulla nya faktureringsanvändningsfall.
+   
+   <Frame>
+   <img src="/images/changelog/mixed-checkout.png" alt="Blandad kassa med engångs- och prenumerationsprodukter" />
+   </Frame>
+   
+   ### Vad detta möjliggör
+   
+   - **Installationsavgifter + prenumerationer**: Ta ut en engångs installationsavgift tillsammans med en återkommande prenumeration i en och samma kassa
+   - **Paket med återkommande komponenter**: Sälj en produkt (engångs) paketerad med pågående tjänståtkomst (prenumeration)
+   - **Kurs + medlemskapskombinationer**: Erbjud ett kursköp med en valfri medlemskapsprenumeration för gemenskap
+   - **Livstids- + tilläggsprenumerationer**: Kombinera livstidsproduktåtkomst med valfria återkommande premiumfunktioner
+   
+   ### Hur det fungerar
+   
+   Lägg helt enkelt till både engångs- och prenumerationsprodukter i din kassa-session:
+   
+
+   ```javascript
+   const session = await client.checkoutSessions.create({
+     product_cart: [
+       // One-time setup fee
+       { product_id: 'prod_setup_fee', quantity: 1 },
+       // Monthly subscription
+       { product_id: 'prod_monthly_plan', quantity: 1 }
+     ],
+     customer: {
+       email: 'customer@example.com',
+       name: 'Jane Doe'
+     },
+     return_url: 'https://yourapp.com/success'
+   });
+   ```
+
+   
+   <Check>
+   Resultat: En enda kassaflöde som behandlar engångsbetalningen och initierar prenumerationen — vilket minskar friktionen och ökar konverteringsgraden.
+   </Check>
+   
+   <Info>
+   När produkt typer blandas, debiteras engångsbetalningen omedelbart medan prenumerationen följer sin konfigurerade faktureringscykel (inklusive eventuell provperiod du har ställt in).
+   </Info>
+   
+   Läs mer: [Kassa-sessioner](/developer-resources/checkout-session)
+
+2. **Enhetlig kundportal**  
+   
+   En ny centraliserad kundportal på [customer.dodopayments.com](https://customer.dodopayments.com) där kunder kan se och hantera alla sina köp och prenumerationer över olika företag på Dodo Payments.
+   
+   <Frame>
+   <img src="/images/changelog/unified-customer-portal.png" alt="Enhetlig kundportal" />
+   </Frame>
+   
+   ### Portalens funktioner
+   
+   - **Översikt över flera företag**: Se alla köp och prenumerationer från vilket företag som helst som använder Dodo Payments på ett ställe
+   - **Centraliserad prenumerationshantering**: Hantera prenumerationer över olika handlare från en enda instrumentpanel
+   - **Enhetlig faktureringshistorik**: Få tillgång till fakturor och betalningshistorik från alla dina köp
+   - **Enkel inloggning**: Logga in en gång med din e-post för att få tillgång till köp från alla Dodo Payments-handlare
+   
+   ### Hur det fungerar
+   
+   Kunder besöker helt enkelt [customer.dodopayments.com](https://customer.dodopayments.com) och anger sin e-postadress. De får en säker inloggningslänk som ger tillgång till alla sina köp över Dodo Payments-ekosystemet.
+   
+   <Tip>
+   Den enhetliga kundportalen kompletterar affärsspecifika kundportaler. Kunder kan fortfarande få tillgång till individuella handlarportaler för en varumärkesupplevelse, eller använda den enhetliga portalen för en sammanställd vy.
+   </Tip>
+   
+   <Note>
+   Den enhetliga portalen använder samma e-postbaserade autentisering som affärsspecifika portaler, vilket säkerställer en konsekvent och säker upplevelse.
+   </Note>
+
+3. **Faktura-ID i betalningssvar**  
+   Betalningssvaret inkluderar nu ett `invoice_id` fält, vilket gör det enklare att stämma av betalningar med fakturor och integrera med bokföringssystem.
+   
+
+   ```json
+   {
+     "payment_id": "pay_2IjeQm4hqU6RA4Z4kwDee",
+     "status": "succeeded",
+     "invoice_id": "inv_2IsUnWGtRKFLxk7xAQeyt",
+     "amount": 9900,
+     "currency": "USD",
+     // ... other fields
+   }
+   ```
+
+   
+   ### Användningsfall
+   
+   - **Bokföringsintegration**: Koppla direkt betalningar till fakturor i din bokföringsprogramvara
+   - **Kundsupport**: Hitta snabbt fakturan kopplad till en betalning när du hanterar supportförfrågningar
+   - **Avstämning**: Förenkla finansiell avstämning genom att matcha betalningar med fakturor programmässigt
+   - **Efterlevnad**: Upprätthålla korrekta register som kopplar betalningar till deras motsvarande skattefakturor
+   
+   <Info>
+   Fältet `invoice_id` använder Indien-specifika faktura-ID:n när de är tillgängliga, vilket säkerställer efterlevnad av lokala faktureringskrav.
+   </Info>
+   
+   Läs mer: [Hämta betalningsdetalj-API](/api-reference/payments/get-payments-1)
+
+4. **Allmänna buggfixar och förbättringar**  
+   Denna version inkluderar prestandaförbättringar, UI-förbättringar och löser mindre buggar för en mer pålitlig och strömlinjeformad upplevelse.

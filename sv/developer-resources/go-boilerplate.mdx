@@ -1,0 +1,362 @@
+---
+sidebarTitle: Go
+title: Go Boilerplate
+description: Kom igång snabbt med vår minimala Go boilerplate för att integrera
+  Dodo Payments i dina Go backend-applikationer
+icon: golang
+tag: NY
+---
+
+<Card title="GitHub Repository" icon="github" href="https://github.com/dodopayments/go-boilerplate">
+  Minimal Go + Dodo Payments boilerplate
+</Card>
+
+## Översikt
+
+Go boilerplate ger en produktionsklar startpunkt för att integrera Dodo Payments med din Go backend. Denna mall inkluderar hantering av checkout-sessioner, verifiering av webhooks, integration av kundportal och följer Go:s bästa praxis för att hjälpa dig att börja ta emot betalningar snabbt.
+
+<Info>
+Denna boilerplate använder Go 1.21+ med rena arkitekturmönster (`cmd`, `internal`, `templates`), HTML-mallar och `dodopayments-go` SDK för sömlös API-integration.
+</Info>
+
+### Funktioner
+
+- **Snabb installation** - Kom igång på mindre än 5 minuter
+- **Betalningsintegration** - Förkonfigurerad checkout-flöde med `dodopayments-go` SDK
+- **Modern UI** - Ren, mörk-temad prissättningssida med HTML-mallar
+- **Webhook-hantering** - Verifiera och bearbeta betalningsevenemang på ett säkert sätt
+- **Kundportal** - Självbetjäningshantering av prenumerationer
+- **Go bästa praxis** - Ren arkitektur med `cmd`, `internal`, och `templates`
+- **Förifylld checkout** - Visar hur man skickar kunddata för att förbättra användarupplevelsen
+
+## Förutsättningar
+
+Innan du börjar, se till att du har:
+
+- **Go 1.21+**
+- **Dodo Payments-konto** (för att få tillgång till API- och Webhook-nycklar från instrumentpanelen)
+
+## Snabbstart
+
+<Steps>
+<Step title="Klona Repositoriet">
+
+```bash
+git clone https://github.com/dodopayments/go-boilerplate.git
+cd go-boilerplate
+```
+
+</Step>
+
+<Step title="Installera beroenden">
+
+```bash
+make install
+```
+
+Eller manuellt:
+
+```bash
+go mod download
+```
+
+</Step>
+
+<Step title="Få API-uppgifter">
+Registrera dig på [Dodo Payments](https://dodopayments.com/) och få dina uppgifter från instrumentpanelen:
+
+- **API-nyckel:** [Instrumentpanel → Utvecklare → API-nycklar](https://app.dodopayments.com/developer/api-keys)
+- **Webhook-nyckel:** [Instrumentpanel → Utvecklare → Webhooks](https://app.dodopayments.com/developer/webhooks)
+
+<Tip>
+Se till att du är i **Testläge** medan du utvecklar!
+</Tip>
+</Step>
+
+<Step title="Konfigurera miljövariabler">
+Skapa en `.env` fil i rotkatalogen:
+
+```bash
+cp .env.example .env
+```
+
+Uppdatera värdena med dina Dodo Payments-uppgifter:
+
+```bash .env
+DODO_PAYMENTS_API_KEY=your_api_key_here
+DODO_PAYMENTS_WEBHOOK_KEY=your_webhook_signing_key_here
+DODO_PAYMENTS_RETURN_URL=http://localhost:8000
+DODO_PAYMENTS_ENVIRONMENT=test_mode
+```
+
+<Warning>
+Kom ihåg att aldrig begå din `.env` fil till versionskontroll. Den är redan inkluderad i `.gitignore`.
+</Warning>
+</Step>
+
+<Step title="Lägg till dina produkter">
+Uppdatera `internal/lib/products.go` med dina faktiska produkt-ID:n från Dodo Payments:
+
+```go
+var Products = []Product{
+    {
+        ProductID:   "pdt_001", // Replace with your product ID
+        Name:        "Basic Plan",
+        Description: "Get access to basic features and support",
+        Price:       9999, // in cents
+        Features: []string{
+            "Access to basic features",
+            "Email support",
+            "1 Team member",
+            "Basic analytics",
+        },
+    },
+    // ... add more products
+}
+```
+
+</Step>
+
+<Step title="Kör utvecklingsservern">
+
+```bash
+make run
+```
+
+Eller manuellt:
+
+```bash
+go run cmd/server/main.go
+```
+
+Öppna [http://localhost:8000](http://localhost:8000) för att se din prissättningssida!
+
+<Check>
+Du bör se en mörk-temad prissättningssida med dina produkter redo att köpas.
+</Check>
+</Step>
+</Steps>
+
+## Projektstruktur
+
+```text
+go-boilerplate/
+├── cmd/
+│   └── server/             # Application entry point
+├── internal/
+│   ├── api/                # API handlers (Checkout, Portal, Webhook)
+│   ├── core/               # Configuration and system core
+│   └── lib/                # Shared logic (Products, Customer utils)
+├── templates/              # HTML templates
+├── Makefile                # Build and run commands
+├── go.mod                  # Go module definition
+├── go.sum                  # Dependency checksums
+├── .env.example            # Environment template
+└── README.md
+```
+
+## API-endpunkter
+
+Boilerplate inkluderar följande förkonfigurerade endpunkter:
+
+| Endpunkt | Metod | Beskrivning |
+|----------|--------|-------------|
+| `/` | GET | Prissättningssida med produktlista |
+| `/api/checkout` | POST | Skapa en ny checkout-session |
+| `/api/webhook` | POST | Hantera Dodo Payments webhooks |
+| `/api/customer-portal` | POST | Generera URL för kundportal |
+
+## Anpassning
+
+### Uppdatera produktinformation
+
+Redigera `internal/lib/products.go` för att modifiera:
+- Produkt-ID:n (från din Dodo-instrumentpanel)
+- Priser
+- Funktioner
+- Beskrivningar
+
+```go
+var Products = []Product{
+    {
+        ProductID:   "pdt_001", // Replace with your product ID
+        Name:        "Basic Plan",
+        Description: "Get access to basic features and support",
+        Price:       9999,
+        Features: []string{
+            "Access to basic features",
+            "Email support",
+            "1 Team member",
+            "Basic analytics",
+        },
+    },
+}
+```
+
+### Förifyll kunddata
+
+I `templates/index.html`, ersätt den hårdkodade kunddatan med dina faktiska användardata:
+
+```javascript
+const customerData = {
+    name: "John Doe",       // Replace with actual logged-in user's name
+    email: "john@example.com"  // Replace with actual logged-in user's email
+};
+```
+
+I en produktionsapp skulle du dynamiskt injicera dessa värden från ditt autentiseringssystem.
+
+## Webhook-händelser
+
+Boilerplate demonstrerar hantering av webhook-händelser i `internal/api/webhook.go`. Stödda händelser inkluderar:
+
+| Händelse | Beskrivning |
+|-------|-------------|
+| `subscription.active` | Utlöses när en prenumeration blir aktiv |
+| `payment.succeeded` | Utlöses när en betalning är framgångsrik |
+
+Lägg till din affärslogik inuti webhook-hanteraren för att:
+- Uppdatera användarbehörigheter i din databas
+- Skicka bekräftelsemail
+- Tillhandahålla åtkomst till digitala produkter
+- Spåra analyser och mätvärden
+
+## Testa webhooks lokalt
+
+För lokal utveckling, använd verktyg som [ngrok](https://ngrok.com/) för att exponera din lokala server:
+
+```bash
+ngrok http 8000
+```
+
+Uppdatera webhook-URL:en i din [Dodo Payments Dashboard](https://app.dodopayments.com/developer/webhooks):
+
+```
+https://your-ngrok-url.ngrok.io/api/webhook
+```
+
+## Distribution
+
+### Bygg för produktion
+
+```bash
+make build
+```
+
+Eller manuellt:
+
+```bash
+go build -o bin/server cmd/server/main.go
+./bin/server
+```
+
+### Distribuera till Vercel
+
+[
+
+![Distribuera med Vercel](https://vercel.com/button)
+
+](https://vercel.com/new/clone?repository-url=https://github.com/dodopayments/go-boilerplate)
+
+### Docker
+
+Skapa en `Dockerfile`:
+
+```dockerfile
+FROM golang:1.21-alpine AS builder
+
+WORKDIR /app
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+RUN go build -o bin/server cmd/server/main.go
+
+FROM alpine:latest
+WORKDIR /app
+COPY --from=builder /app/bin/server .
+COPY --from=builder /app/templates ./templates
+
+EXPOSE 8000
+CMD ["./server"]
+```
+
+Bygg och kör:
+
+```bash
+docker build -t go-dodo .
+docker run -p 8000:8000 --env-file .env go-dodo
+```
+
+### Produktionsöverväganden
+
+<Warning>
+Innan du distribuerar till produktion:
+- Byt `DODO_PAYMENTS_ENVIRONMENT` till `live_mode`
+- Använd produktions-API-nycklar från instrumentpanelen
+- Uppdatera webhook-URL:en till din produktionsdomän
+- Aktivera HTTPS för alla endpunkter
+</Warning>
+
+## Felsökning
+
+<AccordionGroup>
+<Accordion title="Byggfel eller saknade beroenden">
+Se till att Go-moduler är korrekt nedladdade:
+
+```bash
+go mod tidy
+go mod download
+```
+
+</Accordion>
+
+<Accordion title="Checkout-session skapande misslyckas">
+**Vanliga orsaker:**
+- Ogiltigt produkt-ID - verifiera att det finns i din Dodo-instrumentpanel
+- Fel API-nyckel eller miljöinställning i `.env`
+- Kontrollera serverloggarna för detaljerade felmeddelanden
+</Accordion>
+
+<Accordion title="Webhooks tar inte emot händelser">
+För lokal testning, använd [ngrok](https://ngrok.com) för att exponera din server:
+
+```bash
+ngrok http 8000
+```
+
+Uppdatera webhook-URL:en i din [Dodo-instrumentpanel](https://app.dodopayments.com/developer/webhooks) till ngrok-URL:en. Se till att uppdatera din `.env` fil med den korrekta webhook-verifieringsnyckeln.
+</Accordion>
+
+<Accordion title="Mallar laddas inte">
+Se till att du kör servern från projektets rotkatalog, eller att mallarnas sökväg är korrekt konfigurerad i din kod.
+</Accordion>
+</AccordionGroup>
+
+## Lär dig mer
+
+<CardGroup cols={2}>
+<Card title="Go SDK" icon="golang" href="/developer-resources/sdks/go">
+  Komplett Go SDK-dokumentation
+</Card>
+
+<Card title="Webhooks Dokumentation" icon="webhook" href="/developer-resources/webhooks">
+  Lär dig om alla webhook-händelser och bästa praxis
+</Card>
+
+<Card title="Checkout-sessioner" icon="credit-card" href="/developer-resources/checkout-session">
+  Djupdykning i konfiguration av checkout-sessioner
+</Card>
+
+<Card title="API-referens" icon="book" href="/api-reference/introduction">
+  Komplett Dodo Payments API-dokumentation
+</Card>
+</CardGroup>
+
+## Support
+
+Behöver du hjälp med boilerplate?
+
+- Gå med i vår [Discord-community](https://discord.gg/bYqAp4ayYh) för frågor och diskussioner
+- Kolla in [GitHub-repositoriet](https://github.com/dodopayments/go-boilerplate) för problem och uppdateringar
+- Kontakta vårt [supportteam](mailto:support@dodopayments.com) för hjälp

@@ -1,0 +1,163 @@
+---
+title: समय सीमा ब्लूप्रिंट
+description: कंप्यूट, सर्वरलेस फ़ंक्शंस, कंटेनरों और रनटाइम बिलिंग के लिए बीते
+  समय के आधार पर संसाधन खपत को ट्रैक करें।
+icon: घड़ी
+---
+
+## उपयोग के मामले
+
+समय सीमा ब्लूप्रिंट द्वारा समर्थित सामान्य परिदृश्यों का अन्वेषण करें:
+
+<CardGroup cols={2}>
+<Card title="सर्वरलेस फ़ंक्शंस" icon="function">
+फ़ंक्शन निष्पादन समय और मेमोरी उपयोग के आधार पर बिल करें।
+</Card>
+<Card title="कंटेनर रनटाइम" icon="container-storage">
+उपयोग-आधारित बिलिंग के लिए कंटेनर चलने का समय ट्रैक करें।
+</Card>
+<Card title="कंप्यूट इंस्टेंस" icon="server">
+VM रनटाइम की निगरानी करें और मिनट या घंटे के हिसाब से चार्ज करें।
+</Card>
+<Card title="बैकग्राउंड जॉब्स" icon="briefcase">
+डेटा निर्यात, रिपोर्ट और बैच जॉब्स के लिए प्रसंस्करण समय ट्रैक करें।
+</Card>
+</CardGroup>
+
+<Info>
+कंप्यूट समय, फ़ंक्शन निष्पादन अवधि, कंटेनर रनटाइम, या किसी भी समय-आधारित उपयोग के आधार पर बिलिंग के लिए बिल्कुल सही।
+</Info>
+
+## त्वरित प्रारंभ
+
+समय अवधि के द्वारा संसाधन उपयोग को ट्रैक करें:
+
+<Steps>
+<Step title="SDK स्थापित करें">
+
+```bash
+npm install @dodopayments/ingestion-blueprints
+```
+
+</Step>
+
+<Step title="अपने API कुंजी प्राप्त करें">
+- **Dodo Payments API कुंजी**: इसे [Dodo Payments Dashboard](https://app.dodopayments.com/developer/api-keys) से प्राप्त करें
+</Step>
+
+<Step title="एक मीटर बनाएं">
+अपने [Dodo Payments Dashboard](https://app.dodopayments.com/) में एक मीटर बनाएं:
+- **इवेंट नाम**: `time_range_usage` (या आपका पसंदीदा नाम)
+- **संघटन प्रकार**: `sum` कुल अवधि को ट्रैक करने के लिए
+- **ओवर प्रॉपर्टी**: `durationSeconds`, `durationMinutes`, या `durationMs`
+</Step>
+
+<Step title="समय उपयोग ट्रैक करें">
+<CodeGroup>
+
+```javascript Serverless Functions
+import { Ingestion, trackTimeRange } from '@dodopayments/ingestion-blueprints';
+
+const ingestion = new Ingestion({
+  apiKey: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'test_mode',
+  eventName: 'function_execution'
+});
+
+// Track function execution time
+const startTime = Date.now();
+
+// Execute your function (example: image processing)
+const result = await yourImageProcessingLogic();
+
+const durationMs = Date.now() - startTime;
+
+await trackTimeRange(ingestion, {
+  customerId: 'customer_123',
+  durationMs: durationMs
+});
+```
+
+```javascript Container Runtime
+import { Ingestion, trackTimeRange } from '@dodopayments/ingestion-blueprints';
+
+const ingestion = new Ingestion({
+  apiKey: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'test_mode',
+  eventName: 'container_runtime'
+});
+
+// Track container runtime in seconds
+await trackTimeRange(ingestion, {
+  customerId: 'customer_456',
+  durationSeconds: 120
+});
+```
+
+```javascript VM Instance Runtime
+import { Ingestion, trackTimeRange } from '@dodopayments/ingestion-blueprints';
+
+const ingestion = new Ingestion({
+  apiKey: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'test_mode',
+  eventName: 'vm_runtime'
+});
+
+// Track VM runtime in minutes
+await trackTimeRange(ingestion, {
+  customerId: 'customer_789',
+  durationMinutes: 60
+});
+```
+
+</CodeGroup>
+</Step>
+</Steps>
+
+## कॉन्फ़िगरेशन
+
+### इनजेशन कॉन्फ़िगरेशन
+
+<ParamField path="apiKey" type="string" required>
+आपकी Dodo Payments API कुंजी डैशबोर्ड से।
+</ParamField>
+
+<ParamField path="environment" type="string" required>
+पर्यावरण मोड: `test_mode` या `live_mode`।
+</ParamField>
+
+<ParamField path="eventName" type="string" required>
+इवेंट नाम जो आपके मीटर कॉन्फ़िगरेशन से मेल खाता है।
+</ParamField>
+
+### समय सीमा विकल्प ट्रैक करें
+
+<ParamField path="customerId" type="string" required>
+बिलिंग एट्रिब्यूशन के लिए ग्राहक आईडी।
+</ParamField>
+
+<ParamField path="durationMs" type="number">
+मिलीसेकंड में अवधि। उप-सेकंड सटीकता के लिए उपयोग करें।
+</ParamField>
+
+<ParamField path="durationSeconds" type="number">
+सेकंड में अवधि। फ़ंक्शन निष्पादन और छोटे कार्यों के लिए सबसे सामान्य।
+</ParamField>
+
+<ParamField path="durationMinutes" type="number">
+मिनट में अवधि। लंबे समय तक चलने वाले संसाधनों जैसे VM के लिए उपयोगी।
+</ParamField>
+
+<ParamField path="metadata" type="object">
+संसाधन के बारे में वैकल्पिक मेटाडेटा जैसे CPU, मेमोरी, क्षेत्र आदि।
+</ParamField>
+
+## सर्वोत्तम प्रथाएँ
+
+<Tip>
+**सही इकाई चुनें**: छोटे संचालन के लिए मिलीसेकंड, फ़ंक्शंस के लिए सेकंड, और लंबे समय तक चलने वाले संसाधनों के लिए मिनट का उपयोग करें।
+</Tip>
+
+<Warning>
+**सटीक समय**: सटीक समय ट्रैकिंग के लिए `Date.now()` या `performance.now()` का उपयोग करें, विशेष रूप से सर्वरलेस फ़ंक्शंस के लिए।
+</Warning>

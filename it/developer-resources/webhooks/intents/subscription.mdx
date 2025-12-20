@@ -1,0 +1,54 @@
+---
+openapi-schema: SubscriptionResponse
+title: Abbonamento
+description: Il payload inviato al tuo endpoint webhook quando un abbonamento
+  viene creato, aggiornato o cambia stato.
+icon: repeat
+---
+
+## Eventi Webhook di Abbonamento
+
+I seguenti eventi webhook sono disponibili per il monitoraggio delle modifiche al ciclo di vita dell'abbonamento:
+
+| Evento | Descrizione |
+|-------|-------------|
+| `subscription.active` | L'abbonamento è stato attivato con successo |
+| `subscription.updated` | L'oggetto abbonamento è stato aggiornato (qualsiasi modifica di campo attiva questo evento) |
+| `subscription.on_hold` | L'abbonamento è stato messo in attesa a causa di un rinnovo non riuscito |
+| `subscription.renewed` | L'abbonamento è stato rinnovato per il prossimo periodo di fatturazione |
+| `subscription.plan_changed` | Il piano di abbonamento è stato aggiornato, declassato o modificato |
+| `subscription.cancelled` | L'abbonamento è stato annullato |
+| `subscription.failed` | La creazione dell'abbonamento è fallita durante la creazione del mandato |
+| `subscription.expired` | L'abbonamento ha raggiunto la fine del suo termine |
+
+### Utilizzo di `subscription.updated` per la sincronizzazione in tempo reale
+
+Il webhook `subscription.updated` si attiva ogni volta che cambia un campo dell'abbonamento, consentendoti di mantenere lo stato della tua applicazione sincronizzato senza polling:
+
+```javascript
+app.post('/webhooks/dodo', async (req, res) => {
+  const event = req.body;
+  
+  if (event.type === 'subscription.updated') {
+    const subscription = event.data;
+    
+    // Sync subscription changes to your database
+    await syncSubscription(subscription.subscription_id, {
+      status: subscription.status,
+      next_billing_date: subscription.next_billing_date,
+      metadata: subscription.metadata,
+      // ... other fields you want to track
+    });
+    
+    console.log(`Subscription ${subscription.subscription_id} updated`);
+  }
+  
+  res.json({ received: true });
+});
+```
+
+<Tip>
+Iscriviti a `subscription.updated` per ricevere notifiche in tempo reale su qualsiasi modifica dell'abbonamento, eliminando la necessità di interrogare l'API per aggiornamenti.
+</Tip>
+
+## Schema del Payload Webhook

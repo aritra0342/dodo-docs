@@ -1,0 +1,161 @@
+---
+title: Segment
+description: Skicka Dodo Payments-händelser till Segment för analys och
+  integration av kunddataplattform.
+icon: chart-line
+---
+
+## Introduktion
+
+Spåra betalningshändelser i Segment för att driva din analys, marknadsföringsautomation och kunddataplattform. Skicka betalnings-, prenumerations- och kundlivscykelhändelser till 300+ downstream-verktyg automatiskt.
+
+<Info>
+Denna integration kräver en Segment Write Key från din Segment-arbetsyta.
+</Info>
+
+## Komma igång
+
+<Steps>
+<Step title="Öppna Webhook-sektionen">
+  I din Dodo Payments-instrumentpanel, navigera till <b>Webhooks → + Lägg till slutpunkt</b> och expandera integrationsrullgardinsmenyn.
+  <Frame>
+    <img src="/images/integrations/segment.png" alt="Lägg till slutpunkt och integrationsrullgardinsmeny" />
+  </Frame>
+</Step>
+
+<Step title="Välj Segment">
+  Välj <b>Segment</b> integrationskortet.
+</Step>
+
+<Step title="Ange Write Key">
+  Ange din Segment Write Key i konfigurationen.
+</Step>
+
+<Step title="Konfigurera transformation">
+  Redigera transformationskoden för att formatera händelser för Segments Track API.
+</Step>
+
+<Step title="Testa & Skapa">
+  Testa med exempelpayloads och klicka på <b>Skapa</b> för att aktivera synkroniseringen.
+</Step>
+
+<Step title="Klart!">
+  🎉 Betalningshändelser kommer nu att spåras i Segment och skickas till dina anslutna verktyg.
+</Step>
+</Steps>
+
+## Exempel på transformationskod
+
+### Spåra betalningshändelser
+
+```javascript track_payments.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.url = "https://api.segment.io/v1/track";
+    webhook.payload = {
+      userId: p.customer.customer_id,
+      event: "Payment Completed",
+      properties: {
+        amount: (p.total_amount / 100).toFixed(2),
+        currency: p.currency || "USD",
+        payment_method: p.payment_method || "unknown",
+        payment_id: p.payment_id,
+        customer_email: p.customer.email,
+        customer_name: p.customer.name
+      },
+      timestamp: webhook.payload.timestamp
+    };
+  }
+  return webhook;
+}
+```
+
+### Spåra prenumerationslivscykel
+
+```javascript track_subscriptions.js icon="js" expandable
+function handler(webhook) {
+  const s = webhook.payload.data;
+  switch (webhook.eventType) {
+    case "subscription.active":
+      webhook.url = "https://api.segment.io/v1/track";
+      webhook.payload = {
+        userId: s.customer.customer_id,
+        event: "Subscription Started",
+        properties: {
+          subscription_id: s.subscription_id,
+          product_id: s.product_id,
+          amount: (s.recurring_pre_tax_amount / 100).toFixed(2),
+          frequency: s.payment_frequency_interval,
+          next_billing: s.next_billing_date,
+          customer_email: s.customer.email
+        },
+        timestamp: webhook.payload.timestamp
+      };
+      break;
+    case "subscription.cancelled":
+      webhook.url = "https://api.segment.io/v1/track";
+      webhook.payload = {
+        userId: s.customer.customer_id,
+        event: "Subscription Cancelled",
+        properties: {
+          subscription_id: s.subscription_id,
+          product_id: s.product_id,
+          cancelled_at: s.cancelled_at,
+          cancel_at_next_billing: s.cancel_at_next_billing_date,
+          customer_email: s.customer.email
+        },
+        timestamp: webhook.payload.timestamp
+      };
+      break;
+  }
+  return webhook;
+}
+```
+
+### Identifiera kundegenskaper
+
+```javascript identify_customer.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.url = "https://api.segment.io/v1/identify";
+    webhook.payload = {
+      userId: p.customer.customer_id,
+      traits: {
+        email: p.customer.email,
+        name: p.customer.name,
+        total_spent: (p.total_amount / 100).toFixed(2),
+        payment_method: p.payment_method || "unknown",
+        last_payment_date: webhook.payload.timestamp,
+        customer_since: webhook.payload.timestamp
+      }
+    };
+  }
+  return webhook;
+}
+```
+
+## Tips
+
+- Använd konsekventa händelsenamn över din integration
+- Inkludera relevanta egenskaper för analys och segmentering
+- Ställ in korrekta tidsstämplar för noggrann händelsespårning
+- Använd kund-ID:n som userId för korrekt användaridentifiering
+
+## Felsökning
+
+<AccordionGroup>
+<Accordion title="Händelser visas inte i Segment">
+- Verifiera att Write Key är korrekt och aktiv
+- Kontrollera att händelsenamn följer Segments namngivningskonventioner
+- Se till att userId är korrekt inställt för användaridentifiering
+- Granska Segment API:s hastighetsbegränsningar
+</Accordion>
+
+<Accordion title="Transformationsfel">
+- Validera att JSON-strukturen matchar Segment API-formatet
+- Kontrollera att alla obligatoriska fält är närvarande
+- Se till att händelsenamn är strängar, inte objekt
+</Accordion>
+</AccordionGroup>

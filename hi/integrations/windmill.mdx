@@ -1,0 +1,189 @@
+---
+title: Windmill
+description: Dodo Payments घटनाओं के आधार पर कस्टम ऑटोमेशन के लिए Windmill
+  वर्कफ़्लो और स्क्रिप्ट को ट्रिगर करें।
+icon: wind
+---
+
+## परिचय
+
+भुगतान घटनाओं के होने पर Windmill में कस्टम वर्कफ़्लो और स्क्रिप्ट निष्पादित करें। डेटाबेस संचालन करें, सूचनाएँ भेजें, डेटा संसाधित करें, और Windmill के शक्तिशाली वर्कफ़्लो इंजन के साथ जटिल व्यावसायिक तर्कों को स्वचालित करें।
+
+<Info>
+इस एकीकरण के लिए आपके वर्कफ़्लो कॉन्फ़िगरेशन से आपका Windmill वेबहुक URL आवश्यक है।
+</Info>
+
+## प्रारंभ करना
+
+<Steps>
+<Step title="Webhook अनुभाग खोलें">
+  अपने Dodo Payments डैशबोर्ड में, <b>Webhooks → + Add Endpoint</b> पर जाएँ और एकीकरण ड्रॉपडाउन का विस्तार करें।
+  <Frame>
+    <img src="/images/integrations/windmill.png" alt="एंडपॉइंट और एकीकरण ड्रॉपडाउन जोड़ें" />
+  </Frame>
+</Step>
+
+<Step title="Windmill चुनें">
+  <b>Windmill</b> एकीकरण कार्ड चुनें।
+</Step>
+
+<Step title="Windmill वर्कफ़्लो बनाएँ">
+  Windmill में, एक नया वर्कफ़्लो बनाएँ और ट्रिगर कॉन्फ़िगरेशन से वेबहुक URL कॉपी करें।
+</Step>
+
+<Step title="वेबहुक URL चिपकाएँ">
+  एंडपॉइंट कॉन्फ़िगरेशन में Windmill वेबहुक URL चिपकाएँ।
+</Step>
+
+<Step title="रूपांतरण कॉन्फ़िगर करें">
+  अपने Windmill वर्कफ़्लो के लिए घटनाओं को स्वरूपित करने के लिए रूपांतरण कोड संपादित करें।
+</Step>
+
+<Step title="परीक्षण और बनाएँ">
+  नमूना पेलोड के साथ परीक्षण करें और एकीकरण सक्रिय करने के लिए <b>Create</b> पर क्लिक करें।
+</Step>
+
+<Step title="हो गया!">
+  🎉 भुगतान घटनाएँ अब स्वचालित रूप से आपके Windmill वर्कफ़्लो को ट्रिगर करेंगी।
+</Step>
+</Steps>
+
+## रूपांतरण कोड उदाहरण
+
+### बुनियादी वर्कफ़्लो पेलोड
+
+```javascript basic_workflow.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.payload = {
+      event_type: webhook.eventType,
+      payment_id: p.payment_id,
+      amount: (p.total_amount / 100).toFixed(2),
+      currency: p.currency || "USD",
+      customer_email: p.customer.email,
+      customer_name: p.customer.name,
+      payment_method: p.payment_method || "unknown",
+      timestamp: webhook.payload.timestamp,
+      metadata: {
+        business_id: p.business_id,
+        product_id: p.product_id
+      }
+    };
+  }
+  return webhook;
+}
+```
+
+### सदस्यता वर्कफ़्लो हैंडलर
+
+```javascript subscription_workflow.js icon="js" expandable
+function handler(webhook) {
+  const s = webhook.payload.data;
+  switch (webhook.eventType) {
+    case "subscription.active":
+      webhook.payload = {
+        event_type: "subscription_started",
+        subscription_id: s.subscription_id,
+        customer_email: s.customer.email,
+        customer_name: s.customer.name,
+        product_id: s.product_id,
+        amount: (s.recurring_pre_tax_amount / 100).toFixed(2),
+        frequency: s.payment_frequency_interval,
+        next_billing: s.next_billing_date,
+        customer_id: s.customer.customer_id,
+        timestamp: webhook.payload.timestamp
+      };
+      break;
+    case "subscription.cancelled":
+      webhook.payload = {
+        event_type: "subscription_cancelled",
+        subscription_id: s.subscription_id,
+        customer_email: s.customer.email,
+        cancelled_at: s.cancelled_at,
+        cancel_at_next_billing: s.cancel_at_next_billing_date,
+        customer_id: s.customer.customer_id,
+        timestamp: webhook.payload.timestamp
+      };
+      break;
+  }
+  return webhook;
+}
+```
+
+### विवाद वर्कफ़्लो हैंडलर
+
+```javascript dispute_workflow.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType.startsWith("dispute.")) {
+    const d = webhook.payload.data;
+    webhook.payload = {
+      event_type: webhook.eventType,
+      dispute_id: d.dispute_id,
+      payment_id: d.payment_id,
+      amount: (d.amount / 100).toFixed(2),
+      status: d.dispute_status,
+      stage: d.dispute_stage,
+      remarks: d.remarks || "",
+      urgent: webhook.eventType === "dispute.opened",
+      business_id: d.business_id,
+      timestamp: webhook.payload.timestamp
+    };
+  }
+  return webhook;
+}
+```
+
+## सामान्य Windmill उपयोग के मामले
+
+<AccordionGroup>
+<Accordion title="डेटाबेस संचालन">
+- PostgreSQL/MySQL में ग्राहक रिकॉर्ड अपडेट करें
+- डेटा वेयरहाउस में भुगतान घटनाओं को लॉग करें
+- बाहरी सिस्टम के लिए डेटा समन्वयित करें
+- इन्वेंटरी स्तर अपडेट करें
+- विश्लेषणात्मक मैट्रिक्स ट्रैक करें
+</Accordion>
+
+<Accordion title="व्यावसायिक तर्क">
+- राजस्व मैट्रिक्स की गणना करें
+- रिफंड और समायोजन संसाधित करें
+- सदस्यता जीवनचक्र को संभालें
+- रिपोर्ट और निर्यात उत्पन्न करें
+- भुगतान डेटा मान्य करें
+</Accordion>
+
+<Accordion title="बाहरी एकीकरण">
+- विश्लेषणात्मक प्लेटफार्मों को डेटा भेजें
+- CRM सिस्टम अपडेट करें
+- ईमेल अभियानों को ट्रिगर करें
+- कैलेंडर घटनाएँ बनाएं
+- SMS सूचनाएँ भेजें
+</Accordion>
+</AccordionGroup>
+
+## सुझाव
+
+- वर्कफ़्लो प्रसंस्करण के लिए पेलोड डेटा को संरचना करें
+- व्यावसायिक तर्क के लिए सभी प्रासंगिक मेटाडेटा शामिल करें
+- घटनाओं के बीच लगातार फ़ील्ड नामकरण का उपयोग करें
+- वर्कफ़्लो समय के लिए टाइमस्टैम्प शामिल करें
+- Windmill की अंतर्निहित त्रुटि हैंडलिंग का लाभ उठाएँ
+
+## समस्या निवारण
+
+<AccordionGroup>
+<Accordion title="वर्कफ़्लो ट्रिगर नहीं हो रहे हैं">
+- सुनिश्चित करें कि वेबहुक URL सही और सक्रिय है
+- जांचें कि Windmill वर्कफ़्लो प्रकाशित और सक्रिय है
+- सुनिश्चित करें कि पेलोड संरचना वर्कफ़्लो की अपेक्षाओं से मेल खाती है
+- त्रुटियों के लिए Windmill निष्पादन लॉग की समीक्षा करें
+</Accordion>
+
+<Accordion title="डेटा प्रसंस्करण समस्याएँ">
+- वर्कफ़्लो इनपुट पैरामीटर मैपिंग की जांच करें
+- सुनिश्चित करें कि डेटा प्रकार अपेक्षित प्रारूपों से मेल खाते हैं
+- नमूना डेटा के साथ वर्कफ़्लो का परीक्षण करें
+- Windmill स्क्रिप्ट निष्पादन लॉग की समीक्षा करें
+</Accordion>
+</AccordionGroup>

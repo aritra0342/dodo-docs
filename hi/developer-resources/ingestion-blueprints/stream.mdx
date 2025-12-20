@@ -1,0 +1,119 @@
+---
+title: स्ट्रीम ब्लूप्रिंट
+description: वीडियो, ऑडियो, लाइव स्ट्रीम और रीयल-टाइम डेटा ट्रांसफर बिलिंग के
+  लिए स्ट्रीमिंग डेटा खपत को ट्रैक करें।
+icon: tower-broadcast
+---
+
+## उपयोग के मामले
+
+स्ट्रीम ब्लूप्रिंट द्वारा समर्थित सामान्य परिदृश्यों का अन्वेषण करें:
+
+<CardGroup cols={2}>
+<Card title="वीडियो प्लेटफार्म" icon="video">
+वीडियो बैंडविड्थ खपत और स्ट्रीमिंग गुणवत्ता के आधार पर ग्राहकों को बिल करें।
+</Card>
+<Card title="संगीत स्ट्रीमिंग" icon="music">
+सदस्यता स्तरों के लिए प्रति उपयोगकर्ता ऑडियो स्ट्रीमिंग उपयोग को ट्रैक करें।
+</Card>
+<Card title="लाइव इवेंट" icon="signal-stream">
+लाइव स्ट्रीम खपत की निगरानी करें और बैंडविड्थ उपयोग के लिए चार्ज करें।
+</Card>
+<Card title="रीयल-टाइम डेटा" icon="wave-pulse">
+IoT और टेलीमेट्री अनुप्रयोगों के लिए रीयल-टाइम डेटा ट्रांसफर को ट्रैक करें।
+</Card>
+</CardGroup>
+
+<Info>
+वीडियो/ऑडियो स्ट्रीमिंग प्लेटफार्मों, लाइव स्ट्रीमिंग सेवाओं और रीयल-टाइम डेटा अनुप्रयोगों के लिए बिल्कुल सही।
+</Info>
+
+## त्वरित प्रारंभ
+
+अपने ग्राहकों द्वारा खपत किए गए स्ट्रीमिंग बाइट्स को ट्रैक करें:
+
+<Steps>
+<Step title="SDK स्थापित करें">
+
+```bash
+npm install @dodopayments/ingestion-blueprints
+```
+
+</Step>
+
+<Step title="अपने API कुंजी प्राप्त करें">
+- **Dodo Payments API कुंजी**: इसे [Dodo Payments Dashboard](https://app.dodopayments.com/developer/api-keys) से प्राप्त करें
+</Step>
+
+<Step title="एक मीटर बनाएं">
+अपने [Dodo Payments Dashboard](https://app.dodopayments.com/) में एक मीटर बनाएं:
+- **इवेंट नाम**: `stream_consumption` (या आपका पसंदीदा नाम)
+- **संघटन प्रकार**: `sum` कुल स्ट्रीम किए गए बाइट्स को ट्रैक करने के लिए
+- **ओवर प्रॉपर्टी**: `bytes` बैंडविड्थ उपयोग के आधार पर बिल करने के लिए
+</Step>
+
+<Step title="स्ट्रीम उपयोग ट्रैक करें">
+<CodeGroup>
+
+```javascript Video Streaming
+import { Ingestion, trackStreamBytes } from '@dodopayments/ingestion-blueprints';
+
+const ingestion = new Ingestion({
+  apiKey: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'test_mode',
+  eventName: 'stream_consumption'
+});
+
+// Track video stream consumption
+await trackStreamBytes(ingestion, {
+  customerId: 'customer_123',
+  bytes: 10485760, // 10MB
+  metadata: {
+    stream_type: 'video',
+  }
+});
+```
+
+</CodeGroup>
+</Step>
+</Steps>
+
+## कॉन्फ़िगरेशन
+
+### इनजेशन कॉन्फ़िगरेशन
+
+<ParamField path="apiKey" type="string" required>
+आपकी Dodo Payments API कुंजी जो डैशबोर्ड से है।
+</ParamField>
+
+<ParamField path="environment" type="string" required>
+पर्यावरण मोड: `test_mode` या `live_mode`।
+</ParamField>
+
+<ParamField path="eventName" type="string" required>
+इवेंट नाम जो आपके मीटर कॉन्फ़िगरेशन से मेल खाता है।
+</ParamField>
+
+### स्ट्रीम बाइट्स विकल्प ट्रैक करें
+
+<ParamField path="customerId" type="string" required>
+बिलिंग एट्रिब्यूशन के लिए ग्राहक आईडी।
+</ParamField>
+
+<ParamField path="bytes" type="number">
+स्ट्रीम में खपत किए गए बाइट्स की संख्या। बैंडविड्थ-आधारित बिलिंग के लिए आवश्यक।
+</ParamField>
+
+<ParamField path="metadata" type="object">
+स्ट्रीम के बारे में वैकल्पिक मेटाडेटा जैसे स्ट्रीम प्रकार, गुणवत्ता, सत्र आईडी, आदि।
+</ParamField>
+
+## सर्वोत्तम प्रथाएँ
+
+<Tip>
+**चंक द्वारा ट्रैक करें**: लंबे स्ट्रीम के लिए, पूरे स्ट्रीम के पूरा होने की प्रतीक्षा करने के बजाय खपत को चंक में ट्रैक करें।
+</Tip>
+
+<Warning>
+**सटीक बाइट गिनती**: सुनिश्चित करें कि बाइट गिनती में सभी ओवरहेड (हेडर, प्रोटोकॉल ओवरहेड) शामिल हैं यदि कुल बैंडविड्थ के लिए बिलिंग कर रहे हैं।
+</Warning>

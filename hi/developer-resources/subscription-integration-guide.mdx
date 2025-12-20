@@ -1,0 +1,388 @@
+---
+title: सदस्यता एकीकरण गाइड
+description: यह गाइड आपको अपने वेबसाइट में डोडो पेमेंट्स सदस्यता उत्पाद को
+  एकीकृत करने में मदद करेगी।
+icon: credit-card
+---
+
+## पूर्वापेक्षाएँ  
+
+डोडो पेमेंट्स API को एकीकृत करने के लिए, आपको आवश्यकता होगी:  
+- एक डोडो पेमेंट्स व्यापारी खाता  
+- डैशबोर्ड से API क्रेडेंशियल्स (API कुंजी और वेबहुक गुप्त कुंजी)  
+
+पूर्वापेक्षाओं पर अधिक विस्तृत गाइड के लिए, इस [अनुभाग](/developer-resources/integration-guide#dashboard-setup) की जांच करें।  
+
+## API एकीकरण  
+
+### चेकआउट सत्र  
+
+सुरक्षित, होस्टेड चेकआउट के साथ सदस्यता उत्पाद बेचने के लिए चेकआउट सत्र का उपयोग करें। अपने सदस्यता उत्पाद को `product_cart` में पास करें और ग्राहकों को लौटाए गए `checkout_url` पर रीडायरेक्ट करें।
+
+<Tip>
+**मिश्रित चेकआउट**: आप एक ही चेकआउट सत्र में सदस्यता उत्पादों को एक बार के उत्पादों के साथ मिला सकते हैं। यह सेटअप शुल्क के साथ सदस्यता, हार्डवेयर बंडल के साथ SaaS, और अधिक जैसे उपयोग के मामलों को सक्षम बनाता है। उदाहरणों के लिए [चेकआउट सत्र गाइड](/developer-resources/checkout-session) देखें।
+</Tip>
+
+<Tabs>
+<Tab title="Node.js SDK">
+
+```javascript
+import DodoPayments from 'dodopayments';
+
+const client = new DodoPayments({
+  bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'test_mode', // defaults to 'live_mode'
+});
+
+async function main() {
+  const session = await client.checkoutSessions.create({
+    product_cart: [
+      { product_id: 'prod_subscription_monthly', quantity: 1 }
+    ],
+    // Optional: configure trials for subscription products
+    subscription_data: { trial_period_days: 14 },
+    customer: {
+      email: 'subscriber@example.com',
+      name: 'Jane Doe',
+    },
+    return_url: 'https://example.com/success',
+  });
+
+  console.log(session.checkout_url);
+}
+
+main();
+```
+
+</Tab>
+
+<Tab title="Python SDK">
+
+```python
+import os
+from dodopayments import DodoPayments
+
+client = DodoPayments(
+    bearer_token=os.environ.get("DODO_PAYMENTS_API_KEY"),
+    environment="test_mode",  # defaults to "live_mode"
+)
+
+session = client.checkout_sessions.create(
+    product_cart=[
+        {"product_id": "prod_subscription_monthly", "quantity": 1}
+    ],
+    subscription_data={"trial_period_days": 14},  # optional
+    customer={
+        "email": "subscriber@example.com",
+        "name": "Jane Doe",
+    },
+    return_url="https://example.com/success",
+)
+
+print(session.checkout_url)
+```
+
+</Tab>
+
+<Tab title="REST API">
+
+```javascript
+const response = await fetch('https://test.dodopayments.com/checkouts', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${process.env.DODO_PAYMENTS_API_KEY}`
+  },
+  body: JSON.stringify({
+    product_cart: [
+      { product_id: 'prod_subscription_monthly', quantity: 1 }
+    ],
+    subscription_data: { trial_period_days: 14 }, // optional
+    customer: {
+      email: 'subscriber@example.com',
+      name: 'Jane Doe'
+    },
+    return_url: 'https://example.com/success'
+  })
+});
+
+if (!response.ok) {
+  throw new Error(`HTTP error! status: ${response.status}`);
+}
+
+const session = await response.json();
+console.log(session.checkout_url);
+```
+
+</Tab>
+</Tabs>
+
+### API प्रतिक्रिया  
+
+निम्नलिखित प्रतिक्रिया का एक उदाहरण है:  
+
+```json  
+{
+  "session_id": "cks_Gi6KGJ2zFJo9rq9Ukifwa",
+  "checkout_url": "https://test.checkout.dodopayments.com/session/cks_Gi6KGJ2zFJo9rq9Ukifwa"
+}
+```
+
+  
+
+ग्राहक को `checkout_url` पर रीडायरेक्ट करें।  
+
+### वेबहुक
+
+सदस्यताओं को एकीकृत करते समय, आपको सदस्यता जीवनचक्र को ट्रैक करने के लिए वेबहुक प्राप्त होंगे। ये वेबहुक आपको सदस्यता की स्थिति और भुगतान परिदृश्यों को प्रभावी ढंग से प्रबंधित करने में मदद करते हैं।
+
+अपने वेबहुक एंडपॉइंट को सेट करने के लिए, कृपया हमारे [विस्तृत एकीकरण गाइड](/developer-resources/integration-guide#implementing-webhooks) का पालन करें।
+
+#### सदस्यता घटना प्रकार
+
+निम्नलिखित वेबहुक घटनाएँ सदस्यता स्थिति परिवर्तनों को ट्रैक करती हैं:
+
+1. **`subscription.active`** - सदस्यता सफलतापूर्वक सक्रिय की गई।
+2. **`subscription.updated`** - सदस्यता वस्तु को अपडेट किया गया (किसी भी फ़ील्ड परिवर्तन पर सक्रिय होता है)।
+3. **`subscription.on_hold`** - सदस्यता नवीनीकरण में विफलता के कारण होल्ड पर रखी गई।
+4. **`subscription.failed`** - जनादेश निर्माण के दौरान सदस्यता निर्माण विफल हुआ।
+5. **`subscription.renewed`** - सदस्यता अगले बिलिंग अवधि के लिए नवीनीकरण किया गया।
+
+विश्वसनीय सदस्यता जीवनचक्र प्रबंधन के लिए, हम इन सदस्यता घटनाओं को ट्रैक करने की सिफारिश करते हैं।
+
+<Tip>
+`subscription.updated` का उपयोग करें ताकि किसी भी सदस्यता परिवर्तनों के बारे में वास्तविक समय में सूचनाएँ प्राप्त कर सकें, जिससे आपकी एप्लिकेशन स्थिति को बिना API को पोल किए समन्वयित रखा जा सके।
+</Tip>
+
+#### भुगतान परिदृश्य
+
+**सफल भुगतान प्रवाह**
+
+जब एक भुगतान सफल होता है, तो आपको निम्नलिखित वेबहुक प्राप्त होंगे:
+
+1. `subscription.active` - सदस्यता सक्रियण को इंगित करता है
+2. `payment.succeeded` - प्रारंभिक भुगतान की पुष्टि करता है:
+    - तात्कालिक बिलिंग (0 परीक्षण दिन): 2-10 मिनट के भीतर अपेक्षा करें
+    - परीक्षण दिनों के लिए: जब भी वह समाप्त होता है
+3. `subscription.renewed` - अगले चक्र के लिए भुगतान कटौती और नवीनीकरण को इंगित करता है। (आधार रूप से, जब भी सदस्यता उत्पादों के लिए भुगतान कटौती होती है, आपको `subscription.renewed` वेबहुक के साथ `payment.succeeded` प्राप्त होगा)
+
+**भुगतान विफलता परिदृश्य**
+
+1. सदस्यता विफलता
+  - `subscription.failed` - जनादेश बनाने में विफलता के कारण सदस्यता निर्माण विफल हुआ।
+  - `payment.failed` - विफल भुगतान को इंगित करता है।
+
+2. सदस्यता होल्ड पर
+  - `subscription.on_hold` - सदस्यता विफल नवीनीकरण भुगतान या विफल योजना परिवर्तन शुल्क के कारण होल्ड पर रखी गई।
+  - जब एक सदस्यता होल्ड पर जाती है, तो यह स्वचालित रूप से नवीनीकरण नहीं करेगी जब तक कि भुगतान विधि को अपडेट नहीं किया जाता।
+
+<Info>**सर्वोत्तम प्रथा**: कार्यान्वयन को सरल बनाने के लिए, हम सदस्यता जीवनचक्र प्रबंधन के लिए मुख्य रूप से सदस्यता घटनाओं को ट्रैक करने की सिफारिश करते हैं।</Info>
+
+### सदस्यता होल्ड पर रखने का प्रबंधन
+
+जब एक सदस्यता `on_hold` स्थिति में प्रवेश करती है, तो आपको इसे पुनः सक्रिय करने के लिए भुगतान विधि को अपडेट करने की आवश्यकता होती है। यह अनुभाग बताता है कि सदस्यताएँ कब होल्ड पर जाती हैं और उन्हें कैसे प्रबंधित किया जाए।
+
+#### जब सदस्यताएँ होल्ड पर जाती हैं
+
+एक सदस्यता को होल्ड पर रखा जाता है जब:
+
+- **नवीनीकरण भुगतान विफल**: स्वचालित नवीनीकरण शुल्क अपर्याप्त धन, समाप्त कार्ड, या बैंक द्वारा अस्वीकृति के कारण विफल हो जाता है
+- **योजना परिवर्तन शुल्क विफल**: योजना अपग्रेड/डाउनग्रेड के दौरान तत्काल शुल्क विफल हो जाता है
+- **भुगतान विधि प्राधिकरण विफल**: भुगतान विधि को आवर्ती शुल्क के लिए प्राधिकृत नहीं किया जा सकता है
+
+<Warning>
+`on_hold` स्थिति में सदस्यताएँ स्वचालित रूप से नवीनीकरण नहीं करेंगी। आपको सदस्यता को पुनः सक्रिय करने के लिए भुगतान विधि को अपडेट करना होगा।
+</Warning>
+
+#### होल्ड से सदस्यताओं को पुनः सक्रिय करना
+
+`on_hold` स्थिति से सदस्यता को पुनः सक्रिय करने के लिए, अपडेट भुगतान विधि API का उपयोग करें। यह स्वचालित रूप से:
+
+1. शेष बकाया के लिए एक शुल्क बनाता है
+2. शुल्क के लिए एक चालान उत्पन्न करता है
+3. नई भुगतान विधि का उपयोग करके भुगतान को संसाधित करता है
+4. सफल भुगतान पर सदस्यता को `active` स्थिति में पुनः सक्रिय करता है
+
+<Steps>
+<Step title="सदस्यता.on_hold वेबहुक को संभालें">
+जब आपको `subscription.on_hold` वेबहुक प्राप्त होता है, तो अपनी एप्लिकेशन स्थिति को अपडेट करें और ग्राहक को सूचित करें:
+
+```javascript
+// Webhook handler
+app.post('/webhooks/dodo', async (req, res) => {
+  const event = req.body;
+  
+  if (event.type === 'subscription.on_hold') {
+    const subscription = event.data;
+    
+    // Update subscription status in your database
+    await updateSubscriptionStatus(subscription.subscription_id, 'on_hold');
+    
+    // Notify customer to update payment method
+    await sendEmailToCustomer(subscription.customer_id, {
+      subject: 'Payment Required - Subscription On Hold',
+      message: 'Your subscription is on hold. Please update your payment method to continue service.'
+    });
+  }
+  
+  res.json({ received: true });
+});
+```
+
+</Step>
+
+<Step title="भुगतान विधि अपडेट करें">
+जब ग्राहक अपनी भुगतान विधि अपडेट करने के लिए तैयार हो, तो अपडेट भुगतान विधि API को कॉल करें:
+
+<CodeGroup>
+
+```javascript Node.js
+// Update with new payment method
+const response = await client.subscriptions.updatePaymentMethod(subscriptionId, {
+  type: 'new',
+  return_url: 'https://example.com/return'
+});
+
+// For on_hold subscriptions, a charge is automatically created
+if (response.payment_id) {
+  console.log('Charge created for remaining dues:', response.payment_id);
+  // Redirect customer to response.payment_link to complete payment
+}
+```
+
+```python Python
+# Update with new payment method
+response = client.subscriptions.update_payment_method(
+    subscription_id=subscription_id,
+    type="new",
+    return_url="https://example.com/return"
+)
+
+# For on_hold subscriptions, a charge is automatically created
+if response.payment_id:
+    print("Charge created for remaining dues:", response.payment_id)
+    # Redirect customer to response.payment_link to complete payment
+```
+
+</CodeGroup>
+
+<Info>
+यदि ग्राहक ने भुगतान विधियों को सहेजा है, तो आप मौजूदा भुगतान विधि ID का भी उपयोग कर सकते हैं:
+
+```javascript
+await client.subscriptions.updatePaymentMethod(subscriptionId, {
+  type: 'existing',
+  payment_method_id: 'pm_abc123'
+});
+```
+
+</Info>
+</Step>
+
+<Step title="वेबहुक घटनाओं की निगरानी करें">
+भुगतान विधि अपडेट करने के बाद, इन वेबहुक घटनाओं की निगरानी करें:
+
+1. **`payment.succeeded`** - शेष बकाया के लिए शुल्क सफल रहा
+2. **`subscription.active`** - सदस्यता को पुनः सक्रिय किया गया है
+
+```javascript
+if (event.type === 'payment.succeeded') {
+  const payment = event.data;
+  
+  // Check if this payment is for an on_hold subscription
+  if (payment.subscription_id) {
+    // Wait for subscription.active webhook to confirm reactivation
+  }
+}
+
+if (event.type === 'subscription.active') {
+  const subscription = event.data;
+  
+  // Update subscription status in your database
+  await updateSubscriptionStatus(subscription.subscription_id, 'active');
+  
+  // Restore customer access
+  await restoreCustomerAccess(subscription.customer_id);
+  
+  // Notify customer of successful reactivation
+  await sendEmailToCustomer(subscription.customer_id, {
+    subject: 'Subscription Reactivated',
+    message: 'Your subscription has been reactivated successfully.'
+  });
+}
+```
+
+</Step>
+</Steps>
+
+### सदस्यता घटना पेलोड का उदाहरण
+
+---
+
+| प्रॉपर्टी | प्रकार | आवश्यक | विवरण |
+|----------|------|----------|-------------|
+| `business_id` | string | हाँ | व्यवसाय के लिए अद्वितीय पहचानकर्ता |
+| `timestamp` | string | हाँ | जब घटना हुई उस समय का टाइमस्टैम्प (जरूरी नहीं कि जब इसे वितरित किया गया हो) |
+| `type` | string | हाँ | घटना का प्रकार। [घटना प्रकार](#event-types) देखें |
+| `data` | object | हाँ | मुख्य डेटा पेलोड। [डेटा ऑब्जेक्ट](#data-object) देखें |
+
+## सदस्यता योजनाएँ बदलना
+
+आप परिवर्तन योजना API एंडपॉइंट का उपयोग करके सदस्यता योजना को अपग्रेड या डाउनग्रेड कर सकते हैं। यह आपको सदस्यता के उत्पाद, मात्रा को संशोधित करने और प्रोरशन को संभालने की अनुमति देता है।
+
+<Card title="परिवर्तन योजना API संदर्भ" icon="arrows-rotate" href="/api-reference/subscriptions/change-plan">
+  सदस्यता योजनाओं को बदलने के बारे में विस्तृत जानकारी के लिए, कृपया हमारे परिवर्तन योजना API दस्तावेज़ का संदर्भ लें।
+</Card>
+
+### प्रोरशन विकल्प
+
+सदस्यता योजनाओं को बदलते समय, आपके पास तत्काल शुल्क को संभालने के लिए दो विकल्प होते हैं:
+
+#### 1. `prorated_immediately`
+- वर्तमान बिलिंग चक्र में शेष समय के आधार पर प्रोरटेड राशि की गणना करता है
+- ग्राहक से केवल पुराने और नए योजना के बीच का अंतर चार्ज करता है
+- परीक्षण अवधि के दौरान, यह तुरंत उपयोगकर्ता को नई योजना पर स्विच करेगा, ग्राहक को तुरंत चार्ज करेगा
+
+#### 2. `full_immediately`
+- ग्राहक से नई योजना के लिए पूर्ण सदस्यता राशि चार्ज करता है
+- पिछले योजना से किसी भी शेष समय या क्रेडिट को नजरअंदाज करता है
+- उपयोगी जब आप बिलिंग चक्र को रीसेट करना चाहते हैं या प्रोरशन की परवाह किए बिना पूर्ण राशि चार्ज करना चाहते हैं
+
+#### 3. `difference_immediately`
+- अपग्रेड करते समय, ग्राहक को दोनों योजना की राशि के बीच का अंतर तुरंत चार्ज किया जाता है।
+- उदाहरण के लिए, यदि वर्तमान योजना 30 डॉलर है और ग्राहक 80 डॉलर में अपग्रेड करता है, तो उन्हें तुरंत $50 चार्ज किया जाता है। 
+- डाउनग्रेड करते समय, वर्तमान योजना से अप्रयुक्त राशि आंतरिक क्रेडिट के रूप में जोड़ी जाती है और भविष्य के सदस्यता नवीनीकरण पर स्वचालित रूप से लागू होती है।
+- उदाहरण के लिए, यदि वर्तमान योजना 50 डॉलर है और ग्राहक 20 डॉलर की योजना में स्विच करता है, तो शेष $30 को क्रेडिट किया जाता है और अगले बिलिंग चक्र के लिए उपयोग किया जाता है।
+
+### व्यवहार
+
+- जब आप इस API को लागू करते हैं, तो डोडो पेमेंट्स तुरंत आपके द्वारा चुने गए प्रोरशन विकल्प के आधार पर एक शुल्क शुरू करता है
+- यदि योजना परिवर्तन एक डाउनग्रेड है और आप `prorated_immediately` का उपयोग करते हैं, तो क्रेडिट स्वचालित रूप से गणना की जाती है और सदस्यता के क्रेडिट संतुलन में जोड़ी जाती है। ये क्रेडिट उस सदस्यता के लिए विशिष्ट होते हैं और केवल उसी सदस्यता के भविष्य के आवर्ती भुगतानों को ऑफसेट करने के लिए उपयोग किए जाएंगे
+- `full_immediately` विकल्प क्रेडिट गणनाओं को बायपास करता है और पूर्ण नई योजना राशि को चार्ज करता है
+
+<Tip>
+**अपने प्रोरशन विकल्प को ध्यान से चुनें**: `prorated_immediately` का उपयोग करें ताकि ऐसा बिलिंग हो जो अप्रयुक्त समय को ध्यान में रखे, या `full_immediately` का उपयोग करें जब आप वर्तमान बिलिंग चक्र की परवाह किए बिना पूर्ण नई योजना राशि चार्ज करना चाहते हैं।
+</Tip>
+
+### शुल्क प्रसंस्करण
+
+- योजना परिवर्तन पर शुरू किया गया तत्काल शुल्क आमतौर पर 2 मिनट से कम समय में प्रसंस्कृत होता है
+- यदि यह तत्काल शुल्क किसी भी कारण से विफल होता है, तो सदस्यता स्वचालित रूप से होल्ड पर रखी जाती है जब तक कि समस्या का समाधान नहीं हो जाता
+
+## ऑन-डिमांड सदस्यताएँ
+
+<Info>
+  ऑन-डिमांड सदस्यताएँ आपको ग्राहकों को लचीले ढंग से चार्ज करने की अनुमति देती हैं, न कि केवल एक निश्चित कार्यक्रम पर। इस सुविधा को सक्षम करने के लिए समर्थन से संपर्क करें।
+</Info>
+
+**एक ऑन-डिमांड सदस्यता बनाने के लिए:**
+
+एक ऑन-डिमांड सदस्यता बनाने के लिए, [POST /subscriptions](/api-reference/subscriptions/post-subscriptions) API एंडपॉइंट का उपयोग करें और अपने अनुरोध शरीर में `on_demand` फ़ील्ड शामिल करें। यह आपको बिना तत्काल शुल्क के भुगतान विधि को अधिकृत करने या कस्टम प्रारंभिक मूल्य सेट करने की अनुमति देता है।
+
+**एक ऑन-डिमांड सदस्यता को चार्ज करने के लिए:**
+
+अगले चार्ज के लिए, [POST /subscriptions/charge](/api-reference/subscriptions/create-charge) एंडपॉइंट का उपयोग करें और उस लेनदेन के लिए ग्राहक से चार्ज करने के लिए राशि निर्दिष्ट करें।
+
+<Note>
+पूर्ण, चरण-दर-चरण गाइड के लिए—जिसमें अनुरोध/प्रतिक्रिया उदाहरण, सुरक्षित पुनः प्रयास नीतियाँ, और वेबहुक प्रबंधन शामिल हैं—<a href="/developer-resources/ondemand-subscriptions">ऑन-डिमांड सदस्यता गाइड</a> देखें।
+</Note>

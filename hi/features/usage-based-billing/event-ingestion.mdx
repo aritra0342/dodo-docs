@@ -1,0 +1,207 @@
+---
+sidebarTitle: इवेंट इनजेशन
+title: इवेंट इनजेशन
+description: अपने एप्लिकेशन से उपयोग इवेंट भेजें ताकि ग्राहक की खपत को ट्रैक
+  किया जा सके और बिलिंग को शक्ति दी जा सके।
+icon: bolt
+---
+
+इवेंट उपयोग-आधारित बिलिंग की नींव हैं। बिल योग्य क्रियाएँ होने पर इवेंट भेजें, और मीटर उन्हें चार्ज में संचित करते हैं।
+
+<Card title="API Reference - Events Ingestion" icon="code" href="/api-reference/usage-events/ingest-events">
+उदाहरणों और प्रतिक्रिया कोड के साथ पूर्ण API दस्तावेज़ीकरण।
+</Card>
+
+## इवेंट संरचना
+
+<Accordion title="आवश्यक फ़ील्ड्स">
+<ParamField body="event_id" type="string" required>
+विशिष्ट पहचानकर्ता। UUIDs का उपयोग करें या ग्राहक ID + टाइमस्टैम्प + क्रिया को मिलाएं।
+</ParamField>
+
+<ParamField body="customer_id" type="string" required>
+Dodo Payments ग्राहक ID। यह एक मान्य मौजूदा ग्राहक होना चाहिए।
+</ParamField>
+
+<ParamField body="event_name" type="string" required>
+इवेंट प्रकार जो आपके मीटर के इवेंट नाम से मेल खाता है (केस-संवेदनशील)। उदाहरण: `api.call`, `image.generated`
+</ParamField>
+</Accordion>
+
+<Accordion title="वैकल्पिक फ़ील्ड्स">
+
+<ParamField body="timestamp" type="string">
+ISO 8601 टाइमस्टैम्प। यदि छोड़ा गया तो सर्वर समय पर डिफ़ॉल्ट होता है। विलंबित/बैच इवेंट्स के साथ सटीक बिलिंग के लिए शामिल करें।
+</ParamField>
+
+<ParamField body="metadata" type="object">
+संघटन और फ़िल्टरिंग के लिए अतिरिक्त गुण:
+- संख्यात्मक मान: `bytes`, `tokens`, `duration_ms`
+- फ़िल्टर: `endpoint`, `method`, `quality`
+
+```javascript
+metadata: {
+  endpoint: "/v1/orders",
+  method: "POST",
+  tokens: 1024
+}
+```
+
+</ParamField>
+</Accordion>
+
+## इवेंट भेजना
+
+<CodeGroup>
+
+```javascript Single Event
+await fetch('https://test.dodopayments.com/events/ingest', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${process.env.DODO_API_KEY}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    events: [{
+      event_id: "api_call_1234",
+      customer_id: "cus_abc123",
+      event_name: "api.call",
+      metadata: { endpoint: "/v1/orders" }
+    }]
+  })
+});
+```
+
+```javascript Batch Events
+await fetch('https://test.dodopayments.com/events/ingest', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${process.env.DODO_API_KEY}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    events: [
+      { event_id: "call_1", customer_id: "cus_abc", event_name: "api.call" },
+      { event_id: "call_2", customer_id: "cus_abc", event_name: "api.call" },
+      { event_id: "call_3", customer_id: "cus_abc", event_name: "api.call" }
+    ]
+  })
+});
+```
+
+```python Python
+import requests
+
+requests.post(
+    'https://test.dodopayments.com/events/ingest',
+    headers={'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'},
+    json={'events': [{'event_id': 'call_1', 'customer_id': 'cus_abc', 'event_name': 'api.call'}]}
+)
+```
+
+```curl cURL
+curl -X POST 'https://test.dodopayments.com/events/ingest' \
+  -H 'Authorization: Bearer YOUR_API_KEY' \
+  -H 'Content-Type: application/json' \
+  -d '{"events": [{"event_id": "call_1", "customer_id": "cus_abc", "event_name": "api.call"}]}'
+```
+
+</CodeGroup>
+
+<Tip>
+बेहतर प्रदर्शन के लिए प्रति अनुरोध 100 इवेंट्स तक बैच करें।
+</Tip>
+
+## इनजेशन ब्लूप्रिंट्स
+
+सामान्य उपयोग मामलों के लिए तैयार किए गए इवेंट पैटर्न। खरोंच से बनाने के बजाय एक सिद्ध ब्लूप्रिंट से शुरू करें।
+
+<CardGroup cols={2}>
+<Card title="LLM Blueprint" icon="brain-circuit" href="/developer-resources/ingestion-blueprints/llm">
+OpenAI, Anthropic, Groq, Gemini, और अधिक के बीच AI टोकन उपयोग को ट्रैक करें।
+</Card>
+
+<Card title="API Gateway Blueprint" icon="cloud" href="/developer-resources/ingestion-blueprints/api-gateway">
+एंडपॉइंट फ़िल्टरिंग और दर सीमा समर्थन के साथ API अनुरोधों को मीटर करें।
+</Card>
+
+<Card title="Object Storage Blueprint" icon="box-archive" href="/developer-resources/ingestion-blueprints/object-storage">
+क्लाउड स्टोरेज सेवाओं के लिए फ़ाइल अपलोड और स्टोरेज खपत को ट्रैक करें।
+</Card>
+
+<Card title="Stream Blueprint" icon="tower-broadcast" href="/developer-resources/ingestion-blueprints/stream">
+वीडियो, ऑडियो, और वास्तविक समय के डेटा के लिए स्ट्रीमिंग बैंडविड्थ को मापें।
+</Card>
+
+<Card title="Time Range Blueprint" icon="clock" href="/developer-resources/ingestion-blueprints/time-range">
+सर्वर रहित कार्यों और कंप्यूट इंस्टेंस के लिए व्यतीत समय के आधार पर बिल करें।
+</Card>
+
+<Card title="View All Blueprints" icon="copy" href="/features/usage-based-billing/ingestion-blueprints">
+विस्तृत कार्यान्वयन गाइड के साथ सभी उपलब्ध ब्लूप्रिंट देखें।
+</Card>
+</CardGroup>
+
+## सर्वोत्तम प्रथाएँ
+
+<AccordionGroup>
+<Accordion title="विशिष्ट इवेंट आईडी का उपयोग करें">
+डुप्लिकेट से रोकने के लिए निर्धारक IDs का उपयोग करें: `${customerId}_${action}_${timestamp}`
+</Accordion>
+
+<Accordion title="पुनः प्रयास लागू करें">
+5xx त्रुटियों पर एक्सपोनेंशियल बैकऑफ के साथ पुनः प्रयास करें। 4xx त्रुटियों पर पुनः प्रयास न करें।
+</Accordion>
+
+<Accordion title="टाइमस्टैम्प शामिल करें">
+वास्तविक समय के इवेंट्स के लिए छोड़ दें। सटीकता के लिए विलंबित/बैच इवेंट्स के लिए शामिल करें।
+</Accordion>
+
+<Accordion title="डिलीवरी की निगरानी करें">
+सफलता दरों को ट्रैक करें और पुनः प्रयास के लिए विफल इवेंट्स को कतारबद्ध करें।
+</Accordion>
+</AccordionGroup>
+
+## समस्या निवारण
+
+<AccordionGroup>
+<Accordion title="इवेंट दिखाई नहीं दे रहे हैं">
+- इवेंट नाम को मीटर से सटीक मेल खाना चाहिए (केस-संवेदनशील)
+- ग्राहक ID मौजूद होना चाहिए
+- जांचें कि मीटर फ़िल्टर इवेंट्स को बाहर नहीं कर रहे हैं
+- सत्यापित करें कि टाइमस्टैम्प हाल के हैं
+</Accordion>
+
+<Accordion title="प्रमाणीकरण त्रुटियाँ (401)">
+सत्यापित करें कि API कुंजी सही है और प्रारूप का उपयोग करें: `Bearer YOUR_API_KEY`
+</Accordion>
+
+<Accordion title="मान्यता त्रुटियाँ (400)">
+सुनिश्चित करें कि सभी आवश्यक फ़ील्ड मौजूद हैं: `event_id`, `customer_id`, `event_name`
+</Accordion>
+
+<Accordion title="मेटाडेटा संचित नहीं हो रहा है">
+- मेटाडेटा कुंजी को मीटर के "ओवर प्रॉपर्टी" से सटीक मेल खाना चाहिए
+- संख्याओं का उपयोग करें, स्ट्रिंग्स का नहीं: `tokens: 150` नहीं `tokens: "150"`
+</Accordion>
+</AccordionGroup>
+
+## अगले कदम
+
+<CardGroup cols={2}>
+<Card title="मीटर बनाएं" icon="sliders" href="/features/usage-based-billing/meters">
+परिभाषित करें कि आपके इवेंट्स को फ़िल्टर और संघटन कार्यों के साथ बिल योग्य मात्राओं में कैसे संचित किया जाता है।
+</Card>
+
+<Card title="इनजेशन ब्लूप्रिंट्स" icon="copy" href="/features/usage-based-billing/ingestion-blueprints">
+LLM ट्रैकिंग, API गेटवे, और स्टोरेज जैसे सामान्य उपयोग मामलों के लिए तैयार किए गए ब्लूप्रिंट का उपयोग करें।
+</Card>
+
+<Card title="पूर्ण ट्यूटोरियल" icon="code" href="/developer-resources/usage-based-billing-build-ai-image-generator">
+खरोंच से उपयोग-आधारित बिलिंग के साथ एक पूर्ण AI इमेज जनरेटर बनाएं।
+</Card>
+
+<Card title="API Reference" icon="terminal" href="/api-reference/usage-events/ingest-events">
+सभी पैरामीटर, प्रतिक्रिया कोड, और इंटरैक्टिव परीक्षण के साथ पूर्ण API दस्तावेज़ीकरण।
+</Card>
+</CardGroup>

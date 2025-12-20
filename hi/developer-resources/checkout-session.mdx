@@ -1,0 +1,1005 @@
+---
+title: चेकआउट सत्र
+description: सुरक्षित, होस्टेड चेकआउट अनुभव बनाएं जो एक बार की खरीद और
+  सब्सक्रिप्शन के लिए पूर्ण भुगतान प्रवाह को संभालते हैं, जिसमें पूर्ण अनुकूलन
+  नियंत्रण होता है।
+icon: cart-shopping
+---
+
+<CardGroup cols={2}>
+<Card title="त्वरित प्रारंभ गाइड" icon="rocket" href="#creating-your-first-checkout-session">
+  5 मिनट से कम समय में अपना पहला चेकआउट सत्र चलाएं
+</Card>
+
+<Card title="API संदर्भ और लाइव परीक्षण" icon="code" href="/api-reference/checkout-sessions/create">
+  पूर्ण API दस्तावेज़ का अन्वेषण करें और चेकआउट सत्र अनुरोधों और प्रतिक्रियाओं का इंटरैक्टिव परीक्षण करें।
+</Card>
+</CardGroup>
+
+<Info>
+**सत्र वैधता**: चेकआउट सत्र डिफ़ॉल्ट रूप से 24 घंटे के लिए मान्य होते हैं। यदि आप अपने अनुरोध में `confirm=true` पास करते हैं, तो सत्र केवल 15 मिनट के लिए मान्य होगा।
+</Info>
+
+## पूर्वापेक्षाएँ
+
+<Steps>
+<Step title="डोडो पेमेंट्स खाता">
+  आपको API एक्सेस के साथ एक सक्रिय डोडो पेमेंट्स व्यापारी खाता चाहिए।
+</Step>
+
+<Step title="API क्रेडेंशियल्स">
+  डोडो पेमेंट्स डैशबोर्ड से अपने API क्रेडेंशियल्स उत्पन्न करें:
+</Step>
+
+<Step title="उत्पाद सेटअप">
+  चेकआउट सत्र लागू करने से पहले डोडो पेमेंट्स डैशबोर्ड में अपने उत्पाद बनाएं।
+</Step>
+</Steps>
+
+## अपना पहला चेकआउट सत्र बनाना
+
+<Tabs>
+<Tab title="Node.js SDK">
+
+```javascript expandable
+import DodoPayments from 'dodopayments';
+
+// Initialize the Dodo Payments client
+const client = new DodoPayments({
+  bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'test_mode', // defaults to 'live_mode'
+});
+
+async function createCheckoutSession() {
+  try {
+    const session = await client.checkoutSessions.create({
+      // Products to sell - use IDs from your Dodo Payments dashboard
+      product_cart: [
+        {
+          product_id: 'prod_123', // Replace with your actual product ID
+          quantity: 1
+        }
+      ],
+      
+      // Pre-fill customer information to reduce friction
+      customer: {
+        email: 'customer@example.com',
+        name: 'John Doe',
+        phone_number: '+1234567890'
+      },
+      
+      // Billing address for tax calculation and compliance
+      billing_address: {
+        street: '123 Main St',
+        city: 'San Francisco',
+        state: 'CA',
+        country: 'US', // Required: ISO 3166-1 alpha-2 country code
+        zipcode: '94102'
+      },
+      
+      // Where to redirect after successful payment
+      return_url: 'https://yoursite.com/checkout/success',
+      
+      // Custom data for your internal tracking
+      metadata: {
+        order_id: 'order_123',
+        source: 'web_app'
+      }
+    });
+
+    // Redirect your customer to this URL to complete payment
+    console.log('Checkout URL:', session.checkout_url);
+    console.log('Session ID:', session.session_id);
+    
+    return session;
+    
+  } catch (error) {
+    console.error('Failed to create checkout session:', error);
+    throw error;
+  }
+}
+
+// Example usage in an Express.js route
+app.post('/create-checkout', async (req, res) => {
+  try {
+    const session = await createCheckoutSession();
+    res.json({ checkout_url: session.checkout_url });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to create checkout session' });
+  }
+});
+```
+
+</Tab>
+
+<Tab title="Python SDK">
+
+```python expandable
+import os
+from dodopayments import DodoPayments
+
+# Initialize the Dodo Payments client
+client = DodoPayments(
+    bearer_token=os.environ.get("DODO_PAYMENTS_API_KEY"),  # This is the default and can be omitted
+    environment="test_mode",  # defaults to "live_mode"
+)
+
+def create_checkout_session():
+    """
+    Create a checkout session for a single product with customer data pre-filled.
+    Returns the session object containing checkout_url for customer redirection.
+    """
+    try:
+        session = client.checkout_sessions.create(
+            # Products to sell - use IDs from your Dodo Payments dashboard
+            product_cart=[
+                {
+                    "product_id": "prod_123",  # Replace with your actual product ID
+                    "quantity": 1
+                }
+            ],
+            
+            # Pre-fill customer information to reduce checkout friction
+            customer={
+                "email": "customer@example.com",
+                "name": "John Doe",
+                "phone_number": "+1234567890"
+            },
+            
+            # Billing address for tax calculation and compliance
+            billing_address={
+                "street": "123 Main St",
+                "city": "San Francisco", 
+                "state": "CA",
+                "country": "US",  # Required: ISO 3166-1 alpha-2 country code
+                "zipcode": "94102"
+            },
+            
+            # Where to redirect after successful payment
+            return_url="https://yoursite.com/checkout/success",
+            
+            # Custom data for your internal tracking
+            metadata={
+                "order_id": "order_123",
+                "source": "web_app"
+            }
+        )
+        
+        # Redirect your customer to this URL to complete payment
+        print(f"Checkout URL: {session.checkout_url}")
+        print(f"Session ID: {session.session_id}")
+        
+        return session
+        
+    except Exception as error:
+        print(f"Failed to create checkout session: {error}")
+        raise error
+
+# Example usage in a Flask route
+from flask import Flask, jsonify, request
+
+app = Flask(__name__)
+
+@app.route('/create-checkout', methods=['POST'])
+def create_checkout():
+    try:
+        session = create_checkout_session()
+        return jsonify({"checkout_url": session.checkout_url})
+    except Exception as error:
+        return jsonify({"error": "Failed to create checkout session"}), 500
+```
+
+</Tab>
+
+<Tab title="REST API">
+
+```javascript expandable
+// Direct API call using fetch - useful for any JavaScript environment
+async function createCheckoutSession() {
+  try {
+    const response = await fetch('https://test.dodopayments.com/checkouts', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.DODO_PAYMENTS_API_KEY}`
+      },
+      body: JSON.stringify({
+        // Products to sell - use IDs from your Dodo Payments dashboard
+        product_cart: [
+          {
+            product_id: 'prod_123', // Replace with your actual product ID
+            quantity: 1
+          }
+        ],
+        
+        // Pre-fill customer information to reduce checkout friction
+        customer: {
+          email: 'customer@example.com',
+          name: 'John Doe',
+          phone_number: '+1234567890'
+        },
+        
+        // Billing address for tax calculation and compliance
+        billing_address: {
+          street: '123 Main St',
+          city: 'San Francisco',
+          state: 'CA', 
+          country: 'US', // Required: ISO 3166-1 alpha-2 country code
+          zipcode: '94102'
+        },
+        
+        // Where to redirect after successful payment
+        return_url: 'https://yoursite.com/checkout/success',
+        
+        // Custom data for your internal tracking
+        metadata: {
+          order_id: 'order_123',
+          source: 'web_app'
+        }
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const session = await response.json();
+    
+    // Redirect your customer to this URL to complete payment
+    console.log('Checkout URL:', session.checkout_url);
+    console.log('Session ID:', session.session_id);
+    
+    return session;
+    
+  } catch (error) {
+    console.error('Failed to create checkout session:', error);
+    throw error;
+  }
+}
+
+// Example: Redirect user to checkout
+createCheckoutSession().then(session => {
+  window.location.href = session.checkout_url;
+});
+```
+
+</Tab>
+</Tabs>
+
+### API प्रतिक्रिया
+
+उपरोक्त सभी विधियाँ समान प्रतिक्रिया संरचना लौटाती हैं:
+
+```json
+{
+  "session_id": "cks_Gi6KGJ2zFJo9rq9Ukifwa",
+  "checkout_url": "https://test.checkout.dodopayments.com/session/cks_Gi6KGJ2zFJo9rq9Ukifwa"
+}
+```
+
+<Steps>
+<Step title="चेकआउट URL प्राप्त करें">
+API प्रतिक्रिया से `checkout_url` निकालें।
+</Step>
+
+<Step title="अपने ग्राहक को पुनर्निर्देशित करें">
+अपने ग्राहक को खरीदारी पूरी करने के लिए चेकआउट URL पर भेजें।
+
+```javascript
+// Redirect immediately
+window.location.href = session.checkout_url;
+
+// Or open in new window
+window.open(session.checkout_url, '_blank');
+```
+
+</Step>
+
+<Step title="वापसी को संभालें">
+भुगतान के बाद, ग्राहकों को आपके `return_url` पर अतिरिक्त क्वेरी पैरामीटर के साथ पुनर्निर्देशित किया जाता है।
+</Step>
+</Steps>
+
+## अनुरोध शरीर
+
+<CardGroup cols={2}>
+<Card title="आवश्यक फ़ील्ड" icon="asterisk">
+  प्रत्येक चेकआउट सत्र के लिए आवश्यक फ़ील्ड
+</Card>
+
+<Card title="वैकल्पिक फ़ील्ड" icon="gear">
+  अपने चेकआउट अनुभव को अनुकूलित करने के लिए अतिरिक्त कॉन्फ़िगरेशन
+</Card>
+</CardGroup>
+
+### आवश्यक फ़ील्ड
+
+<ParamField body="product_cart" type="array" required>
+चेकआउट सत्र में शामिल करने के लिए उत्पादों की सूची। प्रत्येक उत्पाद में आपके डोडो पेमेंट्स डैशबोर्ड से एक मान्य `product_id` होना चाहिए।
+
+<Tip>
+**मिश्रित चेकआउट**: आप एक बार के भुगतान उत्पादों और सब्सक्रिप्शन उत्पादों को एक ही चेकआउट सत्र में मिला सकते हैं। यह सेटअप शुल्क के साथ सब्सक्रिप्शन, हार्डवेयर बंडल के साथ SaaS, और अधिक जैसे शक्तिशाली उपयोग के मामलों को सक्षम करता है।
+</Tip>
+
+<Expandable title="उत्पाद कार्ट आइटम गुण">
+<ParamField body="product_id" type="string" required>
+आपके डोडो पेमेंट्स डैशबोर्ड से उत्पाद की अद्वितीय पहचान संख्या।
+
+**उदाहरण:** `"prod_123abc456def"`
+</ParamField>
+
+<ParamField body="quantity" type="integer" required>
+उत्पाद की मात्रा।
+
+**उदाहरण:** `1` एकल आइटम के लिए, `3` कई मात्राओं के लिए
+</ParamField>
+
+<ParamField body="addons" type="array">
+उत्पाद से संलग्न करने के लिए ऐड-ऑन की सूची। केवल तब मान्य है जब उत्पाद एक सब्सक्रिप्शन हो।
+
+<Expandable title="ऐड-ऑन आइटम गुण">
+<ParamField body="addon_id" type="string" required />
+
+<ParamField body="quantity" type="integer" required />
+</Expandable>
+</ParamField>
+
+<ParamField body="amount" type="integer">
+ग्राहक द्वारा भुगतान की जाने वाली राशि यदि pay_what_you_want सक्षम है। यदि अक्षम है, तो यह फ़ील्ड अनदेखी की जाएगी।
+
+**फॉर्मेट**: मुद्रा की सबसे छोटी इकाई में दर्शाया गया (जैसे, USD के लिए सेंट)। उदाहरण के लिए, $1.00 चार्ज करने के लिए, `100` पास करें।
+</ParamField>
+</Expandable>
+</ParamField>
+
+<Tip>
+**अपने उत्पाद आईडी खोजें**: आप अपने डोडो पेमेंट्स डैशबोर्ड में उत्पादों के तहत उत्पाद आईडी देख सकते हैं → विवरण देखें, या [उत्पाद सूची API](/api-reference/products/get-products) का उपयोग करके।
+</Tip>
+
+### वैकल्पिक फ़ील्ड
+
+इन फ़ील्ड्स को चेकआउट अनुभव को अनुकूलित करने और आपके भुगतान प्रवाह में व्यावसायिक तर्क जोड़ने के लिए कॉन्फ़िगर करें।
+
+<AccordionGroup>
+<Accordion title="ग्राहक जानकारी">
+
+<ParamField body="customer" type="object">
+ग्राहक की जानकारी। आप या तो उनके ID का उपयोग करके एक मौजूदा ग्राहक को संलग्न कर सकते हैं या चेकआउट के दौरान एक नया ग्राहक रिकॉर्ड बना सकते हैं।
+
+<Tabs>
+<Tab title="मौजूदा ग्राहक संलग्न करें">
+उनके ID का उपयोग करके चेकआउट सत्र में मौजूदा ग्राहक को संलग्न करें।
+
+<Expandable title="मौजूदा ग्राहक गुण">
+<ParamField body="customer_id" type="string" required>
+एक मौजूदा ग्राहक की अद्वितीय पहचान संख्या। इसका उपयोग मौजूदा ग्राहक के साथ चेकआउट सत्र को संलग्न करने के लिए करें, नए ग्राहक बनाने के बजाय।
+</ParamField>
+</Expandable>
+</Tab>
+
+<Tab title="नया ग्राहक">
+चेकआउट के दौरान एक नया ग्राहक रिकॉर्ड बनाएं।
+
+<Expandable title="नए ग्राहक गुण">
+<ParamField body="email" type="string" required>
+ग्राहक का ईमेल पता। नए ग्राहक बनाने के समय आवश्यक।
+</ParamField>
+
+<ParamField body="name" type="string">
+ग्राहक का पूरा नाम जैसा कि रसीदों और चालानों पर दिखाई देना चाहिए।
+
+**उदाहरण**: `"John Doe"` या `"Jane Smith"`
+</ParamField>
+
+<ParamField body="phone_number" type="string">
+ग्राहक का फोन नंबर अंतरराष्ट्रीय प्रारूप में। कुछ भुगतान विधियों और धोखाधड़ी की रोकथाम के लिए आवश्यक।
+
+**फॉर्मेट**: देश कोड शामिल करें, जैसे `"+1234567890"` अमेरिकी नंबरों के लिए
+</ParamField>
+</Expandable>
+</Tab>
+</Tabs>
+</ParamField>
+
+<ParamField body="billing_address" type="object">
+सटीक कर गणना, धोखाधड़ी की रोकथाम, और नियामक अनुपालन के लिए बिलिंग पते की जानकारी।
+
+<Info>
+जब `confirm` को `true` पर सेट किया जाता है, तो सभी बिलिंग पते के फ़ील्ड सफल सत्र निर्माण के लिए आवश्यक हो जाते हैं।
+</Info>
+
+<Expandable title="बिलिंग पते की वस्तु गुण">
+<ParamField body="street" type="string">
+पूर्ण सड़क पता जिसमें घर का नंबर, सड़क का नाम, और यदि लागू हो तो अपार्टमेंट/यूनिट नंबर शामिल है।
+
+**उदाहरण**: `"123 Main St, Apt 4B"` या `"456 Oak Avenue"`
+</ParamField>
+
+<ParamField body="city" type="string">
+शहर या नगरपालिका का नाम।
+
+**उदाहरण**: `"San Francisco"`, `"New York"`, `"London"`
+</ParamField>
+
+<ParamField body="state" type="string">
+राज्य, प्रांत, या क्षेत्र का नाम। पूर्ण नाम या मानक संक्षेपण का उपयोग करें।
+
+**उदाहरण**: `"California"` या `"CA"`, `"Ontario"` या `"ON"`
+</ParamField>
+
+<ParamField body="country" type="string" required>
+दो-हरफ वाला ISO देश कोड (ISO 3166-1 alpha-2)। जब बिलिंग पते को प्रदान किया जाता है, तो यह फ़ील्ड हमेशा आवश्यक होती है।
+
+**उदाहरण**: `"US"` (संयुक्त राज्य अमेरिका), `"CA"` (कनाडा), `"GB"` (संयुक्त राज्य), `"DE"` (जर्मनी)
+
+<Card title="देश कोड संदर्भ" icon="globe" href="/api-reference/misc/supported-countries">
+  समर्थित देशों और उनके ISO कोड की पूरी सूची देखें
+</Card>
+</ParamField>
+
+<ParamField body="zipcode" type="string">
+डाक कोड, ZIP कोड, या देश की आवश्यकताओं के आधार पर समकक्ष।
+
+**उदाहरण**: `"94102"` (यूएस), `"M5V 3A8"` (कनाडा), `"SW1A 1AA"` (यूके)
+</ParamField>
+</Expandable>
+</ParamField>
+
+</Accordion>
+
+<Accordion title="भुगतान कॉन्फ़िगरेशन">
+
+<ParamField body="allowed_payment_method_types" type="array">
+ग्राहकों के लिए चेकआउट के दौरान उपलब्ध भुगतान विधियों को नियंत्रित करें। यह विशिष्ट बाजारों या व्यावसायिक आवश्यकताओं के लिए अनुकूलित करने में मदद करता है।
+
+**उपलब्ध विकल्प**: `credit`, `debit`, `upi_collect`, `upi_intent`, `apple_pay`, `google_pay`, `amazon_pay`, `klarna`, `affirm`, `afterpay_clearpay`, `sepa`, `ach`, `cashapp`, `multibanco`, `bancontact_card`, `eps`, `ideal`, `przelewy24`, `paypal`
+
+<Warning>
+**महत्वपूर्ण**: चेकआउट विफलताओं को रोकने के लिए हमेशा `credit` और `debit` को बैकअप विकल्प के रूप में शामिल करें।
+</Warning>
+
+**उदाहरण**: 
+
+```json expandable
+["apple_pay", "google_pay", "credit", "debit"]
+```
+
+</ParamField>
+
+<ParamField body="billing_currency" type="string">
+डिफ़ॉल्ट मुद्रा चयन को एक निश्चित बिलिंग मुद्रा के साथ ओवरराइड करें। ISO 4217 मुद्रा कोड का उपयोग करता है।
+
+**समर्थित मुद्राएँ**: `USD`, `EUR`, `GBP`, `CAD`, `AUD`, `INR`, और अधिक।
+
+**उदाहरण**: `"USD"` अमेरिकी डॉलर के लिए, `"EUR"` यूरो के लिए।
+
+<Note>
+यह फ़ील्ड केवल तब प्रभावी होती है जब अनुकूली मूल्य निर्धारण सक्षम हो। यदि अनुकूली मूल्य निर्धारण अक्षम है, तो उत्पाद की डिफ़ॉल्ट मुद्रा का उपयोग किया जाएगा।
+</Note>
+</ParamField>
+
+<ParamField body="show_saved_payment_methods" type="boolean" default="false">
+पुनः आने वाले ग्राहकों के लिए पहले से सहेजे गए भुगतान विधियों को प्रदर्शित करें, जिससे चेकआउट की गति और उपयोगकर्ता अनुभव में सुधार होता है।
+</ParamField>
+
+</Accordion>
+
+<Accordion title="सत्र प्रबंधन">
+
+<ParamField body="return_url" type="string">
+सफल भुगतान या रद्दीकरण के बाद ग्राहकों को पुनर्निर्देशित करने के लिए URL।
+</ParamField>
+
+<ParamField body="confirm" type="boolean" default="false">
+यदि सत्य है, तो सभी सत्र विवरण तुरंत अंतिम रूप दे देता है। यदि आवश्यक डेटा गायब है, तो API एक त्रुटि फेंकेगा।
+</ParamField>
+
+<ParamField body="discount_code" type="string">
+चेकआउट सत्र पर एक छूट कोड लागू करें।
+</ParamField>
+
+<ParamField body="metadata" type="object">
+सत्र के बारे में अतिरिक्त जानकारी संग्रहीत करने के लिए कस्टम कुंजी-मूल्य जोड़े।
+</ParamField>
+
+<ParamField body="force_3ds" type="boolean">
+इस सत्र के लिए व्यापारी डिफ़ॉल्ट 3DS व्यवहार को ओवरराइड करें।
+</ParamField>
+
+<ParamField body="minimal_address" type="boolean" default="false">
+न्यूनतम पते संग्रह मोड सक्षम करें। जब सक्षम हो, तो चेकआउट केवल निम्नलिखित एकत्र करता है:
+- **देश**: कर निर्धारण के लिए हमेशा आवश्यक
+- **ZIP/डाक कोड**: केवल उन क्षेत्रों में जहां यह बिक्री कर, VAT, या GST गणना के लिए आवश्यक है।
+
+यह अनावश्यक फ़ॉर्म फ़ील्ड को समाप्त करके चेकआउट में रुकावट को काफी कम करता है।
+
+<Tip>
+तेज चेकआउट पूर्णता के लिए न्यूनतम पते को सक्षम करें। पूर्ण पते संग्रह उन व्यवसायों के लिए उपलब्ध रहता है जिन्हें पूर्ण बिलिंग विवरण की आवश्यकता होती है।
+</Tip>
+</ParamField>
+
+</Accordion>
+
+<Accordion title="UI अनुकूलन और सुविधाएँ">
+
+<ParamField body="customization" type="object">
+चेकआउट इंटरफ़ेस की उपस्थिति और व्यवहार को अनुकूलित करें।
+
+<Expandable title="अनुकूलन वस्तु गुण">
+<ParamField body="theme" type="string" default="system">
+चेकआउट इंटरफ़ेस के लिए थीम। विकल्प: `light`, `dark`, या `system`।
+</ParamField>
+
+<ParamField body="show_order_details" type="boolean" default="true">
+चेकआउट इंटरफ़ेस में आदेश विवरण अनुभाग प्रदर्शित करें।
+</ParamField>
+
+<ParamField body="show_on_demand_tag" type="boolean" default="true">
+लागू उत्पादों के लिए "ऑन-डिमांड" टैग दिखाएं।
+</ParamField>
+
+<ParamField body="force_language" type="string">
+चेकआउट इंटरफ़ेस को एक विशिष्ट भाषा में रेंडर करने के लिए मजबूर करें।
+
+**उदाहरण**: `"en"` अंग्रेजी के लिए, `"es"` स्पेनिश के लिए।
+</ParamField>
+</Expandable>
+</ParamField>
+
+<ParamField body="feature_flags" type="object">
+चेकआउट सत्र के लिए विशिष्ट सुविधाओं और व्यवहारों को कॉन्फ़िगर करें।
+
+<Expandable title="फीचर फ्लैग्स वस्तु गुण">
+<ParamField body="allow_currency_selection" type="boolean" default="true">
+ग्राहकों को चेकआउट के दौरान अपनी पसंदीदा मुद्रा चुनने की अनुमति दें।
+</ParamField>
+
+<ParamField body="allow_discount_code" type="boolean" default="true">
+चेकआउट इंटरफ़ेस में छूट कोड इनपुट फ़ील्ड दिखाएं।
+</ParamField>
+
+<ParamField body="allow_phone_number_collection" type="boolean" default="true">
+चेकआउट के दौरान ग्राहक फोन नंबर एकत्र करें।
+</ParamField>
+
+<ParamField body="allow_tax_id" type="boolean" default="true">
+ग्राहकों को कर पहचान नंबर दर्ज करने की अनुमति दें।
+</ParamField>
+
+<ParamField body="always_create_new_customer" type="boolean" default="false">
+मौजूदा ग्राहकों को अपडेट करने के बजाय एक नए ग्राहक रिकॉर्ड के निर्माण को मजबूर करें।
+</ParamField>
+
+<ParamField body="allow_customer_editing_email" type="boolean">
+ग्राहकों को चेकआउट के दौरान अपना ईमेल पता संपादित करने की अनुमति दें।
+</ParamField>
+
+<ParamField body="allow_customer_editing_name" type="boolean">
+ग्राहकों को चेकआउट के दौरान अपना नाम संपादित करने की अनुमति दें।
+</ParamField>
+
+<ParamField body="allow_customer_editing_street" type="boolean">
+ग्राहकों को चेकआउट के दौरान सड़क का पता संपादित करने की अनुमति दें।
+</ParamField>
+
+<ParamField body="allow_customer_editing_city" type="boolean">
+ग्राहकों को चेकआउट के दौरान शहर संपादित करने की अनुमति दें।
+</ParamField>
+
+<ParamField body="allow_customer_editing_state" type="boolean">
+ग्राहकों को चेकआउट के दौरान राज्य संपादित करने की अनुमति दें।
+</ParamField>
+
+<ParamField body="allow_customer_editing_country" type="boolean">
+ग्राहकों को चेकआउट के दौरान देश संपादित करने की अनुमति दें।
+</ParamField>
+
+<ParamField body="allow_customer_editing_zipcode" type="boolean">
+ग्राहकों को चेकआउट के दौरान ज़िपकोड संपादित करने की अनुमति दें।
+</ParamField>
+
+<ParamField body="minimal_address" type="boolean" default="false">
+न्यूनतम पते संग्रह मोड सक्षम करें। जब सक्षम हो, तो चेकआउट केवल निम्नलिखित एकत्र करता है:
+- **देश**: हमेशा कर निर्धारण के लिए आवश्यक
+- **ZIP/डाक कोड**: केवल उन क्षेत्रों में जहां यह बिक्री कर, VAT, या GST गणना के लिए आवश्यक है।
+
+यह अनावश्यक फ़ॉर्म फ़ील्ड को समाप्त करके चेकआउट में रुकावट को काफी कम करता है।
+
+<Tip>
+तेज चेकआउट पूर्णता के लिए न्यूनतम पते को सक्षम करें। पूर्ण पते संग्रह उन व्यवसायों के लिए उपलब्ध रहता है जिन्हें पूर्ण बिलिंग विवरण की आवश्यकता होती है।
+</Tip>
+</ParamField>
+</Expandable>
+</ParamField>
+
+</Accordion>
+
+<Accordion title="सब्सक्रिप्शन कॉन्फ़िगरेशन">
+
+<ParamField body="subscription_data" type="object">
+सब्सक्रिप्शन उत्पादों वाले चेकआउट सत्रों के लिए अतिरिक्त कॉन्फ़िगरेशन।
+
+<Expandable title="सब्सक्रिप्शन डेटा वस्तु गुण">
+<ParamField body="trial_period_days" type="integer">
+पहले चार्ज से पहले परीक्षण अवधि के लिए दिनों की संख्या। 0 से 10000 दिनों के बीच होना चाहिए।
+</ParamField>
+
+<ParamField body="on_demand" type="object">
+उपयोग-आधारित या मीटर किए गए बिलिंग के लिए ऑन-डिमांड सब्सक्रिप्शन कॉन्फ़िगरेशन।
+
+<Expandable title="ऑन-डिमांड वस्तु गुण">
+<ParamField body="mandate_only" type="boolean" required>
+यदि सत्य पर सेट किया गया है, तो कोई चार्ज नहीं किया जाता है और केवल भविष्य के उपयोग के लिए भुगतान विधि विवरण को अधिकृत किया जाता है।
+</ParamField>
+
+<ParamField body="product_price" type="integer">
+ग्राहक को पहले चार्ज के लिए उत्पाद की कीमत। यदि निर्दिष्ट नहीं किया गया है, तो उत्पाद की संग्रहीत कीमत का उपयोग किया जाएगा।
+
+**फॉर्मेट**: मुद्रा की सबसे छोटी इकाई में दर्शाया गया (जैसे, सेंट के लिए USD)। उदाहरण के लिए, $1.00 चार्ज करने के लिए, `100` पास करें।
+</ParamField>
+
+<ParamField body="product_currency" type="string">
+उत्पाद मूल्य की वैकल्पिक मुद्रा। यदि निर्दिष्ट नहीं किया गया है, तो उत्पाद की मुद्रा का उपयोग किया जाएगा।
+</ParamField>
+
+<ParamField body="product_description" type="string">
+बिलिंग और लाइन आइटम के लिए वैकल्पिक उत्पाद विवरण ओवरराइड। यदि निर्दिष्ट नहीं किया गया है, तो उत्पाद का संग्रहीत विवरण का उपयोग किया जाएगा।
+</ParamField>
+
+<ParamField body="adaptive_currency_fees_inclusive" type="boolean">
+क्या अनुकूली मुद्रा शुल्क उत्पाद की कीमत में शामिल किए जाने चाहिए (सत्य) या ऊपर जोड़े जाने चाहिए (असत्य)। यदि अनुकूली मूल्य निर्धारण सक्षम नहीं है, तो अनदेखा किया जाएगा।
+</ParamField>
+</Expandable>
+</ParamField>
+</Expandable>
+</ParamField>
+
+</Accordion>
+</AccordionGroup>
+
+## उपयोग के उदाहरण
+
+यहाँ विभिन्न व्यावसायिक परिदृश्यों के लिए विभिन्न चेकआउट सत्र कॉन्फ़िगरेशन को प्रदर्शित करने वाले 10 व्यापक उदाहरण हैं:
+
+### 1. सरल एकल उत्पाद चेकआउट
+
+```javascript expandable
+const session = await client.checkoutSessions.create({
+  product_cart: [
+    {
+      product_id: 'prod_ebook_guide',
+      quantity: 1
+    }
+  ],
+  customer: {
+    email: 'customer@example.com',
+    name: 'John Doe'
+  },
+  return_url: 'https://yoursite.com/success'
+});
+```
+
+### 2. मल्टी-प्रोडक्ट कार्ट
+
+```javascript expandable
+const session = await client.checkoutSessions.create({
+  product_cart: [
+    {
+      product_id: 'prod_laptop',
+      quantity: 1
+    },
+    {
+      product_id: 'prod_mouse',
+      quantity: 2
+    },
+    {
+      product_id: 'prod_warranty',
+      quantity: 1
+    }
+  ],
+  customer: {
+    email: 'customer@example.com',
+    name: 'John Doe',
+    phone_number: '+1234567890'
+  },
+  billing_address: {
+    street: '123 Tech Street',
+    city: 'San Francisco',
+    state: 'CA',
+    country: 'US',
+    zipcode: '94102'
+  },
+  return_url: 'https://electronics-store.com/order-confirmation'
+});
+```
+
+### 3. परीक्षण अवधि के साथ सब्सक्रिप्शन
+
+```javascript expandable
+const session = await client.checkoutSessions.create({
+  product_cart: [
+    {
+      product_id: 'prod_monthly_plan',
+      quantity: 1
+    }
+  ],
+  subscription_data: {
+    trial_period_days: 14
+  },
+  customer: {
+    email: 'user@startup.com',
+    name: 'Jane Smith'
+  },
+  return_url: 'https://saas-app.com/onboarding',
+  metadata: {
+    plan_type: 'professional',
+    referral_source: 'google_ads'
+  }
+});
+```
+
+### 4. पूर्व-निर्धारित चेकआउट
+
+<Note>
+जब `confirm` को `true` पर सेट किया जाता है, तो ग्राहक सीधे चेकआउट पृष्ठ पर ले जाया जाएगा, किसी भी पुष्टि चरण को बायपास करते हुए।
+</Note>
+
+```javascript expandable
+const session = await client.checkoutSessions.create({
+  product_cart: [
+    {
+      product_id: 'prod_premium_course',
+      quantity: 1
+    }
+  ],
+  customer: {
+    email: 'student@university.edu',
+    name: 'Alex Johnson',
+    phone_number: '+1555123456'
+  },
+  billing_address: {
+    street: '456 University Ave',
+    city: 'Boston',
+    state: 'MA',
+    country: 'US',
+    zipcode: '02134'
+  },
+  confirm: true,
+  return_url: 'https://learning-platform.com/course-access',
+  metadata: {
+    course_category: 'programming',
+    enrollment_date: '2024-01-15'
+  }
+});
+```
+
+### 5. मुद्रा ओवरराइड के साथ चेकआउट
+
+<Note>
+`billing_currency` ओवरराइड केवल तब प्रभावी होता है जब आपके खाता सेटिंग्स में अनुकूली मुद्रा सक्षम हो। यदि अनुकूली मुद्रा अक्षम है, तो यह पैरामीटर कोई प्रभाव नहीं डालेगा।
+</Note>
+
+```javascript expandable
+const session = await client.checkoutSessions.create({
+  product_cart: [
+    {
+      product_id: 'prod_consulting_service',
+      quantity: 1
+    }
+  ],
+  customer: {
+    email: 'client@company.co.uk',
+    name: 'Oliver Williams'
+  },
+  billing_address: {
+    street: '789 Business Park',
+    city: 'London',
+    state: 'England',
+    country: 'GB',
+    zipcode: 'SW1A 1AA'
+  },
+  billing_currency: 'GBP',
+  feature_flags: {
+    allow_currency_selection: true,
+    allow_tax_id: true
+  },
+  return_url: 'https://consulting-firm.com/service-confirmation'
+});
+```
+
+### 6. पुनः आने वाले ग्राहकों के लिए सहेजे गए भुगतान विधियाँ
+
+```javascript expandable
+const session = await client.checkoutSessions.create({
+  product_cart: [
+    {
+      product_id: 'prod_monthly_subscription',
+      quantity: 1
+    }
+  ],
+  customer: {
+    email: 'returning.customer@example.com',
+    name: 'Robert Johnson',
+    phone_number: '+1555987654'
+  },
+  show_saved_payment_methods: true,
+  feature_flags: {
+    allow_phone_number_collection: true,
+    always_create_new_customer: false
+  },
+  return_url: 'https://subscription-service.com/welcome-back',
+  metadata: {
+    customer_tier: 'premium',
+    account_age: 'returning'
+  }
+});
+```
+
+### 7. कर आईडी संग्रह के साथ B2B चेकआउट
+
+```javascript expandable
+const session = await client.checkoutSessions.create({
+  product_cart: [
+    {
+      product_id: 'prod_enterprise_license',
+      quantity: 5
+    }
+  ],
+  customer: {
+    email: 'procurement@enterprise.com',
+    name: 'Sarah Davis',
+    phone_number: '+1800555000'
+  },
+  billing_address: {
+    street: '1000 Corporate Blvd',
+    city: 'New York',
+    state: 'NY',
+    country: 'US',
+    zipcode: '10001'
+  },
+  feature_flags: {
+    allow_tax_id: true,
+    allow_phone_number_collection: true,
+    always_create_new_customer: false
+  },
+  return_url: 'https://enterprise-software.com/license-delivery',
+  metadata: {
+    customer_type: 'enterprise',
+    contract_id: 'ENT-2024-001',
+    sales_rep: 'john.sales@company.com'
+  }
+});
+```
+
+### 8. छूट कोड के साथ डार्क थीम चेकआउट
+
+```javascript expandable
+const session = await client.checkoutSessions.create({
+  product_cart: [
+    {
+      product_id: 'prod_gaming_chair',
+      quantity: 1
+    }
+  ],
+  discount_code: 'BLACKFRIDAY2024',
+  customization: {
+    theme: 'dark',
+    show_order_details: true,
+    show_on_demand_tag: false
+  },
+  feature_flags: {
+    allow_discount_code: true
+  },
+  customer: {
+    email: 'gamer@example.com',
+    name: 'Mike Chen'
+  },
+  return_url: 'https://gaming-store.com/order-complete'
+});
+```
+
+### 9. क्षेत्रीय भुगतान विधियाँ (भारत के लिए UPI)
+
+```javascript expandable
+const session = await client.checkoutSessions.create({
+  product_cart: [
+    {
+      product_id: 'prod_online_course_hindi',
+      quantity: 1
+    }
+  ],
+  allowed_payment_method_types: [
+    'upi_collect',
+    'upi_intent',
+    'credit',
+    'debit'
+  ],
+  customer: {
+    email: 'student@example.in',
+    name: 'Priya Sharma',
+    phone_number: '+919876543210'
+  },
+  billing_address: {
+    street: 'MG Road',
+    city: 'Bangalore',
+    state: 'Karnataka',
+    country: 'IN',
+    zipcode: '560001'
+  },
+  billing_currency: 'INR',
+  return_url: 'https://education-platform.in/course-access',
+  metadata: {
+    region: 'south_india',
+    language: 'hindi'
+  }
+});
+```
+
+### 10. BNPL (बाय नाउ पे लेटर) चेकआउट
+
+```javascript expandable
+const session = await client.checkoutSessions.create({
+  product_cart: [
+    {
+      product_id: 'prod_luxury_watch',
+      quantity: 1
+    }
+  ],
+  allowed_payment_method_types: [
+    'klarna',
+    'affirm',
+    'afterpay_clearpay',
+    'credit',
+    'debit'
+  ],
+  customer: {
+    email: 'fashion.lover@example.com',
+    name: 'Emma Thompson',
+    phone_number: '+1234567890'
+  },
+  billing_address: {
+    street: '555 Fashion Ave',
+    city: 'Los Angeles',
+    state: 'CA',
+    country: 'US',
+    zipcode: '90210'
+  },
+  feature_flags: {
+    allow_phone_number_collection: true
+  },
+  return_url: 'https://luxury-store.com/purchase-confirmation',
+  metadata: {
+    product_category: 'luxury',
+    price_range: 'high_value'
+  }
+});
+```
+
+## गतिशील लिंक से चेकआउट सत्रों में जाना
+
+### मुख्य अंतर
+पहले, जब आप गतिशील लिंक के साथ भुगतान लिंक बनाते थे, तो आपको ग्राहक का पूरा बिलिंग पता प्रदान करना आवश्यक था।
+
+चेकआउट सत्रों के साथ, यह अब आवश्यक नहीं है। आप बस जो भी जानकारी आपके पास है, उसे पास कर सकते हैं, और हम बाकी का ध्यान रखेंगे। उदाहरण के लिए:
+
+- यदि आप केवल ग्राहक के बिलिंग देश को जानते हैं, तो बस वही प्रदान करें।
+- चेकआउट प्रवाह स्वचालित रूप से भुगतान पृष्ठ पर जाने से पहले गायब विवरण एकत्र करेगा।
+- दूसरी ओर, यदि आपके पास पहले से सभी आवश्यक जानकारी है और आप सीधे भुगतान पृष्ठ पर जाना चाहते हैं, तो आप पूर्ण डेटा सेट पास कर सकते हैं और अपने अनुरोध शरीर में `confirm=true` शामिल कर सकते हैं।
+
+### माइग्रेशन प्रक्रिया
+
+गतिशील लिंक से चेकआउट सत्रों में माइग्रेट करना सीधा है:
+
+<Steps>
+<Step title="अपने एकीकरण को अपडेट करें">
+अपने एकीकरण को नए API या SDK विधि का उपयोग करने के लिए अपडेट करें।
+</Step>
+
+<Step title="अनुरोध पेलोड को समायोजित करें">
+चेकआउट सत्र प्रारूप के अनुसार अनुरोध पेलोड को समायोजित करें।
+</Step>
+
+<Step title="बस इतना ही!">
+हाँ। आपकी ओर से कोई अतिरिक्त हैंडलिंग या विशेष माइग्रेशन चरणों की आवश्यकता नहीं है।
+</Step>
+</Steps>

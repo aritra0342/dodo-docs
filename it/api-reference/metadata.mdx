@@ -1,0 +1,191 @@
+---
+title: Guida ai Metadati
+description: Scopri come utilizzare i metadati per memorizzare informazioni
+  aggiuntive sui tuoi oggetti di Dodo Payments
+icon: tags
+---
+
+## Introduzione
+
+I metadati ti consentono di memorizzare informazioni aggiuntive e strutturate sui tuoi oggetti in Dodo Payments. Puoi allegare metadati alla maggior parte degli oggetti di Dodo Payments, inclusi pagamenti, abbonamenti e altro.
+
+## Panoramica
+
+- Le chiavi dei metadati possono avere una lunghezza massima di 40 caratteri
+- I valori dei metadati possono avere una lunghezza massima di 500 caratteri
+- Puoi avere fino a 50 coppie chiave-valore di metadati per oggetto
+- Le chiavi devono contenere solo caratteri alfanumerici, trattini e underscore
+- I metadati non sono ricercabili tramite la nostra API, ma vengono restituiti nelle risposte API e nei webhook
+
+## Casi d'uso
+
+I metadati sono utili per:
+
+- Memorizzare ID o riferimenti esterni
+- Aggiungere annotazioni interne
+- Collegare oggetti di Dodo Payments al tuo sistema
+- Categorizzare le transazioni
+- Aggiungere attributi personalizzati per la reportistica
+
+## Aggiungere Metadati
+
+Puoi aggiungere metadati durante la creazione o l'aggiornamento degli oggetti tramite l'API. Per i prodotti, hai anche l'opzione di aggiungere metadati direttamente dall'interfaccia del dashboard.
+
+### Tramite API
+
+```javascript
+// Adding metadata when creating a checkout session
+const checkoutSession = await client.checkoutSessions.create({
+    product_cart: [{ product_id: 'product_id', quantity: 1 }],
+    return_url: 'https://example.com/return',
+    metadata: {
+        order_id: 'ORD-123',
+        campaign_source: 'email',
+        customer_segment: 'premium'
+    }
+});
+
+// Adding metadata when creating a payment
+const payment = await client.payments.create({
+    billing: { city: 'city', country: 'AF', state: 'state', street: 'street', zipcode: 0 },
+    customer: { customer_id: 'customer_id' },
+    product_cart: [{ product_id: 'product_id', quantity: 0 }],
+    metadata:{order_id: 'ORD-123', customer_notes: 'Customer notes'}
+  });
+
+// Adding metadata when creating a product
+const product = await client.products.create({
+    name: 'Premium Software License',
+    price: 9900,
+    currency: 'USD',
+    metadata: {
+        category: 'software',
+        license_type: 'premium',
+        support_tier: 'priority'
+    }
+});
+
+// Adding metadata when creating a customer
+const customer = await client.customers.create({
+    email: 'customer@example.com',
+    name: 'John Doe',
+    metadata: {
+        crm_id: 'CRM-12345',
+        customer_segment: 'enterprise',
+        referral_source: 'website'
+    }
+});
+```
+
+### Tramite Interfaccia Dashboard (Solo Prodotti)
+
+Per i prodotti, puoi anche aggiungere metadati direttamente dal dashboard di Dodo Payments durante la creazione o la modifica di un prodotto. La sezione metadati ti consente di aggiungere facilmente coppie chiave-valore personalizzate senza scrivere codice.
+
+<Frame>
+<img src="/images/product-catalog/product-metadata-ui.png" alt="Interfaccia metadati prodotto nel dashboard di Dodo Payments" />
+</Frame>
+
+<Tip>
+Utilizzare l'interfaccia del dashboard per i metadati dei prodotti è particolarmente utile per i membri del team non tecnici che devono gestire le informazioni e le categorie dei prodotti.
+</Tip>
+
+## Recuperare Metadati
+
+I metadati sono inclusi nelle risposte API quando si recuperano oggetti:
+
+```javascript
+// Retrieving checkout session metadata
+const checkoutSession = await client.checkoutSessions.retrieve('cs_123');
+console.log(checkoutSession.metadata.order_id); // 'ORD-123'
+
+// Retrieving payment metadata
+const payment = await client.payments.retrieve('pay_123');
+console.log(payment.metadata.order_id); // '6735'
+
+// Retrieving customer metadata
+const customer = await client.customers.retrieve('customer_123');
+console.log(customer.metadata.crm_id); // 'CRM-12345'
+
+// Retrieving refund metadata
+const refund = await client.refunds.retrieve('refund_123');
+console.log(refund.metadata.refund_reason); // 'customer_request'
+```
+
+## Ricerca e Filtraggio
+
+Sebbene i metadati non siano direttamente ricercabili tramite la nostra API, puoi:
+
+1. Memorizzare identificatori importanti nei metadati
+2. Recuperare oggetti utilizzando i loro ID primari
+3. Filtrare i risultati nel codice della tua applicazione
+
+```javascript
+// Example: Find a checkout session using metadata
+const checkoutSessions = await client.checkoutSessions.list({
+  limit: 100
+});
+
+const matchingSession = checkoutSessions.data.find(
+  session => session.metadata?.order_id === 'ORD-123'
+);
+
+// Example: Find a payment using your order ID
+const payments = await client.payments.list({
+  limit: 100
+});
+
+const matchingPayment = payments.data.find(
+  payment => payment.metadata.order_id === '6735'
+);
+```
+
+## Migliori Pratiche
+
+### Fai:
+- Utilizza convenzioni di denominazione coerenti per le chiavi dei metadati
+- Documenta il tuo schema di metadati internamente
+- Mantieni i valori brevi e significativi
+- Utilizza i metadati solo per dati statici
+- Considera di utilizzare prefissi per diversi sistemi (ad es., `crm_id`, `inventory_sku`)
+
+### Non fare:
+- Memorizzare dati sensibili nei metadati
+- Utilizzare i metadati per valori che cambiano frequentemente
+- Fare affidamento sui metadati per logiche aziendali critiche
+- Memorizzare informazioni duplicate disponibili altrove nell'oggetto
+- Utilizzare caratteri speciali nelle chiavi dei metadati
+
+## Oggetti Supportati
+
+I metadati sono supportati sui seguenti oggetti:
+
+| Tipo di Oggetto | Supporto |
+|------------|---------|
+| Pagamenti | ✓ |
+| Abbonamenti | ✓ |
+| Prodotti | ✓ |
+| Rimborsi | ✓ |
+| Sessioni di Checkout | ✓ |
+| Clienti | ✓ |
+
+## Webhook e Metadati
+
+I metadati sono inclusi negli eventi webhook, rendendo facile gestire le notifiche con i tuoi dati personalizzati:
+
+```javascript
+// Example webhook handler
+app.post('/webhook', (req, res) => {
+  const event = req.body;
+
+  if (event.type === 'payment.succeeded') {
+    const orderId = event.data.object.metadata.order_id;
+    // Process order using your internal order ID
+  }
+  
+  if (event.type === 'checkout.session.completed') {
+    const orderId = event.data.object.metadata.order_id;
+    const campaignSource = event.data.object.metadata.campaign_source;
+    // Handle checkout session completion with custom metadata
+  }
+});
+```

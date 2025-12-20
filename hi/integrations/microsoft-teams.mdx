@@ -1,0 +1,216 @@
+---
+title: Microsoft Teams
+description: Microsoft Teams चैनलों पर समृद्ध Adaptive Cards के साथ Dodo
+  Payments सूचनाएँ भेजें।
+icon: microsoft
+---
+
+## परिचय
+
+अपने व्यवसाय की टीम को Microsoft Teams में वास्तविक समय के भुगतान सूचनाओं के साथ अपडेट रखें। यह एकीकरण भुगतान घटनाओं को समृद्ध Adaptive Cards के रूप में प्रदान करता है—उद्यम वातावरण के लिए आदर्श जहाँ Teams प्राथमिक सहयोग उपकरण है।
+
+<Info>
+यह गाइड मानता है कि आपके पास अपने Microsoft Teams कार्यक्षेत्र में वेबहुक बनाने के लिए प्रशासनिक पहुंच है।
+</Info>
+
+## प्रारंभ करना
+
+<Steps>
+<Step title="Webhook अनुभाग खोलें">
+  अपने Dodo Payments डैशबोर्ड में, <b>Webhooks → + Add Endpoint</b> पर जाएँ और एकीकरण ड्रॉपडाउन का विस्तार करें।
+  <Frame>
+    <img src="/images/integrations/teams.png" alt="Add Endpoint और एकीकरण ड्रॉपडाउन" />
+  </Frame>
+</Step>
+
+<Step title="Microsoft Teams चुनें">
+  <b>Microsoft Teams</b> एकीकरण कार्ड चुनें।
+</Step>
+
+<Step title="Teams Webhook बनाएं">
+  Teams में, अपने चैनल पर जाएँ → ⋯ → Connectors → Incoming Webhook → Configure। वेबहुक URL कॉपी करें।
+</Step>
+
+<Step title="Webhook URL चिपकाएँ">
+  Teams वेबहुक URL को एंडपॉइंट कॉन्फ़िगरेशन में चिपकाएँ।
+</Step>
+
+<Step title="रूपांतरण अनुकूलित करें">
+  Teams के लिए संदेशों को Adaptive Cards के रूप में स्वरूपित करने के लिए रूपांतरण कोड संपादित करें।
+</Step>
+
+<Step title="परीक्षण और बनाएं">
+  नमूना पेलोड के साथ परीक्षण करें और सक्रिय करने के लिए <b>Create</b> पर क्लिक करें।
+</Step>
+
+<Step title="हो गया!">
+  🎉 आपका Teams चैनल अब Dodo Payments अपडेट को Adaptive Cards के रूप में प्राप्त करेगा।
+</Step>
+</Steps>
+
+## रूपांतरण कोड उदाहरण
+
+### बुनियादी भुगतान कार्ड
+
+```javascript payment_card.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const p = webhook.payload.data;
+    webhook.payload = {
+      type: "message",
+      attachments: [{
+        contentType: "application/vnd.microsoft.card.adaptive",
+        content: {
+          type: "AdaptiveCard",
+          body: [
+            {
+              type: "TextBlock",
+              text: "✅ Payment Successful",
+              weight: "Bolder",
+              size: "Medium"
+            },
+            {
+              type: "FactSet",
+              facts: [
+                { title: "Amount", value: `$${(p.total_amount / 100).toFixed(2)}` },
+                { title: "Customer", value: p.customer.email },
+                { title: "Payment ID", value: p.payment_id }
+              ]
+            }
+          ]
+        }
+      }]
+    };
+  }
+  return webhook;
+}
+```
+
+### सदस्यता प्रबंधन
+
+```javascript subscription_card.js icon="js" expandable
+function handler(webhook) {
+  const s = webhook.payload.data;
+  switch (webhook.eventType) {
+    case "subscription.active":
+      webhook.payload = {
+        type: "message",
+        attachments: [{
+          contentType: "application/vnd.microsoft.card.adaptive",
+          content: {
+            type: "AdaptiveCard",
+            body: [
+              {
+                type: "TextBlock",
+                text: "📄 Subscription Activated",
+                weight: "Bolder",
+                color: "Good"
+              },
+              {
+                type: "FactSet",
+                facts: [
+                  { title: "Customer", value: s.customer.email },
+                  { title: "Product", value: s.product_id },
+                  { title: "Amount", value: `$${(s.recurring_pre_tax_amount / 100).toFixed(2)}/${s.payment_frequency_interval}` },
+                  { title: "Next Billing", value: new Date(s.next_billing_date).toLocaleDateString() }
+                ]
+              }
+            ]
+          }
+        }]
+      };
+      break;
+    case "subscription.cancelled":
+      webhook.payload = {
+        type: "message",
+        attachments: [{
+          contentType: "application/vnd.microsoft.card.adaptive",
+          content: {
+            type: "AdaptiveCard",
+            body: [
+              {
+                type: "TextBlock",
+                text: "⚠️ Subscription Cancelled",
+                weight: "Bolder",
+                color: "Warning"
+              },
+              {
+                type: "FactSet",
+                facts: [
+                  { title: "Customer", value: s.customer.email },
+                  { title: "Product", value: s.product_id },
+                  { title: "Cancelled At", value: new Date(s.cancelled_at).toLocaleDateString() }
+                ]
+              }
+            ]
+          }
+        }]
+      };
+      break;
+  }
+  return webhook;
+}
+```
+
+### विवाद अलर्ट
+
+```javascript dispute_card.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType.startsWith("dispute.")) {
+    const d = webhook.payload.data;
+    const color = d.dispute_status === "won" ? "Good" : d.dispute_status === "lost" ? "Attention" : "Warning";
+    const title = d.dispute_status === "won" ? "🏆 Dispute Won" : d.dispute_status === "lost" ? "❌ Dispute Lost" : "🚨 Dispute Update";
+    
+    webhook.payload = {
+      type: "message",
+      attachments: [{
+        contentType: "application/vnd.microsoft.card.adaptive",
+        content: {
+          type: "AdaptiveCard",
+          body: [
+            {
+              type: "TextBlock",
+              text: title,
+              weight: "Bolder",
+              color: color
+            },
+            {
+              type: "FactSet",
+              facts: [
+                { title: "Payment ID", value: d.payment_id },
+                { title: "Amount", value: `$${(d.amount / 100).toFixed(2)}` },
+                { title: "Status", value: d.dispute_status },
+                { title: "Stage", value: d.dispute_stage }
+              ]
+            }
+          ]
+        }
+      }]
+    };
+  }
+  return webhook;
+}
+```
+
+## सुझाव
+
+- समृद्ध, इंटरैक्टिव स्वरूपण के लिए Adaptive Cards का उपयोग करें
+- उपयुक्त रंग चुनें: अच्छा (हरा), चेतावनी (पीला), ध्यान (लाल)
+- तथ्य सेट को संक्षिप्त और पठनीय रखें
+- तैनात करने से पहले Teams वेबहुक परीक्षक के साथ परीक्षण करें
+
+## समस्या निवारण
+
+<AccordionGroup>
+<Accordion title="Teams में कोई संदेश नहीं">
+- सुनिश्चित करें कि वेबहुक URL सही और सक्रिय है
+- जांचें कि रूपांतरण मान्य Adaptive Card JSON लौटाता है
+- सुनिश्चित करें कि वेबहुक को चैनल में पोस्ट करने की अनुमति है
+</Accordion>
+
+<Accordion title="कार्ड स्वरूपण समस्याएँ">
+- Teams वेबहुक परीक्षक में Adaptive Card स्कीमा मान्य करें
+- सुनिश्चित करें कि सभी आवश्यक फ़ील्ड मौजूद हैं
+- सुनिश्चित करें कि रंग मान मान्य हैं (अच्छा, चेतावनी, ध्यान, डिफ़ॉल्ट)
+</Accordion>
+</AccordionGroup>

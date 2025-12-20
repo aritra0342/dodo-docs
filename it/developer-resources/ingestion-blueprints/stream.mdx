@@ -1,0 +1,119 @@
+---
+title: Stream Blueprint
+description: Monitora il consumo di dati in streaming per video, audio,
+  streaming live e fatturazione del trasferimento di dati in tempo reale.
+icon: tower-broadcast
+---
+
+## Casi d'uso
+
+Esplora scenari comuni supportati dallo Stream Blueprint:
+
+<CardGroup cols={2}>
+<Card title="Piattaforme Video" icon="video">
+Fattura i clienti in base al consumo di larghezza di banda video e alla qualità dello streaming.
+</Card>
+<Card title="Streaming Musicale" icon="music">
+Monitora l'uso dello streaming audio per utente per i livelli di abbonamento.
+</Card>
+<Card title="Eventi Live" icon="signal-stream">
+Monitora il consumo di streaming live e addebita per l'uso della larghezza di banda.
+</Card>
+<Card title="Dati in Tempo Reale" icon="wave-pulse">
+Monitora il trasferimento di dati in tempo reale per applicazioni IoT e di telemetria.
+</Card>
+</CardGroup>
+
+<Info>
+Perfetto per piattaforme di streaming video/audio, servizi di streaming live e applicazioni di dati in tempo reale.
+</Info>
+
+## Avvio Veloce
+
+Monitora i byte in streaming consumati dai tuoi clienti:
+
+<Steps>
+<Step title="Installa l'SDK">
+
+```bash
+npm install @dodopayments/ingestion-blueprints
+```
+
+</Step>
+
+<Step title="Ottieni le tue chiavi API">
+- **Chiave API Dodo Payments**: Ottienila dal [Dodo Payments Dashboard](https://app.dodopayments.com/developer/api-keys)
+</Step>
+
+<Step title="Crea un Meter">
+Crea un meter nel tuo [Dodo Payments Dashboard](https://app.dodopayments.com/):
+- **Nome Evento**: `stream_consumption` (o il tuo nome preferito)
+- **Tipo di Aggregazione**: `sum` per monitorare il totale dei byte trasmessi
+- **Su Proprietà**: `bytes` per fatturare in base all'uso della larghezza di banda
+</Step>
+
+<Step title="Monitora l'uso dello Stream">
+<CodeGroup>
+
+```javascript Video Streaming
+import { Ingestion, trackStreamBytes } from '@dodopayments/ingestion-blueprints';
+
+const ingestion = new Ingestion({
+  apiKey: process.env.DODO_PAYMENTS_API_KEY,
+  environment: 'test_mode',
+  eventName: 'stream_consumption'
+});
+
+// Track video stream consumption
+await trackStreamBytes(ingestion, {
+  customerId: 'customer_123',
+  bytes: 10485760, // 10MB
+  metadata: {
+    stream_type: 'video',
+  }
+});
+```
+
+</CodeGroup>
+</Step>
+</Steps>
+
+## Configurazione
+
+### Configurazione di Ingestione
+
+<ParamField path="apiKey" type="string" required>
+La tua chiave API Dodo Payments dal dashboard.
+</ParamField>
+
+<ParamField path="environment" type="string" required>
+Modalità ambiente: `test_mode` o `live_mode`.
+</ParamField>
+
+<ParamField path="eventName" type="string" required>
+Nome dell'evento che corrisponde alla configurazione del tuo meter.
+</ParamField>
+
+### Opzioni per Monitorare i Byte dello Stream
+
+<ParamField path="customerId" type="string" required>
+L'ID cliente per l'attribuzione della fatturazione.
+</ParamField>
+
+<ParamField path="bytes" type="number">
+Numero di byte consumati nello stream. Richiesto per la fatturazione basata sulla larghezza di banda.
+</ParamField>
+
+<ParamField path="metadata" type="object">
+Metadata opzionale sullo stream come tipo di stream, qualità, sessionId, ecc.
+</ParamField>
+
+## Migliori Pratiche
+
+<Tip>
+**Monitora per Chunk**: Per stream lunghi, monitora il consumo in chunk piuttosto che aspettare il completamento dell'intero stream.
+</Tip>
+
+<Warning>
+**Conteggio Byte Accurato**: Assicurati che i conteggi dei byte includano tutte le spese generali (intestazioni, spese generali del protocollo) se fatturi per la larghezza di banda totale.
+</Warning>

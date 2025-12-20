@@ -1,0 +1,817 @@
+---
+title: Guide för uppgradering och nedgradering av prenumerationer
+description: Lär dig hur du ändrar en kunds prenumerationsplan, hanterar
+  proration och bearbetar webhooks på ett tillförlitligt sätt.
+icon: arrows-rotate
+---
+
+<CardGroup cols={2}>
+<Card title="API-referens för ändring av plan" icon="code" href="/api-reference/subscriptions/change-plan">
+  Få tillgång till den kompletta API-dokumentationen för att ändra prenumerationsplaner och testa planändringsförfrågningar interaktivt.
+</Card>
+
+<Card title="Förhandsgranska API för planändring" icon="eye" href="/api-reference/subscriptions/preview-change-plan">
+  Förhandsgranska det exakta beloppet som kommer att debiteras innan du bekräftar en planändring.
+</Card>
+
+<Card title="Guide för prenumerationsintegration" icon="book" href="/developer-resources/subscription-integration-guide">
+  Lär dig hur du skapar och hanterar prenumerationer från grunden med vår omfattande integrationsguide.
+</Card>
+</CardGroup>
+
+## Vad är en uppgradering eller nedgradering av prenumeration?
+
+Att ändra planer låter dig flytta en kund mellan prenumerationsnivåer eller kvantiteter. Använd det för att:
+- Justera prissättning med användning eller funktioner
+- Flytta från månadsvis till årlig (eller vice versa)
+- Justera kvantitet för produktbaserade platser
+
+<Info>
+Planändringar kan utlösa en omedelbar debitering beroende på den proration som du väljer.
+</Info>
+
+## När ska man använda planändringar
+
+- Uppgradera när en kund behöver fler funktioner, användning eller platser
+- Nedgradera när användningen minskar
+- Migrera användare till en ny produkt eller pris utan att avbryta deras prenumeration
+
+## Förutsättningar
+
+Innan du implementerar ändringar av prenumerationsplaner, se till att du har:
+
+- Ett Dodo Payments-handelskonto med aktiva prenumerationsprodukter
+- API-referenser (API-nyckel och webhook-hemlig nyckel) från instrumentpanelen
+- En befintlig aktiv prenumeration att modifiera
+- Webhook-slutpunkt konfigurerad för att hantera prenumerationsevenemang
+
+<Info>
+För detaljerade installationsinstruktioner, se vår [Integrationsguide](/developer-resources/integration-guide#dashboard-setup).
+</Info>
+
+## Steg-för-steg-implementeringsguide
+
+Följ denna omfattande guide för att implementera ändringar av prenumerationsplaner i din applikation:
+
+<Steps>
+<Step title="Förstå kraven för planändring">
+Innan du implementerar, bestäm:
+- Vilka prenumerationsprodukter som kan ändras till vilka andra
+- Vilken proration som passar din affärsmodell
+- Hur man hanterar misslyckade planändringar på ett smidigt sätt
+- Vilka webhook-händelser som ska spåras för tillståndshantering
+
+<Tip>
+Testa planändringar noggrant i testläge innan du implementerar i produktion.
+</Tip>
+</Step>
+
+<Step title="Välj din prorationstrategi">
+Välj den faktureringsmetod som stämmer överens med dina affärsbehov:
+
+<Tabs>
+<Tab title="prorated_immediately">
+Bäst för: SaaS-applikationer som vill ta betalt rättvist för oanvänd tid
+- Beräknar exakt proraterat belopp baserat på återstående cykeltid
+- Debiterar ett proraterat belopp baserat på oanvänd tid som återstår i cykeln
+- Ger transparent fakturering till kunder
+</Tab>
+
+<Tab title="difference_immediately">
+Bäst för: Tydliga uppgraderings-/nedgraderingsscenarier
+- Uppgradering: Debiterar omedelbar skillnad (t.ex. $30→$80 = debiterar $50)
+- Nedgradering: Kreditera återstående värde för framtida förnyelser
+- Förenklar faktureringslogik och kundkommunikation
+</Tab>
+
+<Tab title="full_immediately">
+Bäst för: När du vill återställa faktureringscykeln
+- Debiterar hela beloppet för den nya planen omedelbart
+- Ignorerar återstående tid från den gamla planen
+- Användbart för övergångar från årlig till månadsvis
+</Tab>
+</Tabs>
+</Step>
+
+<Step title="Implementera Change Plan API">
+Använd Change Plan API för att modifiera prenumerationsdetaljer:
+
+<ParamField path="subscription_id" type="string" required>
+ID för den aktiva prenumerationen som ska modifieras.
+</ParamField>
+
+<ParamField path="product_id" type="string" required>
+Det nya produkt-ID:t som prenumerationen ska ändras till.
+</ParamField>
+
+<ParamField path="quantity" type="integer" default="1">
+Antal enheter för den nya planen (för produktbaserade platser).
+</ParamField>
+
+<ParamField path="proration_billing_mode" type="string" required>
+Hur man hanterar omedelbar fakturering: `prorated_immediately`, `full_immediately`, eller `difference_immediately`.
+</ParamField>
+
+<ParamField path="addons" type="array">
+Valfria tillägg för den nya planen. Om detta lämnas tomt tas eventuella befintliga tillägg bort.
+</ParamField>
+</Step>
+
+<Step title="Hantera webhook-händelser">
+Ställ in webhook-hantering för att spåra resultat av planändringar:
+
+- `subscription.active`: Planändring lyckades, prenumeration uppdaterad
+- `subscription.plan_changed`: Prenumerationsplan ändrad (uppgradering/nedgradering/tilläggsuppdatering)
+- `subscription.on_hold`: Planändringsdebitering misslyckades, prenumeration pausad
+- `payment.succeeded`: Omedelbar debitering för planändring lyckades
+- `payment.failed`: Omedelbar debitering misslyckades
+
+<Warning>
+Verifiera alltid webhook-signaturer och implementera idempotent händelsebearbetning.
+</Warning>
+</Step>
+
+<Step title="Uppdatera din applikationstillstånd">
+Baserat på webhook-händelser, uppdatera din applikation:
+- Ge/tillbaka funktioner baserat på ny plan
+- Uppdatera kundens instrumentpanel med nya plandetaljer
+- Skicka bekräftelsemejl om planändringar
+- Logga faktureringsändringar för revisionsändamål
+</Step>
+
+<Step title="Testa och övervaka">
+Testa noggrant din implementation:
+- Testa alla prorationlägen med olika scenarier
+- Verifiera att webhook-hanteringen fungerar korrekt
+- Övervaka framgångsrater för planändringar
+- Ställ in aviseringar för misslyckade planändringar
+
+<Check>
+Din implementation av ändringar av prenumerationsplaner är nu redo för produktionsanvändning.
+</Check>
+</Step>
+</Steps>
+
+## Förhandsgranska planändringar
+
+Innan du bekräftar en planändring, använd Förhandsgranska API för att visa kunder exakt vad de kommer att debiteras:
+
+<Tabs>
+<Tab title="Node.js SDK">
+
+```javascript
+const preview = await client.subscriptions.previewChangePlan('sub_123', {
+  product_id: 'prod_pro',
+  quantity: 1,
+  proration_billing_mode: 'prorated_immediately'
+});
+
+// Show customer the charge before confirming
+console.log('Immediate charge:', preview.immediate_charge.summary);
+console.log('New plan details:', preview.new_plan);
+```
+
+</Tab>
+
+<Tab title="Python SDK">
+
+```python
+preview = client.subscriptions.preview_change_plan(
+    subscription_id="sub_123",
+    product_id="prod_pro",
+    quantity=1,
+    proration_billing_mode="prorated_immediately"
+)
+
+# Show customer the charge before confirming
+print("Immediate charge:", preview.immediate_charge.summary)
+print("New plan details:", preview.new_plan)
+```
+
+</Tab>
+</Tabs>
+
+<Tip>
+Använd förhandsgransknings-API:t för att bygga bekräftelsedialoger som visar kunder det exakta beloppet de kommer att debiteras innan de bekräftar en planändring.
+</Tip>
+
+## Change Plan API
+
+Använd Change Plan API för att modifiera produkt, kvantitet och prorationbeteende för en aktiv prenumeration.
+
+### Snabbstartsexempel
+
+<Tabs>
+  <Tab title="Node.js SDK">
+
+    ```javascript
+    import DodoPayments from 'dodopayments';
+
+    const client = new DodoPayments({
+      bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+      environment: 'test_mode', // defaults to 'live_mode'
+    });
+
+    async function changePlan() {
+      const result = await client.subscriptions.changePlan('sub_123', {
+        product_id: 'prod_new',
+        quantity: 3,
+        proration_billing_mode: 'prorated_immediately',
+      });
+      console.log(result.status, result.invoice_id, result.payment_id);
+    }
+
+    changePlan();
+    ```
+
+  </Tab>
+  <Tab title="Python SDK">
+
+    ```python
+    import os
+    from dodopayments import DodoPayments
+
+    client = DodoPayments(
+        bearer_token=os.environ.get("DODO_PAYMENTS_API_KEY"),
+        environment="test_mode",  # defaults to "live_mode"
+    )
+
+    result = client.subscriptions.change_plan(
+        subscription_id="sub_123",
+        product_id="prod_new",
+        quantity=3,
+        proration_billing_mode="prorated_immediately",
+    )
+    print(result.status, result.get("invoice_id"), result.get("payment_id"))
+    ```
+
+  </Tab>
+  <Tab title="Go SDK">
+
+    ```go
+    package main
+
+    import (
+      "context"
+      "fmt"
+      "github.com/dodopayments/dodopayments-go"
+      "github.com/dodopayments/dodopayments-go/option"
+    )
+
+    func main() {
+      client := dodopayments.NewClient(option.WithBearerToken("YOUR_TOKEN"))
+      res, err := client.Subscriptions.ChangePlan(context.TODO(), dodopayments.SubscriptionChangePlanParams{
+        SubscriptionID: dodopayments.F("sub_123"),
+        ProductID:             dodopayments.F("prod_new"),
+        Quantity:              dodopayments.F(int64(3)),
+        ProrationBillingMode:  dodopayments.F(dodopayments.SubscriptionChangePlanParamsProrationBillingModeProratedImmediately),
+      })
+      if err != nil { panic(err) }
+      fmt.Println(res.Status, res.InvoiceID, res.PaymentID)
+    }
+    ```
+
+  </Tab>
+  <Tab title="HTTP">
+
+    ```bash
+    curl -X POST "$DODO_API_BASE/subscriptions/sub_123/change-plan" \
+      -H "Authorization: Bearer $DODO_PAYMENTS_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "product_id": "prod_new",
+        "quantity": 3,
+        "proration_billing_mode": "prorated_immediately"
+      }'
+    ```
+
+  </Tab>
+</Tabs>
+
+```json Success
+{
+  "status": "processing",
+  "subscription_id": "sub_123",
+  "invoice_id": "inv_789",
+  "payment_id": "pay_456",
+  "proration_billing_mode": "prorated_immediately"
+}
+```
+
+<Note>
+Fält som <code>invoice_id</code> och <code>payment_id</code> returneras endast när en omedelbar debitering och/eller faktura skapas under planändringen. Lita alltid på webhook-händelser (t.ex. <code>payment.succeeded</code>, <code>subscription.plan_changed</code>) för att bekräfta resultat.
+</Note>
+
+<Warning>
+Om den omedelbara debiteringen misslyckas kan prenumerationen flyttas till `subscription.on_hold` tills betalningen lyckas.
+</Warning>
+
+## Hantera tillägg
+
+När du ändrar prenumerationsplaner kan du också modifiera tillägg:
+
+```javascript
+// Add addons to the new plan
+await client.subscriptions.changePlan('sub_123', {
+  product_id: 'prod_new',
+  quantity: 1,
+  proration_billing_mode: 'difference_immediately',
+  addons: [
+    { addon_id: 'addon_123', quantity: 2 }
+  ]
+});
+
+// Remove all existing addons
+await client.subscriptions.changePlan('sub_123', {
+  product_id: 'prod_new',
+  quantity: 1,
+  proration_billing_mode: 'difference_immediately',
+  addons: [] // Empty array removes all existing addons
+});
+```
+
+<Info>
+Tillägg ingår i prorationberäkningen och kommer att debiteras enligt den valda prorationen.
+</Info>
+
+## Prorationslägen
+
+Välj hur du ska fakturera kunden när du ändrar planer:
+
+#### `prorated_immediately`
+- Debiterar för den delvisa skillnaden i den aktuella cykeln
+- Om i provperiod, debiterar omedelbart och byter till den nya planen nu
+- Nedgradering: kan generera en proraterad kredit som tillämpas på framtida förnyelser
+
+#### `full_immediately`
+- Debiterar hela beloppet för den nya planen omedelbart
+- Ignorerar återstående tid från den gamla planen
+
+<Info>
+Krediter som skapas av nedgraderingar med <code>difference_immediately</code> är prenumerationsspecifika och åtskilda från <a href="/features/customer-credit">Kundkrediter</a>. De tillämpas automatiskt på framtida förnyelser av samma prenumeration och är inte överförbara mellan prenumerationer.
+</Info>
+
+#### `difference_immediately`
+- Uppgradering: debiterar omedelbart prisskillnaden mellan gamla och nya planer
+- Nedgradering: lägger till återstående värde som intern kredit till prenumerationen och tillämpar automatiskt vid förnyelser
+
+### Exempel på scenarier
+
+<AccordionGroup>
+  <Accordion title="Uppgradering: Basic ($30) → Pro ($80) med difference_immediately">
+
+    ```javascript
+    await client.subscriptions.changePlan('sub_123', {
+      product_id: 'prod_pro',
+      quantity: 1,
+      proration_billing_mode: 'difference_immediately'
+    })
+    // Immediate charge: $50
+    ```
+
+  </Accordion>
+  <Accordion title="Nedgradering: Plus ($50) → Starter ($20) med difference_immediately">
+
+    ```javascript
+    await client.subscriptions.changePlan('sub_123', {
+      product_id: 'prod_starter',
+      quantity: 1,
+      proration_billing_mode: 'difference_immediately'
+    })
+    // Credit added: $30 (auto-applied to future renewals for this subscription)
+    ```
+
+  </Accordion>
+  <Accordion title="Uppgradering mitt i cykeln med prorated_immediately">
+
+    ```javascript
+    await client.subscriptions.changePlan('sub_123', {
+      product_id: 'prod_new',
+      quantity: 1,
+      proration_billing_mode: 'prorated_immediately'
+    })
+    // Immediate prorated charge based on remaining days in cycle
+    ```
+
+  </Accordion>
+  <Accordion title="Återställ fakturering med full_immediately">
+
+    ```javascript
+    await client.subscriptions.changePlan('sub_123', {
+      product_id: 'prod_new',
+      quantity: 1,
+      proration_billing_mode: 'full_immediately'
+    })
+    // Immediate full charge for new plan; no credits calculated
+    ```
+
+  </Accordion>
+</AccordionGroup>
+
+<Tip>
+Välj `prorated_immediately` för rättvis tidsredovisning; välj `full_immediately` för att återstarta faktureringen; använd `difference_immediately` för enkla uppgraderingar och automatisk kredit vid nedgraderingar.
+</Tip>
+
+## Hantera webhooks
+
+Spåra prenumerationstillstånd genom webhooks för att bekräfta planändringar och betalningar.
+
+### Händelsetyper att hantera
+- `subscription.active`: prenumeration aktiverad
+- `subscription.plan_changed`: prenumerationsplan ändrad (uppgradering/nedgradering/tilläggsändringar)
+- `subscription.on_hold`: debitering misslyckades, prenumeration pausad
+- `subscription.renewed`: förnyelse lyckades
+- `payment.succeeded`: betalning för planändring eller förnyelse lyckades
+- `payment.failed`: betalning misslyckades
+
+<Info>
+Vi rekommenderar att driva affärslogik från prenumerationsevenemang och använda betalningsevenemang för bekräftelse och avstämning.
+</Info>
+
+### Verifiera signaturer och hantera avsikter
+
+<Tabs>
+  <Tab title="Next.js Route Handler">
+
+    ```javascript
+    import { NextRequest, NextResponse } from 'next/server';
+    
+    export async function POST(req) {
+      const webhookId = req.headers.get('webhook-id');
+      const webhookSignature = req.headers.get('webhook-signature');
+      const webhookTimestamp = req.headers.get('webhook-timestamp');
+      const secret = process.env.DODO_WEBHOOK_SECRET;
+    
+      const payload = await req.text();
+      // verifySignature is a placeholder – in production, use a Standard Webhooks library
+      const { valid, event } = await verifySignature(
+        payload,
+        { id: webhookId, signature: webhookSignature, timestamp: webhookTimestamp },
+        secret
+      );
+      if (!valid) return NextResponse.json({ error: 'Invalid signature' }, { status: 400 });
+    
+      switch (event.type) {
+        case 'subscription.active':
+          // mark subscription active in your DB
+          break;
+        case 'subscription.plan_changed':
+          // refresh entitlements and reflect the new plan in your UI
+          break;
+        case 'subscription.on_hold':
+          // notify user to update payment method
+          break;
+        case 'subscription.renewed':
+          // extend access window
+          break;
+        case 'payment.succeeded':
+          // reconcile payment for plan change
+          break;
+        case 'payment.failed':
+          // log and alert
+          break;
+        default:
+          // ignore unknown events
+          break;
+      }
+    
+      return NextResponse.json({ received: true });
+    }
+    ```
+
+  </Tab>
+  <Tab title="Express.js">
+
+    ```javascript
+    import express from 'express';
+    
+    const app = express();
+    app.post('/webhooks/dodo', express.raw({ type: 'application/json' }), async (req, res) => {
+      const webhookId = req.header('webhook-id');
+      const webhookSignature = req.header('webhook-signature');
+      const webhookTimestamp = req.header('webhook-timestamp');
+      const secret = process.env.DODO_WEBHOOK_SECRET;
+      const payload = req.body.toString('utf8');
+    
+      const { valid, event } = await verifySignature(
+        payload,
+        { id: webhookId, signature: webhookSignature, timestamp: webhookTimestamp },
+        secret
+      );
+      if (!valid) return res.status(400).send('Invalid signature');
+    
+      // handle events like above
+      res.json({ received: true });
+    });
+    
+    app.listen(3000);
+    ```
+
+  </Tab>
+</Tabs>
+
+<Note>
+För detaljerade payload-scheman, se <a href="/developer-resources/webhooks/intents/subscription">Prenumerations-webhook-payloads</a> och <a href="/developer-resources/webhooks/intents/payment">Betalnings-webhook-payloads</a>.
+</Note>
+
+## Bästa praxis
+
+Följ dessa rekommendationer för tillförlitliga ändringar av prenumerationsplaner:
+
+### Strategi för planändring
+- **Testa noggrant**: Testa alltid planändringar i testläge innan produktion
+- **Välj proration noggrant**: Välj prorationläget som stämmer överens med din affärsmodell
+- **Hantera misslyckanden smidigt**: Implementera korrekt felhantering och återföringslogik
+- **Övervaka framgångsrater**: Spåra framgångs-/misslyckandefrekvenser för planändringar och undersök problem
+
+### Implementering av webhook
+- **Verifiera signaturer**: Verifiera alltid webhook-signaturer för att säkerställa äkthet
+- **Implementera idempotens**: Hantera dubblettwebhook-händelser smidigt
+- **Bearbeta asynkront**: Blockera inte webhook-svar med tunga operationer
+- **Logga allt**: Upprätthåll detaljerade loggar för felsökning och revisionsändamål
+
+### Användarupplevelse
+- **Kommunicera tydligt**: Informera kunder om faktureringsändringar och tidpunkter
+- **Ge bekräftelser**: Skicka e-postbekräftelser för lyckade planändringar
+- **Hantera kantfall**: Tänk på provperioder, prorationer och misslyckade betalningar
+- **Uppdatera UI omedelbart**: Återspegla planändringar i din applikationsgränssnitt
+
+## Vanliga problem och lösningar
+
+Lös typiska problem som uppstår vid ändringar av prenumerationsplaner:
+
+<AccordionGroup>
+<Accordion title="Debitering skapad men prenumeration inte uppdaterad">
+**Symptom**: API-anrop lyckas men prenumerationen förblir på den gamla planen
+
+**Vanliga orsaker**:
+- Webhook-bearbetning misslyckades eller fördröjdes
+- Applikationstillståndet uppdaterades inte efter att ha mottagit webhooks
+- Databastransaktionsproblem under tillståndsuppdatering
+
+**Lösningar**:
+- Implementera robust webhook-hantering med återföringslogik
+- Använd idempotenta operationer för tillståndsuppdateringar
+- Lägg till övervakning för att upptäcka och varna om missade webhook-händelser
+- Verifiera att webhook-slutpunkten är tillgänglig och svarar korrekt
+</Accordion>
+
+<Accordion title="Krediter tillämpas inte efter nedgradering">
+**Symptom**: Kunden nedgraderar men ser inte kreditbalansen
+
+**Vanliga orsaker**:
+- Förväntningar på prorationläge: nedgraderingar krediterar hela planprisskillnaden med `difference_immediately`, medan `prorated_immediately` skapar en proraterad kredit baserat på återstående tid i cykeln
+- Krediter är prenumerationsspecifika och överförs inte mellan prenumerationer
+- Kreditbalansen är inte synlig i kundens instrumentpanel
+
+**Lösningar**:
+- Använd `difference_immediately` för nedgraderingar när du vill ha automatiska krediter
+- Förklara för kunderna att krediter tillämpas på framtida förnyelser av samma prenumeration
+- Implementera kundportal för att visa kreditbalanser
+- Kontrollera nästa fakturaprevia för att se tillämpade krediter
+</Accordion>
+
+<Accordion title="Webhook-signaturverifiering misslyckas">
+**Symptom**: Webhook-händelser avvisas på grund av ogiltig signatur
+
+**Vanliga orsaker**:
+- Felaktig webhook-hemlig nyckel
+- Rå begärningskropp modifierad före signaturverifiering
+- Fel signaturverifieringsalgoritm
+
+**Lösningar**:
+- Verifiera att du använder den korrekta `DODO_WEBHOOK_SECRET` från instrumentpanelen
+- Läs den råa begärningskroppen innan någon JSON-parsing-mellanprogram
+- Använd det standardiserade webhook-verifieringsbiblioteket för din plattform
+- Testa webhook-signaturverifiering i utvecklingsmiljö
+</Accordion>
+
+<Accordion title="Planändring misslyckas med 422-fel">
+**Symptom**: API returnerar 422 Unprocessable Entity-fel
+
+**Vanliga orsaker**:
+- Ogiltigt prenumerations-ID eller produkt-ID
+- Prenumerationen är inte i aktivt tillstånd
+- Saknas obligatoriska parametrar
+- Produkten är inte tillgänglig för planändringar
+
+**Lösningar**:
+- Verifiera att prenumerationen finns och är aktiv
+- Kontrollera att produkt-ID:t är giltigt och tillgängligt
+- Se till att alla obligatoriska parametrar tillhandahålls
+- Granska API-dokumentationen för parameterkrav
+</Accordion>
+
+<Accordion title="Omedelbar debitering misslyckas under planändring">
+**Symptom**: Planändring initierad men omedelbar debitering misslyckas
+
+**Vanliga orsaker**:
+- Otillräckliga medel på kundens betalningsmetod
+- Betalningsmetoden har gått ut eller är ogiltig
+- Banken avslog transaktionen
+- Bedrägeridetektering blockerade debiteringen
+
+**Lösningar**:
+- Hantera `payment.failed` webhook-händelser på lämpligt sätt
+- Meddela kunden att uppdatera betalningsmetoden
+- Implementera återföringslogik för tillfälliga misslyckanden
+- Överväg att tillåta planändringar med misslyckade omedelbara debiteringar
+</Accordion>
+
+<Accordion title="Prenumeration på paus efter planändring">
+**Symptom**: Planändringsdebitering misslyckas och prenumerationen flyttas till `on_hold` tillstånd
+
+**Vad händer**:
+När en planändringsdebitering misslyckas placeras prenumerationen automatiskt i `on_hold` tillstånd. Prenumerationen kommer inte att förnyas automatiskt förrän betalningsmetoden uppdateras.
+
+**Lösning**: Uppdatera betalningsmetoden för att återaktivera prenumerationen
+
+För att återaktivera en prenumeration från `on_hold` tillstånd efter en misslyckad planändring:
+
+1. **Uppdatera betalningsmetoden** med hjälp av Update Payment Method API
+2. **Automatisk debiteringsskapelse**: API:t skapar automatiskt en debitering för utestående belopp
+3. **Fakturagenerering**: En faktura genereras för debiteringen
+4. **Betalningsbearbetning**: Betalningen behandlas med den nya betalningsmetoden
+5. **Återaktivering**: Vid lyckad betalning återaktiveras prenumerationen till `active` tillstånd
+
+<CodeGroup>
+
+```javascript Node.js
+// Reactivate subscription from on_hold after failed plan change
+async function reactivateAfterFailedPlanChange(subscriptionId) {
+  // Update payment method - automatically creates charge for remaining dues
+  const response = await client.subscriptions.updatePaymentMethod(subscriptionId, {
+    type: 'new',
+    return_url: 'https://example.com/return'
+  });
+  
+  if (response.payment_id) {
+    console.log('Charge created for remaining dues:', response.payment_id);
+    console.log('Payment link:', response.payment_link);
+    
+    // Redirect customer to payment_link to complete payment
+    // Monitor webhooks for:
+    // 1. payment.succeeded - charge succeeded
+    // 2. subscription.active - subscription reactivated
+  }
+  
+  return response;
+}
+
+// Or use existing payment method if available
+async function reactivateWithExistingPaymentMethod(subscriptionId, paymentMethodId) {
+  const response = await client.subscriptions.updatePaymentMethod(subscriptionId, {
+    type: 'existing',
+    payment_method_id: paymentMethodId
+  });
+  
+  // Monitor webhooks for payment.succeeded and subscription.active
+  return response;
+}
+```
+
+```python Python
+# Reactivate subscription from on_hold after failed plan change
+def reactivate_after_failed_plan_change(subscription_id):
+    # Update payment method - automatically creates charge for remaining dues
+    response = client.subscriptions.update_payment_method(
+        subscription_id=subscription_id,
+        type="new",
+        return_url="https://example.com/return"
+    )
+    
+    if response.payment_id:
+        print("Charge created for remaining dues:", response.payment_id)
+        print("Payment link:", response.payment_link)
+        
+        # Redirect customer to payment_link to complete payment
+        # Monitor webhooks for:
+        # 1. payment.succeeded - charge succeeded
+        # 2. subscription.active - subscription reactivated
+    
+    return response
+
+# Or use existing payment method if available
+def reactivate_with_existing_payment_method(subscription_id, payment_method_id):
+    response = client.subscriptions.update_payment_method(
+        subscription_id=subscription_id,
+        type="existing",
+        payment_method_id=payment_method_id
+    )
+    
+    # Monitor webhooks for payment.succeeded and subscription.active
+    return response
+```
+
+</CodeGroup>
+
+**Webhook-händelser att övervaka**:
+- `subscription.on_hold`: Prenumeration placerad på paus (mottagen när planändringsdebiteringen misslyckas)
+- `payment.succeeded`: Betalning för utestående belopp lyckades (efter att betalningsmetoden uppdaterats)
+- `subscription.active`: Prenumeration återaktiverad efter lyckad betalning
+
+**Bästa praxis**:
+- Meddela kunder omedelbart när en planändringsdebitering misslyckas
+- Ge tydliga instruktioner om hur de ska uppdatera sin betalningsmetod
+- Övervaka webhook-händelser för att spåra återaktiveringsstatus
+- Överväg att implementera automatisk återföringslogik för tillfälliga betalningsmisslyckanden
+
+<Card title="API-referens för uppdatering av betalningsmetod" icon="code" href="/api-reference/subscriptions/update-payment-method">
+Se den kompletta API-dokumentationen för att uppdatera betalningsmetoder och återaktivera prenumerationer.
+</Card>
+</Accordion>
+</AccordionGroup>
+
+## Testa din implementation
+
+Följ dessa steg för att noggrant testa din implementation av ändringar av prenumerationsplaner:
+
+<Steps>
+<Step title="Ställ in testmiljö">
+- Använd test-API-nycklar och testprodukter
+- Skapa testprenumerationer med olika planformer
+- Konfigurera test-webhook-slutpunkt
+- Ställ in övervakning och loggning
+</Step>
+
+<Step title="Testa olika prorationlägen">
+- Testa `prorated_immediately` med olika faktureringscykelpositioner
+- Testa `difference_immediately` för uppgraderingar och nedgraderingar
+- Testa `full_immediately` för att återställa faktureringscykler
+- Verifiera att kreditberäkningarna är korrekta
+</Step>
+
+<Step title="Testa webhook-hantering">
+- Verifiera att alla relevanta webhook-händelser mottas
+- Testa webhook-signaturverifiering
+- Hantera dubblettwebhook-händelser smidigt
+- Testa scenarier för misslyckande av webhook-bearbetning
+</Step>
+
+<Step title="Testa fel-scenarier">
+- Testa med ogiltiga prenumerations-ID:n
+- Testa med utgångna betalningsmetoder
+- Testa nätverksfel och tidsgränser
+- Testa med otillräckliga medel
+</Step>
+
+<Step title="Övervaka i produktion">
+- Ställ in aviseringar för misslyckade planändringar
+- Övervaka webhook-bearbetningstider
+- Spåra framgångsrater för planändringar
+- Granska kundsupportärenden för problem med planändringar
+</Step>
+</Steps>
+
+## Felhantering
+
+Hantera vanliga API-fel smidigt i din implementation:
+
+### HTTP-statuskoder
+
+<AccordionGroup>
+<Accordion title="200 OK">
+Planändringsförfrågan har bearbetats framgångsrikt. Prenumerationen uppdateras och betalningsbearbetning har påbörjats.
+</Accordion>
+
+<Accordion title="400 Bad Request">
+Ogiltiga begärningsparametrar. Kontrollera att alla obligatoriska fält tillhandahålls och är korrekt formaterade.
+</Accordion>
+
+<Accordion title="401 Unauthorized">
+Ogiltig eller saknad API-nyckel. Verifiera att din `DODO_PAYMENTS_API_KEY` är korrekt och har rätt behörigheter.
+</Accordion>
+
+<Accordion title="404 Not Found">
+Prenumerations-ID:t hittades inte eller tillhör inte ditt konto.
+</Accordion>
+
+<Accordion title="422 Unprocessable Entity">
+Prenumerationen kan inte ändras (t.ex. redan avbruten, produkt inte tillgänglig, etc.).
+</Accordion>
+
+<Accordion title="500 Internal Server Error">
+Ett serverfel inträffade. Försök att göra begäran igen efter en kort paus.
+</Accordion>
+</AccordionGroup>
+
+### Felresponsformat
+
+```json
+{
+  "error": {
+    "code": "subscription_not_found",
+    "message": "The subscription with ID 'sub_123' was not found",
+    "details": {
+      "subscription_id": "sub_123"
+    }
+  }
+}
+```
+
+## Nästa steg
+
+- Granska <a href="/api-reference/subscriptions/change-plan">Change Plan API</a>
+- Utforska <a href="/features/customer-credit">Kundkrediter</a>
+- Implementera aviseringar för `subscription.on_hold`
+- Kolla in vår <a href="/developer-resources/webhooks">Webhook-integrationsguide</a>

@@ -1,0 +1,425 @@
+---
+title: Ruby
+description: अपने Ruby अनुप्रयोगों में Dodo Payments को एक सुंदर, Ruby-स्वदेशी
+  SDK के साथ एकीकृत करें
+icon: gem
+---
+
+Ruby SDK Dodo Payments को आपके Ruby अनुप्रयोगों में एक सरल और सहज तरीके से एकीकृत करने के लिए प्रदान करता है। यह Ruby की परंपराओं और सर्वोत्तम प्रथाओं का पालन करता है, व्यापक त्रुटि प्रबंधन, पृष्ठांकन, और मध्यवर्ती समर्थन प्रदान करता है।
+
+## स्थापना
+
+अपने Gemfile में जेम जोड़ें:
+
+```ruby Gemfile
+gem "dodopayments", "~> 1.61.5"
+```
+
+<Tip>
+हमेशा नवीनतम SDK संस्करण का उपयोग करें ताकि Dodo Payments की नवीनतम सुविधाओं तक पहुंच प्राप्त हो सके। अद्यतित रहने के लिए `bundle update dodopayments` नियमित रूप से चलाएं।
+</Tip>
+
+फिर चलाएं:
+
+```bash
+bundle install
+```
+
+<Info>
+SDK Ruby 3.2.0 और बाद के संस्करणों का समर्थन करता है, जिसमें व्यापक प्रकार, त्रुटि प्रबंधन, और पुनः प्रयास तंत्र शामिल हैं।
+</Info>
+
+## त्वरित प्रारंभ
+
+क्लाइंट को प्रारंभ करें और एक चेकआउट सत्र बनाएं:
+
+```ruby
+require "bundler/setup"
+require "dodopayments"
+
+dodo_payments = Dodopayments::Client.new(
+  bearer_token: ENV["DODO_PAYMENTS_API_KEY"], # This is the default and can be omitted
+  environment: "test_mode" # defaults to "live_mode"
+)
+
+checkout_session_response = dodo_payments.checkout_sessions.create(
+  product_cart: [{product_id: "product_id", quantity: 1}]
+)
+
+puts(checkout_session_response.session_id)
+```
+
+<Warning>
+अपने API कुंजियों को सुरक्षित रूप से पर्यावरण चर का उपयोग करके स्टोर करें। उन्हें संस्करण नियंत्रण में कभी भी कमिट न करें या अपने कोड में उजागर न करें।
+</Warning>
+
+## मुख्य विशेषताएँ
+
+<CardGroup cols={2}>
+<Card title="Ruby परंपराएँ" icon="gem">
+  Ruby नामकरण परंपराओं और आदर्श पैटर्न का पालन करता है
+</Card>
+
+<Card title="सुंदर सिंटैक्स" icon="code">
+  साफ, पठनीय API जो Ruby डेवलपर्स के लिए स्वाभाविक लगता है
+</Card>
+
+<Card title="स्वचालित पृष्ठांकन" icon="arrows-rotate">
+  सूची प्रतिक्रियाओं के लिए अंतर्निहित स्वचालित-पृष्ठांकन पुनरावर्तक
+</Card>
+
+<Card title="प्रकार सुरक्षा" icon="shield-check">
+  बढ़ी हुई प्रकार सुरक्षा के लिए वैकल्पिक Sorbet प्रकार
+</Card>
+</CardGroup>
+
+## कॉन्फ़िगरेशन
+
+### टाइमआउट कॉन्फ़िगरेशन
+
+अनुरोध टाइमआउट कॉन्फ़िगर करें:
+
+```ruby
+# Configure default for all requests (default is 60 seconds)
+dodo_payments = Dodopayments::Client.new(
+  timeout: nil # disable timeout
+)
+
+# Or, configure per-request
+dodo_payments.checkout_sessions.create(
+  product_cart: [{product_id: "product_id", quantity: 0}],
+  request_options: {timeout: 5}
+)
+```
+
+### पुनः प्रयास कॉन्फ़िगरेशन
+
+स्वचालित पुनः प्रयास व्यवहार कॉन्फ़िगर करें:
+
+```ruby
+# Configure default for all requests (default is 2)
+dodo_payments = Dodopayments::Client.new(
+  max_retries: 0 # disable retries
+)
+
+# Or, configure per-request
+dodo_payments.checkout_sessions.create(
+  product_cart: [{product_id: "product_id", quantity: 0}],
+  request_options: {max_retries: 5}
+)
+```
+
+## सामान्य संचालन
+
+### एक चेकआउट सत्र बनाएं
+
+एक चेकआउट सत्र उत्पन्न करें:
+
+```ruby
+session = dodo_payments.checkout_sessions.create(
+  product_cart: [
+    {
+      product_id: "prod_123",
+      quantity: 1
+    }
+  ],
+  return_url: "https://yourdomain.com/return"
+)
+
+# Redirect to checkout
+redirect_to session.url
+```
+
+### ग्राहकों का प्रबंधन करें
+
+ग्राहक जानकारी बनाएं और पुनः प्राप्त करें:
+
+```ruby
+# Create a customer
+customer = dodo_payments.customers.create(
+  email: "customer@example.com",
+  name: "John Doe",
+  metadata: {
+    user_id: "12345"
+  }
+)
+
+# Retrieve customer
+customer = dodo_payments.customers.retrieve("cus_123")
+puts "Customer: #{customer.name} (#{customer.email})"
+```
+
+### सदस्यताओं को संभालें
+
+आवर्ती सदस्यताएँ बनाएं और प्रबंधित करें:
+
+```ruby
+# Create a subscription
+subscription = dodo_payments.subscriptions.create(
+  customer_id: "cus_123",
+  product_id: "prod_456",
+  price_id: "price_789"
+)
+
+# Update subscription
+updated = dodo_payments.subscriptions.update(
+  subscription.id,
+  metadata: { plan_type: "premium" }
+)
+
+# Cancel subscription
+dodo_payments.subscriptions.cancel(subscription.id)
+```
+
+## पृष्ठांकन
+
+### स्वचालित पृष्ठांकन
+
+स्वचालित रूप से सभी पृष्ठों के माध्यम से पुनरावृत्त करें:
+
+```ruby
+page = dodo_payments.payments.list
+
+# Fetch single item from page
+payment = page.items[0]
+puts(payment.brand_id)
+
+# Automatically fetches more pages as needed
+page.auto_paging_each do |payment|
+  puts(payment.brand_id)
+end
+```
+
+### मैनुअल पृष्ठांकन
+
+पृष्ठांकन पर अधिक नियंत्रण के लिए:
+
+```ruby
+page = dodo_payments.payments.list
+
+if page.next_page?
+  new_page = page.next_page
+  puts(new_page.items[0].brand_id)
+end
+```
+
+## त्रुटि प्रबंधन
+
+विभिन्न Dodo Payments API त्रुटियों को संभालें:
+
+```ruby
+begin
+  checkout_session = dodo_payments.checkout_sessions.create(
+    product_cart: [{product_id: "product_id", quantity: 0}]
+  )
+rescue Dodopayments::Errors::APIConnectionError => e
+  puts("The server could not be reached")
+  puts(e.cause)  # an underlying Exception, likely raised within `net/http`
+rescue Dodopayments::Errors::RateLimitError => e
+  puts("A 429 status code was received; we should back off a bit.")
+rescue Dodopayments::Errors::APIStatusError => e
+  puts("Another non-200-range status code was received")
+  puts(e.status)
+end
+```
+
+<Tip>
+रेट सीमा त्रुटियों के लिए पुनः प्रयास तर्क को लागू करें जिसमें वृद्धि के साथ बैकऑफ हो ताकि आपका अनुप्रयोग उच्च-परिवाह परिदृश्यों को सुचारू रूप से संभाल सके।
+</Tip>
+
+## Sorbet के साथ प्रकार सुरक्षा
+
+प्रकार-सुरक्षित अनुरोध पैरामीटर के लिए Sorbet का उपयोग करें:
+
+```ruby
+# Type-safe using Sorbet RBI definitions
+dodo_payments.checkout_sessions.create(
+  product_cart: [
+    Dodopayments::CheckoutSessionRequest::ProductCart.new(
+      product_id: "product_id",
+      quantity: 0
+    )
+  ]
+)
+
+# Hashes work, but are not typesafe
+dodo_payments.checkout_sessions.create(
+  product_cart: [{product_id: "product_id", quantity: 0}]
+)
+
+# You can also splat a full Params class
+params = Dodopayments::CheckoutSessionCreateParams.new(
+  product_cart: [
+    Dodopayments::CheckoutSessionRequest::ProductCart.new(
+      product_id: "product_id",
+      quantity: 0
+    )
+  ]
+)
+dodo_payments.checkout_sessions.create(**params)
+```
+
+## उन्नत उपयोग
+
+### अप्रलेखित एंडपॉइंट्स
+
+अप्रलेखित एंडपॉइंट्स पर अनुरोध करें:
+
+```ruby
+response = dodo_payments.request(
+  method: :post,
+  path: '/undocumented/endpoint',
+  query: {"dog": "woof"},
+  headers: {"useful-header": "interesting-value"},
+  body: {"hello": "world"}
+)
+```
+
+### अप्रलेखित पैरामीटर
+
+अप्रलेखित पैरामीटर भेजें:
+
+```ruby
+checkout_session_response = dodo_payments.checkout_sessions.create(
+  product_cart: [{product_id: "product_id", quantity: 0}],
+  request_options: {
+    extra_query: {my_query_parameter: value},
+    extra_body: {my_body_parameter: value},
+    extra_headers: {"my-header": value}
+  }
+)
+
+# Access undocumented response properties
+puts(checkout_session_response[:my_undocumented_property])
+```
+
+## Rails एकीकरण
+
+### एक प्रारंभिककरण बनाएँ
+
+`config/initializers/dodo_payments.rb` बनाएँ:
+
+```ruby
+require "dodopayments"
+
+DODO_CLIENT = Dodopayments::Client.new(
+  bearer_token: Rails.application.credentials.dodo_api_key,
+  environment: Rails.env.production? ? "live_mode" : "test_mode"
+)
+```
+
+### सेवा वस्तु पैटर्न
+
+एक भुगतान सेवा बनाएँ:
+
+```ruby
+# app/services/payment_service.rb
+class PaymentService
+  def initialize
+    @client = DODO_CLIENT
+  end
+
+  def create_checkout(items)
+    @client.checkout_sessions.create(
+      product_cart: items,
+      return_url: Rails.application.routes.url_helpers.checkout_return_url
+    )
+  end
+
+  def process_payment(amount:, currency:, customer_id:)
+    @client.payments.create(
+      amount: amount,
+      currency: currency,
+      customer_id: customer_id
+    )
+  end
+end
+```
+
+### नियंत्रक एकीकरण
+
+अपने Rails नियंत्रकों में उपयोग करें:
+
+```ruby
+# app/controllers/checkouts_controller.rb
+class CheckoutsController < ApplicationController
+  def create
+    service = PaymentService.new
+    session = service.create_checkout(checkout_params[:items])
+    
+    redirect_to session.url, allow_other_host: true
+  rescue Dodopayments::Errors::APIError => e
+    flash[:error] = "Payment error: #{e.message}"
+    redirect_to cart_path
+  end
+
+  private
+
+  def checkout_params
+    params.require(:checkout).permit(items: [:product_id, :quantity])
+  end
+end
+```
+
+## Sinatra एकीकरण
+
+Sinatra अनुप्रयोगों के साथ उपयोग करें:
+
+```ruby
+require "sinatra"
+require "dodopayments"
+
+configure do
+  set :dodo_client, Dodopayments::Client.new(
+    bearer_token: ENV["DODO_API_KEY"]
+  )
+end
+
+post "/create-checkout" do
+  content_type :json
+  
+  begin
+    session = settings.dodo_client.checkout_sessions.create(
+      product_cart: JSON.parse(request.body.read)["items"],
+      return_url: "#{request.base_url}/return"
+    )
+    
+    { checkout_url: session.url }.to_json
+  rescue Dodopayments::Errors::APIError => e
+    status 400
+    { error: e.message }.to_json
+  end
+end
+```
+
+## संसाधन
+
+<CardGroup cols={2}>
+<Card title="GitHub रिपॉजिटरी" icon="github" href="https://github.com/dodopayments/dodopayments-ruby">
+  स्रोत कोड देखें और योगदान करें
+</Card>
+
+<Card title="API संदर्भ" icon="book" href="/api-reference/introduction">
+  पूर्ण API दस्तावेज़ीकरण
+</Card>
+
+<Card title="Discord समुदाय" icon="discord" href="https://discord.gg/bYqAp4ayYh">
+  मदद प्राप्त करें और डेवलपर्स से जुड़ें
+</Card>
+
+<Card title="समस्याएँ रिपोर्ट करें" icon="bug" href="https://github.com/dodopayments/dodopayments-ruby/issues">
+  बग रिपोर्ट करें या सुविधाएँ अनुरोध करें
+</Card>
+</CardGroup>
+
+## समर्थन
+
+Ruby SDK के साथ मदद चाहिए?
+
+- **Discord**: वास्तविक समय समर्थन के लिए हमारे [समुदाय सर्वर](https://discord.gg/bYqAp4ayYh) में शामिल हों
+- **ईमेल**: हमें support@dodopayments.com पर संपर्क करें
+- **GitHub**: [रिपॉजिटरी](https://github.com/dodopayments/dodopayments-ruby) पर एक समस्या खोलें
+
+## योगदान
+
+हम योगदान का स्वागत करते हैं! प्रारंभ करने के लिए [योगदान दिशानिर्देश](https://github.com/dodopayments/dodopayments-ruby/blob/main/CONTRIBUTING.md) की जांच करें.
