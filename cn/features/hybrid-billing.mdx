@@ -1,0 +1,1180 @@
+---
+sidebarTitle: 混合计费
+title: 混合计费模型
+description: 结合多种计费模式以创建复杂的定价策略：订阅 + 使用、座位 + 附加功能、基础 + 超额等。
+icon: layer-group
+---
+
+<Info>
+混合计费将两种或多种计费模型结合为单一定价策略。这使您能够从不同维度捕获价值——定期费用、使用、座位和功能，同时为客户提供灵活性和可预测性。
+</Info>
+
+<CardGroup cols={2}>
+<Card title="基于使用的计费" icon="chart-line" href="/features/usage-based-billing/introduction">
+  消费型定价的基础。
+</Card>
+
+<Card title="订阅" icon="repeat" href="/features/subscription">
+  定期计费的基础。
+</Card>
+
+<Card title="附加功能" icon="puzzle" href="/features/addons">
+  通过可选升级扩展订阅。
+</Card>
+
+<Card title="基于座位的计费" icon="users" href="/features/seat-based-billing">
+  按用户计费模型。
+</Card>
+</CardGroup>
+
+---
+
+## 什么是混合计费？
+
+混合计费将多个定价维度结合为单一产品提供。您不再需要在固定费用订阅或基于使用的定价之间进行选择，而是可以将两者结合使用。
+
+### 为什么使用混合计费？
+
+| 业务目标 | 混合解决方案 |
+|--------------|-----------------|
+| 可预测的收入 + 增长潜力 | 基础订阅 + 使用超额 |
+| 可扩展的团队定价 | 按座位 + 功能附加 |
+| 吸引客户，后续扩展 | 低基础费用 + 消费费用 |
+| 企业灵活性 | 承诺支出 + 按需费用 |
+| 适应可变使用的公平定价 | 包含配额 + 按使用付费 |
+
+### 常见混合模式
+
+| 模型 | 描述 | 示例 | 原生支持 |
+|-------|-------------|---------|----------------|
+| **1. 订阅 + 使用** | 基础费用 + 消费费用 | \$49/月 + \$0.01/API 调用（超过 10K 免费） | ✅ 完全 |
+| **2. 订阅 + 座位** | 平台费用 + 按用户收费 | \$99/月 + \$15/座位 | ✅ 完全 |
+| **3. 订阅 + 功能附加** | 核心计划 + 可选升级 | \$29/月 + \$19/月 分析 + \$9/月 API 访问 | ✅ 完全 |
+| **4. 座位 + 使用** | 按用户费用 + 消费超额 | \$10/用户/月 + \$0.05/GB（超过 5GB/用户） | ⚠️ 解决方法 |
+| **5. 订阅 + 座位 + 使用** | 平台 + 用户 + 消费（三级混合） | \$199/月 + \$20/座位 + 使用超额 | ⚠️ 解决方法 |
+| **6. 分级基础 + 使用超额** | 不同级别具有不同的配额 | 入门（5K 调用）与专业（50K 调用） + 超额 | ✅ 完全 |
+| **7. 订阅 + 按需费用** | 定期费用 + 可变手动费用 | \$99/月保留 + 按小时计费 | ✅ 完全 |
+
+---
+
+## 混合模型 1：订阅 + 使用
+
+最常见的混合模型。客户支付基础订阅费用以及超出包含配额的消费费用。
+
+### 工作原理
+
+**专业计划：$49/月**
+
+- **包含**：每月 10,000 次 API 调用
+- **超额**：超过 10,000 次后每次 $0.005
+
+**示例计算**（客户本月使用 25,000 次调用）：
+- 基础订阅：$49.00
+- 超额： (25,000 - 10,000) × $0.005 = $75.00
+- **总计：$124.00**
+
+### 使用案例
+
+- **API 平台**：基础访问 + 按请求收费
+- **AI/ML 服务**：订阅 + 令牌/生成使用
+- **存储服务**：基础计划 + 按 GB 超额
+- **通信平台**：基础 + 按消息/分钟收费
+
+### 实施
+
+<Steps>
+<Step title="创建使用计量器">
+设置计量器以跟踪可计费的使用维度。
+
+```bash
+Dashboard: Meters → Create Meter
+Event Name: "api.call"
+Aggregation: Count
+This tracks API calls per customer
+```
+
+</Step>
+
+<Step title="创建带有使用定价的订阅产品">
+创建一个订阅产品并附加使用计量器及定价。
+
+```bash
+Dashboard: Create Product → Subscription
+Name: "Pro Plan"
+Base Price: $49/month
+
+Then attach usage pricing:
+- Meter: api.call
+- Price per unit: $0.005
+- Free threshold: 10,000 (included in subscription)
+```
+
+<Info>
+使用计量器直接附加到订阅产品。使用费用会自动计算并添加到订阅发票中。
+</Info>
+</Step>
+
+<Step title="创建结账会话">
+创建一个包含您的订阅产品的结账会话。
+
+```typescript
+const session = await client.checkoutSessions.create({
+  product_cart: [
+    { product_id: 'prod_pro_plan', quantity: 1 }
+  ],
+  customer: { email: 'customer@example.com' },
+  return_url: 'https://yourapp.com/success'
+});
+```
+
+</Step>
+
+<Step title="发送使用事件">
+在计费周期内跟踪使用情况。
+
+```typescript
+await fetch('https://api.dodopayments.com/events/ingest', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${apiKey}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    events: [{
+      event_id: `call_${Date.now()}`,
+      customer_id: 'cus_123',
+      event_name: 'api.call',
+      timestamp: new Date().toISOString(),
+      metadata: { endpoint: '/v1/generate' }
+    }]
+  })
+});
+```
+
+</Step>
+</Steps>
+
+### 定价变体
+
+<Tabs>
+<Tab title="包含配额">
+免费阈值覆盖基础订阅中包含的使用。
+
+**专业计划：$49/月**
+- 包含：10,000 次 API 调用
+- 超额：超过 10,000 次后 $0.005/次
+- 客户使用 8,000 次 → 支付 $49（无超额）
+</Tab>
+
+<Tab title="零基础 + 纯使用">
+没有基础费用，从第一次使用开始每个单位都可计费。
+
+**按需付费：$0/月基础**
+- 包含：0 次 API 调用
+- 使用：第一次调用起 $0.01/次
+- 客户使用 5,000 次 → 支付 $50
+</Tab>
+
+<Tab title="分级配额">
+不同级别包含不同的配额。
+
+- **入门**：$19/月（包含 1,000 次调用）
+- **专业**：$49/月（包含 10,000 次调用）
+- **企业**：$199/月（包含 100,000 次调用）
+- 所有级别：超额 $0.005/次
+</Tab>
+</Tabs>
+
+---
+
+## 混合模型 2：订阅 + 座位
+
+平台费用加上按用户收费。适合团队协作工具和 B2B SaaS。
+
+### 工作原理
+
+**团队计划：$99/月 + $15/座位**
+
+- **基础平台费用**：$99/月（包括 3 个座位）
+- **额外座位**：$15/座位/月
+
+**示例计算**（12 用户团队）：
+- 平台费用：$99.00
+- 额外座位： (12 - 3) × $15 = $135.00
+- **总计：$234.00/月**
+
+### 使用案例
+
+- **协作工具**：工作区费用 + 按成员收费
+- **CRM 系统**：平台许可证 + 按销售代表收费
+- **项目管理**：团队计划 + 按贡献者收费
+- **开发工具**：组织费用 + 按开发者收费
+
+### 实施
+
+<Steps>
+<Step title="创建座位附加功能">
+为额外座位创建附加功能。
+
+```bash
+Dashboard: Products → Add-ons → Create Add-on
+Name: "Additional Seat"
+Price: $15/month
+Description: "Add another team member"
+```
+
+</Step>
+
+<Step title="创建基础订阅">
+创建带有平台费用的订阅产品并附加附加功能。
+
+```bash
+Dashboard: Create Product → Subscription
+Name: "Team Plan"
+Price: $99/month
+Description: "Includes 3 team members"
+
+Then in Add-ons section:
+- Attach: "Additional Seat" add-on
+```
+
+</Step>
+
+<Step title="创建带座位的结账">
+在结账时指定座位数量。
+
+```typescript
+const session = await client.checkoutSessions.create({
+  product_cart: [{
+    product_id: 'prod_team_plan',
+    quantity: 1,
+    addons: [{
+      addon_id: 'addon_seat',
+      quantity: 9  // 9 extra seats (12 total with 3 included)
+    }]
+  }],
+  customer: { email: 'admin@company.com' },
+  return_url: 'https://yourapp.com/success'
+});
+```
+
+</Step>
+
+<Step title="根据需要调整座位">
+在现有订阅中添加或删除座位。
+
+```typescript
+// Add 5 more seats
+await client.subscriptions.changePlan('sub_123', {
+  product_id: 'prod_team_plan',
+  quantity: 1,
+  proration_billing_mode: 'prorated_immediately',
+  addons: [{
+    addon_id: 'addon_seat',
+    quantity: 14  // New total: 14 extra seats
+  }]
+});
+```
+
+</Step>
+</Steps>
+
+### 定价变体
+
+<Tabs>
+<Tab title="包含座位">
+基础计划包括一些座位，额外座位收费。
+
+**团队计划：$99/月**
+- 包含：5 个座位
+- 额外座位：$15/座位/月
+- 20 用户 = \$99 + (15 × \$15) = \$324/月
+</Tab>
+
+<Tab title="纯按座位">
+没有平台费用，只有按用户收费。
+
+**按用户：$25/用户/月**
+- 无平台费用
+- 5 用户 = $125/月
+- 50 用户 = $1,250/月
+实施：将基础订阅价格设置为 $0，仅使用座位附加功能。
+</Tab>
+
+<Tab title="分级按座位">
+按座位的价格在更高的级别下降。
+
+- **入门**：$20/座位（1-10 座位）
+- **增长**：$15/座位（11-50 座位）
+- **企业**：$10/座位（51+ 座位）
+实施：为每个级别创建单独的订阅产品，具有不同的附加功能价格。
+</Tab>
+</Tabs>
+
+---
+
+## 混合模型 3：订阅 + 功能附加
+
+核心订阅与客户可以添加的可选功能升级。
+
+### 工作原理
+
+**核心计划：$29/月**
+
+**可选附加功能：**
+- 高级分析：+$19/月
+- API 访问：+$9/月
+- 优先支持：+$29/月
+- 白标：+$49/月
+
+**示例计算**（客户选择核心 + 分析 + API 访问）：
+- 核心计划：$29.00
+- 分析：$19.00
+- API 访问：$9.00
+- **总计：$57.00/月**
+
+### 使用案例
+
+- **SaaS 平台**：核心功能 + 高级模块
+- **营销工具**：基础工具 + 集成
+- **分析产品**：仪表板 + 高级报告
+- **安全软件**：基本保护 + 高级功能
+
+### 实施
+
+<Steps>
+<Step title="创建功能附加功能">
+为每个可选功能创建附加功能。
+
+```bash
+# Add-on 1: Advanced Analytics
+Dashboard: Products → Add-ons → Create Add-on
+Name: "Advanced Analytics"
+Price: $19/month
+
+# Add-on 2: API Access
+Name: "API Access"
+Price: $9/month
+
+# Add-on 3: Priority Support
+Name: "Priority Support"
+Price: $29/month
+
+# Add-on 4: White-label
+Name: "White-label"
+Price: $49/month
+```
+
+</Step>
+
+<Step title="创建核心订阅">
+定义您的基础订阅并附加所有功能附加功能。
+
+```bash
+Dashboard: Create Product → Subscription
+Name: "Core Plan"
+Price: $29/month
+
+Then in Add-ons section:
+- Attach all feature add-ons
+```
+
+</Step>
+
+<Step title="让客户选择">
+结账时选择所选功能。
+
+```typescript
+const session = await client.checkoutSessions.create({
+  product_cart: [{
+    product_id: 'prod_core_plan',
+    quantity: 1,
+    addons: [
+      { addon_id: 'addon_analytics', quantity: 1 },
+      { addon_id: 'addon_api_access', quantity: 1 }
+      // Customer didn't select support or white-label
+    ]
+  }],
+  return_url: 'https://yourapp.com/success'
+});
+```
+
+</Step>
+
+<Step title="稍后添加功能">
+客户可以向现有订阅添加功能。
+
+```typescript
+// Customer wants to add Priority Support
+await client.subscriptions.changePlan('sub_123', {
+  product_id: 'prod_core_plan',
+  quantity: 1,
+  proration_billing_mode: 'prorated_immediately',
+  addons: [
+    { addon_id: 'addon_analytics', quantity: 1 },
+    { addon_id: 'addon_api_access', quantity: 1 },
+    { addon_id: 'addon_priority_support', quantity: 1 }  // New!
+  ]
+});
+```
+
+</Step>
+</Steps>
+
+---
+
+## 混合模型 4：座位 + 使用
+
+按用户费用与基于消费的费用相结合。每个用户都有一个配额。
+
+<Warning>
+**限制**：Dodo Payments 目前不支持将使用计量器和附加功能同时附加到同一订阅产品。此模型需要使用应用级逻辑的解决方法。
+</Warning>
+
+<Info>
+**即将推出**：对座位 + 使用混合计费的原生支持在我们的路线图上。这将允许您将使用计量器和座位附加功能附加到同一订阅产品。
+</Info>
+
+### 工作原理
+
+**团队分析：$20/用户/月**
+
+**每个用户包括：**
+- 每月 5 GB 数据处理
+- 超额：超出配额后每 GB $2
+
+**示例计算**（10 用户团队使用总共 80 GB）：
+- 座位费用：10 × $20 = $200.00
+- 包含数据：10 × 5 GB = 50 GB
+- 超额： (80 - 50) × $2 = $60.00
+- **总计：$260.00/月**
+
+### 使用案例
+
+- **分析平台**：按分析师 + 数据处理
+- **设计工具**：按设计师 + 存储/导出
+- **开发环境**：按开发者 + 计算小时
+- **通信工具**：按用户 + 消息/通话量
+
+### 实施选项
+
+由于您无法将使用计量器和附加功能同时附加到同一订阅中，请选择以下方法之一：
+
+<Tabs>
+<Tab title="选项 A：使用产品 + 应用管理的座位">
+使用基于使用的订阅，并在您的应用中管理座位计费。
+
+<Steps>
+<Step title="创建使用计量器">
+
+```bash
+Dashboard: Meters → Create Meter
+Event Name: "data.processed"
+Aggregation: Sum
+Property: "bytes"
+```
+
+</Step>
+
+<Step title="创建基于使用的订阅">
+
+```bash
+Dashboard: Create Product → Subscription
+Name: "Team Analytics"
+Base Price: $0/month
+
+Attach usage pricing:
+- Meter: data.processed
+- Price per unit: $2/GB
+- Free threshold: 0 (managed by your app)
+```
+
+</Step>
+
+<Step title="在您的应用中管理座位">
+单独跟踪座位数量并计算座位费用。
+
+```typescript
+// Your application tracks seats and calculates total cost
+async function calculateMonthlyBill(customerId: string) {
+  const seatCount = await getSeatCount(customerId);
+  const seatFee = seatCount * 20; // $20/seat
+
+  // Usage is billed by Dodo automatically
+  // You invoice/charge seat fees separately or include in base price
+
+  // Alternatively, adjust base subscription price when seats change
+  const totalBasePrice = seatCount * 2000; // $20/seat in cents
+  await client.subscriptions.update('sub_123', {
+    // Update subscription to reflect seat-based pricing
+  });
+}
+```
+
+</Step>
+
+<Step title="计算动态免费阈值">
+根据座位数量调整包含的使用。
+
+```typescript
+// When checking usage, apply per-seat allowance
+async function checkUsageOverage(customerId: string) {
+  const seatCount = await getSeatCount(customerId);
+  const includedGB = seatCount * 5; // 5 GB per user
+
+  const currentUsage = await getUsageFromDodo(customerId);
+  const overage = Math.max(0, currentUsage - includedGB);
+
+  // Overage is billed by Dodo at $2/GB
+  return { included: includedGB, used: currentUsage, overage };
+}
+```
+
+</Step>
+</Steps>
+</Tab>
+
+<Tab title="选项 B：座位附加功能 + 按需使用费用">
+使用附加功能来增加座位，并通过按需费用手动收费。
+
+<Steps>
+<Step title="创建座位附加功能">
+
+```bash
+Dashboard: Products → Add-ons → Create Add-on
+Name: "Team Member"
+Price: $20/month
+```
+
+</Step>
+
+<Step title="创建带附加功能的订阅">
+
+```bash
+Dashboard: Create Product → Subscription
+Name: "Team Analytics"
+Base Price: $0/month
+
+Attach add-on:
+- "Team Member" add-on
+
+Enable on-demand charging
+```
+
+</Step>
+
+<Step title="在您的应用中跟踪使用">
+
+```typescript
+// Track usage events in your system
+async function trackDataProcessed(customerId: string, bytes: number) {
+  await saveUsageEvent({
+    customer_id: customerId,
+    event_type: 'data.processed',
+    bytes: bytes,
+    timestamp: new Date()
+  });
+}
+```
+
+</Step>
+
+<Step title="在周期结束时收费">
+手动计算并收费使用超额。
+
+```typescript
+async function billUsageOverage(subscriptionId: string) {
+  const subscription = await getSubscription(subscriptionId);
+  const seatCount = subscription.addons.find(a => a.id === 'addon_seat')?.quantity || 0;
+
+  const includedGB = seatCount * 5;
+  const usedGB = await calculatePeriodUsage(subscription.customer_id);
+  const overageGB = Math.max(0, usedGB - includedGB);
+
+  if (overageGB > 0) {
+    const overageCharge = overageGB * 200; // $2/GB in cents
+    await client.subscriptions.charge(subscriptionId, {
+      product_price: overageCharge,
+      product_description: `Data overage: ${overageGB} GB × $2/GB`
+    });
+  }
+}
+```
+
+</Step>
+</Steps>
+</Tab>
+</Tabs>
+
+<Info>
+**推荐**：选项 B（座位附加功能 + 按需使用）通常更容易实施，因为 Dodo 自动处理座位计费。您只需跟踪并收费使用超额。
+</Info>
+
+---
+
+## 混合模型 5：订阅 + 座位 + 使用（三级混合）
+
+最全面的模型：平台费用 + 按用户 + 消费。
+
+<Warning>
+**限制**：Dodo Payments 目前不支持将使用计量器和附加功能同时附加到同一订阅产品。此模型需要解决方法。 
+</Warning>
+
+<Info>
+**即将推出**：对三级混合计费（基础 + 座位 + 使用）的原生支持在我们的路线图上。这将允许您将使用计量器和座位附加功能附加到同一订阅产品。
+</Info>
+
+### 工作原理
+
+**企业平台**
+
+- **平台费用**：$199/月
+- **每座位**：$25/用户/月
+- **使用**：$0.10/1000 次 API 调用（包含 50K）
+
+**示例计算**（公司有 20 个用户，150,000 次 API 调用）：
+- 平台：$199.00
+- 座位：20 × $25 = $500.00
+- 使用： (150K - 50K) × \$0.10/1K = \$10.00
+- **总计：$709.00/月**
+
+### 使用案例
+
+- **企业 SaaS**：平台 + 团队 + 消费
+- **数据平台**：工作区 + 分析师 + 查询
+- **集成平台**：中心 + 连接器 + 交易
+- **AI 平台**：工作区 + 开发者 + 推理
+
+### 实施选项
+
+选择以下方法之一来实施三级混合计费：
+
+<Tabs>
+<Tab title="选项 A：基础 + 座位（附加功能） + 按需使用">
+使用带有座位附加功能的订阅，手动收费使用。
+
+**这是推荐的方法**，因为 Dodo 自动处理平台费用和座位计费。
+
+<Steps>
+<Step title="创建座位附加功能">
+
+```bash
+Dashboard: Products → Add-ons → Create Add-on
+Name: "User Seat"
+Price: $25/month
+```
+
+</Step>
+
+<Step title="创建订阅产品">
+
+```bash
+Dashboard: Create Product → Subscription
+Name: "Enterprise Platform"
+Base Price: $199/month
+
+Attach add-on:
+- "User Seat" add-on
+
+Enable on-demand charging
+```
+
+</Step>
+
+<Step title="创建带座位的结账">
+
+```typescript
+const session = await client.checkoutSessions.create({
+  product_cart: [{
+    product_id: 'prod_enterprise_platform',
+    quantity: 1,
+    addons: [{
+      addon_id: 'addon_user_seat',
+      quantity: 20  // 20 users
+    }]
+  }],
+  customer: { email: 'enterprise@company.com' },
+  return_url: 'https://yourapp.com/success'
+});
+```
+
+</Step>
+
+<Step title="在您的应用中跟踪使用">
+存储使用事件在您的系统中。
+
+```typescript
+// Track API calls in your system
+async function trackApiCall(customerId: string, endpoint: string) {
+  await saveUsageEvent({
+    customer_id: customerId,
+    event_type: 'api.call',
+    endpoint: endpoint,
+    timestamp: new Date()
+  });
+}
+```
+
+</Step>
+
+<Step title="在周期结束时收费">
+通过按需收费计算并收费使用超额。
+
+```typescript
+async function billUsageOverage(subscriptionId: string) {
+  const usage = await calculatePeriodUsage(subscriptionId);
+  const includedCalls = 50000;
+  const overageCalls = Math.max(0, usage.totalCalls - includedCalls);
+
+  if (overageCalls > 0) {
+    // $0.10 per 1000 calls = $0.0001 per call
+    const overageCharge = Math.ceil(overageCalls / 1000) * 10; // cents
+    await client.subscriptions.charge(subscriptionId, {
+      product_price: overageCharge,
+      product_description: `API usage: ${overageCalls.toLocaleString()} calls over 50K included`
+    });
+  }
+}
+```
+
+</Step>
+</Steps>
+</Tab>
+
+<Tab title="选项 B：基础 + 使用（计量器） + 应用管理的座位">
+使用带有使用计量器的订阅，在您的应用中管理座位计费。
+
+<Steps>
+<Step title="创建使用计量器">
+
+```bash
+Dashboard: Meters → Create Meter
+Event Name: "api.call"
+Aggregation: Count
+```
+
+</Step>
+
+<Step title="创建带有使用的订阅产品">
+
+```bash
+Dashboard: Create Product → Subscription
+Name: "Enterprise Platform"
+Base Price: $199/month
+
+Attach usage pricing:
+- Meter: api.call
+- Price: $0.10 per 1000 calls
+- Free threshold: 50,000
+```
+
+</Step>
+
+<Step title="在您的应用中管理座位">
+跟踪座位数量并相应调整基础订阅价格。
+
+```typescript
+// When seats change, update subscription price
+async function updateSeatCount(subscriptionId: string, newSeatCount: number) {
+  const basePlatformFee = 19900; // $199 in cents
+  const perSeatFee = 2500; // $25 in cents
+  const totalPrice = basePlatformFee + (newSeatCount * perSeatFee);
+
+  // Store seat count in your system
+  await updateSeatsInDatabase(subscriptionId, newSeatCount);
+
+  // Note: You may need to handle this via plan changes or
+  // create multiple tier products for common seat counts
+}
+```
+
+</Step>
+
+<Step title="向 Dodo 发送使用事件">
+
+```typescript
+await fetch('https://api.dodopayments.com/events/ingest', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${apiKey}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    events: [{
+      event_id: `api_${Date.now()}`,
+      customer_id: 'cus_enterprise',
+      event_name: 'api.call',
+      timestamp: new Date().toISOString()
+    }]
+  })
+});
+```
+
+</Step>
+</Steps>
+</Tab>
+</Tabs>
+
+<Info>
+**推荐**：选项 A（基础 + 座位 + 按需使用）通常更容易，因为 Dodo 自动处理平台和座位计费。您只需跟踪使用并在每个计费周期结束时提交费用。
+</Info>
+
+---
+
+## 混合模型 6：分级基础 + 使用超额
+
+不同的订阅级别具有不同的包含配额和超额费率。
+
+### 工作原理
+
+| 级别 | 价格 | 包含调用 | 超额费率 |
+|------|-------|----------------|--------------|
+| **入门** | $19/月 | 1,000 | $0.02/次 |
+| **专业** | $79/月 | 25,000 | $0.01/次 |
+| **商业** | $199/月 | 100,000 | $0.005/次 |
+| **企业** | $499/月 | 500,000 | $0.002/次 |
+
+### 实施
+
+为每个级别创建单独的订阅产品，每个产品都有自己的使用配置：
+
+```bash
+# For each tier, create a subscription product:
+
+# Starter Tier
+Dashboard: Create Product → Subscription
+Name: "Starter"
+Base Price: $19/month
+Usage Pricing:
+- Meter: api.call
+- Price: $0.02/call
+- Free threshold: 1,000
+
+# Pro Tier
+Name: "Pro"
+Base Price: $79/month
+Usage Pricing:
+- Meter: api.call
+- Price: $0.01/call
+- Free threshold: 25,000
+
+# ... and so on for Business and Enterprise
+```
+
+### 升级路径
+
+当客户升级级别时，他们将获得：
+- 更高的包含配额
+- 更低的超额费率
+- 每美元更多的价值
+
+```typescript
+// Customer upgrades from Starter to Pro
+await client.subscriptions.changePlan('sub_123', {
+  product_id: 'prod_pro',
+  quantity: 1,
+  proration_billing_mode: 'prorated_immediately'
+});
+```
+
+---
+
+## 混合模型 7：订阅 + 按需费用
+
+定期订阅加上服务或超额的可变手动费用。
+
+### 工作原理
+
+**保留计划：$199/月**
+
+**包含：**
+- 平台访问
+- 每月 5 小时咨询
+- 邮件支持
+
+**按需费用（根据需要）：**
+- 额外咨询：$150/小时
+- 自定义开发：$200/小时
+- 紧急支持：$100/事件
+
+**示例计算**（本月）：
+- 保留：$199.00
+- 3 小时额外咨询：$450.00
+- 1 次紧急支持：$100.00
+- **总计：$749.00**
+
+### 使用案例
+
+- **咨询服务**：保留 + 按小时计费
+- **托管服务**：基础费用 + 事件费用
+- **代理服务**：月费 + 项目费用
+- **支持计划**：SLA 费用 + 按票或按小时计费
+
+### 实施
+
+<Steps>
+<Step title="创建按需订阅">
+设置启用按需收费的订阅。
+
+```typescript
+const subscription = await client.subscriptions.create({
+  billing: {
+    city: 'San Francisco',
+    country: 'US',
+    state: 'CA',
+    street: '123 Main St',
+    zipcode: '94105'
+  },
+  customer: { customer_id: 'cus_123' },
+  product_id: 'prod_retainer',
+  quantity: 1,
+  payment_link: true,
+  return_url: 'https://yourapp.com/success',
+  on_demand: {
+    mandate_only: false,
+    product_price: 19900  // $199 initial charge
+  }
+});
+```
+
+</Step>
+
+<Step title="为服务收费">
+在提供服务时创建费用。
+
+```typescript
+// Charge for 3 hours of consulting
+await client.subscriptions.charge('sub_123', {
+  product_price: 45000,  // $450.00 (3 × $150)
+  product_description: 'Consulting - 3 hours (March 15)'
+});
+
+// Charge for emergency support incident
+await client.subscriptions.charge('sub_123', {
+  product_price: 10000,  // $100.00
+  product_description: 'Emergency support - Server outage (March 18)'
+});
+```
+
+</Step>
+
+<Step title="跟踪和开票">
+所有费用出现在客户的发票上。
+
+```typescript
+// Retrieve subscription charges
+const payments = await client.payments.list({
+  subscription_id: 'sub_123'
+});
+
+// Show itemized breakdown to customer
+payments.items.forEach(payment => {
+  console.log(`${payment.description}: $${payment.amount / 100}`);
+});
+```
+
+</Step>
+</Steps>
+
+---
+
+## 真实案例
+
+<Info>
+这些示例展示了理想的定价结构。由于使用计量器和附加功能不能附加到同一产品的限制，某些组合需要解决方法（使用按需费用处理使用或应用管理的座位）。
+</Info>
+
+### 示例 1：AI SaaS 平台
+
+**定价结构：**
+- **基础订阅**：$99/月（平台访问，包含 5 个座位）
+- **座位附加功能**：$20/座位/月
+- **功能附加功能**：自定义模型（\$49/月），API 访问（\$29/月），优先队列（\$19/月）
+- **使用超额**：超过 100K 后每 1,000 个令牌 $0.02（通过按需收费）
+
+**实施**：使用带有座位和功能附加功能的订阅。在您的应用中跟踪令牌使用，并在计费周期结束时通过按需收费收取超额费用。
+
+**示例客户**（12 用户，500K 令牌，自定义模型 + API 访问）：
+| 组件 | 计算 | 金额 |
+|-----------|-------------|--------|
+| 基础 | 平台费用 | $99 |
+| 额外座位 | 7 × $20 | $140 |
+| 自定义模型 | 附加功能 | $49 |
+| API 访问 | 附加功能 | $29 |
+| 令牌超额 | 400K × \$0.02/1K（按需） | \$8 |
+| **总计** | | **$325/月** |
+
+### 示例 2：开发工具平台
+
+**级别选项：**
+
+| | 免费 | 专业 | 企业 |
+|---|------|-----|------------|
+| **价格** | $0/月 | $29/月 | $199/月 |
+| **用户** | 1 | 包含 5 | 无限 |
+| **构建** | 100 | 1,000 | 10,000 |
+| **存储** | 1 GB | 10 GB | 100 GB |
+
+**实施选项**：
+
+**选项 A**（以使用为中心）：创建带有使用计量器的产品以进行构建/存储。在您的应用中管理用户。
+
+**选项 B**（以座位为中心）：创建带有座位附加功能的产品。跟踪构建/存储使用，并通过按需收费收取超额费用。
+
+**附加功能（如果使用选项 B）：**
+- 额外用户：$10/用户/月
+- 优先构建：$19/月
+- 自定义域：$9/域/月
+
+### 示例 3：营销自动化
+
+**定价结构：**
+- **基础**：$79/月（核心自动化功能，包含 3 个座位）
+- **联系人级别**（附加功能）：包含 1K，5K（+$30），25K（+$80），100K（+$200）
+- **功能附加功能**：短信营销（\$29/月），着陆页（\$19/月），A/B 测试（\$29/月）
+- **团队座位**：$15/用户/月附加功能
+- **电子邮件量**：在应用中跟踪，超额通过按需收费（$1/1,000 封电子邮件超出限制）
+
+**实施**：使用带有联系人级别附加功能、功能附加功能和座位附加功能的订阅。在您的应用中跟踪电子邮件发送，并通过按需收费收取超额费用。
+
+---
+
+## 实施最佳实践
+
+### 定价页面清晰度
+
+<Tip>
+使混合定价易于理解。在您的定价页面上突出显示基础费用、包含内容以及超额费用的工作原理。
+</Tip>
+
+**好**："\$49/月包含 10,000 次 API 调用。额外调用：\$0.005 每次"
+
+**坏**："\$49/月 + 使用费用"
+
+### 成本可预测性
+
+帮助客户估算他们的费用：
+
+```typescript
+// Provide a cost calculator
+function estimateMonthlyCost({
+  plan,
+  seats,
+  expectedUsage,
+  addons
+}: EstimateParams): number {
+  let total = plan.basePrice;
+
+  // Add seat costs
+  const extraSeats = Math.max(0, seats - plan.includedSeats);
+  total += extraSeats * plan.seatPrice;
+
+  // Add usage overage
+  const overage = Math.max(0, expectedUsage - plan.includedUsage);
+  total += overage * plan.overageRate;
+
+  // Add feature add-ons
+  total += addons.reduce((sum, addon) => sum + addon.price, 0);
+
+  return total;
+}
+```
+
+### 使用可见性
+
+实时向客户显示他们的使用情况：
+
+```typescript
+// Display usage dashboard
+async function getUsageSummary(subscriptionId: string) {
+  const usage = await client.subscriptions.getUsageHistory(subscriptionId);
+
+  return {
+    current: usage.current_period_usage,
+    included: usage.free_threshold,
+    remaining: Math.max(0, usage.free_threshold - usage.current_period_usage),
+    overage: Math.max(0, usage.current_period_usage - usage.free_threshold),
+    projectedCost: calculateProjectedOverage(usage)
+  };
+}
+```
+
+### 计费透明度
+
+提供详细的发票，显示所有组件：
+
+| 行项目 | 金额 |
+|-----------|--------|
+| 专业计划（每月） | $49.00 |
+| 额外座位（7 × $15.00） | $105.00 |
+| API 使用 - 包含（10,000 次调用） | $0.00 |
+| API 使用 - 超额（15,420 次调用 × $0.005） | $77.10 |
+| 高级分析附加功能 | $19.00 |
+| **小计** | **$250.10** |
+| 税（8.5%） | $21.26 |
+| **应付总额** | **$271.36** |
+
+---
+
+## 混合计费故障排除
+
+<AccordionGroup>
+<Accordion title="使用未正确跟踪">
+**症状**：使用显示为 0 或不正确的值。
+
+**解决方案**：
+1. 验证事件摄取是否正常工作（检查 API 响应）
+2. 确认 `customer_id` 与订阅客户匹配
+3. 检查 `event_name` 与计量器配置匹配
+4. 验证事件具有正确的时间戳（不是未来日期）
+</Accordion>
+
+<Accordion title="多个组件的按比例分配混淆">
+**症状**：客户在更改计划时被收取意外费用。
+
+**解决方案**：
+1. 使用 `previewChangePlan` API 显示确认前的确切费用
+2. 说明按比例分配适用于订阅和附加功能
+3. 考虑使用 `difference_immediately` 以简化升级计费
+</Accordion>
+
+<Accordion title="免费阈值未正确应用">
+**症状**：客户被收取应为免费的使用费用。
+
+**解决方案**：
+1. 验证免费阈值在基于使用的产品上配置正确
+2. 检查阈值单位与事件聚合（调用与请求）匹配
+3. 确认使用计量器正确附加到订阅产品
+</Accordion>
+
+<Accordion title="结账时未显示附加功能">
+**症状**：在结账时无法添加座位或功能。
+
+**解决方案**：
+1. 验证附加功能在仪表板中附加到订阅产品
+2. 检查 API 调用中的附加功能 ID 是否正确
+3. 确保附加功能货币与订阅产品货币匹配
+</Accordion>
+</AccordionGroup>
+
+---
+
+## 相关文档
+
+<CardGroup cols={2}>
+<Card title="产品" icon="box" href="/features/products">
+  所有产品类型和指南的概述。
+</Card>
+
+<Card title="基于使用的计费指南" icon="chart-line" href="/developer-resources/usage-based-billing-guide">
+  完整的使用计费实施。
+</Card>
+
+<Card title="订阅管理" icon="repeat" href="/features/subscription">
+  管理定期订阅。
+</Card>
+
+<Card title="附加功能" icon="puzzle" href="/features/addons">
+  通过附加功能扩展订阅。
+</Card>
+</CardGroup>

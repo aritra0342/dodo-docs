@@ -1,0 +1,1181 @@
+---
+sidebarTitle: 하이브리드 청구
+title: 하이브리드 청구 모델
+description: 구독 + 사용, 좌석 + 추가 기능, 기본 + 초과 등 여러 청구 모드를 결합하여 정교한 가격 전략을 만듭니다.
+icon: layer-group
+---
+
+<Info>
+하이브리드 청구는 두 개 이상의 청구 모델을 단일 가격 전략으로 결합합니다. 이를 통해 고객에게 유연성과 예측 가능성을 제공하면서 반복 요금, 사용량, 좌석 및 기능 등 다양한 차원에서 가치를 포착할 수 있습니다.
+</Info>
+
+<CardGroup cols={2}>
+<Card title="사용 기반 청구" icon="chart-line" href="/features/usage-based-billing/introduction">
+  소비 기반 가격 책정의 기초.
+</Card>
+
+<Card title="구독" icon="repeat" href="/features/subscription">
+  반복 청구의 기초.
+</Card>
+
+<Card title="추가 기능" icon="puzzle" href="/features/addons">
+  선택적 업그레이드로 구독을 확장합니다.
+</Card>
+
+<Card title="좌석 기반 청구" icon="users" href="/features/seat-based-billing">
+  사용자당 가격 모델.
+</Card>
+</CardGroup>
+
+---
+
+## 하이브리드 청구란 무엇인가요?
+
+하이브리드 청구는 여러 가격 차원을 단일 제품 제공으로 결합합니다. 고정 요금 구독 또는 사용 기반 가격 중에서 선택하는 대신 두 가지를 함께 사용합니다.
+
+### 하이브리드 청구를 사용하는 이유는 무엇인가요?
+
+| 비즈니스 목표 | 하이브리드 솔루션 |
+|--------------|-----------------|
+| 예측 가능한 수익 + 성장 가능성 | 기본 구독 + 사용 초과 |
+| 확장 가능한 팀 가격 | 사용자당 + 기능 추가 |
+| 고객 유치, 나중에 확장 | 낮은 기본 요금 + 소비 요금 |
+| 기업 유연성 | 약정 지출 + 주문형 요금 |
+| 변동 사용에 대한 공정한 가격 | 포함된 허용량 + 사용량에 따른 요금 |
+
+### 일반적인 하이브리드 패턴
+
+| 모델 | 설명 | 예시 | 기본 지원 |
+|-------|-------------|---------|----------------|
+| **1. 구독 + 사용** | 기본 요금 + 소비 요금 | \$49/월 + \$0.01/API 호출 후 10K 무료 | ✅ 전체 |
+| **2. 구독 + 좌석** | 플랫폼 요금 + 사용자당 요금 | \$99/월 + \$15/좌석 | ✅ 전체 |
+| **3. 구독 + 기능 추가** | 기본 계획 + 선택적 업그레이드 | \$29/월 + \$19/월 분석 + \$9/월 API 접근 | ✅ 전체 |
+| **4. 좌석 + 사용** | 사용자당 요금 + 소비 초과 | \$10/사용자/월 + \$0.05/GB 후 5GB/사용자 | ⚠️ 우회 |
+| **5. 구독 + 좌석 + 사용** | 플랫폼 + 사용자 + 소비 (트리플 하이브리드) | \$199/월 + \$20/좌석 + 사용 초과 | ⚠️ 우회 |
+| **6. 계층 기본 + 사용 초과** | 서로 다른 허용량이 있는 서로 다른 계층 | 스타터 (5K 호출) vs 프로 (50K 호출) + 초과 | ✅ 전체 |
+| **7. 구독 + 주문형 요금** | 반복 요금 + 변동 수동 요금 | \$99/월 유지비 + 작업에 대한 시간당 청구 | ✅ 전체 |
+
+---
+
+## 하이브리드 모델 1: 구독 + 사용
+
+가장 일반적인 하이브리드 모델입니다. 고객은 기본 구독 요금과 포함된 허용량을 초과하는 소비에 대한 요금을 지불합니다.
+
+### 작동 방식
+
+**프로 플랜: $49/월**
+
+- **포함**: 10,000 API 호출/월
+- **초과**: 10,000 이후 호출당 $0.005
+
+**예시 계산** (고객이 이번 달에 25,000 호출을 사용한 경우):
+- 기본 구독: $49.00
+- 초과: (25,000 - 10,000) × $0.005 = $75.00
+- **총: $124.00**
+
+### 사용 사례
+
+- **API 플랫폼**: 기본 접근 + 요청당 요금
+- **AI/ML 서비스**: 구독 + 토큰/생성 사용
+- **저장 서비스**: 기본 계획 + GB당 초과
+- **커뮤니케이션 플랫폼**: 기본 + 메시지/분당 요금
+
+### 구현
+
+<Steps>
+<Step title="사용량 미터 생성">
+청구 가능한 사용량 차원을 추적하는 미터를 설정합니다.
+
+```bash
+Dashboard: Meters → Create Meter
+Event Name: "api.call"
+Aggregation: Count
+This tracks API calls per customer
+```
+
+</Step>
+
+<Step title="사용량 가격으로 구독 제품 생성">
+구독 제품을 생성하고 가격과 함께 사용량 미터를 연결합니다.
+
+```bash
+Dashboard: Create Product → Subscription
+Name: "Pro Plan"
+Base Price: $49/month
+
+Then attach usage pricing:
+- Meter: api.call
+- Price per unit: $0.005
+- Free threshold: 10,000 (included in subscription)
+```
+
+<Info>
+사용량 미터는 구독 제품에 직접 연결됩니다. 사용량 요금은 자동으로 구독 청구서에 계산되어 추가됩니다.
+</Info>
+</Step>
+
+<Step title="체크아웃 세션 생성">
+구독 제품으로 체크아웃 세션을 생성합니다.
+
+```typescript
+const session = await client.checkoutSessions.create({
+  product_cart: [
+    { product_id: 'prod_pro_plan', quantity: 1 }
+  ],
+  customer: { email: 'customer@example.com' },
+  return_url: 'https://yourapp.com/success'
+});
+```
+
+</Step>
+
+<Step title="사용량 이벤트 전송">
+청구 기간 동안 사용량을 추적합니다.
+
+```typescript
+await fetch('https://api.dodopayments.com/events/ingest', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${apiKey}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    events: [{
+      event_id: `call_${Date.now()}`,
+      customer_id: 'cus_123',
+      event_name: 'api.call',
+      timestamp: new Date().toISOString(),
+      metadata: { endpoint: '/v1/generate' }
+    }]
+  })
+});
+```
+
+</Step>
+</Steps>
+
+### 가격 변동
+
+<Tabs>
+<Tab title="포함된 허용량">
+무료 임계값은 기본 구독에 포함된 사용량을 커버합니다.
+
+**프로 플랜: $49/월**
+- 포함: 10,000 API 호출
+- 초과: 10,000 이후 호출당 $0.005
+- 고객이 8,000을 사용 → $49 지불 (초과 없음)
+</Tab>
+
+<Tab title="제로 기본 + 순수 사용">
+기본 요금이 없으며, 첫 번째 사용부터 모든 단위가 청구됩니다.
+
+**사용한 만큼 지불: $0/월 기본**
+- 포함: 0 API 호출
+- 사용량: 첫 호출부터 호출당 $0.01
+- 고객이 5,000을 사용 → $50 지불
+</Tab>
+
+<Tab title="계층 허용량">
+서로 다른 계층이 서로 다른 허용량을 포함합니다.
+
+- **스타터**: $19/월 (1,000 호출 포함)
+- **프로**: $49/월 (10,000 호출 포함)
+- **기업**: $199/월 (100,000 호출 포함)
+- 모든 계층: 초과 호출당 $0.005
+</Tab>
+</Tabs>
+
+---
+
+## 하이브리드 모델 2: 구독 + 좌석
+
+플랫폼 요금과 사용자당 요금. 팀 협업 도구 및 B2B SaaS에 이상적입니다.
+
+### 작동 방식
+
+**팀 플랜: $99/월 + $15/좌석**
+
+- **기본 플랫폼 요금**: $99/월 (3좌석 포함)
+- **추가 좌석**: $15/좌석/월
+
+**예시 계산** (12명의 사용자 팀):
+- 플랫폼 요금: $99.00
+- 추가 좌석: (12 - 3) × $15 = $135.00
+- **총: $234.00/월**
+
+### 사용 사례
+
+- **협업 도구**: 작업 공간 요금 + 회원당 요금
+- **CRM 시스템**: 플랫폼 라이센스 + 영업 사원당 요금
+- **프로젝트 관리**: 팀 계획 + 기여자당 요금
+- **개발자 도구**: 조직 요금 + 개발자당 요금
+
+### 구현
+
+<Steps>
+<Step title="좌석 추가 기능 생성">
+추가 좌석을 위한 추가 기능을 생성합니다.
+
+```bash
+Dashboard: Products → Add-ons → Create Add-on
+Name: "Additional Seat"
+Price: $15/month
+Description: "Add another team member"
+```
+
+</Step>
+
+<Step title="기본 구독 생성">
+플랫폼 요금으로 구독 제품을 생성하고 추가 기능을 연결합니다.
+
+```bash
+Dashboard: Create Product → Subscription
+Name: "Team Plan"
+Price: $99/month
+Description: "Includes 3 team members"
+
+Then in Add-ons section:
+- Attach: "Additional Seat" add-on
+```
+
+</Step>
+
+<Step title="좌석으로 체크아웃 생성">
+체크아웃 시 좌석 수를 지정합니다.
+
+```typescript
+const session = await client.checkoutSessions.create({
+  product_cart: [{
+    product_id: 'prod_team_plan',
+    quantity: 1,
+    addons: [{
+      addon_id: 'addon_seat',
+      quantity: 9  // 9 extra seats (12 total with 3 included)
+    }]
+  }],
+  customer: { email: 'admin@company.com' },
+  return_url: 'https://yourapp.com/success'
+});
+```
+
+</Step>
+
+<Step title="필요에 따라 좌석 조정">
+기존 구독에서 좌석을 추가하거나 제거합니다.
+
+```typescript
+// Add 5 more seats
+await client.subscriptions.changePlan('sub_123', {
+  product_id: 'prod_team_plan',
+  quantity: 1,
+  proration_billing_mode: 'prorated_immediately',
+  addons: [{
+    addon_id: 'addon_seat',
+    quantity: 14  // New total: 14 extra seats
+  }]
+});
+```
+
+</Step>
+</Steps>
+
+### 가격 변동
+
+<Tabs>
+<Tab title="포함된 좌석">
+기본 계획에는 일부 좌석이 포함되어 있으며, 추가 좌석에 대해 요금이 부과됩니다.
+
+**팀 플랜: $99/월**
+- 포함: 5좌석
+- 추가 좌석: $15/좌석/월
+- 20명의 사용자 = \$99 + (15 × \$15) = \$324/월
+</Tab>
+
+<Tab title="순수 사용자당 요금">
+플랫폼 요금이 없고, 사용자당 요금만 부과됩니다.
+
+**사용자당: $25/사용자/월**
+- 플랫폼 요금 없음
+- 5명의 사용자 = $125/월
+- 50명의 사용자 = $1,250/월
+
+구현: 기본 구독 가격을 $0로 설정하고 좌석 추가 기능만 사용합니다.
+</Tab>
+
+<Tab title="계층 사용자당 요금">
+사용자당 가격이 높은 계층에서 감소합니다.
+
+- **스타터**: $20/좌석 (1-10 좌석)
+- **성장**: $15/좌석 (11-50 좌석)
+- **기업**: $10/좌석 (51개 이상 좌석)
+
+구현: 각 계층에 대해 서로 다른 추가 기능 가격으로 별도의 구독 제품을 생성합니다.
+</Tab>
+</Tabs>
+
+---
+
+## 하이브리드 모델 3: 구독 + 기능 추가
+
+기본 구독에 고객이 추가할 수 있는 선택적 기능 업그레이드가 포함됩니다.
+
+### 작동 방식
+
+**기본 계획: $29/월**
+
+**선택적 추가 기능:**
+- 고급 분석: +$19/월
+- API 접근: +$9/월
+- 우선 지원: +$29/월
+- 화이트 라벨: +$49/월
+
+**예시 계산** (고객이 기본 + 분석 + API 접근을 선택한 경우):
+- 기본 계획: $29.00
+- 분석: $19.00
+- API 접근: $9.00
+- **총: $57.00/월**
+
+### 사용 사례
+
+- **SaaS 플랫폼**: 기본 기능 + 프리미엄 모듈
+- **마케팅 도구**: 기본 도구 + 통합
+- **분석 제품**: 대시보드 + 고급 보고서
+- **보안 소프트웨어**: 기본 보호 + 고급 기능
+
+### 구현
+
+<Steps>
+<Step title="기능 추가 생성">
+각 선택적 기능에 대한 추가 기능을 생성합니다.
+
+```bash
+# Add-on 1: Advanced Analytics
+Dashboard: Products → Add-ons → Create Add-on
+Name: "Advanced Analytics"
+Price: $19/month
+
+# Add-on 2: API Access
+Name: "API Access"
+Price: $9/month
+
+# Add-on 3: Priority Support
+Name: "Priority Support"
+Price: $29/month
+
+# Add-on 4: White-label
+Name: "White-label"
+Price: $49/month
+```
+
+</Step>
+
+<Step title="기본 구독 생성">
+기본 구독을 정의하고 모든 기능 추가를 연결합니다.
+
+```bash
+Dashboard: Create Product → Subscription
+Name: "Core Plan"
+Price: $29/month
+
+Then in Add-ons section:
+- Attach all feature add-ons
+```
+
+</Step>
+
+<Step title="고객이 선택하도록 허용">
+선택한 기능으로 체크아웃합니다.
+
+```typescript
+const session = await client.checkoutSessions.create({
+  product_cart: [{
+    product_id: 'prod_core_plan',
+    quantity: 1,
+    addons: [
+      { addon_id: 'addon_analytics', quantity: 1 },
+      { addon_id: 'addon_api_access', quantity: 1 }
+      // Customer didn't select support or white-label
+    ]
+  }],
+  return_url: 'https://yourapp.com/success'
+});
+```
+
+</Step>
+
+<Step title="나중에 기능 추가">
+고객이 기존 구독에 기능을 추가할 수 있습니다.
+
+```typescript
+// Customer wants to add Priority Support
+await client.subscriptions.changePlan('sub_123', {
+  product_id: 'prod_core_plan',
+  quantity: 1,
+  proration_billing_mode: 'prorated_immediately',
+  addons: [
+    { addon_id: 'addon_analytics', quantity: 1 },
+    { addon_id: 'addon_api_access', quantity: 1 },
+    { addon_id: 'addon_priority_support', quantity: 1 }  // New!
+  ]
+});
+```
+
+</Step>
+</Steps>
+
+---
+
+## 하이브리드 모델 4: 좌석 + 사용
+
+사용자당 요금과 소비 기반 요금이 결합됩니다. 각 사용자에게 허용량이 제공됩니다.
+
+<Warning>
+**제약**: Dodo Payments는 현재 동일한 구독 제품에 사용량 미터와 추가 기능을 모두 연결하는 것을 지원하지 않습니다. 이 모델은 애플리케이션 수준의 논리를 사용하여 우회해야 합니다.
+</Warning>
+
+<Info>
+**곧 출시 예정**: 좌석 + 사용 하이브리드 청구에 대한 기본 지원이 로드맵에 있습니다. 이를 통해 동일한 구독 제품에 사용량 미터와 좌석 추가 기능을 모두 연결할 수 있습니다.
+</Info>
+
+### 작동 방식
+
+**팀 분석: $20/사용자/월**
+
+**각 사용자 포함:**
+- 월 5GB 데이터 처리
+- 초과: 허용량 이후 GB당 $2
+
+**예시 계산** (10명의 팀이 총 80GB 사용한 경우):
+- 좌석 요금: 10 × $20 = $200.00
+- 포함된 데이터: 10 × 5GB = 50GB
+- 초과: (80 - 50) × $2 = $60.00
+- **총: $260.00/월**
+
+### 사용 사례
+
+- **분석 플랫폼**: 분석가당 + 데이터 처리
+- **디자인 도구**: 디자이너당 + 저장소/내보내기
+- **개발 환경**: 개발자당 + 컴퓨팅 시간
+- **커뮤니케이션 도구**: 사용자당 + 메시지/통화량
+
+### 구현 옵션
+
+사용량 미터와 추가 기능을 동일한 구독에 연결할 수 없으므로 다음 접근 방식 중 하나를 선택합니다:
+
+<Tabs>
+<Tab title="옵션 A: 사용량 제품 + 앱 관리 좌석">
+사용량 기반 구독을 사용하고 애플리케이션에서 좌석 청구를 관리합니다.
+
+<Steps>
+<Step title="사용량 미터 생성">
+
+```bash
+Dashboard: Meters → Create Meter
+Event Name: "data.processed"
+Aggregation: Sum
+Property: "bytes"
+```
+
+</Step>
+
+<Step title="사용량 기반 구독 생성">
+
+```bash
+Dashboard: Create Product → Subscription
+Name: "Team Analytics"
+Base Price: $0/month
+
+Attach usage pricing:
+- Meter: data.processed
+- Price per unit: $2/GB
+- Free threshold: 0 (managed by your app)
+```
+
+</Step>
+
+<Step title="애플리케이션에서 좌석 관리">
+좌석 수를 추적하고 좌석 요금을 별도로 계산합니다.
+
+```typescript
+// Your application tracks seats and calculates total cost
+async function calculateMonthlyBill(customerId: string) {
+  const seatCount = await getSeatCount(customerId);
+  const seatFee = seatCount * 20; // $20/seat
+
+  // Usage is billed by Dodo automatically
+  // You invoice/charge seat fees separately or include in base price
+
+  // Alternatively, adjust base subscription price when seats change
+  const totalBasePrice = seatCount * 2000; // $20/seat in cents
+  await client.subscriptions.update('sub_123', {
+    // Update subscription to reflect seat-based pricing
+  });
+}
+```
+
+</Step>
+
+<Step title="동적 무료 임계값 계산">
+좌석 수에 따라 포함된 사용량을 조정합니다.
+
+```typescript
+// When checking usage, apply per-seat allowance
+async function checkUsageOverage(customerId: string) {
+  const seatCount = await getSeatCount(customerId);
+  const includedGB = seatCount * 5; // 5 GB per user
+
+  const currentUsage = await getUsageFromDodo(customerId);
+  const overage = Math.max(0, currentUsage - includedGB);
+
+  // Overage is billed by Dodo at $2/GB
+  return { included: includedGB, used: currentUsage, overage };
+}
+```
+
+</Step>
+</Steps>
+</Tab>
+
+<Tab title="옵션 B: 좌석 추가 기능 + 주문형 사용 요금">
+좌석에 대한 추가 기능을 사용하고 사용량을 수동으로 주문형 요금으로 청구합니다.
+
+<Steps>
+<Step title="좌석 추가 기능 생성">
+
+```bash
+Dashboard: Products → Add-ons → Create Add-on
+Name: "Team Member"
+Price: $20/month
+```
+
+</Step>
+
+<Step title="추가 기능이 있는 구독 생성">
+
+```bash
+Dashboard: Create Product → Subscription
+Name: "Team Analytics"
+Base Price: $0/month
+
+Attach add-on:
+- "Team Member" add-on
+
+Enable on-demand charging
+```
+
+</Step>
+
+<Step title="애플리케이션에서 사용량 추적">
+
+```typescript
+// Track usage events in your system
+async function trackDataProcessed(customerId: string, bytes: number) {
+  await saveUsageEvent({
+    customer_id: customerId,
+    event_type: 'data.processed',
+    bytes: bytes,
+    timestamp: new Date()
+  });
+}
+```
+
+</Step>
+
+<Step title="주기 종료 시 사용량 청구">
+사용량 초과를 수동으로 계산하고 청구합니다.
+
+```typescript
+async function billUsageOverage(subscriptionId: string) {
+  const subscription = await getSubscription(subscriptionId);
+  const seatCount = subscription.addons.find(a => a.id === 'addon_seat')?.quantity || 0;
+
+  const includedGB = seatCount * 5;
+  const usedGB = await calculatePeriodUsage(subscription.customer_id);
+  const overageGB = Math.max(0, usedGB - includedGB);
+
+  if (overageGB > 0) {
+    const overageCharge = overageGB * 200; // $2/GB in cents
+    await client.subscriptions.charge(subscriptionId, {
+      product_price: overageCharge,
+      product_description: `Data overage: ${overageGB} GB × $2/GB`
+    });
+  }
+}
+```
+
+</Step>
+</Steps>
+</Tab>
+</Tabs>
+
+<Info>
+**추천**: 옵션 B (좌석 추가 기능 + 주문형 사용량)는 Dodo가 좌석 청구를 자동으로 처리하기 때문에 구현이 더 쉬운 경우가 많습니다. 사용량 초과만 추적하고 청구하면 됩니다.
+</Info>
+
+---
+
+## 하이브리드 모델 5: 구독 + 좌석 + 사용 (트리플 하이브리드)
+
+가장 포괄적인 모델: 플랫폼 요금 + 사용자당 요금 + 소비.
+
+<Warning>
+**제약**: Dodo Payments는 현재 동일한 구독 제품에 사용량 미터와 추가 기능을 모두 연결하는 것을 지원하지 않습니다. 이 모델은 우회 접근 방식이 필요합니다.
+</Warning>
+
+<Info>
+**곧 출시 예정**: 트리플 하이브리드 청구(기본 + 좌석 + 사용)에 대한 기본 지원이 로드맵에 있습니다. 이를 통해 동일한 구독 제품에 사용량 미터와 좌석 추가 기능을 모두 연결할 수 있습니다.
+</Info>
+
+### 작동 방식
+
+**기업 플랫폼**
+
+- **플랫폼 요금**: $199/월
+- **사용자당**: $25/사용자/월
+- **사용량**: $0.10/1000 API 호출 (50K 포함)
+
+**예시 계산** (20명의 사용자와 150,000 API 호출이 있는 회사):
+- 플랫폼: $199.00
+- 좌석: 20 × $25 = $500.00
+- 사용량: (150K - 50K) × \$0.10/1K = \$10.00
+- **총: $709.00/월**
+
+### 사용 사례
+
+- **기업 SaaS**: 플랫폼 + 팀 + 소비
+- **데이터 플랫폼**: 작업 공간 + 분석가 + 쿼리
+- **통합 플랫폼**: 허브 + 커넥터 + 트랜잭션
+- **AI 플랫폼**: 작업 공간 + 개발자 + 추론
+
+### 구현 옵션
+
+트리플 하이브리드 청구를 구현하기 위해 다음 접근 방식 중 하나를 선택합니다:
+
+<Tabs>
+<Tab title="옵션 A: 기본 + 좌석 (추가 기능) + 주문형 사용">
+좌석 추가 기능이 있는 구독을 사용하고 사용량을 수동으로 주문형 요금으로 청구합니다.
+
+**이것이 추천되는 접근 방식입니다**. Dodo가 플랫폼 요금과 좌석 청구를 자동으로 처리합니다.
+
+<Steps>
+<Step title="좌석 추가 기능 생성">
+
+```bash
+Dashboard: Products → Add-ons → Create Add-on
+Name: "User Seat"
+Price: $25/month
+```
+
+</Step>
+
+<Step title="구독 제품 생성">
+
+```bash
+Dashboard: Create Product → Subscription
+Name: "Enterprise Platform"
+Base Price: $199/month
+
+Attach add-on:
+- "User Seat" add-on
+
+Enable on-demand charging
+```
+
+</Step>
+
+<Step title="좌석으로 체크아웃 생성">
+
+```typescript
+const session = await client.checkoutSessions.create({
+  product_cart: [{
+    product_id: 'prod_enterprise_platform',
+    quantity: 1,
+    addons: [{
+      addon_id: 'addon_user_seat',
+      quantity: 20  // 20 users
+    }]
+  }],
+  customer: { email: 'enterprise@company.com' },
+  return_url: 'https://yourapp.com/success'
+});
+```
+
+</Step>
+
+<Step title="애플리케이션에서 사용량 추적">
+사용량 이벤트를 시스템에 저장합니다.
+
+```typescript
+// Track API calls in your system
+async function trackApiCall(customerId: string, endpoint: string) {
+  await saveUsageEvent({
+    customer_id: customerId,
+    event_type: 'api.call',
+    endpoint: endpoint,
+    timestamp: new Date()
+  });
+}
+```
+
+</Step>
+
+<Step title="주기 종료 시 사용량 청구">
+주문형 요금으로 사용량 초과를 계산하고 청구합니다.
+
+```typescript
+async function billUsageOverage(subscriptionId: string) {
+  const usage = await calculatePeriodUsage(subscriptionId);
+  const includedCalls = 50000;
+  const overageCalls = Math.max(0, usage.totalCalls - includedCalls);
+
+  if (overageCalls > 0) {
+    // $0.10 per 1000 calls = $0.0001 per call
+    const overageCharge = Math.ceil(overageCalls / 1000) * 10; // cents
+    await client.subscriptions.charge(subscriptionId, {
+      product_price: overageCharge,
+      product_description: `API usage: ${overageCalls.toLocaleString()} calls over 50K included`
+    });
+  }
+}
+```
+
+</Step>
+</Steps>
+</Tab>
+
+<Tab title="옵션 B: 기본 + 사용 (미터) + 앱 관리 좌석">
+사용량 미터가 있는 구독을 사용하고 애플리케이션에서 좌석 청구를 관리합니다.
+
+<Steps>
+<Step title="사용량 미터 생성">
+
+```bash
+Dashboard: Meters → Create Meter
+Event Name: "api.call"
+Aggregation: Count
+```
+
+</Step>
+
+<Step title="사용량이 있는 구독 제품 생성">
+
+```bash
+Dashboard: Create Product → Subscription
+Name: "Enterprise Platform"
+Base Price: $199/month
+
+Attach usage pricing:
+- Meter: api.call
+- Price: $0.10 per 1000 calls
+- Free threshold: 50,000
+```
+
+</Step>
+
+<Step title="애플리케이션에서 좌석 관리">
+좌석 수를 추적하고 기본 구독 가격을 조정합니다.
+
+```typescript
+// When seats change, update subscription price
+async function updateSeatCount(subscriptionId: string, newSeatCount: number) {
+  const basePlatformFee = 19900; // $199 in cents
+  const perSeatFee = 2500; // $25 in cents
+  const totalPrice = basePlatformFee + (newSeatCount * perSeatFee);
+
+  // Store seat count in your system
+  await updateSeatsInDatabase(subscriptionId, newSeatCount);
+
+  // Note: You may need to handle this via plan changes or
+  // create multiple tier products for common seat counts
+}
+```
+
+</Step>
+
+<Step title="Dodo에 사용량 이벤트 전송">
+```typescript
+await fetch('https://api.dodopayments.com/events/ingest', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${apiKey}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    events: [{
+      event_id: `api_${Date.now()}`,
+      customer_id: 'cus_enterprise',
+      event_name: 'api.call',
+      timestamp: new Date().toISOString()
+    }]
+  })
+});
+```
+
+</Step>
+</Steps>
+</Tab>
+</Tabs>
+
+<Info>
+**추천**: 옵션 A (기본 + 좌석 + 주문형 사용)는 일반적으로 더 쉽습니다. Dodo가 플랫폼 및 좌석 청구를 자동으로 처리합니다. 사용량을 추적하고 각 청구 주기 종료 시 요금을 제출하기만 하면 됩니다.
+</Info>
+
+---
+
+## 하이브리드 모델 6: 계층 기본 + 사용 초과
+
+서로 다른 포함 허용량과 초과 요금이 있는 서로 다른 구독 계층.
+
+### 작동 방식
+
+| 계층 | 가격 | 포함된 호출 | 초과 요금 |
+|------|-------|----------------|--------------|
+| **스타터** | $19/월 | 1,000 | $0.02/호출 |
+| **프로** | $79/월 | 25,000 | $0.01/호출 |
+| **비즈니스** | $199/월 | 100,000 | $0.005/호출 |
+| **기업** | $499/월 | 500,000 | $0.002/호출 |
+
+### 구현
+
+각 계층에 대해 서로 다른 사용량 구성을 가진 별도의 구독 제품을 생성합니다:
+
+```bash
+# For each tier, create a subscription product:
+
+# Starter Tier
+Dashboard: Create Product → Subscription
+Name: "Starter"
+Base Price: $19/month
+Usage Pricing:
+- Meter: api.call
+- Price: $0.02/call
+- Free threshold: 1,000
+
+# Pro Tier
+Name: "Pro"
+Base Price: $79/month
+Usage Pricing:
+- Meter: api.call
+- Price: $0.01/call
+- Free threshold: 25,000
+
+# ... and so on for Business and Enterprise
+```
+
+### 업그레이드 경로
+
+고객이 계층을 업그레이드할 때:
+- 더 높은 포함 허용량
+- 더 낮은 초과 요금
+- 더 많은 가치 제공
+
+```typescript
+// Customer upgrades from Starter to Pro
+await client.subscriptions.changePlan('sub_123', {
+  product_id: 'prod_pro',
+  quantity: 1,
+  proration_billing_mode: 'prorated_immediately'
+});
+```
+
+---
+
+## 하이브리드 모델 7: 구독 + 주문형 요금
+
+반복 구독과 서비스 또는 초과에 대한 변동 수동 요금.
+
+### 작동 방식
+
+**유지비 계획: $199/월**
+
+**포함:**
+- 플랫폼 접근
+- 월 5시간 컨설팅
+- 이메일 지원
+
+**주문형 요금 (필요 시):**
+- 추가 컨설팅: $150/시간
+- 맞춤 개발: $200/시간
+- 긴급 지원: $100/사건
+
+**예시 계산** (이번 달):
+- 유지비: $199.00
+- 추가 컨설팅 3시간: $450.00
+- 긴급 지원 1건: $100.00
+- **총: $749.00**
+
+### 사용 사례
+
+- **컨설팅 서비스**: 유지비 + 시간당 청구
+- **관리 서비스**: 기본 요금 + 사건 요금
+- **에이전시 서비스**: 월 요금 + 프로젝트 요금
+- **지원 계획**: SLA 요금 + 티켓당 또는 시간당 요금
+
+### 구현
+
+<Steps>
+<Step title="주문형 구독 생성">
+주문형 청구가 활성화된 구독을 설정합니다.
+
+```typescript
+const subscription = await client.subscriptions.create({
+  billing: {
+    city: 'San Francisco',
+    country: 'US',
+    state: 'CA',
+    street: '123 Main St',
+    zipcode: '94105'
+  },
+  customer: { customer_id: 'cus_123' },
+  product_id: 'prod_retainer',
+  quantity: 1,
+  payment_link: true,
+  return_url: 'https://yourapp.com/success',
+  on_demand: {
+    mandate_only: false,
+    product_price: 19900  // $199 initial charge
+  }
+});
+```
+
+</Step>
+
+<Step title="서비스에 대한 요금 청구">
+서비스가 제공될 때 요금을 생성합니다.
+
+```typescript
+// Charge for 3 hours of consulting
+await client.subscriptions.charge('sub_123', {
+  product_price: 45000,  // $450.00 (3 × $150)
+  product_description: 'Consulting - 3 hours (March 15)'
+});
+
+// Charge for emergency support incident
+await client.subscriptions.charge('sub_123', {
+  product_price: 10000,  // $100.00
+  product_description: 'Emergency support - Server outage (March 18)'
+});
+```
+
+</Step>
+
+<Step title="추적 및 청구">
+모든 요금이 고객의 청구서에 나타납니다.
+
+```typescript
+// Retrieve subscription charges
+const payments = await client.payments.list({
+  subscription_id: 'sub_123'
+});
+
+// Show itemized breakdown to customer
+payments.items.forEach(payment => {
+  console.log(`${payment.description}: $${payment.amount / 100}`);
+});
+```
+
+</Step>
+</Steps>
+
+---
+
+## 실제 사례
+
+<Info>
+이 예시는 이상적인 가격 구조를 보여줍니다. 사용량 미터와 추가 기능을 동일한 제품에 연결할 수 없다는 제약으로 인해 일부 조합은 우회가 필요합니다(사용량에 대한 주문형 요금 또는 앱 관리 좌석 사용).
+</Info>
+
+### 예시 1: AI SaaS 플랫폼
+
+**가격 구조:**
+- **기본 구독**: $99/월 (플랫폼 접근, 5좌석 포함)
+- **좌석 추가 기능**: $20/좌석/월
+- **기능 추가**: 맞춤 모델 (\$49/월), API 접근 (\$29/월), 우선 대기열 (\$19/월)
+- **사용량 초과**: 100K 이후 1,000 토큰당 $0.02 (주문형으로 청구)
+
+**구현**: 좌석 및 기능 추가 기능이 있는 구독을 사용합니다. 애플리케이션에서 토큰 사용량을 추적하고 청구 주기 종료 시 주문형 요금으로 초과 요금을 청구합니다.
+
+**예시 고객** (12명 사용자, 500K 토큰, 맞춤 모델 + API 접근):
+| 구성 요소 | 계산 | 금액 |
+|-----------|-------------|--------|
+| 기본 | 플랫폼 요금 | $99 |
+| 추가 좌석 | 7 × $20 | $140 |
+| 맞춤 모델 | 추가 기능 | $49 |
+| API 접근 | 추가 기능 | $29 |
+| 토큰 초과 | 400K × \$0.02/1K (주문형) | \$8 |
+| **총** | | **$325/월** |
+
+### 예시 2: 개발자 도구 플랫폼
+
+**계층 옵션:**
+
+| | 무료 | 프로 | 기업 |
+|---|------|-----|------------|
+| **가격** | $0/월 | $29/월 | $199/월 |
+| **사용자** | 1 | 5 포함 | 무제한 |
+| **빌드** | 100 | 1,000 | 10,000 |
+| **저장소** | 1GB | 10GB | 100GB |
+
+**구현 옵션**:
+
+**옵션 A** (사용량 중심): 사용량 미터가 있는 제품을 생성합니다. 애플리케이션에서 사용자를 관리합니다.
+
+**옵션 B** (좌석 중심): 좌석 추가 기능이 있는 제품을 생성합니다. 빌드/저장소 사용량을 추적하고 초과 요금을 주문형으로 청구합니다.
+
+**추가 기능 (옵션 B 사용 시):**
+- 추가 사용자: $10/사용자/월
+- 우선 빌드: $19/월
+- 맞춤 도메인: $9/도메인/월
+
+### 예시 3: 마케팅 자동화
+
+**가격 구조:**
+- **기본**: $79/월 (핵심 자동화 기능, 3좌석 포함)
+- **연락처 계층** (추가 기능): 1K 포함, 5K (+\$30), 25K (+\$80), 100K (+\$200)
+- **기능 추가**: SMS 마케팅 (\$29/월), 랜딩 페이지 (\$19/월), A/B 테스트 (\$29/월)
+- **팀 좌석**: $15/사용자/월 추가 기능
+- **이메일 볼륨**: 애플리케이션에서 추적하고 초과 요금을 주문형으로 청구합니다 ($1/1,000 이메일 초과 시)
+
+**구현**: 연락처 계층 추가 기능, 기능 추가 기능 및 좌석 추가 기능이 있는 구독을 사용합니다. 애플리케이션에서 이메일 발송을 추적하고 초과 요금을 주문형으로 청구합니다.
+
+---
+
+## 구현 모범 사례
+
+### 가격 페이지 명확성
+
+<Tip>
+하이브리드 가격 책정을 이해하기 쉽게 만드세요. 기본 비용, 포함된 내용 및 초과 요금이 가격 페이지에 두드러지게 표시되도록 하세요.
+</Tip>
+
+**좋은 예**: "\$49/월에는 10,000 API 호출이 포함됩니다. 추가 호출: \$0.005씩"
+
+**나쁜 예**: "\$49/월 + 사용 요금"
+
+### 비용 예측 가능성
+
+고객이 비용을 추정할 수 있도록 도와주세요:
+
+```typescript
+// Provide a cost calculator
+function estimateMonthlyCost({
+  plan,
+  seats,
+  expectedUsage,
+  addons
+}: EstimateParams): number {
+  let total = plan.basePrice;
+
+  // Add seat costs
+  const extraSeats = Math.max(0, seats - plan.includedSeats);
+  total += extraSeats * plan.seatPrice;
+
+  // Add usage overage
+  const overage = Math.max(0, expectedUsage - plan.includedUsage);
+  total += overage * plan.overageRate;
+
+  // Add feature add-ons
+  total += addons.reduce((sum, addon) => sum + addon.price, 0);
+
+  return total;
+}
+```
+
+### 사용량 가시성
+
+고객에게 실시간으로 사용량을 보여주세요:
+
+```typescript
+// Display usage dashboard
+async function getUsageSummary(subscriptionId: string) {
+  const usage = await client.subscriptions.getUsageHistory(subscriptionId);
+
+  return {
+    current: usage.current_period_usage,
+    included: usage.free_threshold,
+    remaining: Math.max(0, usage.free_threshold - usage.current_period_usage),
+    overage: Math.max(0, usage.current_period_usage - usage.free_threshold),
+    projectedCost: calculateProjectedOverage(usage)
+  };
+}
+```
+
+### 청구 투명성
+
+모든 구성 요소가 표시된 상세 청구서를 제공합니다:
+
+| 항목 | 금액 |
+|-----------|--------|
+| 프로 플랜 (월간) | $49.00 |
+| 추가 좌석 (7 × $15.00) | $105.00 |
+| API 사용량 - 포함 (10,000 호출) | $0.00 |
+| API 사용량 - 초과 (15,420 호출 × $0.005) | $77.10 |
+| 고급 분석 추가 기능 | $19.00 |
+| **소계** | **$250.10** |
+| 세금 (8.5%) | $21.26 |
+| **총액** | **$271.36** |
+
+---
+
+## 하이브리드 청구 문제 해결
+
+<AccordionGroup>
+<Accordion title="사용량이 올바르게 추적되지 않음">
+**증상**: 사용량이 0 또는 잘못된 값으로 표시됩니다.
+
+**해결책**:
+1. 이벤트 수집이 작동하는지 확인합니다 (API 응답 확인)
+2. `customer_id`가 구독 고객과 일치하는지 확인합니다
+3. `event_name`가 미터 구성과 일치하는지 확인합니다
+4. 이벤트에 올바른 타임스탬프가 있는지 확인합니다 (미래 날짜가 아님)
+</Accordion>
+
+<Accordion title="여러 구성 요소로 인한 비례 계산 혼란">
+**증상**: 계획 변경 시 고객이 예상치 못한 금액을 청구받습니다.
+
+**해결책**:
+1. `previewChangePlan` API를 사용하여 확인하기 전에 정확한 요금을 표시합니다
+2. 구독 및 추가 기능에 비례 계산이 적용된다고 전달합니다
+3. 더 간단한 업그레이드 청구를 위해 `difference_immediately` 사용을 고려합니다
+</Accordion>
+
+<Accordion title="무료 임계값이 올바르게 적용되지 않음">
+**증상**: 무료로 제공되어야 하는 사용량에 대해 고객이 요금을 청구받습니다.
+
+**해결책**:
+1. 사용량 기반 제품에 무료 임계값이 구성되어 있는지 확인합니다
+2. 임계값 단위가 이벤트 집계와 일치하는지 확인합니다 (호출 vs. 요청)
+3. 사용량 미터가 구독 제품에 올바르게 연결되어 있는지 확인합니다
+</Accordion>
+
+<Accordion title="체크아웃에서 추가 기능이 나타나지 않음">
+**증상**: 체크아웃 중 좌석이나 기능을 추가할 수 없습니다.
+
+**해결책**:
+1. 대시보드에서 추가 기능이 구독 제품에 연결되어 있는지 확인합니다
+2. API 호출에서 추가 기능 ID가 올바른지 확인합니다
+3. 추가 기능 통화가 구독 제품 통화와 일치하는지 확인합니다
+</Accordion>
+</AccordionGroup>
+
+---
+
+## 관련 문서
+
+<CardGroup cols={2}>
+<Card title="제품" icon="box" href="/features/products">
+  모든 제품 유형 및 가이드 개요.
+</Card>
+
+<Card title="사용 기반 청구 가이드" icon="chart-line" href="/developer-resources/usage-based-billing-guide">
+  완전한 사용량 청구 구현.
+</Card>
+
+<Card title="구독 관리" icon="repeat" href="/features/subscription">
+  반복 구독 관리.
+</Card>
+
+<Card title="추가 기능" icon="puzzle" href="/features/addons">
+  추가 기능으로 구독 확장.
+</Card>
+</CardGroup>

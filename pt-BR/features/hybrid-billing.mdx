@@ -1,0 +1,1182 @@
+---
+sidebarTitle: Faturamento Híbrido
+title: Modelos de Faturamento Híbrido
+description: "Combine múltiplos modos de faturamento para criar estratégias de
+  preços sofisticadas: assinatura + uso, assentos + complementos, base +
+  excesso, e mais."
+icon: layer-group
+---
+
+<Info>
+O faturamento híbrido combina dois ou mais modelos de faturamento em uma única estratégia de preços. Isso permite capturar valor de diferentes dimensões—taxas recorrentes, uso, assentos e recursos—enquanto oferece aos clientes flexibilidade e previsibilidade.
+</Info>
+
+<CardGroup cols={2}>
+<Card title="Faturamento Baseado em Uso" icon="chart-line" href="/features/usage-based-billing/introduction">
+  Base para preços baseados em consumo.
+</Card>
+
+<Card title="Assinaturas" icon="repeat" href="/features/subscription">
+  Base para faturamento recorrente.
+</Card>
+
+<Card title="Complementos" icon="puzzle" href="/features/addons">
+  Estenda assinaturas com upgrades opcionais.
+</Card>
+
+<Card title="Faturamento Baseado em Assentos" icon="users" href="/features/seat-based-billing">
+  Modelos de preços por usuário.
+</Card>
+</CardGroup>
+
+---
+
+## O que é Faturamento Híbrido?
+
+O faturamento híbrido combina múltiplas dimensões de preços em uma única oferta de produto. Em vez de escolher entre assinaturas de taxa fixa OU preços baseados em uso, você usa ambos juntos.
+
+### Por que usar Faturamento Híbrido?
+
+| Objetivo de Negócio | Solução Híbrida |
+|--------------------|-----------------|
+| Receita previsível + potencial de crescimento | Assinatura base + excesso de uso |
+| Preços de equipe que escalam | Por assento + complementos de recursos |
+| Capturar clientes, expandir depois | Baixa taxa base + cobranças de consumo |
+| Flexibilidade empresarial | Gastos comprometidos + cobranças sob demanda |
+| Preços justos para uso variável | Permissão incluída + pagamento por uso |
+
+### Padrões Híbridos Comuns
+
+| Modelo | Descrição | Exemplo | Suporte Nativo |
+|--------|-------------|---------|----------------|
+| **1. Assinatura + Uso** | Taxa base + cobranças de consumo | \$49/mês + \$0.01/chamada de API após 10K grátis | ✅ Completo |
+| **2. Assinatura + Assentos** | Taxa de plataforma + cobranças por usuário | \$99/mês + \$15/assento | ✅ Completo |
+| **3. Assinatura + Complementos de Recursos** | Plano principal + upgrades opcionais | \$29/mês + \$19/mês de análises + \$9/mês de acesso à API | ✅ Completo |
+| **4. Assentos + Uso** | Taxa por usuário + excesso de consumo | \$10/usuário/mês + \$0.05/GB após 5GB/usuário | ⚠️ Solução alternativa |
+| **5. Assinatura + Assentos + Uso** | Plataforma + usuários + consumo (triple hybrid) | \$199/mês + \$20/assento + excesso de uso | ⚠️ Solução alternativa |
+| **6. Base em Camadas + Excesso de Uso** | Diferentes camadas com diferentes permissões | Starter (5K chamadas) vs Pro (50K chamadas) + excesso | ✅ Completo |
+| **7. Assinatura + Cobranças Sob Demanda** | Taxa recorrente + cobranças manuais variáveis | \$99/mês de retentor + faturamento por hora para trabalho | ✅ Completo |
+
+---
+
+## Modelo Híbrido 1: Assinatura + Uso
+
+O modelo híbrido mais comum. Os clientes pagam uma taxa de assinatura base mais cobranças por consumo que excedem as permissões incluídas.
+
+### Como Funciona
+
+**Plano Pro: $49/mês**
+
+- **Incluído**: 10.000 chamadas de API/mês
+- **Excesso**: $0.005 por chamada após 10.000
+
+**Cálculo de exemplo** (cliente usa 25.000 chamadas este mês):
+- Assinatura base: $49.00
+- Excesso: (25.000 - 10.000) × $0.005 = $75.00
+- **Total: $124.00**
+
+### Casos de Uso
+
+- **Plataformas de API**: Acesso base + cobranças por solicitação
+- **Serviços de IA/ML**: Assinatura + uso de token/geração
+- **Serviços de armazenamento**: Plano base + excesso por GB
+- **Plataformas de comunicação**: Base + cobranças por mensagem/minuto
+
+### Implementação
+
+<Steps>
+<Step title="Criar Medidor de Uso">
+Configure um medidor para rastrear a dimensão de uso faturável.
+
+```bash
+Dashboard: Meters → Create Meter
+Event Name: "api.call"
+Aggregation: Count
+This tracks API calls per customer
+```
+
+</Step>
+
+<Step title="Criar Produto de Assinatura com Preço de Uso">
+Crie um produto de assinatura e anexe o medidor de uso com preços.
+
+```bash
+Dashboard: Create Product → Subscription
+Name: "Pro Plan"
+Base Price: $49/month
+
+Then attach usage pricing:
+- Meter: api.call
+- Price per unit: $0.005
+- Free threshold: 10,000 (included in subscription)
+```
+
+<Info>
+O medidor de uso é anexado diretamente ao produto de assinatura. As cobranças de uso são calculadas e adicionadas à fatura da assinatura automaticamente.
+</Info>
+</Step>
+
+<Step title="Criar Sessão de Checkout">
+Crie uma sessão de checkout com seu produto de assinatura.
+
+```typescript
+const session = await client.checkoutSessions.create({
+  product_cart: [
+    { product_id: 'prod_pro_plan', quantity: 1 }
+  ],
+  customer: { email: 'customer@example.com' },
+  return_url: 'https://yourapp.com/success'
+});
+```
+
+</Step>
+
+<Step title="Enviar Eventos de Uso">
+Rastreie o uso ao longo do período de faturamento.
+
+```typescript
+await fetch('https://api.dodopayments.com/events/ingest', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${apiKey}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    events: [{
+      event_id: `call_${Date.now()}`,
+      customer_id: 'cus_123',
+      event_name: 'api.call',
+      timestamp: new Date().toISOString(),
+      metadata: { endpoint: '/v1/generate' }
+    }]
+  })
+});
+```
+
+</Step>
+</Steps>
+
+### Variações de Preço
+
+<Tabs>
+<Tab title="Permissão Incluída">
+O limite gratuito cobre o uso incluído na assinatura base.
+
+**Plano Pro: $49/mês**
+- Inclui: 10.000 chamadas de API
+- Excesso: $0.005/chamada após 10.000
+- Cliente usa 8.000 → Paga $49 (sem excesso)
+</Tab>
+
+<Tab title="Base Zero + Uso Puro">
+Sem taxa base, cada unidade é faturável desde o primeiro uso.
+
+**Pay-As-You-Go: $0/mês base**
+- Inclui: 0 chamadas de API
+- Uso: $0.01/chamada desde a primeira chamada
+- Cliente usa 5.000 → Paga $50
+</Tab>
+
+<Tab title="Permissões em Camadas">
+Diferentes camadas incluem diferentes permissões.
+
+- **Starter**: $19/mês (1.000 chamadas incluídas)
+- **Pro**: $49/mês (10.000 chamadas incluídas)
+- **Enterprise**: $199/mês (100.000 chamadas incluídas)
+- Todas as camadas: $0.005/chamada de excesso
+</Tab>
+</Tabs>
+
+---
+
+## Modelo Híbrido 2: Assinatura + Assentos
+
+Taxa de plataforma mais cobranças por usuário. Ideal para ferramentas de colaboração em equipe e SaaS B2B.
+
+### Como Funciona
+
+**Plano de Equipe: $99/mês + $15/assento**
+
+- **Taxa base da plataforma**: $99/mês (inclui 3 assentos)
+- **Assentos adicionais**: $15/assento/mês
+
+**Cálculo de exemplo** (equipe de 12 usuários):
+- Taxa da plataforma: $99.00
+- Assentos extras: (12 - 3) × $15 = $135.00
+- **Total: $234.00/mês**
+
+### Casos de Uso
+
+- **Ferramentas de colaboração**: Taxa de espaço de trabalho + por membro
+- **Sistemas de CRM**: Licença de plataforma + por representante de vendas
+- **Gerenciamento de projetos**: Plano de equipe + por colaborador
+- **Ferramentas de desenvolvimento**: Taxa de organização + por desenvolvedor
+
+### Implementação
+
+<Steps>
+<Step title="Criar Complemento de Assento">
+Crie um complemento para assentos adicionais.
+
+```bash
+Dashboard: Products → Add-ons → Create Add-on
+Name: "Additional Seat"
+Price: $15/month
+Description: "Add another team member"
+```
+
+</Step>
+
+<Step title="Criar Assinatura Base">
+Crie o produto de assinatura com a taxa da plataforma e anexe o complemento.
+
+```bash
+Dashboard: Create Product → Subscription
+Name: "Team Plan"
+Price: $99/month
+Description: "Includes 3 team members"
+
+Then in Add-ons section:
+- Attach: "Additional Seat" add-on
+```
+
+</Step>
+
+<Step title="Criar Checkout com Assentos">
+Especifique a quantidade de assentos durante o checkout.
+
+```typescript
+const session = await client.checkoutSessions.create({
+  product_cart: [{
+    product_id: 'prod_team_plan',
+    quantity: 1,
+    addons: [{
+      addon_id: 'addon_seat',
+      quantity: 9  // 9 extra seats (12 total with 3 included)
+    }]
+  }],
+  customer: { email: 'admin@company.com' },
+  return_url: 'https://yourapp.com/success'
+});
+```
+
+</Step>
+
+<Step title="Ajustar Assentos conforme Necessário">
+Adicione ou remova assentos em assinaturas existentes.
+
+```typescript
+// Add 5 more seats
+await client.subscriptions.changePlan('sub_123', {
+  product_id: 'prod_team_plan',
+  quantity: 1,
+  proration_billing_mode: 'prorated_immediately',
+  addons: [{
+    addon_id: 'addon_seat',
+    quantity: 14  // New total: 14 extra seats
+  }]
+});
+```
+
+</Step>
+</Steps>
+
+### Variações de Preço
+
+<Tabs>
+<Tab title="Assentos Incluídos">
+O plano base inclui alguns assentos, cobra por extras.
+
+**Plano de Equipe: $99/mês**
+- Inclui: 5 assentos
+- Assentos extras: $15/assento/mês
+- 20 usuários = \$99 + (15 × \$15) = \$324/mês
+</Tab>
+
+<Tab title="Por Assento Puro">
+Sem taxa de plataforma, apenas cobranças por usuário.
+
+**Por Usuário: $25/usuário/mês**
+- Sem taxa de plataforma
+- 5 usuários = $125/mês
+- 50 usuários = $1.250/mês
+Implementação: Defina o preço da assinatura base como $0, use apenas o complemento de assento.
+</Tab>
+
+<Tab title="Por Assento em Camadas">
+O preço por assento diminui em camadas mais altas.
+
+- **Starter**: $20/assento (1-10 assentos)
+- **Crescimento**: $15/assento (11-50 assentos)
+- **Enterprise**: $10/assento (51+ assentos)
+Implementação: Crie produtos de assinatura separados para cada camada com preços de complemento diferentes.
+</Tab>
+</Tabs>
+
+---
+
+## Modelo Híbrido 3: Assinatura + Complementos de Recursos
+
+Assinatura principal com upgrades opcionais de recursos que os clientes podem adicionar.
+
+### Como Funciona
+
+**Plano Principal: $29/mês**
+
+**Complementos Opcionais:**
+- Análises Avançadas: +$19/mês
+- Acesso à API: +$9/mês
+- Suporte Prioritário: +$29/mês
+- Marca Branca: +$49/mês
+
+**Cálculo de exemplo** (cliente escolhe Core + Análises + Acesso à API):
+- Plano principal: $29.00
+- Análises: $19.00
+- Acesso à API: $9.00
+- **Total: $57.00/mês**
+
+### Casos de Uso
+
+- **Plataformas SaaS**: Recursos principais + módulos premium
+- **Ferramentas de marketing**: Ferramenta base + integrações
+- **Produtos de análises**: Painel + relatórios avançados
+- **Software de segurança**: Proteção básica + recursos avançados
+
+### Implementação
+
+<Steps>
+<Step title="Criar Complementos de Recursos">
+Crie um complemento para cada recurso opcional.
+
+```bash
+# Add-on 1: Advanced Analytics
+Dashboard: Products → Add-ons → Create Add-on
+Name: "Advanced Analytics"
+Price: $19/month
+
+# Add-on 2: API Access
+Name: "API Access"
+Price: $9/month
+
+# Add-on 3: Priority Support
+Name: "Priority Support"
+Price: $29/month
+
+# Add-on 4: White-label
+Name: "White-label"
+Price: $49/month
+```
+
+</Step>
+
+<Step title="Criar Assinatura Principal">
+Defina sua assinatura base e anexe todos os complementos de recursos.
+
+```bash
+Dashboard: Create Product → Subscription
+Name: "Core Plan"
+Price: $29/month
+
+Then in Add-ons section:
+- Attach all feature add-ons
+```
+
+</Step>
+
+<Step title="Deixe os Clientes Escolherem">
+Checkout com recursos selecionados.
+
+```typescript
+const session = await client.checkoutSessions.create({
+  product_cart: [{
+    product_id: 'prod_core_plan',
+    quantity: 1,
+    addons: [
+      { addon_id: 'addon_analytics', quantity: 1 },
+      { addon_id: 'addon_api_access', quantity: 1 }
+      // Customer didn't select support or white-label
+    ]
+  }],
+  return_url: 'https://yourapp.com/success'
+});
+```
+
+</Step>
+
+<Step title="Adicionar Recursos Depois">
+Os clientes podem adicionar recursos a assinaturas existentes.
+
+```typescript
+// Customer wants to add Priority Support
+await client.subscriptions.changePlan('sub_123', {
+  product_id: 'prod_core_plan',
+  quantity: 1,
+  proration_billing_mode: 'prorated_immediately',
+  addons: [
+    { addon_id: 'addon_analytics', quantity: 1 },
+    { addon_id: 'addon_api_access', quantity: 1 },
+    { addon_id: 'addon_priority_support', quantity: 1 }  // New!
+  ]
+});
+```
+
+</Step>
+</Steps>
+
+---
+
+## Modelo Híbrido 4: Assentos + Uso
+
+Taxa por usuário combinada com cobranças baseadas em consumo. Cada usuário recebe uma permissão.
+
+<Warning>
+**Restrição**: O Dodo Payments atualmente não suporta anexar tanto medidores de uso quanto complementos ao mesmo produto de assinatura. Este modelo requer uma solução alternativa usando lógica em nível de aplicativo.
+</Warning>
+
+<Info>
+**Em Breve**: O suporte nativo para faturamento híbrido de Assentos + Uso está em nosso roadmap. Isso permitirá que você anexe tanto medidores de uso quanto complementos de assento ao mesmo produto de assinatura.
+</Info>
+
+### Como Funciona
+
+**Análises de Equipe: $20/usuário/mês**
+
+**Cada usuário inclui:**
+- 5 GB de processamento de dados/mês
+- Excesso: $2/GB após a permissão
+
+**Cálculo de exemplo** (equipe de 10 usuários usando 80 GB no total):
+- Taxas de assento: 10 × $20 = $200.00
+- Dados incluídos: 10 × 5 GB = 50 GB
+- Excesso: (80 - 50) × $2 = $60.00
+- **Total: $260.00/mês**
+
+### Casos de Uso
+
+- **Plataformas de análises**: Por analista + processamento de dados
+- **Ferramentas de design**: Por designer + armazenamento/exportações
+- **Ambientes de desenvolvimento**: Por desenvolvedor + horas de computação
+- **Ferramentas de comunicação**: Por usuário + volume de mensagens/chamadas
+
+### Opções de Implementação
+
+Como você não pode anexar tanto medidores de uso quanto complementos ao mesmo produto de assinatura, escolha uma dessas abordagens:
+
+<Tabs>
+<Tab title="Opção A: Produto de Uso + Assentos Gerenciados pelo App">
+Use uma assinatura baseada em uso e gerencie a cobrança de assentos em seu aplicativo.
+
+<Steps>
+<Step title="Criar Medidor de Uso">
+
+```bash
+Dashboard: Meters → Create Meter
+Event Name: "data.processed"
+Aggregation: Sum
+Property: "bytes"
+```
+
+</Step>
+
+<Step title="Criar Assinatura Baseada em Uso">
+
+```bash
+Dashboard: Create Product → Subscription
+Name: "Team Analytics"
+Base Price: $0/month
+
+Attach usage pricing:
+- Meter: data.processed
+- Price per unit: $2/GB
+- Free threshold: 0 (managed by your app)
+```
+
+</Step>
+
+<Step title="Gerenciar Assentos em Seu Aplicativo">
+Rastreie a contagem de assentos e calcule as taxas de assento separadamente.
+
+```typescript
+// Your application tracks seats and calculates total cost
+async function calculateMonthlyBill(customerId: string) {
+  const seatCount = await getSeatCount(customerId);
+  const seatFee = seatCount * 20; // $20/seat
+
+  // Usage is billed by Dodo automatically
+  // You invoice/charge seat fees separately or include in base price
+
+  // Alternatively, adjust base subscription price when seats change
+  const totalBasePrice = seatCount * 2000; // $20/seat in cents
+  await client.subscriptions.update('sub_123', {
+    // Update subscription to reflect seat-based pricing
+  });
+}
+```
+
+</Step>
+
+<Step title="Calcular Limite Livre Dinâmico">
+Ajuste o uso incluído com base na contagem de assentos.
+
+```typescript
+// When checking usage, apply per-seat allowance
+async function checkUsageOverage(customerId: string) {
+  const seatCount = await getSeatCount(customerId);
+  const includedGB = seatCount * 5; // 5 GB per user
+
+  const currentUsage = await getUsageFromDodo(customerId);
+  const overage = Math.max(0, currentUsage - includedGB);
+
+  // Overage is billed by Dodo at $2/GB
+  return { included: includedGB, used: currentUsage, overage };
+}
+```
+
+</Step>
+</Steps>
+</Tab>
+
+<Tab title="Opção B: Complemento de Assento + Cobranças de Uso Sob Demanda">
+Use complementos para assentos e cobre o uso manualmente via cobranças sob demanda.
+
+<Steps>
+<Step title="Criar Complemento de Assento">
+
+```bash
+Dashboard: Products → Add-ons → Create Add-on
+Name: "Team Member"
+Price: $20/month
+```
+
+</Step>
+
+<Step title="Criar Assinatura com Complemento">
+
+```bash
+Dashboard: Create Product → Subscription
+Name: "Team Analytics"
+Base Price: $0/month
+
+Attach add-on:
+- "Team Member" add-on
+
+Enable on-demand charging
+```
+
+</Step>
+
+<Step title="Rastrear Uso em Seu Aplicativo">
+
+```typescript
+// Track usage events in your system
+async function trackDataProcessed(customerId: string, bytes: number) {
+  await saveUsageEvent({
+    customer_id: customerId,
+    event_type: 'data.processed',
+    bytes: bytes,
+    timestamp: new Date()
+  });
+}
+```
+
+</Step>
+
+<Step title="Cobrar Uso no Final do Ciclo">
+Calcule e cobre os excessos de uso manualmente.
+
+```typescript
+async function billUsageOverage(subscriptionId: string) {
+  const subscription = await getSubscription(subscriptionId);
+  const seatCount = subscription.addons.find(a => a.id === 'addon_seat')?.quantity || 0;
+
+  const includedGB = seatCount * 5;
+  const usedGB = await calculatePeriodUsage(subscription.customer_id);
+  const overageGB = Math.max(0, usedGB - includedGB);
+
+  if (overageGB > 0) {
+    const overageCharge = overageGB * 200; // $2/GB in cents
+    await client.subscriptions.charge(subscriptionId, {
+      product_price: overageCharge,
+      product_description: `Data overage: ${overageGB} GB × $2/GB`
+    });
+  }
+}
+```
+
+</Step>
+</Steps>
+</Tab>
+</Tabs>
+
+<Info>
+**Recomendação**: A Opção B (Complemento de Assento + Uso Sob Demanda) é frequentemente mais fácil de implementar porque o Dodo gerencia a cobrança de assentos automaticamente. Você só precisa rastrear e cobrar os excessos de uso.
+</Info>
+
+---
+
+## Modelo Híbrido 5: Assinatura + Assentos + Uso (Triple Hybrid)
+
+O modelo mais abrangente: taxa de plataforma + por usuário + consumo.
+
+<Warning>
+**Restrição**: O Dodo Payments atualmente não suporta anexar tanto medidores de uso quanto complementos ao mesmo produto de assinatura. Este modelo requer uma abordagem alternativa.
+</Warning>
+
+<Info>
+**Em Breve**: O suporte nativo para faturamento Triple Hybrid (Base + Assentos + Uso) está em nosso roadmap. Isso permitirá que você anexe tanto medidores de uso quanto complementos de assento ao mesmo produto de assinatura.
+</Info>
+
+### Como Funciona
+
+**Plataforma Empresarial**
+
+- **Taxa da Plataforma**: $199/mês
+- **Por Assento**: $25/usuário/mês
+- **Uso**: $0.10/1000 chamadas de API (50K incluídas)
+
+**Cálculo de exemplo** (empresa com 20 usuários, 150.000 chamadas de API):
+- Plataforma: $199.00
+- Assentos: 20 × $25 = $500.00
+- Uso: (150K - 50K) × \$0.10/1K = \$10.00
+- **Total: $709.00/mês**
+
+### Casos de Uso
+
+- **SaaS Empresarial**: Plataforma + equipe + consumo
+- **Plataformas de dados**: Espaço de trabalho + analistas + consultas
+- **Plataformas de integração**: Hub + conectores + transações
+- **Plataformas de IA**: Espaço de trabalho + desenvolvedores + inferência
+
+### Opções de Implementação
+
+Escolha uma dessas abordagens para implementar faturamento híbrido triplo:
+
+<Tabs>
+<Tab title="Opção A: Base + Assentos (Complemento) + Uso Sob Demanda">
+Use assinatura com complementos de assento, cobre o uso manualmente via cobranças sob demanda.
+
+**Esta é a abordagem recomendada** porque o Dodo gerencia automaticamente a taxa da plataforma e a cobrança de assentos.
+
+<Steps>
+<Step title="Criar Complemento de Assento">
+
+```bash
+Dashboard: Products → Add-ons → Create Add-on
+Name: "User Seat"
+Price: $25/month
+```
+
+</Step>
+
+<Step title="Criar Produto de Assinatura">
+
+```bash
+Dashboard: Create Product → Subscription
+Name: "Enterprise Platform"
+Base Price: $199/month
+
+Attach add-on:
+- "User Seat" add-on
+
+Enable on-demand charging
+```
+
+</Step>
+
+<Step title="Criar Checkout com Assentos">
+
+```typescript
+const session = await client.checkoutSessions.create({
+  product_cart: [{
+    product_id: 'prod_enterprise_platform',
+    quantity: 1,
+    addons: [{
+      addon_id: 'addon_user_seat',
+      quantity: 20  // 20 users
+    }]
+  }],
+  customer: { email: 'enterprise@company.com' },
+  return_url: 'https://yourapp.com/success'
+});
+```
+
+</Step>
+
+<Step title="Rastrear Uso em Seu Aplicativo">
+Armazene eventos de uso em seu sistema.
+
+```typescript
+// Track API calls in your system
+async function trackApiCall(customerId: string, endpoint: string) {
+  await saveUsageEvent({
+    customer_id: customerId,
+    event_type: 'api.call',
+    endpoint: endpoint,
+    timestamp: new Date()
+  });
+}
+```
+
+</Step>
+
+<Step title="Cobrar Uso no Final do Ciclo">
+Calcule e cobre os excessos de uso via cobrança sob demanda.
+
+```typescript
+async function billUsageOverage(subscriptionId: string) {
+  const usage = await calculatePeriodUsage(subscriptionId);
+  const includedCalls = 50000;
+  const overageCalls = Math.max(0, usage.totalCalls - includedCalls);
+
+  if (overageCalls > 0) {
+    // $0.10 per 1000 calls = $0.0001 per call
+    const overageCharge = Math.ceil(overageCalls / 1000) * 10; // cents
+    await client.subscriptions.charge(subscriptionId, {
+      product_price: overageCharge,
+      product_description: `API usage: ${overageCalls.toLocaleString()} calls over 50K included`
+    });
+  }
+}
+```
+
+</Step>
+</Steps>
+</Tab>
+
+<Tab title="Opção B: Base + Uso (Medidor) + Assentos Gerenciados pelo App">
+Use assinatura com medidor de uso, gerencie a cobrança de assentos em seu aplicativo.
+
+<Steps>
+<Step title="Criar Medidor de Uso">
+
+```bash
+Dashboard: Meters → Create Meter
+Event Name: "api.call"
+Aggregation: Count
+```
+
+</Step>
+
+<Step title="Criar Produto de Assinatura com Uso">
+
+```bash
+Dashboard: Create Product → Subscription
+Name: "Enterprise Platform"
+Base Price: $199/month
+
+Attach usage pricing:
+- Meter: api.call
+- Price: $0.10 per 1000 calls
+- Free threshold: 50,000
+```
+
+</Step>
+
+<Step title="Gerenciar Assentos em Seu Aplicativo">
+Rastreie a contagem de assentos e ajuste o preço da assinatura base conforme necessário.
+
+```typescript
+// When seats change, update subscription price
+async function updateSeatCount(subscriptionId: string, newSeatCount: number) {
+  const basePlatformFee = 19900; // $199 in cents
+  const perSeatFee = 2500; // $25 in cents
+  const totalPrice = basePlatformFee + (newSeatCount * perSeatFee);
+
+  // Store seat count in your system
+  await updateSeatsInDatabase(subscriptionId, newSeatCount);
+
+  // Note: You may need to handle this via plan changes or
+  // create multiple tier products for common seat counts
+}
+```
+
+</Step>
+
+<Step title="Enviar Eventos de Uso para Dodo">
+
+```typescript
+await fetch('https://api.dodopayments.com/events/ingest', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${apiKey}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    events: [{
+      event_id: `api_${Date.now()}`,
+      customer_id: 'cus_enterprise',
+      event_name: 'api.call',
+      timestamp: new Date().toISOString()
+    }]
+  })
+});
+```
+
+</Step>
+</Steps>
+</Tab>
+</Tabs>
+
+<Info>
+**Recomendação**: A Opção A (Base + Assentos + Uso Sob Demanda) é geralmente mais fácil porque o Dodo gerencia automaticamente a cobrança da plataforma e dos assentos. Você só precisa rastrear o uso e enviar cobranças no final de cada ciclo de faturamento.
+</Info>
+
+---
+
+## Modelo Híbrido 6: Base em Camadas + Excesso de Uso
+
+Diferentes camadas de assinatura com diferentes permissões incluídas e taxas de excesso.
+
+### Como Funciona
+
+| Camada | Preço | Chamadas Incluídas | Taxa de Excesso |
+|--------|-------|--------------------|-----------------|
+| **Starter** | $19/mês | 1.000 | $0.02/chamada |
+| **Pro** | $79/mês | 25.000 | $0.01/chamada |
+| **Business** | $199/mês | 100.000 | $0.005/chamada |
+| **Enterprise** | $499/mês | 500.000 | $0.002/chamada |
+
+### Implementação
+
+Crie produtos de assinatura separados para cada camada, cada um com sua própria configuração de uso:
+
+```bash
+# For each tier, create a subscription product:
+
+# Starter Tier
+Dashboard: Create Product → Subscription
+Name: "Starter"
+Base Price: $19/month
+Usage Pricing:
+- Meter: api.call
+- Price: $0.02/call
+- Free threshold: 1,000
+
+# Pro Tier
+Name: "Pro"
+Base Price: $79/month
+Usage Pricing:
+- Meter: api.call
+- Price: $0.01/call
+- Free threshold: 25,000
+
+# ... and so on for Business and Enterprise
+```
+
+### Caminho de Upgrade
+
+Quando os clientes atualizam camadas, eles recebem:
+- Permissão incluída maior
+- Taxas de excesso mais baixas
+- Mais valor por dólar
+
+```typescript
+// Customer upgrades from Starter to Pro
+await client.subscriptions.changePlan('sub_123', {
+  product_id: 'prod_pro',
+  quantity: 1,
+  proration_billing_mode: 'prorated_immediately'
+});
+```
+
+---
+
+## Modelo Híbrido 7: Assinatura + Cobranças Sob Demanda
+
+Assinatura recorrente mais cobranças manuais variáveis por serviços ou excessos.
+
+### Como Funciona
+
+**Plano de Retentor: $199/mês**
+
+**Inclui:**
+- Acesso à plataforma
+- 5 horas de consultoria/mês
+- Suporte por e-mail
+
+**Cobranças Sob Demanda (conforme necessário):**
+- Consultoria extra: $150/hora
+- Desenvolvimento personalizado: $200/hora
+- Suporte de emergência: $100/incidente
+
+**Cálculo de exemplo** (este mês):
+- Retentor: $199.00
+- 3 horas de consultoria extra: $450.00
+- 1 suporte de emergência: $100.00
+- **Total: $749.00**
+
+### Casos de Uso
+
+- **Serviços de consultoria**: Retentor + faturamento por hora
+- **Serviços gerenciados**: Taxa base + cobranças por incidente
+- **Serviços de agência**: Taxa mensal + cobranças por projeto
+- **Planos de suporte**: Taxa de SLA + por ticket ou por hora
+
+### Implementação
+
+<Steps>
+<Step title="Criar Assinatura Sob Demanda">
+Configure a assinatura com cobrança sob demanda habilitada.
+
+```typescript
+const subscription = await client.subscriptions.create({
+  billing: {
+    city: 'San Francisco',
+    country: 'US',
+    state: 'CA',
+    street: '123 Main St',
+    zipcode: '94105'
+  },
+  customer: { customer_id: 'cus_123' },
+  product_id: 'prod_retainer',
+  quantity: 1,
+  payment_link: true,
+  return_url: 'https://yourapp.com/success',
+  on_demand: {
+    mandate_only: false,
+    product_price: 19900  // $199 initial charge
+  }
+});
+```
+
+</Step>
+
+<Step title="Cobrar por Serviços">
+Crie cobranças quando os serviços forem entregues.
+
+```typescript
+// Charge for 3 hours of consulting
+await client.subscriptions.charge('sub_123', {
+  product_price: 45000,  // $450.00 (3 × $150)
+  product_description: 'Consulting - 3 hours (March 15)'
+});
+
+// Charge for emergency support incident
+await client.subscriptions.charge('sub_123', {
+  product_price: 10000,  // $100.00
+  product_description: 'Emergency support - Server outage (March 18)'
+});
+```
+
+</Step>
+
+<Step title="Rastrear e Faturar">
+Todas as cobranças aparecem na fatura do cliente.
+
+```typescript
+// Retrieve subscription charges
+const payments = await client.payments.list({
+  subscription_id: 'sub_123'
+});
+
+// Show itemized breakdown to customer
+payments.items.forEach(payment => {
+  console.log(`${payment.description}: $${payment.amount / 100}`);
+});
+```
+
+</Step>
+</Steps>
+
+---
+
+## Exemplos do Mundo Real
+
+<Info>
+Esses exemplos mostram estruturas de preços ideais. Devido à restrição de que medidores de uso e complementos não podem ser anexados ao mesmo produto, algumas combinações exigem soluções alternativas (usando cobranças sob demanda para uso ou assentos gerenciados pelo aplicativo).
+</Info>
+
+### Exemplo 1: Plataforma SaaS de IA
+
+**Estrutura de Preços:**
+- **Assinatura Base**: $99/mês (acesso à plataforma, 5 assentos incluídos)
+- **Complemento de Assento**: $20/assento/mês
+- **Complementos de Recursos**: Modelos Personalizados (\$49/mês), Acesso à API (\$29/mês), Fila Prioritária (\$19/mês)
+- **Excesso de Uso**: $0.02 por 1.000 tokens após 100K (cobrado via sob demanda)
+
+**Implementação**: Use assinatura com complementos de assento e recursos. Rastreie o uso de tokens em seu aplicativo e cobre os excessos via cobranças sob demanda no final do ciclo de faturamento.
+
+**Cliente Exemplo** (12 usuários, 500K tokens, Modelos Personalizados + Acesso à API):
+| Componente | Cálculo | Valor |
+|------------|---------|-------|
+| Base | Taxa da plataforma | $99 |
+| Assentos extras | 7 × $20 | $140 |
+| Modelos Personalizados | Complemento | $49 |
+| Acesso à API | Complemento | $29 |
+| Excesso de tokens | 400K × \$0.02/1K (sob demanda) | \$8 |
+| **Total** | | **$325/mês** |
+
+### Exemplo 2: Plataforma de Ferramentas para Desenvolvedores
+
+**Opções de Camadas:**
+
+| | Gratuito | Pro | Enterprise |
+|---|------|-----|------------|
+| **Preço** | $0/mês | $29/mês | $199/mês |
+| **Usuários** | 1 | 5 incluídos | Ilimitado |
+| **Builds** | 100 | 1.000 | 10.000 |
+| **Armazenamento** | 1 GB | 10 GB | 100 GB |
+
+**Opções de Implementação:**
+
+**Opção A** (Focada em Uso): Crie produtos com medidores de uso para builds/armazenamento. Gerencie usuários em seu aplicativo.
+
+**Opção B** (Focada em Assentos): Crie produtos com complementos de assento. Rastreie o uso de builds/armazenamento e cobre os excessos via sob demanda.
+
+**Complementos (se usar a Opção B):**
+- Usuários extras: $10/usuário/mês
+- Builds prioritárias: $19/mês
+- Domínios personalizados: $9/dominio/mês
+
+### Exemplo 3: Automação de Marketing
+
+**Estrutura de Preços:**
+- **Base**: $79/mês (recursos principais de automação, 3 assentos incluídos)
+- **Camadas de Contato** (complementos): 1K incluído, 5K (+\$30), 25K (+\$80), 100K (+\$200)
+- **Complementos de Recursos**: Marketing por SMS (\$29/mês), Páginas de Destino (\$19/mês), Teste A/B (\$29/mês)
+- **Assentos de Equipe**: $15/usuário/mês de complemento
+- **Volume de E-mail**: Rastreie no aplicativo, cobre o excesso via sob demanda ($1/1.000 e-mails acima do limite)
+
+**Implementação**: Use assinatura com complementos de camadas de contato, complementos de recursos e complementos de assento. Rastreie envios de e-mail em seu aplicativo e cobre os excessos via cobranças sob demanda.
+
+---
+
+## Melhores Práticas de Implementação
+
+### Clareza na Página de Preços
+
+<Tip>
+Facilite a compreensão do preço híbrido. Mostre os custos base, o que está incluído e como funcionam os excessos de forma proeminente em sua página de preços.
+</Tip>
+
+**Bom**: "\$49/mês inclui 10.000 chamadas de API. Chamadas adicionais: \$0.005 cada"
+
+**Ruim**: "\$49/mês + taxas de uso"
+
+### Previsibilidade de Custos
+
+Ajude os clientes a estimar seus custos:
+
+```typescript
+// Provide a cost calculator
+function estimateMonthlyCost({
+  plan,
+  seats,
+  expectedUsage,
+  addons
+}: EstimateParams): number {
+  let total = plan.basePrice;
+
+  // Add seat costs
+  const extraSeats = Math.max(0, seats - plan.includedSeats);
+  total += extraSeats * plan.seatPrice;
+
+  // Add usage overage
+  const overage = Math.max(0, expectedUsage - plan.includedUsage);
+  total += overage * plan.overageRate;
+
+  // Add feature add-ons
+  total += addons.reduce((sum, addon) => sum + addon.price, 0);
+
+  return total;
+}
+```
+
+### Visibilidade de Uso
+
+Mostre aos clientes seu uso em tempo real:
+
+```typescript
+// Display usage dashboard
+async function getUsageSummary(subscriptionId: string) {
+  const usage = await client.subscriptions.getUsageHistory(subscriptionId);
+
+  return {
+    current: usage.current_period_usage,
+    included: usage.free_threshold,
+    remaining: Math.max(0, usage.free_threshold - usage.current_period_usage),
+    overage: Math.max(0, usage.current_period_usage - usage.free_threshold),
+    projectedCost: calculateProjectedOverage(usage)
+  };
+}
+```
+
+### Transparência de Faturamento
+
+Forneça faturas detalhadas mostrando todos os componentes:
+
+| Item | Valor |
+|-----------|--------|
+| Plano Pro (Mensal) | $49.00 |
+| Assentos Adicionais (7 × $15.00) | $105.00 |
+| Uso de API - Incluído (10.000 chamadas) | $0.00 |
+| Uso de API - Excesso (15.420 chamadas × $0.005) | $77.10 |
+| Complemento de Análises Avançadas | $19.00 |
+| **Subtotal** | **$250.10** |
+| Imposto (8.5%) | $21.26 |
+| **Total Devido** | **$271.36** |
+
+---
+
+## Resolvendo Problemas de Faturamento Híbrido
+
+<AccordionGroup>
+<Accordion title="Uso não está sendo rastreado corretamente">
+**Sintomas**: Uso mostra 0 ou valores incorretos.
+
+**Soluções**:
+1. Verifique se a ingestão de eventos está funcionando (verifique as respostas da API)
+2. Confirme `customer_id` corresponde ao cliente de assinatura
+3. Verifique se `event_name` corresponde à configuração do medidor
+4. Verifique se os eventos têm timestamps corretos (não datados para o futuro)
+</Accordion>
+
+<Accordion title="Confusão de Prorrata com Múltiplos Componentes">
+**Sintomas**: Cliente cobrado com valores inesperados ao mudar de planos.
+
+**Soluções**:
+1. Use `previewChangePlan` API para mostrar cobranças exatas antes de confirmar
+2. Comunique que a prorrata se aplica à assinatura E aos complementos
+3. Considere usar `difference_immediately` para faturamento de upgrade mais simples
+</Accordion>
+
+<Accordion title="Limite livre não aplicando corretamente">
+**Sintomas**: Cliente cobrado por uso que deveria ser gratuito.
+
+**Soluções**:
+1. Verifique se o limite livre está configurado no produto baseado em uso
+2. Verifique se a unidade do limite corresponde à agregação de eventos (chamadas vs. solicitações)
+3. Confirme se o medidor de uso está corretamente anexado ao produto de assinatura
+</Accordion>
+
+<Accordion title="Complementos não aparecendo no checkout">
+**Sintomas**: Não é possível adicionar assentos ou recursos durante o checkout.
+
+**Soluções**:
+1. Verifique se os complementos estão anexados ao produto de assinatura no painel
+2. Verifique se os IDs dos complementos estão corretos nas chamadas da API
+3. Certifique-se de que a moeda do complemento corresponda à moeda do produto de assinatura
+</Accordion>
+</AccordionGroup>
+
+---
+
+## Documentação Relacionada
+
+<CardGroup cols={2}>
+<Card title="Produtos" icon="box" href="/features/products">
+  Visão geral de todos os tipos de produtos e guias.
+</Card>
+
+<Card title="Guia de Faturamento Baseado em Uso" icon="chart-line" href="/developer-resources/usage-based-billing-guide">
+  Implementação completa de faturamento por uso.
+</Card>
+
+<Card title="Gerenciamento de Assinaturas" icon="repeat" href="/features/subscription">
+  Gerenciando assinaturas recorrentes.
+</Card>
+
+<Card title="Complementos" icon="puzzle" href="/features/addons">
+  Estendendo assinaturas com complementos.
+</Card>
+</CardGroup>

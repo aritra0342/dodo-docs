@@ -1,0 +1,659 @@
+---
+sidebarTitle: Sitzbasierte Abrechnung
+title: Sitzbasierte Abrechnung
+description: Implementieren Sie eine nutzerbasierte Preisgestaltung für
+  Teamsoftware, SaaS-Produkte und Unternehmenslizenzen mit flexibler
+  Sitzverwaltung und Pro-Rata-Abrechnung.
+icon: users
+---
+
+<Info>
+Die sitzbasierte Abrechnung ermöglicht es Ihnen, Kunden basierend auf der Anzahl der Benutzer, Teammitglieder oder Lizenzen, die sie benötigen, zu berechnen. Es ist das Standardpreis-Modell für Team-Kollaborationstools, Unternehmenssoftware und B2B-SaaS-Produkte.
+</Info>
+
+<CardGroup cols={2}>
+<Card title="Implementierungsanleitung" icon="code" href="/developer-resources/seat-based-pricing">
+  Schritt-für-Schritt-Anleitung mit Codebeispielen.
+</Card>
+
+<Card title="Dokumentation zu Add-Ons" icon="puzzle" href="/features/addons">
+  Erfahren Sie mehr über das Add-On-System, das die sitzbasierte Abrechnung unterstützt.
+</Card>
+
+<Card title="Abonnementverwaltung" icon="repeat" href="/features/subscription">
+  Verwalten Sie sitzbasierte Abonnements und Planänderungen.
+</Card>
+
+<Card title="Webhooks" icon="bell" href="/developer-resources/webhooks/intents/subscription">
+  Verfolgen Sie Sitzänderungen mit Abonnement-Webhooks.
+</Card>
+</CardGroup>
+
+---
+
+## Was ist sitzbasierte Abrechnung?
+
+Die sitzbasierte Abrechnung (auch als nutzerbasierte oder sitzbasierte Preisgestaltung bezeichnet) berechnet Kunden basierend auf der Anzahl der Benutzer, die auf Ihr Produkt zugreifen. Anstelle einer Pauschalgebühr skaliert der Preis mit der Teamgröße.
+
+### Häufige Anwendungsfälle
+
+| Branche | Beispiel | Preisgestaltung |
+|----------|---------|---------------|
+| Team-Kollaboration | Slack, Notion, Asana | Pro aktiven Benutzer/Monat |
+| Entwickler-Tools | GitHub, GitLab, Jira | Pro Sitz/Monat |
+| CRM-Software | Salesforce, HubSpot | Pro Benutzerlizenz |
+| Design-Tools | Figma, Canva | Pro Editor-Sitz |
+| Sicherheitssoftware | 1Password, Okta | Pro Benutzer/Monat |
+| Videokonferenzen | Zoom, Teams | Pro Host-Lizenz |
+
+### Vorteile der sitzbasierten Preisgestaltung
+
+**Für Ihr Unternehmen:**
+- Umsatz skaliert natürlich, wenn Kunden wachsen
+- Vorhersehbare Preise, die Kunden budgetieren können
+- Klarer Upgrade-Pfad von Einzelpersonen zu Teams zu Unternehmen
+- Höherer Lebenszeitwert, wenn Teams wachsen
+
+**Für Ihre Kunden:**
+- Nur für das bezahlen, was sie nutzen
+- Einfach zu verstehende und vorhersehbare Kosten
+- Flexibilität, Benutzer nach Bedarf hinzuzufügen/zu entfernen
+- Faire Preise, die der Teamgröße entsprechen
+
+---
+
+## Wie die sitzbasierte Abrechnung bei Dodo Payments funktioniert
+
+Dodo Payments implementiert die sitzbasierte Abrechnung mit dem **Add-ons**-System. So funktioniert es:
+
+### Architekturübersicht
+
+Ein Team Pro-Abonnement kostet 99 $/Monat und umfasst 5 Sitze. Wenn Sie mehr als 5 Benutzer haben, zahlen Sie zusätzlich 15 $/Monat für jeden zusätzlichen Sitz.
+
+Wenn Ihr Team beispielsweise 15 Sitze benötigt:
+- Basisplan: 99 $/Monat (inklusive 5 Sitze)
+- Add-Ons: 10 zusätzliche Sitze × 15 $/Monat = 150 $/Monat
+- Gesamtkosten pro Monat: 99 $ + 150 $ = 249 $ für 15 Sitze
+
+### Schlüsselkomponenten
+
+| Komponente | Zweck | Beispiel |
+|-----------|---------|---------|
+| Basisprodukt | Kernabonnement mit enthaltenen Sitzen | "Team-Plan - 99 $/Monat (5 Sitze enthalten)" |
+| Sitz-Add-On | Pro-Sitz-Gebühr für zusätzliche Benutzer | "Zusätzlicher Sitz - 15 $/Monat pro Stück" |
+| Menge | Anzahl der gekauften zusätzlichen Sitze | 10 zusätzliche Sitze |
+
+---
+
+## Preisstrategien
+
+Wählen Sie die sitzbasierte Preisstrategie, die zu Ihrem Unternehmen passt:
+
+### Strategie 1: Basis + Pro-Sitz-Add-On
+
+Fügen Sie eine festgelegte Anzahl von Sitzen im Basisplan hinzu und berechnen Sie zusätzliche Sitze.
+
+**Beispiel:**
+
+```
+Starter Plan: $49/month
+├── Includes: 3 seats
+├── Extra seats: $10/month each
+└── 8 total seats = $49 + (5 × $10) = $99/month
+```
+
+**Am besten geeignet für:** Produkte, bei denen kleine Teams mit dem Basisangebot arbeiten können.
+
+### Strategie 2: Reine Pro-Sitz-Preisgestaltung
+
+Berechnen Sie einen Festpreis pro Sitz ohne Basisgebühr.
+
+**Beispiel:**
+
+```
+Per User: $12/month
+├── 5 users = $60/month
+├── 20 users = $240/month
+└── 100 users = $1,200/month
+```
+
+**Implementierung:** Setzen Sie den Preis des Basisplans auf 0 $, verwenden Sie nur das Sitz-Add-On.
+
+**Am besten geeignet für:** Einfache, transparente Preisgestaltung; nutzungsbasierte Modelle.
+
+### Strategie 3: Gestaffelte Sitzpreisgestaltung
+
+Verschiedene Basispläne mit unterschiedlichen Pro-Sitz-Sätzen.
+
+**Beispiel:**
+
+```
+Starter: $0/month base + $15/seat
+├── Lower features, higher per-seat cost
+
+Professional: $99/month base + $10/seat
+├── More features, lower per-seat cost
+
+Enterprise: $499/month base + $7/seat
+└── All features, volume discount on seats
+```
+
+**Implementierung:** Erstellen Sie separate Produkte für jede Stufe mit unterschiedlichen Add-On-Preisen.
+
+**Am besten geeignet für:** Anreize für Upgrades auf höhere Stufen; Unternehmensverkäufe.
+
+### Strategie 4: Sitzpakete
+
+Verkaufen Sie Sitze in Paketen anstelle von einzeln.
+
+**Beispiel:**
+
+```
+5-Seat Pack: $50/month ($10/seat)
+10-Seat Pack: $80/month ($8/seat)
+25-Seat Pack: $175/month ($7/seat)
+```
+
+**Implementierung:** Erstellen Sie mehrere Add-Ons für verschiedene Paketgrößen.
+
+**Am besten geeignet für:** Vereinfachung von Kaufentscheidungen; Anreize für größere Verpflichtungen.
+
+---
+
+## Einrichtung der sitzbasierten Abrechnung
+
+### Schritt 1: Planen Sie Ihre Preisgestaltung
+
+Definieren Sie vor der Implementierung Ihre Preisstruktur:
+
+<Steps>
+<Step title="Basisplan definieren">
+Entscheiden Sie, was im Basisabonnement enthalten ist:
+- Basispreis (kann 0 $ für reine Pro-Sitz-Preisgestaltung sein)
+- Anzahl der enthaltenen Sitze
+- Funktionen, die auf dieser Stufe verfügbar sind
+</Step>
+
+<Step title="Sitzpreis festlegen">
+Bestimmen Sie die Kosten für das Pro-Sitz-Add-On:
+- Preis pro zusätzlichem Sitz
+- Alle Mengenrabatte (über mehrere Add-Ons)
+- Maximale Anzahl an Sitzen (falls zutreffend)
+</Step>
+
+<Step title="Abrechnungsfrequenz berücksichtigen">
+Richten Sie die Sitzpreisgestaltung nach Ihrem Abrechnungszyklus aus:
+- Monatliche Abonnements → monatliche Sitzgebühren
+- Jährliche Abonnements → jährliche Sitzgebühren (oft rabattiert)
+</Step>
+</Steps>
+
+### Schritt 2: Erstellen Sie das Sitz-Add-On
+
+In Ihrem Dodo Payments-Dashboard:
+
+1. Navigieren Sie zu **Produkte** → **Add-Ons**
+2. Klicken Sie auf **Add-On erstellen**
+3. Konfigurieren Sie das Add-On:
+
+| Feld | Wert | Hinweise |
+|-------|-------|-------|
+| Name | "Zusätzlicher Sitz" oder "Teammitglied" | Klarer, benutzerfreundlicher Name |
+| Beschreibung | "Fügen Sie ein weiteres Teammitglied zu Ihrem Arbeitsbereich hinzu" | Erklären Sie, was Kunden erhalten |
+| Preis | Ihr Preis pro Sitz | z.B. 10,00 $ |
+| Währung | Entspricht Ihrem Basisprodukt | Muss die gleiche Währung sein |
+| Steuerkategorie | Die gleiche wie das Basisprodukt | Gewährleistet eine konsistente Steuerbehandlung |
+
+<Tip>
+Erstellen Sie beschreibende Add-On-Namen, die auf Rechnungen sinnvoll sind. "Zusätzlicher Team-Sitz" ist klarer als "Sitz-Add-On" für Kunden, die ihre Rechnungen überprüfen.
+</Tip>
+
+### Schritt 3: Erstellen Sie das Basisabonnement
+
+Erstellen Sie Ihr Abonnementprodukt:
+
+1. Navigieren Sie zu **Produkte** → **Produkt erstellen**
+2. Wählen Sie **Abonnement**
+3. Konfigurieren Sie Preisgestaltung und Details
+4. Fügen Sie im Abschnitt **Add-Ons** Ihr Sitz-Add-On hinzu
+
+### Schritt 4: Fügen Sie das Add-On zum Produkt hinzu
+
+Verknüpfen Sie das Sitz-Add-On mit Ihrem Abonnement:
+
+1. Bearbeiten Sie Ihr Abonnementprodukt
+2. Scrollen Sie zum Abschnitt **Add-Ons**
+3. Klicken Sie auf **Add-Ons hinzufügen**
+4. Wählen Sie Ihr Sitz-Add-On aus
+5. Änderungen speichern
+
+<Check>
+Ihr Abonnementprodukt unterstützt jetzt die sitzbasierte Preisgestaltung. Kunden können während des Checkouts beliebige Mengen zusätzlicher Sitze erwerben.
+</Check>
+
+---
+
+## Verwaltung von Sitzen
+
+### Hinzufügen von Sitzen zu neuen Abonnements
+
+Beim Erstellen einer Checkout-Sitzung geben Sie die Sitzanzahl an:
+
+```typescript
+const session = await client.checkoutSessions.create({
+  product_cart: [{
+    product_id: 'prod_team_plan',
+    quantity: 1,
+    addons: [{
+      addon_id: 'addon_seat',
+      quantity: 10  // 10 additional seats
+    }]
+  }],
+  customer: { email: 'admin@company.com' },
+  return_url: 'https://yourapp.com/success'
+});
+```
+
+### Ändern der Sitzanzahl bei bestehenden Abonnements
+
+Verwenden Sie die Change Plan API, um die Sitze anzupassen:
+
+```typescript
+// Add 5 more seats to existing subscription
+await client.subscriptions.changePlan('sub_123', {
+  product_id: 'prod_team_plan',
+  quantity: 1,
+  proration_billing_mode: 'prorated_immediately',
+  addons: [{
+    addon_id: 'addon_seat',
+    quantity: 15  // New total: 15 additional seats
+  }]
+});
+```
+
+### Entfernen von Sitzen
+
+Um die Sitzanzahl zu reduzieren, geben Sie die niedrigere Menge an:
+
+```typescript
+// Reduce from 15 to 8 additional seats
+await client.subscriptions.changePlan('sub_123', {
+  product_id: 'prod_team_plan',
+  quantity: 1,
+  proration_billing_mode: 'difference_immediately',
+  addons: [{
+    addon_id: 'addon_seat',
+    quantity: 8  // Reduced to 8 additional seats
+  }]
+});
+```
+
+### Entfernen aller zusätzlichen Sitze
+
+Übergeben Sie ein leeres Add-ons-Array, um alle Add-Ons zu entfernen:
+
+```typescript
+// Remove all additional seats, keep only base plan seats
+await client.subscriptions.changePlan('sub_123', {
+  product_id: 'prod_team_plan',
+  quantity: 1,
+  proration_billing_mode: 'difference_immediately',
+  addons: []  // Removes all add-ons
+});
+```
+
+---
+
+## Pro-Rata-Abrechnung für Sitzänderungen
+
+Wenn Kunden während des Abrechnungszyklus Sitze hinzufügen oder entfernen, bestimmt die Pro-Rata-Abrechnung, wie sie abgerechnet werden.
+
+### Pro-Rata-Modi
+
+| Modus | Sitze hinzufügen | Sitze entfernen |
+|------|-------------|----------------|
+| `prorated_immediately` | Gebühr für verbleibende Tage im Zyklus | Gutschrift für ungenutzte Tage |
+| `difference_immediately` | Voller Sitzpreis berechnen | Gutschrift wird auf zukünftige Erneuerungen angewendet |
+| `full_immediately` | Voller Sitzpreis berechnen, Abrechnungszyklus zurücksetzen | Keine Gutschrift |
+
+### Pro-Rata-Beispiele
+
+**Szenario: 15 Tage verbleibender Abrechnungszyklus, Hinzufügen von 5 Sitzen zu 10 $/Sitz**
+
+<Tabs>
+<Tab title="prorated_immediately">
+
+```
+Prorated charge = ($10 × 5 seats) × (15 days / 30 days)
+                = $50 × 0.5
+                = $25 immediate charge
+```
+
+Der Kunde zahlt jetzt 25 $, dann 50 $/Monat bei Erneuerung.
+</Tab>
+
+<Tab title="difference_immediately">
+
+```
+Immediate charge = $10 × 5 seats = $50
+```
+
+Der Kunde zahlt den vollen Betrag von 50 $ jetzt, unabhängig von der Position im Zyklus.
+</Tab>
+
+<Tab title="full_immediately">
+
+```
+Immediate charge = Full subscription + add-ons
+Billing cycle resets to today
+```
+
+Der Kunde zahlt den vollen Betrag, neuer Abrechnungszyklus beginnt.
+</Tab>
+</Tabs>
+
+### Vorschau vor Änderungen
+
+Vorschau der Pro-Rata-Abrechnung immer vor Änderungen anzeigen:
+
+```typescript
+const preview = await client.subscriptions.previewChangePlan('sub_123', {
+  product_id: 'prod_team_plan',
+  quantity: 1,
+  proration_billing_mode: 'prorated_immediately',
+  addons: [{ addon_id: 'addon_seat', quantity: 20 }]
+});
+
+console.log('Immediate charge:', preview.immediate_charge.summary);
+// Show customer: "Adding 5 seats will cost $25 today"
+```
+
+---
+
+## Verfolgen von Sitzen mit Webhooks
+
+Überwachen Sie Sitzänderungen, indem Sie auf Abonnement-Webhooks hören:
+
+### Relevante Ereignisse
+
+| Ereignis | Wann ausgelöst | Anwendungsfall |
+|-------|----------------|----------|
+| `subscription.active` | Neues Abonnement aktiviert | Bereitstellung der anfänglichen Sitze |
+| `subscription.plan_changed` | Sitze hinzugefügt/entfernt | Aktualisieren Sie die Sitzanzahl in Ihrer App |
+| `subscription.renewed` | Abonnement erneuert | Bestätigen Sie, dass die Sitzanzahl unverändert ist |
+| `subscription.cancelled` | Abonnement gekündigt | Alle Sitze zurücknehmen |
+
+### Beispiel für einen Webhook-Handler
+
+```typescript
+app.post('/webhooks/dodo', async (req, res) => {
+  const event = req.body;
+
+  switch (event.type) {
+    case 'subscription.active':
+      // New subscription - provision seats
+      const seats = calculateTotalSeats(event.data);
+      await provisionSeats(event.data.customer_id, seats);
+      break;
+
+    case 'subscription.plan_changed':
+      // Seats changed - update access
+      const newSeats = calculateTotalSeats(event.data);
+      await updateSeatCount(event.data.subscription_id, newSeats);
+      break;
+
+    case 'subscription.cancelled':
+      // Subscription cancelled - deprovision
+      await deprovisionAllSeats(event.data.subscription_id);
+      break;
+  }
+
+  res.json({ received: true });
+});
+
+function calculateTotalSeats(subscriptionData) {
+  const baseSeats = 5;  // Included in plan
+  const addonSeats = subscriptionData.addons?.reduce(
+    (total, addon) => total + addon.quantity, 0
+  ) || 0;
+  return baseSeats + addonSeats;
+}
+```
+
+---
+
+## Durchsetzung von Sitzlimits
+
+Ihre Anwendung muss Sitzlimits durchsetzen. Dodo Payments verfolgt die Abrechnung, aber Sie kontrollieren den Zugriff.
+
+### Durchsetzungsstrategien
+
+<Tabs>
+<Tab title="Harter Limit">
+Verhindern Sie strikt das Hinzufügen von Benutzern über die Sitzanzahl hinaus.
+
+```typescript
+async function inviteUser(teamId: string, email: string) {
+  const team = await getTeam(teamId);
+  const subscription = await getSubscription(team.subscriptionId);
+  const totalSeats = calculateTotalSeats(subscription);
+  const usedSeats = await countTeamMembers(teamId);
+
+  if (usedSeats >= totalSeats) {
+    throw new Error('No seats available. Please upgrade your plan.');
+  }
+
+  await sendInvitation(teamId, email);
+}
+```
+
+</Tab>
+
+<Tab title="Weiches Limit mit Warnung">
+Erlauben Sie das Überschreiten mit einer Warnung und einer Karenzzeit.
+
+```typescript
+async function inviteUser(teamId: string, email: string) {
+  const team = await getTeam(teamId);
+  const { totalSeats, usedSeats } = await getSeatInfo(team);
+
+  if (usedSeats >= totalSeats) {
+    // Allow but flag for billing
+    await flagOverage(teamId, usedSeats - totalSeats + 1);
+    await notifyAdmin(team.adminEmail, 'You have exceeded your seat limit');
+  }
+
+  await sendInvitation(teamId, email);
+}
+```
+
+</Tab>
+
+<Tab title="Auto-Upgrade">
+Fügen Sie automatisch Sitze hinzu, wenn das Limit erreicht ist.
+
+```typescript
+async function inviteUser(teamId: string, email: string) {
+  const team = await getTeam(teamId);
+  const { totalSeats, usedSeats, subscriptionId } = await getSeatInfo(team);
+
+  if (usedSeats >= totalSeats) {
+    // Automatically add a seat
+    await client.subscriptions.changePlan(subscriptionId, {
+      product_id: team.productId,
+      quantity: 1,
+      proration_billing_mode: 'prorated_immediately',
+      addons: [{ addon_id: 'addon_seat', quantity: totalSeats - baseSeats + 1 }]
+    });
+
+    await notifyAdmin(team.adminEmail, 'A new seat was added to your plan');
+  }
+
+  await sendInvitation(teamId, email);
+}
+```
+
+</Tab>
+</Tabs>
+
+---
+
+## Erweiterte Muster
+
+### Verschiedene Sitztypen
+
+Bieten Sie verschiedene Sitztypen mit unterschiedlichen Preisen an:
+
+```
+Full Seats: $20/month - Full access to all features
+View-Only Seats: $5/month - Read-only access
+Guest Seats: $0/month - Limited external collaborator access
+```
+
+**Implementierung:** Erstellen Sie separate Add-Ons für jeden Sitztyp.
+
+```typescript
+const session = await client.checkoutSessions.create({
+  product_cart: [{
+    product_id: 'prod_team_plan',
+    quantity: 1,
+    addons: [
+      { addon_id: 'addon_full_seat', quantity: 10 },
+      { addon_id: 'addon_viewer_seat', quantity: 25 },
+      { addon_id: 'addon_guest_seat', quantity: 50 }
+    ]
+  }]
+});
+```
+
+### Jährliche Sitzrabatte
+
+Bieten Sie rabattierte jährliche Sitzpreise an:
+
+```
+Monthly: $15/seat/month
+Annual: $12/seat/month (20% savings)
+```
+
+**Implementierung:** Erstellen Sie separate Produkte für monatliche und jährliche Pläne mit unterschiedlichen Add-On-Preisen.
+
+### Mindestanzahl an Sitzen
+
+Erfordern Sie eine Mindestanzahl an Sitzen für bestimmte Pläne:
+
+```typescript
+async function validateSeatCount(planId: string, seatCount: number) {
+  const minimums = {
+    'prod_starter': 1,
+    'prod_team': 5,
+    'prod_enterprise': 25
+  };
+
+  if (seatCount < minimums[planId]) {
+    throw new Error(`${planId} requires at least ${minimums[planId]} seats`);
+  }
+}
+```
+
+---
+
+## Best Practices
+
+### Preisgestaltung Best Practices
+
+- **Klare Kommunikation**: Zeigen Sie die Preise pro Sitz deutlich auf Ihrer Preisgestaltungsseite an
+- **Enthaltene Sitze**: Ziehen Sie in Betracht, einige Sitze im Basispreis einzuschließen, um Reibung zu reduzieren
+- **Mengenrabatte**: Bieten Sie niedrigere Preise pro Sitz für größere Teams an, um Unternehmensgeschäfte zu gewinnen
+- **Jährliche Anreize**: Rabattieren Sie jährliche Pläne, um den Cashflow und die Kundenbindung zu verbessern
+
+### Technische Best Practices
+
+- **Sitzanzahlen cachen**: Cachen Sie die Sitzanzahlen des Abonnements lokal, um API-Aufrufe bei jeder Anfrage zu vermeiden
+- **Regelmäßig synchronisieren**: Synchronisieren Sie regelmäßig Ihre lokale Sitzanzahl mit Dodo Payments über die API
+- **Fehlerbehandlung**: Wenn eine Sitzänderung fehlschlägt, zeigen Sie klare Fehlermeldungen und Wiederholungsoptionen an
+- **Audit-Trail**: Protokollieren Sie alle Sitzänderungen für Abrechnungsstreitigkeiten und Compliance
+
+### Benutzererfahrung Best Practices
+
+- **Echtzeit-Feedback**: Zeigen Sie die sofortige Kostenwirkung beim Anpassen von Sitzen an
+- **Bestätigungsschritte**: Fordern Sie eine Bestätigung an, bevor Änderungen an der Abrechnung vorgenommen werden
+- **Transparenz bei der Pro-Rata-Abrechnung**: Erklären Sie die pro-rata Gebühren klar, bevor Sie sie anwenden
+- **Einfache Downgrades**: Machen Sie es nicht schwierig, die Sitze zu reduzieren (das schafft Vertrauen)
+
+---
+
+## Fehlersuche
+
+<AccordionGroup>
+<Accordion title="Sitzanzahl stimmt nicht zwischen App und Abrechnung">
+**Symptom**: Ihre App zeigt eine andere Sitzanzahl als das Abonnement an.
+
+**Ursachen**:
+- Webhook nicht empfangen oder verarbeitet
+- Race Condition während der Sitzänderung
+- Zwischengespeicherte Daten nicht aktualisiert
+
+**Lösungen**:
+1. Implementieren Sie Webhook-Handler für `subscription.plan_changed`
+2. Fügen Sie eine Schaltfläche "Mit Abrechnung synchronisieren" hinzu, die das aktuelle Abonnement abruft
+3. Setzen Sie die Cache-TTL, um regelmäßige Aktualisierungen sicherzustellen
+</Accordion>
+
+<Accordion title="Pro-Rata-Gebühren unerwartet">
+**Symptom**: Kunde verwirrt über den Betrag der Gebühr in der Mitte des Zyklus.
+
+**Ursachen**:
+- Pro-Rata-Modus nicht klar kommuniziert
+- Kunde hat die Vorschau vor der Bestätigung nicht gesehen
+
+**Lösungen**:
+1. Verwenden Sie immer `previewChangePlan`, bevor Sie Änderungen vornehmen
+2. Zeigen Sie eine klare Aufschlüsselung an: "Hinzufügen von X Sitzen = Y $ heute (pro-rata für Z Tage)"
+3. Dokumentieren Sie Ihre Pro-Rata-Richtlinie im Hilfezentrum
+</Accordion>
+
+<Accordion title="Add-On erscheint nicht im Checkout">
+**Symptom**: Sitz-Add-On nicht während des Checkouts verfügbar.
+
+**Ursachen**:
+- Add-On nicht an Produkt angehängt
+- Add-On archiviert oder gelöscht
+- Währungsdifferenz zwischen Produkt und Add-On
+
+**Lösungen**:
+1. Überprüfen Sie, ob das Add-On in den Produkteinstellungen angehängt ist
+2. Überprüfen Sie den Status des Add-Ons im Add-Ons-Dashboard
+3. Stellen Sie sicher, dass die Währungen genau übereinstimmen
+</Accordion>
+
+<Accordion title="Sitze können nicht unter die aktuelle Nutzung reduziert werden">
+**Symptom**: Kunde möchte die Sitze reduzieren, hat aber Benutzer zugewiesen.
+
+**Lösungen**:
+1. Zeigen Sie an, welche Benutzer entfernt werden müssen, bevor die Sitze reduziert werden
+2. Implementieren Sie einen Workflow: Benutzer entfernen → Sitze reduzieren
+3. Berücksichtigen Sie eine Karenzzeit, bevor Sie die Sitzreduktion durchsetzen
+</Accordion>
+</AccordionGroup>
+
+---
+
+## Verwandte Dokumentation
+
+<CardGroup cols={2}>
+<Card title="Tutorial zur sitzbasierten Preisgestaltung" icon="code" href="/developer-resources/seat-based-pricing">
+  Vollständige Implementierungsanleitung mit Code.
+</Card>
+
+<Card title="Add-Ons" icon="puzzle" href="/features/addons">
+  Verstehen Sie das Add-On-System im Detail.
+</Card>
+
+<Card title="Planänderungen & Pro-Rata" icon="arrows-rotate" href="/developer-resources/subscription-upgrade-downgrade">
+  Abonnementänderungen verwalten.
+</Card>
+
+<Card title="Abonnement-Webhooks" icon="bell" href="/developer-resources/webhooks/intents/subscription">
+  Verfolgen Sie Abonnementereignisse.
+</Card>
+</CardGroup>

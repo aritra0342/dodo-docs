@@ -1,0 +1,659 @@
+---
+sidebarTitle: सीट-आधारित बिलिंग
+title: सीट-आधारित बिलिंग
+description: टीम सॉफ़्टवेयर, SaaS उत्पादों और उद्यम लाइसेंस के लिए
+  प्रति-उपयोगकर्ता मूल्य निर्धारण लागू करें, लचीले सीट प्रबंधन और प्रोरशन के
+  साथ।
+icon: users
+---
+
+<Info>
+सीट-आधारित बिलिंग आपको ग्राहकों से उन उपयोगकर्ताओं, टीम के सदस्यों या लाइसेंसों की संख्या के आधार पर शुल्क लेने की अनुमति देती है जिनकी उन्हें आवश्यकता है। यह टीम सहयोग उपकरणों, उद्यम सॉफ़्टवेयर और B2B SaaS उत्पादों के लिए मानक मूल्य निर्धारण मॉडल है।
+</Info>
+
+<CardGroup cols={2}>
+<Card title="कार्यान्वयन ट्यूटोरियल" icon="code" href="/developer-resources/seat-based-pricing">
+  चरण-दर-चरण मार्गदर्शिका कोड उदाहरणों के साथ।
+</Card>
+
+<Card title="ऐड-ऑन दस्तावेज़" icon="puzzle" href="/features/addons">
+  सीट-आधारित बिलिंग को संचालित करने वाले ऐड-ऑन सिस्टम के बारे में जानें।
+</Card>
+
+<Card title="सदस्यता प्रबंधन" icon="repeat" href="/features/subscription">
+  सीट-आधारित सदस्यताओं और योजना परिवर्तनों का प्रबंधन करें।
+</Card>
+
+<Card title="वेबहुक" icon="bell" href="/developer-resources/webhooks/intents/subscription">
+  सदस्यता वेबहुक के साथ सीट परिवर्तनों को ट्रैक करें।
+</Card>
+</CardGroup>
+
+---
+
+## सीट-आधारित बिलिंग क्या है?
+
+सीट-आधारित बिलिंग (जिसे प्रति-उपयोगकर्ता या प्रति-सीट मूल्य निर्धारण भी कहा जाता है) ग्राहकों से उन उपयोगकर्ताओं की संख्या के आधार पर शुल्क लेती है जो आपके उत्पाद का उपयोग करते हैं। एक स्थिर शुल्क के बजाय, मूल्य टीम के आकार के साथ बढ़ता है।
+
+### सामान्य उपयोग के मामले
+
+| उद्योग | उदाहरण | मूल्य निर्धारण मॉडल |
+|----------|---------|---------------|
+| टीम सहयोग | Slack, Notion, Asana | प्रति सक्रिय उपयोगकर्ता/महीना |
+| डेवलपर उपकरण | GitHub, GitLab, Jira | प्रति सीट/महीना |
+| CRM सॉफ़्टवेयर | Salesforce, HubSpot | प्रति उपयोगकर्ता लाइसेंस |
+| डिज़ाइन उपकरण | Figma, Canva | प्रति संपादक सीट |
+| सुरक्षा सॉफ़्टवेयर | 1Password, Okta | प्रति उपयोगकर्ता/महीना |
+| वीडियो कॉन्फ्रेंसिंग | Zoom, Teams | प्रति होस्ट लाइसेंस |
+
+### सीट-आधारित मूल्य निर्धारण के लाभ
+
+**आपके व्यवसाय के लिए:**
+- जैसे-जैसे ग्राहक बढ़ते हैं, राजस्व स्वाभाविक रूप से बढ़ता है
+- पूर्वानुमानित मूल्य निर्धारण जिसे ग्राहक बजट कर सकते हैं
+- व्यक्तिगत से टीम से उद्यम तक स्पष्ट अपग्रेड पथ
+- जैसे-जैसे टीमें बढ़ती हैं, उच्च जीवनकाल मूल्य
+
+**आपके ग्राहकों के लिए:**
+- केवल वही भुगतान करें जो वे उपयोग करते हैं
+- लागत को समझना और पूर्वानुमान करना आसान है
+- आवश्यकतानुसार उपयोगकर्ताओं को जोड़ने/हटाने की लचीलापन
+- उचित मूल्य निर्धारण जो टीम के आकार से मेल खाता है
+
+---
+
+## Dodo Payments में सीट-आधारित बिलिंग कैसे काम करती है
+
+Dodo Payments सीट-आधारित बिलिंग को **ऐड-ऑन** प्रणाली का उपयोग करके लागू करता है। यह कैसे काम करता है:
+
+### आर्किटेक्चर अवलोकन
+
+एक टीम प्रो सदस्यता की लागत \$99/महीना है और इसमें 5 सीटें शामिल हैं। यदि आपके पास 5 से अधिक उपयोगकर्ता हैं, तो आपको प्रत्येक अतिरिक्त सीट के लिए \$15/महीना का अतिरिक्त भुगतान करना होगा।
+
+उदाहरण के लिए, यदि आपकी टीम को 15 सीटों की आवश्यकता है:
+- बेस प्लान: \$99/महीना (5 सीटें शामिल हैं)
+- ऐड-ऑन: 10 अतिरिक्त सीटें × \$15/महीना = \$150/महीना
+- कुल मासिक लागत: \$99 + \$150 = \$249 15 सीटों के लिए
+
+### प्रमुख घटक
+
+| घटक | उद्देश्य | उदाहरण |
+|-----------|---------|---------|
+| बेस उत्पाद | शामिल सीटों के साथ मुख्य सदस्यता | "टीम योजना - $99/महीना (5 सीटें शामिल)" |
+| सीट ऐड-ऑन | अतिरिक्त उपयोगकर्ताओं के लिए प्रति-सीट शुल्क | "अतिरिक्त सीट - $15/महीना प्रत्येक" |
+| मात्रा | खरीदी गई अतिरिक्त सीटों की संख्या | 10 अतिरिक्त सीटें |
+
+---
+
+## मूल्य निर्धारण रणनीतियाँ
+
+अपनी व्यवसाय के लिए उपयुक्त सीट-आधारित मूल्य निर्धारण रणनीति चुनें:
+
+### रणनीति 1: बेस + प्रति-सीट ऐड-ऑन
+
+बेस योजना में एक निश्चित संख्या में सीटें शामिल करें, अतिरिक्त सीटों के लिए शुल्क लें।
+
+**उदाहरण:**
+
+```
+Starter Plan: $49/month
+├── Includes: 3 seats
+├── Extra seats: $10/month each
+└── 8 total seats = $49 + (5 × $10) = $99/month
+```
+
+**सर्वश्रेष्ठ के लिए:** उत्पाद जहां छोटे टीमें बेस ऑफ़र के साथ कार्य कर सकती हैं।
+
+### रणनीति 2: शुद्ध प्रति-सीट मूल्य निर्धारण
+
+बिना किसी बेस शुल्क के प्रति सीट एक स्थिर दर चार्ज करें।
+
+**उदाहरण:**
+
+```
+Per User: $12/month
+├── 5 users = $60/month
+├── 20 users = $240/month
+└── 100 users = $1,200/month
+```
+
+**कार्यान्वयन:** बेस योजना की कीमत $0 पर सेट करें, केवल सीट ऐड-ऑन का उपयोग करें।
+
+**सर्वश्रेष्ठ के लिए:** सरल, पारदर्शी मूल्य निर्धारण; उपयोग-आधारित मॉडल।
+
+### रणनीति 3: स्तरित सीट मूल्य निर्धारण
+
+विभिन्न प्रति-सीट दरों के साथ विभिन्न बेस योजनाएँ।
+
+**उदाहरण:**
+
+```
+Starter: $0/month base + $15/seat
+├── Lower features, higher per-seat cost
+
+Professional: $99/month base + $10/seat
+├── More features, lower per-seat cost
+
+Enterprise: $499/month base + $7/seat
+└── All features, volume discount on seats
+```
+
+**कार्यान्वयन:** विभिन्न ऐड-ऑन कीमतों के साथ प्रत्येक स्तर के लिए अलग उत्पाद बनाएं।
+
+**सर्वश्रेष्ठ के लिए:** उच्च स्तरों पर अपग्रेड को प्रोत्साहित करना; उद्यम बिक्री।
+
+### रणनीति 4: सीट बंडल
+
+सीटों को व्यक्तिगत रूप से बेचने के बजाय पैक में बेचें।
+
+**उदाहरण:**
+
+```
+5-Seat Pack: $50/month ($10/seat)
+10-Seat Pack: $80/month ($8/seat)
+25-Seat Pack: $175/month ($7/seat)
+```
+
+**कार्यान्वयन:** विभिन्न पैक आकारों के लिए कई ऐड-ऑन बनाएं।
+
+**सर्वश्रेष्ठ के लिए:** खरीद निर्णयों को सरल बनाना; बड़े प्रतिबद्धताओं को प्रोत्साहित करना।
+
+---
+
+## सीट-आधारित बिलिंग सेट करना
+
+### चरण 1: अपनी मूल्य निर्धारण योजना बनाएं
+
+कार्यान्वयन से पहले, अपनी मूल्य निर्धारण संरचना को परिभाषित करें:
+
+<Steps>
+<Step title="बेस योजना परिभाषित करें">
+निर्धारित करें कि बेस सदस्यता में क्या शामिल है:
+- बेस मूल्य (शुद्ध प्रति-सीट के लिए $0 हो सकता है)
+- शामिल सीटों की संख्या
+- इस स्तर पर उपलब्ध सुविधाएँ
+</Step>
+
+<Step title="सीट मूल्य निर्धारण सेट करें">
+प्रति-सीट ऐड-ऑन लागत निर्धारित करें:
+- प्रत्येक अतिरिक्त सीट की कीमत
+- कोई मात्रा छूट (कई ऐड-ऑन के माध्यम से)
+- अधिकतम सीटें अनुमति (यदि लागू हो)
+</Step>
+
+<Step title="बिलिंग आवृत्ति पर विचार करें">
+सीट मूल्य निर्धारण को अपनी बिलिंग चक्र के साथ संरेखित करें:
+- मासिक सदस्यताएँ → मासिक सीट शुल्क
+- वार्षिक सदस्यताएँ → वार्षिक सीट शुल्क (अक्सर छूट दी जाती है)
+</Step>
+</Steps>
+
+### चरण 2: सीट ऐड-ऑन बनाएं
+
+अपने Dodo Payments डैशबोर्ड में:
+
+1. **उत्पाद** → **ऐड-ऑन** पर जाएं
+2. **ऐड-ऑन बनाएं** पर क्लिक करें
+3. ऐड-ऑन को कॉन्फ़िगर करें:
+
+| फ़ील्ड | मान | नोट्स |
+|-------|-------|-------|
+| नाम | "अतिरिक्त सीट" या "टीम सदस्य" | स्पष्ट, उपयोगकर्ता के अनुकूल नाम |
+| विवरण | "अपने कार्यक्षेत्र में एक और टीम सदस्य जोड़ें" | समझाएं कि ग्राहकों को क्या मिलता है |
+| मूल्य | आपकी प्रति-सीट कीमत | उदाहरण: $10.00 |
+| मुद्रा | अपने बेस उत्पाद से मेल खाता है | एक ही मुद्रा होनी चाहिए |
+| कर श्रेणी | बेस उत्पाद के समान | सुनिश्चित करता है कि कर प्रबंधन सुसंगत है |
+
+<Tip>
+ऐड-ऑन नाम बनाएं जो चालान पर समझ में आएं। "अतिरिक्त टीम सीट" "सीट ऐड-ऑन" की तुलना में ग्राहकों के लिए स्पष्ट है जो अपने बिल की समीक्षा कर रहे हैं।
+</Tip>
+
+### चरण 3: बेस सदस्यता बनाएं
+
+अपनी सदस्यता उत्पाद बनाएं:
+
+1. **उत्पाद** → **उत्पाद बनाएं** पर जाएं
+2. **सदस्यता** चुनें
+3. मूल्य निर्धारण और विवरण कॉन्फ़िगर करें
+4. **ऐड-ऑन** अनुभाग में, अपनी सीट ऐड-ऑन संलग्न करें
+
+### चरण 4: उत्पाद से ऐड-ऑन संलग्न करें
+
+अपनी सदस्यता से सीट ऐड-ऑन लिंक करें:
+
+1. अपनी सदस्यता उत्पाद को संपादित करें
+2. **ऐड-ऑन** अनुभाग पर स्क्रॉल करें
+3. **ऐड-ऑन जोड़ें** पर क्लिक करें
+4. अपनी सीट ऐड-ऑन चुनें
+5. परिवर्तन सहेजें
+
+<Check>
+आपका सदस्यता उत्पाद अब सीट-आधारित मूल्य निर्धारण का समर्थन करता है। ग्राहक चेकआउट के दौरान अतिरिक्त सीटों की कोई मात्रा खरीद सकते हैं।
+</Check>
+
+---
+
+## सीटों का प्रबंधन
+
+### नई सदस्यताओं में सीटें जोड़ना
+
+चेकआउट सत्र बनाते समय, सीट मात्रा निर्दिष्ट करें:
+
+```typescript
+const session = await client.checkoutSessions.create({
+  product_cart: [{
+    product_id: 'prod_team_plan',
+    quantity: 1,
+    addons: [{
+      addon_id: 'addon_seat',
+      quantity: 10  // 10 additional seats
+    }]
+  }],
+  customer: { email: 'admin@company.com' },
+  return_url: 'https://yourapp.com/success'
+});
+```
+
+### मौजूदा सदस्यताओं पर सीट संख्या बदलना
+
+सीटों को समायोजित करने के लिए चेंज प्लान API का उपयोग करें:
+
+```typescript
+// Add 5 more seats to existing subscription
+await client.subscriptions.changePlan('sub_123', {
+  product_id: 'prod_team_plan',
+  quantity: 1,
+  proration_billing_mode: 'prorated_immediately',
+  addons: [{
+    addon_id: 'addon_seat',
+    quantity: 15  // New total: 15 additional seats
+  }]
+});
+```
+
+### सीटें हटाना
+
+सीट संख्या कम करने के लिए, कम मात्रा निर्दिष्ट करें:
+
+```typescript
+// Reduce from 15 to 8 additional seats
+await client.subscriptions.changePlan('sub_123', {
+  product_id: 'prod_team_plan',
+  quantity: 1,
+  proration_billing_mode: 'difference_immediately',
+  addons: [{
+    addon_id: 'addon_seat',
+    quantity: 8  // Reduced to 8 additional seats
+  }]
+});
+```
+
+### सभी अतिरिक्त सीटें हटाना
+
+सभी ऐड-ऑन हटाने के लिए एक खाली ऐड-ऑन एरे पास करें:
+
+```typescript
+// Remove all additional seats, keep only base plan seats
+await client.subscriptions.changePlan('sub_123', {
+  product_id: 'prod_team_plan',
+  quantity: 1,
+  proration_billing_mode: 'difference_immediately',
+  addons: []  // Removes all add-ons
+});
+```
+
+---
+
+## सीट परिवर्तनों के लिए प्रोरशन
+
+जब ग्राहक मध्य चक्र में सीटें जोड़ते या हटाते हैं, तो प्रोरशन यह निर्धारित करता है कि उन्हें कैसे बिल किया जाता है।
+
+### प्रोरशन मोड
+
+| मोड | सीटें जोड़ना | सीटें हटाना |
+|------|-------------|----------------|
+| `prorated_immediately` | चक्र में शेष दिनों के लिए शुल्क लें | उपयोग न किए गए दिनों के लिए क्रेडिट |
+| `difference_immediately` | पूर्ण सीट मूल्य चार्ज करें | भविष्य के नवीनीकरण पर क्रेडिट लागू करें |
+| `full_immediately` | पूर्ण सीट मूल्य चार्ज करें, बिलिंग चक्र रीसेट करें | कोई क्रेडिट नहीं |
+
+### प्रोरशन उदाहरण
+
+**परिदृश्य: 15-दिन की बिलिंग चक्र शेष, $10/सीट पर 5 सीटें जोड़ना**
+
+<Tabs>
+<Tab title="prorated_immediately">
+
+```
+Prorated charge = ($10 × 5 seats) × (15 days / 30 days)
+                = $50 × 0.5
+                = $25 immediate charge
+```
+
+ग्राहक अब \$25 का भुगतान करता है, फिर नवीनीकरण पर \$50/महीना।
+</Tab>
+
+<Tab title="difference_immediately">
+
+```
+Immediate charge = $10 × 5 seats = $50
+```
+
+ग्राहक चक्र की स्थिति की परवाह किए बिना पूर्ण $50 का भुगतान करता है।
+</Tab>
+
+<Tab title="full_immediately">
+
+```
+Immediate charge = Full subscription + add-ons
+Billing cycle resets to today
+```
+
+ग्राहक पूर्ण राशि का भुगतान करता है, नया बिलिंग चक्र शुरू होता है।
+</Tab>
+</Tabs>
+
+### परिवर्तन से पहले पूर्वावलोकन करें
+
+हमेशा परिवर्तन करने से पहले प्रोरशन का पूर्वावलोकन करें:
+
+```typescript
+const preview = await client.subscriptions.previewChangePlan('sub_123', {
+  product_id: 'prod_team_plan',
+  quantity: 1,
+  proration_billing_mode: 'prorated_immediately',
+  addons: [{ addon_id: 'addon_seat', quantity: 20 }]
+});
+
+console.log('Immediate charge:', preview.immediate_charge.summary);
+// Show customer: "Adding 5 seats will cost $25 today"
+```
+
+---
+
+## वेबहुक के साथ सीटों को ट्रैक करना
+
+सदस्यता वेबहुक को सुनकर सीट परिवर्तनों की निगरानी करें:
+
+### प्रासंगिक घटनाएँ
+
+| घटना | कब ट्रिगर किया गया | उपयोग का मामला |
+|-------|----------------|----------|
+| `subscription.active` | नई सदस्यता सक्रिय की गई | प्रारंभिक सीटें प्रदान करें |
+| `subscription.plan_changed` | सीटें जोड़ी गई/हटाई गई | अपने ऐप में सीट संख्या अपडेट करें |
+| `subscription.renewed` | सदस्यता नवीनीकरण | पुष्टि करें कि सीट संख्या अपरिवर्तित है |
+| `subscription.cancelled` | सदस्यता रद्द की गई | सभी सीटों को हटा दें |
+
+### वेबहुक हैंडलर उदाहरण
+
+```typescript
+app.post('/webhooks/dodo', async (req, res) => {
+  const event = req.body;
+
+  switch (event.type) {
+    case 'subscription.active':
+      // New subscription - provision seats
+      const seats = calculateTotalSeats(event.data);
+      await provisionSeats(event.data.customer_id, seats);
+      break;
+
+    case 'subscription.plan_changed':
+      // Seats changed - update access
+      const newSeats = calculateTotalSeats(event.data);
+      await updateSeatCount(event.data.subscription_id, newSeats);
+      break;
+
+    case 'subscription.cancelled':
+      // Subscription cancelled - deprovision
+      await deprovisionAllSeats(event.data.subscription_id);
+      break;
+  }
+
+  res.json({ received: true });
+});
+
+function calculateTotalSeats(subscriptionData) {
+  const baseSeats = 5;  // Included in plan
+  const addonSeats = subscriptionData.addons?.reduce(
+    (total, addon) => total + addon.quantity, 0
+  ) || 0;
+  return baseSeats + addonSeats;
+}
+```
+
+---
+
+## सीट सीमाओं को लागू करना
+
+आपके एप्लिकेशन को सीट सीमाओं को लागू करना चाहिए। Dodo Payments बिलिंग को ट्रैक करता है, लेकिन आप पहुंच को नियंत्रित करते हैं।
+
+### प्रवर्तन रणनीतियाँ
+
+<Tabs>
+<Tab title="हार्ड लिमिट">
+सीट संख्या से अधिक उपयोगकर्ताओं को जोड़ने से सख्ती से रोकें।
+
+```typescript
+async function inviteUser(teamId: string, email: string) {
+  const team = await getTeam(teamId);
+  const subscription = await getSubscription(team.subscriptionId);
+  const totalSeats = calculateTotalSeats(subscription);
+  const usedSeats = await countTeamMembers(teamId);
+
+  if (usedSeats >= totalSeats) {
+    throw new Error('No seats available. Please upgrade your plan.');
+  }
+
+  await sendInvitation(teamId, email);
+}
+```
+
+</Tab>
+
+<Tab title="सॉफ्ट लिमिट के साथ चेतावनी">
+चेतावनी और ग्रेस अवधि के साथ अधिकतम करने की अनुमति दें।
+
+```typescript
+async function inviteUser(teamId: string, email: string) {
+  const team = await getTeam(teamId);
+  const { totalSeats, usedSeats } = await getSeatInfo(team);
+
+  if (usedSeats >= totalSeats) {
+    // Allow but flag for billing
+    await flagOverage(teamId, usedSeats - totalSeats + 1);
+    await notifyAdmin(team.adminEmail, 'You have exceeded your seat limit');
+  }
+
+  await sendInvitation(teamId, email);
+}
+```
+
+</Tab>
+
+<Tab title="ऑटो-अपग्रेड">
+सीमा तक पहुँचने पर स्वचालित रूप से सीटें जोड़ें।
+
+```typescript
+async function inviteUser(teamId: string, email: string) {
+  const team = await getTeam(teamId);
+  const { totalSeats, usedSeats, subscriptionId } = await getSeatInfo(team);
+
+  if (usedSeats >= totalSeats) {
+    // Automatically add a seat
+    await client.subscriptions.changePlan(subscriptionId, {
+      product_id: team.productId,
+      quantity: 1,
+      proration_billing_mode: 'prorated_immediately',
+      addons: [{ addon_id: 'addon_seat', quantity: totalSeats - baseSeats + 1 }]
+    });
+
+    await notifyAdmin(team.adminEmail, 'A new seat was added to your plan');
+  }
+
+  await sendInvitation(teamId, email);
+}
+```
+
+</Tab>
+</Tabs>
+
+---
+
+## उन्नत पैटर्न
+
+### विभिन्न सीट प्रकार
+
+विभिन्न मूल्य निर्धारण के साथ विभिन्न सीट प्रकारों की पेशकश करें:
+
+```
+Full Seats: $20/month - Full access to all features
+View-Only Seats: $5/month - Read-only access
+Guest Seats: $0/month - Limited external collaborator access
+```
+
+**कार्यान्वयन:** प्रत्येक सीट प्रकार के लिए अलग-अलग ऐड-ऑन बनाएं।
+
+```typescript
+const session = await client.checkoutSessions.create({
+  product_cart: [{
+    product_id: 'prod_team_plan',
+    quantity: 1,
+    addons: [
+      { addon_id: 'addon_full_seat', quantity: 10 },
+      { addon_id: 'addon_viewer_seat', quantity: 25 },
+      { addon_id: 'addon_guest_seat', quantity: 50 }
+    ]
+  }]
+});
+```
+
+### वार्षिक सीट छूट
+
+छूट वाली वार्षिक सीट मूल्य निर्धारण की पेशकश करें:
+
+```
+Monthly: $15/seat/month
+Annual: $12/seat/month (20% savings)
+```
+
+**कार्यान्वयन:** विभिन्न ऐड-ऑन कीमतों के साथ मासिक और वार्षिक योजनाओं के लिए अलग उत्पाद बनाएं।
+
+### न्यूनतम सीट आवश्यकताएँ
+
+कुछ योजनाओं के लिए न्यूनतम संख्या में सीटों की आवश्यकता करें:
+
+```typescript
+async function validateSeatCount(planId: string, seatCount: number) {
+  const minimums = {
+    'prod_starter': 1,
+    'prod_team': 5,
+    'prod_enterprise': 25
+  };
+
+  if (seatCount < minimums[planId]) {
+    throw new Error(`${planId} requires at least ${minimums[planId]} seats`);
+  }
+}
+```
+
+---
+
+## सर्वोत्तम प्रथाएँ
+
+### मूल्य निर्धारण सर्वोत्तम प्रथाएँ
+
+- **स्पष्ट संचार**: अपनी मूल्य निर्धारण पृष्ठ पर प्रति-सीट मूल्य निर्धारण को प्रमुखता से दिखाएं
+- **शामिल सीटें**: घर्षण को कम करने के लिए बेस मूल्य में कुछ सीटें शामिल करने पर विचार करें
+- **मात्रा छूट**: बड़े टीमों के लिए प्रति-सीट दरों को कम करें ताकि उद्यम सौदों को जीत सकें
+- **वार्षिक प्रोत्साहन**: नकद प्रवाह और प्रतिधारण में सुधार के लिए वार्षिक योजनाओं पर छूट दें
+
+### तकनीकी सर्वोत्तम प्रथाएँ
+
+- **सीट गणनाओं को कैश करें**: हर अनुरोध पर API कॉल से बचने के लिए सदस्यता सीट गणनाओं को स्थानीय रूप से कैश करें
+- **नियमित रूप से समन्वय करें**: Dodo Payments के साथ अपने स्थानीय सीट गणना को API के माध्यम से समय-समय पर समन्वयित करें
+- **विफलताओं को संभालें**: यदि कोई सीट परिवर्तन विफल हो जाता है, तो स्पष्ट त्रुटि संदेश और पुनः प्रयास विकल्प दिखाएं
+- **ऑडिट ट्रेल**: बिलिंग विवादों और अनुपालन के लिए सभी सीट परिवर्तनों को लॉग करें
+
+### उपयोगकर्ता अनुभव सर्वोत्तम प्रथाएँ
+
+- **वास्तविक समय फीडबैक**: सीटों को समायोजित करते समय तत्काल लागत प्रभाव दिखाएं
+- **पुष्टि चरण**: बिलिंग परिवर्तनों से पहले पुष्टि की आवश्यकता करें
+- **प्रोरशन पारदर्शिता**: लागू करने से पहले प्रोरटेड शुल्क को स्पष्ट रूप से समझाएं
+- **आसान डाउनग्रेड**: सीटों को कम करना कठिन न बनाएं (यह विश्वास बनाता है)
+
+---
+
+## समस्या निवारण
+
+<AccordionGroup>
+<Accordion title="ऐप और बिलिंग के बीच सीट संख्या में असंगति">
+**लक्षण**: आपका ऐप सदस्यता की तुलना में अलग सीट संख्या दिखाता है।
+
+**कारण**:
+- वेबहुक प्राप्त नहीं हुआ या संसाधित नहीं किया गया
+- सीट परिवर्तन के दौरान दौड़ की स्थिति
+- कैश किया गया डेटा अपडेट नहीं हुआ
+
+**हल**:
+1. `subscription.plan_changed` के लिए वेबहुक हैंडलर लागू करें
+2. वर्तमान सदस्यता लाने के लिए "बिलिंग के साथ समन्वय करें" बटन जोड़ें
+3. नियमित रिफ्रेश सुनिश्चित करने के लिए कैश TTL सेट करें
+</Accordion>
+
+<Accordion title="प्रोरशन शुल्क अप्रत्याशित">
+**लक्षण**: ग्राहक मध्य चक्र शुल्क राशि से भ्रमित है।
+
+**कारण**:
+- प्रोरशन मोड स्पष्ट रूप से संप्रेषित नहीं किया गया
+- ग्राहक ने पुष्टि करने से पहले पूर्वावलोकन नहीं देखा
+
+**हल**:
+1. परिवर्तन करने से पहले हमेशा `previewChangePlan` का उपयोग करें
+2. स्पष्ट रूप से विवरण दिखाएं: "X सीटें जोड़ना = $Y आज (Z दिनों के लिए प्रोरटेड)"
+3. अपने प्रोरशन नीति को सहायता केंद्र में दस्तावेज करें
+</Accordion>
+
+<Accordion title="चेकआउट में ऐड-ऑन नहीं दिखाई दे रहा">
+**लक्षण**: चेकआउट के दौरान सीट ऐड-ऑन उपलब्ध नहीं है।
+
+**कारण**:
+- उत्पाद से ऐड-ऑन संलग्न नहीं है
+- ऐड-ऑन आर्काइव या हटा दिया गया
+- उत्पाद और ऐड-ऑन के बीच मुद्रा असंगति
+
+**हल**:
+1. उत्पाद सेटिंग्स में ऐड-ऑन संलग्न है या नहीं, इसकी पुष्टि करें
+2. ऐड-ऑन डैशबोर्ड में ऐड-ऑन स्थिति की जांच करें
+3. सुनिश्चित करें कि मुद्राएँ बिल्कुल मेल खाती हैं
+</Accordion>
+
+<Accordion title="वर्तमान उपयोग से नीचे सीटें कम नहीं कर सकते">
+**लक्षण**: ग्राहक सीटें कम करना चाहता है लेकिन उपयोगकर्ता असाइन किए गए हैं।
+
+**हल**:
+1. दिखाएं कि सीटें कम करने से पहले कौन से उपयोगकर्ताओं को हटाना होगा
+2. एक कार्यप्रवाह लागू करें: उपयोगकर्ताओं को हटाएं → सीटें कम करें
+3. सीट कमी लागू करने से पहले एक ग्रेस अवधि पर विचार करें
+</Accordion>
+</AccordionGroup>
+
+---
+
+## संबंधित दस्तावेज़
+
+<CardGroup cols={2}>
+<Card title="सीट-आधारित मूल्य निर्धारण ट्यूटोरियल" icon="code" href="/developer-resources/seat-based-pricing">
+  कोड के साथ पूर्ण कार्यान्वयन मार्गदर्शिका।
+</Card>
+
+<Card title="ऐड-ऑन" icon="puzzle" href="/features/addons">
+  ऐड-ऑन प्रणाली को गहराई से समझें।
+</Card>
+
+<Card title="योजना परिवर्तन और प्रोरशन" icon="arrows-rotate" href="/developer-resources/subscription-upgrade-downgrade">
+  सदस्यता संशोधनों को संभालें।
+</Card>
+
+<Card title="सदस्यता वेबहुक" icon="bell" href="/developer-resources/webhooks/intents/subscription">
+  सदस्यता घटनाओं को ट्रैक करें।
+</Card>
+</CardGroup>

@@ -1,0 +1,659 @@
+---
+sidebarTitle: Sätebaserad Fakturering
+title: Sätebaserad Fakturering
+description: Implementera prissättning per användare för teamprogram,
+  SaaS-produkter och företagslicenser med flexibel hantering av säten och
+  proportionering.
+icon: users
+---
+
+<Info>
+Sätebaserad fakturering låter dig ta betalt av kunder baserat på antalet användare, teammedlemmar eller licenser de behöver. Det är den standardiserade prissättningsmodellen för verktyg för teamarbete, företagsprogram och B2B SaaS-produkter.
+</Info>
+
+<CardGroup cols={2}>
+<Card title="Implementeringshandledning" icon="code" href="/developer-resources/seat-based-pricing">
+  Steg-för-steg-guide med kodexempel.
+</Card>
+
+<Card title="Dokumentation för tillägg" icon="puzzle" href="/features/addons">
+  Lär dig om tilläggssystemet som driver sätebaserad fakturering.
+</Card>
+
+<Card title="Prenumerationshantering" icon="repeat" href="/features/subscription">
+  Hantera sätebaserade prenumerationer och planändringar.
+</Card>
+
+<Card title="Webhooks" icon="bell" href="/developer-resources/webhooks/intents/subscription">
+  Spåra sätesändringar med prenumerationswebhooks.
+</Card>
+</CardGroup>
+
+---
+
+## Vad är Sätebaserad Fakturering?
+
+Sätebaserad fakturering (även kallad prissättning per användare eller per säte) tar betalt av kunder baserat på antalet användare som får tillgång till din produkt. Istället för en fast avgift, justeras priset efter teamets storlek.
+
+### Vanliga Användningsområden
+
+| Bransch | Exempel | Prissättningsmodell |
+|----------|---------|---------------|
+| Teamarbete | Slack, Notion, Asana | Per aktiv användare/månad |
+| Utvecklarverktyg | GitHub, GitLab, Jira | Per säte/månad |
+| CRM-program | Salesforce, HubSpot | Per användarlicens |
+| Designverktyg | Figma, Canva | Per redigerarsäte |
+| Säkerhetsprogram | 1Password, Okta | Per användare/månad |
+| Videokonferens | Zoom, Teams | Per värdlicens |
+
+### Fördelar med Sätebaserad Prissättning
+
+**För Ditt Företag:**
+- Intäkterna växer naturligt i takt med att kunderna växer
+- Förutsägbar prissättning som kunder kan budgetera för
+- Tydlig uppgraderingsväg från individuell till team- till företagsnivå
+- Högre livstidsvärde när teamen expanderar
+
+**För Dina Kunder:**
+- Betala endast för det de använder
+- Lätt att förstå och förutsäga kostnader
+- Flexibilitet att lägga till/ta bort användare vid behov
+- Rättvis prissättning som matchar teamets storlek
+
+---
+
+## Hur Sätebaserad Fakturering Fungerar i Dodo Payments
+
+Dodo Payments implementerar sätebaserad fakturering med hjälp av **Tillägg**-systemet. Så här fungerar det:
+
+### Arkitekturöversikt
+
+En Team Pro-prenumeration kostar \$99/månad och inkluderar 5 säten. Om du har fler än 5 användare betalar du en extra \$15/månad för varje ytterligare säte.
+
+Till exempel, om ditt team behöver 15 säten:
+- Basplan: \$99/månad (inkluderar 5 säten)
+- Tillägg: 10 extra säten × \$15/månad = \$150/månad
+- Total månadskostnad: \$99 + \$150 = \$249 för 15 säten
+
+### Nyckelkomponenter
+
+| Komponent | Syfte | Exempel |
+|-----------|---------|---------|
+| Basprodukt | Kärnprenumeration med inkluderade säten | "Teamplan - $99/månad (5 säten inkluderade)" |
+| Sätes-tillägg | Per-säte avgift för ytterligare användare | "Extra säte - $15/månad vardera" |
+| Kvantitet | Antal ytterligare säten som köpts | 10 extra säten |
+
+---
+
+## Prissättningsstrategier
+
+Välj den sätebaserade prissättningsstrategi som passar ditt företag:
+
+### Strategi 1: Bas + Per-Säte Tillägg
+
+Inkludera ett visst antal säten i basplanen, ta betalt för ytterligare säten.
+
+**Exempel:**
+
+```
+Starter Plan: $49/month
+├── Includes: 3 seats
+├── Extra seats: $10/month each
+└── 8 total seats = $49 + (5 × $10) = $99/month
+```
+
+**Bäst för:** Produkter där små team kan fungera med basutbudet.
+
+### Strategi 2: Ren Per-Säte Prissättning
+
+Ta ut en fast avgift per säte utan basavgift.
+
+**Exempel:**
+
+```
+Per User: $12/month
+├── 5 users = $60/month
+├── 20 users = $240/month
+└── 100 users = $1,200/month
+```
+
+**Implementering:** Sätt basplanens pris till $0, använd endast sätes-tillägget.
+
+**Bäst för:** Enkel, transparent prissättning; användningsbaserade modeller.
+
+### Strategi 3: Trappad Sätesprissättning
+
+Olika basplaner med olika per-säte priser.
+
+**Exempel:**
+
+```
+Starter: $0/month base + $15/seat
+├── Lower features, higher per-seat cost
+
+Professional: $99/month base + $10/seat
+├── More features, lower per-seat cost
+
+Enterprise: $499/month base + $7/seat
+└── All features, volume discount on seats
+```
+
+**Implementering:** Skapa separata produkter för varje nivå med olika tilläggspriser.
+
+**Bäst för:** Uppmuntra uppgraderingar till högre nivåer; företagsförsäljning.
+
+### Strategi 4: Sätespaket
+
+Sälj säten i paket istället för individuellt.
+
+**Exempel:**
+
+```
+5-Seat Pack: $50/month ($10/seat)
+10-Seat Pack: $80/month ($8/seat)
+25-Seat Pack: $175/month ($7/seat)
+```
+
+**Implementering:** Skapa flera tillägg för olika paketstorlekar.
+
+**Bäst för:** Förenkla köpbeslut; uppmuntra större åtaganden.
+
+---
+
+## Ställa in Sätebaserad Fakturering
+
+### Steg 1: Planera Din Prissättning
+
+Innan implementeringen, definiera din prissättningsstruktur:
+
+<Steps>
+<Step title="Definiera Basplan">
+Bestäm vad som ingår i basprenumerationen:
+- Baspris (kan vara $0 för ren per-säte)
+- Antal inkluderade säten
+- Funktioner som är tillgängliga på denna nivå
+</Step>
+
+<Step title="Sätt Sätespriser">
+Bestäm kostnaden för per-säte tillägg:
+- Pris per ytterligare säte
+- Eventuella volymrabatter (via flera tillägg)
+- Maximalt antal säten tillåtna (om tillämpligt)
+</Step>
+
+<Step title="Överväg Faktureringsfrekvens">
+Anpassa sätespriserna till din faktureringscykel:
+- Månatliga prenumerationer → månatliga sätesavgifter
+- Årliga prenumerationer → årliga sätesavgifter (ofta rabatterade)
+</Step>
+</Steps>
+
+### Steg 2: Skapa Sätes-Tillägget
+
+I din Dodo Payments-instrumentpanel:
+
+1. Navigera till **Produkter** → **Tillägg**
+2. Klicka på **Skapa Tillägg**
+3. Konfigurera tillägget:
+
+| Fält | Värde | Anteckningar |
+|-------|-------|-------|
+| Namn | "Ytterligare Säte" eller "Teammedlem" | Tydligt, användarvänligt namn |
+| Beskrivning | "Lägg till en annan teammedlem i din arbetsyta" | Förklara vad kunderna får |
+| Pris | Ditt per-säte pris | t.ex. $10.00 |
+| Valuta | Matcha din basprodukt | Måste vara samma valuta |
+| Skattekategori | Samma som basprodukt | Säkerställer konsekvent skattehantering |
+
+<Tip>
+Skapa beskrivande tilläggsnamn som är meningsfulla på fakturor. "Ytterligare Team Säte" är tydligare än "Säte Tillägg" för kunder som granskar sina räkningar.
+</Tip>
+
+### Steg 3: Skapa Basprenumerationen
+
+Skapa din prenumerationsprodukt:
+
+1. Navigera till **Produkter** → **Skapa Produkt**
+2. Välj **Prenumeration**
+3. Konfigurera prissättning och detaljer
+4. I avsnittet **Tillägg**, koppla ditt sätes-tillägg
+
+### Steg 4: Koppla Tillägg till Produkt
+
+Länka sätes-tillägget till din prenumeration:
+
+1. Redigera din prenumerationsprodukt
+2. Bläddra till avsnittet **Tillägg**
+3. Klicka på **Lägg till Tillägg**
+4. Välj ditt sätes-tillägg
+5. Spara ändringar
+
+<Check>
+Din prenumerationsprodukt stöder nu sätebaserad prissättning. Kunder kan köpa valfritt antal ytterligare säten under kassan.
+</Check>
+
+---
+
+## Hantera Säten
+
+### Lägga till Säten till Nya Prenumerationer
+
+När du skapar en kassa-session, specificera säteskvantiteten:
+
+```typescript
+const session = await client.checkoutSessions.create({
+  product_cart: [{
+    product_id: 'prod_team_plan',
+    quantity: 1,
+    addons: [{
+      addon_id: 'addon_seat',
+      quantity: 10  // 10 additional seats
+    }]
+  }],
+  customer: { email: 'admin@company.com' },
+  return_url: 'https://yourapp.com/success'
+});
+```
+
+### Ändra Antal Säten på Befintliga Prenumerationer
+
+Använd Change Plan API för att justera säten:
+
+```typescript
+// Add 5 more seats to existing subscription
+await client.subscriptions.changePlan('sub_123', {
+  product_id: 'prod_team_plan',
+  quantity: 1,
+  proration_billing_mode: 'prorated_immediately',
+  addons: [{
+    addon_id: 'addon_seat',
+    quantity: 15  // New total: 15 additional seats
+  }]
+});
+```
+
+### Ta Bort Säten
+
+För att minska antalet säten, specificera den lägre kvantiteten:
+
+```typescript
+// Reduce from 15 to 8 additional seats
+await client.subscriptions.changePlan('sub_123', {
+  product_id: 'prod_team_plan',
+  quantity: 1,
+  proration_billing_mode: 'difference_immediately',
+  addons: [{
+    addon_id: 'addon_seat',
+    quantity: 8  // Reduced to 8 additional seats
+  }]
+});
+```
+
+### Ta Bort Alla Ytterligare Säten
+
+Skicka en tom tilläggsarray för att ta bort alla tillägg:
+
+```typescript
+// Remove all additional seats, keep only base plan seats
+await client.subscriptions.changePlan('sub_123', {
+  product_id: 'prod_team_plan',
+  quantity: 1,
+  proration_billing_mode: 'difference_immediately',
+  addons: []  // Removes all add-ons
+});
+```
+
+---
+
+## Proportionering för Sätesändringar
+
+När kunder lägger till eller tar bort säten mitt under cykeln, avgör proportionering hur de faktureras.
+
+### Proportioneringslägen
+
+| Läge | Lägga till Säten | Ta Bort Säten |
+|------|-------------|----------------|
+| `prorated_immediately` | Ta betalt för återstående dagar i cykeln | Kredit för oanvända dagar |
+| `difference_immediately` | Ta betalt för fullt sätespris | Kredit tillämpas på framtida förnyelser |
+| `full_immediately` | Ta betalt för fullt sätespris, återställ faktureringscykel | Ingen kredit |
+
+### Proportioneringsexempel
+
+**Scenario: 15-dagars faktureringscykel kvar, lägger till 5 säten för $10/säte**
+
+<Tabs>
+<Tab title="proportionerad_omedelbart">
+
+```
+Prorated charge = ($10 × 5 seats) × (15 days / 30 days)
+                = $50 × 0.5
+                = $25 immediate charge
+```
+
+Kunden betalar \$25 nu, sedan \$50/månad vid förnyelse.
+</Tab>
+
+<Tab title="skillnad_omedelbart">
+
+```
+Immediate charge = $10 × 5 seats = $50
+```
+
+Kunden betalar fullt $50 nu, oavsett cykelposition.
+</Tab>
+
+<Tab title="full_omedelbart">
+
+```
+Immediate charge = Full subscription + add-ons
+Billing cycle resets to today
+```
+
+Kunden betalar fullt belopp, ny faktureringscykel börjar.
+</Tab>
+</Tabs>
+
+### Förhandsgranska Innan Ändringar
+
+Förhandsgranska alltid proportioneringen innan du gör ändringar:
+
+```typescript
+const preview = await client.subscriptions.previewChangePlan('sub_123', {
+  product_id: 'prod_team_plan',
+  quantity: 1,
+  proration_billing_mode: 'prorated_immediately',
+  addons: [{ addon_id: 'addon_seat', quantity: 20 }]
+});
+
+console.log('Immediate charge:', preview.immediate_charge.summary);
+// Show customer: "Adding 5 seats will cost $25 today"
+```
+
+---
+
+## Spåra Säten med Webhooks
+
+Övervaka sätesändringar genom att lyssna på prenumerationswebhooks:
+
+### Relevanta Händelser
+
+| Händelse | När Utlöst | Användningsfall |
+|-------|----------------|----------|
+| `subscription.active` | Ny prenumeration aktiverad | Tillhandahålla initiala säten |
+| `subscription.plan_changed` | Säten tillagda/borttagna | Uppdatera sätesantal i din app |
+| `subscription.renewed` | Prenumeration förnyad | Bekräfta att sätesantalet är oförändrat |
+| `subscription.cancelled` | Prenumeration avbruten | Ta bort alla säten |
+
+### Exempel på Webhook-hanterare
+
+```typescript
+app.post('/webhooks/dodo', async (req, res) => {
+  const event = req.body;
+
+  switch (event.type) {
+    case 'subscription.active':
+      // New subscription - provision seats
+      const seats = calculateTotalSeats(event.data);
+      await provisionSeats(event.data.customer_id, seats);
+      break;
+
+    case 'subscription.plan_changed':
+      // Seats changed - update access
+      const newSeats = calculateTotalSeats(event.data);
+      await updateSeatCount(event.data.subscription_id, newSeats);
+      break;
+
+    case 'subscription.cancelled':
+      // Subscription cancelled - deprovision
+      await deprovisionAllSeats(event.data.subscription_id);
+      break;
+  }
+
+  res.json({ received: true });
+});
+
+function calculateTotalSeats(subscriptionData) {
+  const baseSeats = 5;  // Included in plan
+  const addonSeats = subscriptionData.addons?.reduce(
+    (total, addon) => total + addon.quantity, 0
+  ) || 0;
+  return baseSeats + addonSeats;
+}
+```
+
+---
+
+## Tillämpa Sätesgränser
+
+Din applikation måste tillämpa sätesgränser. Dodo Payments spårar faktureringen, men du kontrollerar åtkomsten.
+
+### Tillämpningsstrategier
+
+<Tabs>
+<Tab title="Hård Gräns">
+Förhindra strikt att lägga till användare utöver sätesantalet.
+
+```typescript
+async function inviteUser(teamId: string, email: string) {
+  const team = await getTeam(teamId);
+  const subscription = await getSubscription(team.subscriptionId);
+  const totalSeats = calculateTotalSeats(subscription);
+  const usedSeats = await countTeamMembers(teamId);
+
+  if (usedSeats >= totalSeats) {
+    throw new Error('No seats available. Please upgrade your plan.');
+  }
+
+  await sendInvitation(teamId, email);
+}
+```
+
+</Tab>
+
+<Tab title="Mjuk Gräns med Varning">
+Tillåt överskridande med en varning och en övergångsperiod.
+
+```typescript
+async function inviteUser(teamId: string, email: string) {
+  const team = await getTeam(teamId);
+  const { totalSeats, usedSeats } = await getSeatInfo(team);
+
+  if (usedSeats >= totalSeats) {
+    // Allow but flag for billing
+    await flagOverage(teamId, usedSeats - totalSeats + 1);
+    await notifyAdmin(team.adminEmail, 'You have exceeded your seat limit');
+  }
+
+  await sendInvitation(teamId, email);
+}
+```
+
+</Tab>
+
+<Tab title="Auto-Uppgradering">
+Lägg automatiskt till säten när gränsen nås.
+
+```typescript
+async function inviteUser(teamId: string, email: string) {
+  const team = await getTeam(teamId);
+  const { totalSeats, usedSeats, subscriptionId } = await getSeatInfo(team);
+
+  if (usedSeats >= totalSeats) {
+    // Automatically add a seat
+    await client.subscriptions.changePlan(subscriptionId, {
+      product_id: team.productId,
+      quantity: 1,
+      proration_billing_mode: 'prorated_immediately',
+      addons: [{ addon_id: 'addon_seat', quantity: totalSeats - baseSeats + 1 }]
+    });
+
+    await notifyAdmin(team.adminEmail, 'A new seat was added to your plan');
+  }
+
+  await sendInvitation(teamId, email);
+}
+```
+
+</Tab>
+</Tabs>
+
+---
+
+## Avancerade Mönster
+
+### Olika Sätetyper
+
+Erbjud olika sätetyper med olika prissättning:
+
+```
+Full Seats: $20/month - Full access to all features
+View-Only Seats: $5/month - Read-only access
+Guest Seats: $0/month - Limited external collaborator access
+```
+
+**Implementering:** Skapa separata tillägg för varje sätetyp.
+
+```typescript
+const session = await client.checkoutSessions.create({
+  product_cart: [{
+    product_id: 'prod_team_plan',
+    quantity: 1,
+    addons: [
+      { addon_id: 'addon_full_seat', quantity: 10 },
+      { addon_id: 'addon_viewer_seat', quantity: 25 },
+      { addon_id: 'addon_guest_seat', quantity: 50 }
+    ]
+  }]
+});
+```
+
+### Årliga Sätesrabatter
+
+Erbjud rabatterad årlig sätesprissättning:
+
+```
+Monthly: $15/seat/month
+Annual: $12/seat/month (20% savings)
+```
+
+**Implementering:** Skapa separata produkter för månatliga och årliga planer med olika tilläggspriser.
+
+### Minimiantal Säten
+
+Kräv ett minimiantal säten för vissa planer:
+
+```typescript
+async function validateSeatCount(planId: string, seatCount: number) {
+  const minimums = {
+    'prod_starter': 1,
+    'prod_team': 5,
+    'prod_enterprise': 25
+  };
+
+  if (seatCount < minimums[planId]) {
+    throw new Error(`${planId} requires at least ${minimums[planId]} seats`);
+  }
+}
+```
+
+---
+
+## Bästa Praxis
+
+### Prissättnings Bästa Praxis
+
+- **Tydlig Kommunikation**: Visa per-säte prissättning tydligt på din prissättningssida
+- **Inkluderade Säten**: Överväg att inkludera några säten i baspriset för att minska friktion
+- **Volymrabatter**: Erbjud lägre per-säte priser för större team för att vinna företagsavtal
+- **Årliga Incitament**: Rabattera årliga planer för att förbättra kassaflödet och retentionen
+
+### Tekniska Bästa Praxis
+
+- **Cachea Sätesantal**: Cachea prenumerationssätesantal lokalt för att undvika API-anrop vid varje begäran
+- **Synkronisera Regelbundet**: Synkronisera periodiskt ditt lokala sätesantal med Dodo Payments via API
+- **Hantera Misslyckanden**: Om en sätesändring misslyckas, visa tydliga felmeddelanden och alternativ för att försöka igen
+- **Revisionsspår**: Logga alla sätesändringar för faktureringsdispyter och efterlevnad
+
+### Användarupplevelse Bästa Praxis
+
+- **Real-Tids Feedback**: Visa omedelbar kostnadseffekt när säten justeras
+- **Bekräftelsesteg**: Kräva bekräftelse innan faktureringsändringar
+- **Proportionerings Transparens**: Förklara tydligt proportionerade avgifter innan de tillämpas
+- **Enkla Nedgraderingar**: Gör det inte svårt att minska säten (det bygger förtroende)
+
+---
+
+## Felsökning
+
+<AccordionGroup>
+<Accordion title="Säteantal mismatch mellan app och fakturering">
+**Symptom**: Din app visar ett annat säteantal än prenumerationen.
+
+**Orsaker**:
+- Webhook mottagen eller bearbetad
+- Tävlingstillstånd under sätesändring
+- Cachad data uppdaterades inte
+
+**Lösningar**:
+1. Implementera webhook-hanterare för `subscription.plan_changed`
+2. Lägg till en "Synkronisera med fakturering"-knapp som hämtar aktuell prenumeration
+3. Sätt cache TTL för att säkerställa regelbunden uppdatering
+</Accordion>
+
+<Accordion title="Proportioneringsavgifter oväntade">
+**Symptom**: Kunder förvirrade av beloppet för avgiften mitt under cykeln.
+
+**Orsaker**:
+- Proportioneringsläge kommunicerades inte tydligt
+- Kunden såg inte förhandsgranskningen innan bekräftelse
+
+**Lösningar**:
+1. Använd alltid `previewChangePlan` innan du gör ändringar
+2. Visa tydlig uppdelning: "Lägga till X säten = $Y idag (proportionerad för Z dagar)"
+3. Dokumentera din proportioneringspolicy i hjälpcentret
+</Accordion>
+
+<Accordion title="Tillägg visas inte i kassan">
+**Symptom**: Sätes-tillägget är inte tillgängligt under kassan.
+
+**Orsaker**:
+- Tillägget är inte kopplat till produkten
+- Tillägget arkiverat eller raderat
+- Valuta mismatch mellan produkt och tillägg
+
+**Lösningar**:
+1. Verifiera att tillägget är kopplat i produktinställningarna
+2. Kontrollera tilläggets status i Tilläggs-instrumentpanelen
+3. Säkerställ att valutor matchar exakt
+</Accordion>
+
+<Accordion title="Kan inte minska säten under nuvarande användning">
+**Symptom**: Kunden vill minska säten men har användare tilldelade.
+
+**Lösningar**:
+1. Visa vilka användare som måste tas bort innan säten kan minskas
+2. Implementera ett arbetsflöde: Ta bort användare → Minska säten
+3. Överväg en övergångsperiod innan du tillämpar minskningen av säten
+</Accordion>
+</AccordionGroup>
+
+---
+
+## Relaterad Dokumentation
+
+<CardGroup cols={2}>
+<Card title="Sätebaserad Prissättningshandledning" icon="code" href="/developer-resources/seat-based-pricing">
+  Komplett implementeringsguide med kod.
+</Card>
+
+<Card title="Tillägg" icon="puzzle" href="/features/addons">
+  Förstå tilläggssystemet på djupet.
+</Card>
+
+<Card title="Planändringar & Proportionering" icon="arrows-rotate" href="/developer-resources/subscription-upgrade-downgrade">
+  Hantera prenumerationsmodifieringar.
+</Card>
+
+<Card title="Prenumerationswebhooks" icon="bell" href="/developer-resources/webhooks/intents/subscription">
+  Spåra prenumerationsevenemang.
+</Card>
+</CardGroup>

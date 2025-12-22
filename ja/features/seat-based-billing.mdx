@@ -1,0 +1,657 @@
+---
+sidebarTitle: シートベースの請求
+title: シートベースの請求
+description: チームソフトウェア、SaaS製品、エンタープライズライセンスのためのユーザーごとの価格設定を、柔軟なシート管理と按分で実装します。
+icon: users
+---
+
+<Info>
+シートベースの請求は、顧客が必要とするユーザー、チームメンバー、またはライセンスの数に基づいて料金を請求することを可能にします。これは、チームコラボレーションツール、エンタープライズソフトウェア、B2B SaaS製品の標準的な価格モデルです。
+</Info>
+
+<CardGroup cols={2}>
+<Card title="実装チュートリアル" icon="code" href="/developer-resources/seat-based-pricing">
+  コード例を含むステップバイステップガイド。
+</Card>
+
+<Card title="アドオンのドキュメント" icon="puzzle" href="/features/addons">
+  シートベースの請求を支えるアドオンシステムについて学びます。
+</Card>
+
+<Card title="サブスクリプション管理" icon="repeat" href="/features/subscription">
+  シートベースのサブスクリプションとプラン変更を管理します。
+</Card>
+
+<Card title="Webhook" icon="bell" href="/developer-resources/webhooks/intents/subscription">
+  サブスクリプションWebhookでシートの変更を追跡します。
+</Card>
+</CardGroup>
+
+---
+
+## シートベースの請求とは？
+
+シートベースの請求（ユーザーごとまたはシートごとの価格設定とも呼ばれる）は、製品にアクセスするユーザーの数に基づいて顧客に料金を請求します。定額料金の代わりに、価格はチームのサイズに応じてスケールします。
+
+### 一般的な使用例
+
+| 業界 | 例 | 価格モデル |
+|----------|---------|---------------|
+| チームコラボレーション | Slack, Notion, Asana | アクティブユーザー/月ごと |
+| 開発者ツール | GitHub, GitLab, Jira | シート/月ごと |
+| CRMソフトウェア | Salesforce, HubSpot | ユーザーライセンスごと |
+| デザインツール | Figma, Canva | エディターシートごと |
+| セキュリティソフトウェア | 1Password, Okta | ユーザー/月ごと |
+| ビデオ会議 | Zoom, Teams | ホストライセンスごと |
+
+### シートベースの価格設定の利点
+
+**あなたのビジネスにとって:**
+- 顧客が成長するにつれて収益が自然にスケール
+- 顧客が予算を立てやすい予測可能な価格設定
+- 個人からチーム、エンタープライズへの明確なアップグレードパス
+- チームが拡大するにつれて高いライフタイムバリュー
+
+**顧客にとって:**
+- 使用した分だけ支払う
+- コストを理解しやすく予測しやすい
+- 必要に応じてユーザーを追加/削除する柔軟性
+- チームのサイズに合った公正な価格設定
+
+---
+
+## Dodo Paymentsにおけるシートベースの請求の仕組み
+
+Dodo Paymentsは、**アドオン**システムを使用してシートベースの請求を実装しています。以下がその仕組みです：
+
+### アーキテクチャの概要
+
+チームプロサブスクリプションは月額\$99で、5シートが含まれています。5人以上のユーザーがいる場合、追加のシートごとに月額\$15を支払います。
+
+例えば、チームが15シートを必要とする場合：
+- 基本プラン: \$99/月（5シート含む）
+- アドオン: 10シート × \$15/月 = \$150/月
+- 合計月額費用: \$99 + \$150 = \$249（15シート分）
+
+### 主要コンポーネント
+
+| コンポーネント | 目的 | 例 |
+|-----------|---------|---------|
+| 基本製品 | 含まれるシートのコアサブスクリプション | "チームプラン - 月額\$99（5シート含む）" |
+| シートアドオン | 追加ユーザーのためのシートごとの料金 | "追加シート - 各月額\$15" |
+| 数量 | 購入した追加シートの数 | 10シート |
+
+---
+
+## 価格設定戦略
+
+ビジネスに合ったシートベースの価格設定戦略を選択してください：
+
+### 戦略1: 基本 + シートごとのアドオン
+
+基本プランに設定された数のシートを含め、追加シートに対して料金を請求します。
+
+**例:**
+
+```
+Starter Plan: $49/month
+├── Includes: 3 seats
+├── Extra seats: $10/month each
+└── 8 total seats = $49 + (5 × $10) = $99/month
+```
+
+**最適:** 小規模チームが基本提供で機能できる製品。
+
+### 戦略2: 純粋なシートごとの価格設定
+
+基本料金なしでシートごとに定額料金を請求します。
+
+**例:**
+
+```
+Per User: $12/month
+├── 5 users = $60/month
+├── 20 users = $240/month
+└── 100 users = $1,200/month
+```
+
+**実装:** 基本プランの価格を\$0に設定し、シートアドオンのみを使用します。
+
+**最適:** シンプルで透明な価格設定; 使用ベースのモデル。
+
+### 戦略3: 階層型シート価格設定
+
+異なる基本プランに異なるシートごとの料金。
+
+**例:**
+
+```
+Starter: $0/month base + $15/seat
+├── Lower features, higher per-seat cost
+
+Professional: $99/month base + $10/seat
+├── More features, lower per-seat cost
+
+Enterprise: $499/month base + $7/seat
+└── All features, volume discount on seats
+```
+
+**実装:** 各階層のために異なるアドオン価格で別々の製品を作成します。
+
+**最適:** 高い階層へのアップグレードを促進する; エンタープライズ販売。
+
+### 戦略4: シートバンドル
+
+シートを個別ではなくパックで販売します。
+
+**例:**
+
+```
+5-Seat Pack: $50/month ($10/seat)
+10-Seat Pack: $80/month ($8/seat)
+25-Seat Pack: $175/month ($7/seat)
+```
+
+**実装:** 異なるパックサイズのために複数のアドオンを作成します。
+
+**最適:** 購入決定を簡素化する; 大きなコミットメントを促進する。
+
+---
+
+## シートベースの請求の設定
+
+### ステップ1: 価格設定を計画する
+
+実装前に、価格構造を定義します：
+
+<Steps>
+<Step title="基本プランを定義する">
+基本サブスクリプションに含まれるものを決定します：
+- 基本価格（純粋なシートごとの場合は\$0にすることができます）
+- 含まれるシートの数
+- この階層で利用可能な機能
+</Step>
+
+<Step title="シート価格を設定する">
+シートごとのアドオンコストを決定します：
+- 追加シートごとの価格
+- ボリュームディスカウント（複数のアドオンを通じて）
+- 許可される最大シート数（該当する場合）
+</Step>
+
+<Step title="請求頻度を考慮する">
+シート価格を請求サイクルに合わせます：
+- 月額サブスクリプション → 月額シート料金
+- 年間サブスクリプション → 年間シート料金（通常は割引あり）
+</Step>
+</Steps>
+
+### ステップ2: シートアドオンを作成する
+
+Dodo Paymentsダッシュボードで：
+
+1. **製品** → **アドオン**に移動します
+2. **アドオンを作成**をクリックします
+3. アドオンを設定します：
+
+| フィールド | 値 | メモ |
+|-------|-------|-------|
+| 名前 | "追加シート"または"チームメンバー" | 明確でユーザーフレンドリーな名前 |
+| 説明 | "ワークスペースに別のチームメンバーを追加" | 顧客が得られるものを説明 |
+| 価格 | あなたのシートごとの価格 | 例: \$10.00 |
+| 通貨 | 基本製品と一致させる | 同じ通貨でなければなりません |
+| 税カテゴリ | 基本製品と同じ | 一貫した税処理を確保 |
+
+<Tip>
+請求書で意味のある説明的なアドオン名を作成してください。"追加チームシート"は、請求書を確認している顧客にとって"シートアドオン"よりも明確です。
+</Tip>
+
+### ステップ3: 基本サブスクリプションを作成する
+
+サブスクリプション製品を作成します：
+
+1. **製品** → **製品を作成**に移動します
+2. **サブスクリプション**を選択します
+3. 価格と詳細を設定します
+4. **アドオン**セクションで、シートアドオンを添付します
+
+### ステップ4: 製品にアドオンを添付する
+
+シートアドオンをサブスクリプションにリンクします：
+
+1. サブスクリプション製品を編集します
+2. **アドオン**セクションまでスクロールします
+3. **アドオンを追加**をクリックします
+4. シートアドオンを選択します
+5. 変更を保存します
+
+<Check>
+あなたのサブスクリプション製品は現在、シートベースの価格設定をサポートしています。顧客はチェックアウト中に追加シートの任意の数量を購入できます。
+</Check>
+
+---
+
+## シートの管理
+
+### 新しいサブスクリプションへのシートの追加
+
+チェックアウトセッションを作成する際に、シートの数量を指定します：
+
+```typescript
+const session = await client.checkoutSessions.create({
+  product_cart: [{
+    product_id: 'prod_team_plan',
+    quantity: 1,
+    addons: [{
+      addon_id: 'addon_seat',
+      quantity: 10  // 10 additional seats
+    }]
+  }],
+  customer: { email: 'admin@company.com' },
+  return_url: 'https://yourapp.com/success'
+});
+```
+
+### 既存のサブスクリプションのシート数の変更
+
+シートを調整するためにChange Plan APIを使用します：
+
+```typescript
+// Add 5 more seats to existing subscription
+await client.subscriptions.changePlan('sub_123', {
+  product_id: 'prod_team_plan',
+  quantity: 1,
+  proration_billing_mode: 'prorated_immediately',
+  addons: [{
+    addon_id: 'addon_seat',
+    quantity: 15  // New total: 15 additional seats
+  }]
+});
+```
+
+### シートの削除
+
+シート数を減らすには、より少ない数量を指定します：
+
+```typescript
+// Reduce from 15 to 8 additional seats
+await client.subscriptions.changePlan('sub_123', {
+  product_id: 'prod_team_plan',
+  quantity: 1,
+  proration_billing_mode: 'difference_immediately',
+  addons: [{
+    addon_id: 'addon_seat',
+    quantity: 8  // Reduced to 8 additional seats
+  }]
+});
+```
+
+### すべての追加シートの削除
+
+すべてのアドオンを削除するには、空のアドオン配列を渡します：
+
+```typescript
+// Remove all additional seats, keep only base plan seats
+await client.subscriptions.changePlan('sub_123', {
+  product_id: 'prod_team_plan',
+  quantity: 1,
+  proration_billing_mode: 'difference_immediately',
+  addons: []  // Removes all add-ons
+});
+```
+
+---
+
+## シート変更の按分
+
+顧客がシートを追加または削除する際、按分が請求方法を決定します。
+
+### 按分モード
+
+| モード | シートの追加 | シートの削除 |
+|------|-------------|----------------|
+| `prorated_immediately` | サイクル内の残りの日数に対して請求 | 未使用の日数に対してクレジット |
+| `difference_immediately` | シートの全額を請求 | 将来の更新に適用されるクレジット |
+| `full_immediately` | シートの全額を請求し、請求サイクルをリセット | クレジットなし |
+
+### 按分の例
+
+**シナリオ: 残り15日の請求サイクルで、5シートを\$10/シートで追加**
+
+<Tabs>
+<Tab title="即時按分">
+
+```
+Prorated charge = ($10 × 5 seats) × (15 days / 30 days)
+                = $50 × 0.5
+                = $25 immediate charge
+```
+
+顧客は今\$25を支払い、更新時に\$50/月を支払います。
+</Tab>
+
+<Tab title="即時差額">
+
+```
+Immediate charge = $10 × 5 seats = $50
+```
+
+顧客はサイクルの位置に関係なく、全額\$50を支払います。
+</Tab>
+
+<Tab title="即時全額">
+
+```
+Immediate charge = Full subscription + add-ons
+Billing cycle resets to today
+```
+
+顧客は全額を支払い、新しい請求サイクルが始まります。
+</Tab>
+</Tabs>
+
+### 変更前のプレビュー
+
+変更を行う前に、常に按分をプレビューしてください：
+
+```typescript
+const preview = await client.subscriptions.previewChangePlan('sub_123', {
+  product_id: 'prod_team_plan',
+  quantity: 1,
+  proration_billing_mode: 'prorated_immediately',
+  addons: [{ addon_id: 'addon_seat', quantity: 20 }]
+});
+
+console.log('Immediate charge:', preview.immediate_charge.summary);
+// Show customer: "Adding 5 seats will cost $25 today"
+```
+
+---
+
+## Webhookでのシートの追跡
+
+サブスクリプションWebhookをリッスンしてシートの変更を監視します：
+
+### 関連イベント
+
+| イベント | トリガーされるタイミング | 使用例 |
+|-------|----------------|----------|
+| `subscription.active` | 新しいサブスクリプションがアクティブ化されたとき | 初期シートをプロビジョニング |
+| `subscription.plan_changed` | シートが追加/削除されたとき | アプリ内のシート数を更新 |
+| `subscription.renewed` | サブスクリプションが更新されたとき | シート数が変更されていないことを確認 |
+| `subscription.cancelled` | サブスクリプションがキャンセルされたとき | すべてのシートをプロビジョニング解除 |
+
+### Webhookハンドラーの例
+
+```typescript
+app.post('/webhooks/dodo', async (req, res) => {
+  const event = req.body;
+
+  switch (event.type) {
+    case 'subscription.active':
+      // New subscription - provision seats
+      const seats = calculateTotalSeats(event.data);
+      await provisionSeats(event.data.customer_id, seats);
+      break;
+
+    case 'subscription.plan_changed':
+      // Seats changed - update access
+      const newSeats = calculateTotalSeats(event.data);
+      await updateSeatCount(event.data.subscription_id, newSeats);
+      break;
+
+    case 'subscription.cancelled':
+      // Subscription cancelled - deprovision
+      await deprovisionAllSeats(event.data.subscription_id);
+      break;
+  }
+
+  res.json({ received: true });
+});
+
+function calculateTotalSeats(subscriptionData) {
+  const baseSeats = 5;  // Included in plan
+  const addonSeats = subscriptionData.addons?.reduce(
+    (total, addon) => total + addon.quantity, 0
+  ) || 0;
+  return baseSeats + addonSeats;
+}
+```
+
+---
+
+## シート制限の強制
+
+アプリケーションはシート制限を強制する必要があります。Dodo Paymentsは請求を追跡しますが、アクセスはあなたが制御します。
+
+### 強制戦略
+
+<Tabs>
+<Tab title="ハードリミット">
+シート数を超えてユーザーを追加することを厳格に防止します。
+
+```typescript
+async function inviteUser(teamId: string, email: string) {
+  const team = await getTeam(teamId);
+  const subscription = await getSubscription(team.subscriptionId);
+  const totalSeats = calculateTotalSeats(subscription);
+  const usedSeats = await countTeamMembers(teamId);
+
+  if (usedSeats >= totalSeats) {
+    throw new Error('No seats available. Please upgrade your plan.');
+  }
+
+  await sendInvitation(teamId, email);
+}
+```
+
+</Tab>
+
+<Tab title="警告付きソフトリミット">
+警告と猶予期間を設けて超過を許可します。
+
+```typescript
+async function inviteUser(teamId: string, email: string) {
+  const team = await getTeam(teamId);
+  const { totalSeats, usedSeats } = await getSeatInfo(team);
+
+  if (usedSeats >= totalSeats) {
+    // Allow but flag for billing
+    await flagOverage(teamId, usedSeats - totalSeats + 1);
+    await notifyAdmin(team.adminEmail, 'You have exceeded your seat limit');
+  }
+
+  await sendInvitation(teamId, email);
+}
+```
+
+</Tab>
+
+<Tab title="自動アップグレード">
+制限に達したときに自動的にシートを追加します。
+
+```typescript
+async function inviteUser(teamId: string, email: string) {
+  const team = await getTeam(teamId);
+  const { totalSeats, usedSeats, subscriptionId } = await getSeatInfo(team);
+
+  if (usedSeats >= totalSeats) {
+    // Automatically add a seat
+    await client.subscriptions.changePlan(subscriptionId, {
+      product_id: team.productId,
+      quantity: 1,
+      proration_billing_mode: 'prorated_immediately',
+      addons: [{ addon_id: 'addon_seat', quantity: totalSeats - baseSeats + 1 }]
+    });
+
+    await notifyAdmin(team.adminEmail, 'A new seat was added to your plan');
+  }
+
+  await sendInvitation(teamId, email);
+}
+```
+
+</Tab>
+</Tabs>
+
+---
+
+## 高度なパターン
+
+### 異なるシートタイプ
+
+異なる価格設定の異なるシートタイプを提供します：
+
+```
+Full Seats: $20/month - Full access to all features
+View-Only Seats: $5/month - Read-only access
+Guest Seats: $0/month - Limited external collaborator access
+```
+
+**実装:** 各シートタイプのために別々のアドオンを作成します。
+
+```typescript
+const session = await client.checkoutSessions.create({
+  product_cart: [{
+    product_id: 'prod_team_plan',
+    quantity: 1,
+    addons: [
+      { addon_id: 'addon_full_seat', quantity: 10 },
+      { addon_id: 'addon_viewer_seat', quantity: 25 },
+      { addon_id: 'addon_guest_seat', quantity: 50 }
+    ]
+  }]
+});
+```
+
+### 年間シート割引
+
+割引された年間シート価格を提供します：
+
+```
+Monthly: $15/seat/month
+Annual: $12/seat/month (20% savings)
+```
+
+**実装:** 月額プランと年間プランのために異なるアドオン価格で別々の製品を作成します。
+
+### 最低シート要件
+
+特定のプランに対して最低シート数を要求します：
+
+```typescript
+async function validateSeatCount(planId: string, seatCount: number) {
+  const minimums = {
+    'prod_starter': 1,
+    'prod_team': 5,
+    'prod_enterprise': 25
+  };
+
+  if (seatCount < minimums[planId]) {
+    throw new Error(`${planId} requires at least ${minimums[planId]} seats`);
+  }
+}
+```
+
+---
+
+## ベストプラクティス
+
+### 価格設定のベストプラクティス
+
+- **明確なコミュニケーション**: 価格ページにシートごとの価格を目立たせて表示
+- **含まれるシート**: 摩擦を減らすために基本価格にいくつかのシートを含めることを検討
+- **ボリュームディスカウント**: 大規模チームに対して低いシートごとの料金を提供し、エンタープライズ契約を獲得
+- **年間インセンティブ**: 年間プランを割引してキャッシュフローと保持率を改善
+
+### 技術的ベストプラクティス
+
+- **シート数をキャッシュ**: API呼び出しを避けるためにサブスクリプションのシート数をローカルにキャッシュ
+- **定期的に同期**: 定期的にDodo Paymentsとローカルのシート数をAPI経由で同期
+- **失敗を処理**: シート変更が失敗した場合、明確なエラーメッセージと再試行オプションを表示
+- **監査トレイル**: 請求の争いとコンプライアンスのためにすべてのシート変更をログに記録
+
+### ユーザーエクスペリエンスのベストプラクティス
+
+- **リアルタイムフィードバック**: シートを調整した際のコストへの即時影響を表示
+- **確認ステップ**: 請求変更の前に確認を要求
+- **按分の透明性**: 適用前に按分料金を明確に説明
+- **簡単なダウングレード**: シートを減らすのを難しくしない（信頼を築く）
+
+---
+
+## トラブルシューティング
+
+<AccordionGroup>
+<Accordion title="アプリと請求の間でシート数が不一致">
+**症状**: アプリがサブスクリプションと異なるシート数を表示しています。
+
+**原因**:
+- Webhookが受信または処理されていない
+- シート変更中のレースコンディション
+- キャッシュデータが更新されていない
+
+**解決策**:
+1. `subscription.plan_changed`のためのWebhookハンドラーを実装します
+2. 現在のサブスクリプションを取得する"請求と同期"ボタンを追加します
+3. 定期的な更新を確保するためにキャッシュTTLを設定します
+</Accordion>
+
+<Accordion title="按分料金が予期しない">
+**症状**: 顧客がサイクル中の請求額に混乱しています。
+
+**原因**:
+- 按分モードが明確に伝えられていない
+- 顧客が確認前にプレビューを見ていない
+
+**解決策**:
+1. 変更を行う前に常に `previewChangePlan`を使用します
+2. 明確な内訳を表示: "Xシートの追加 = 今日の\$Y（Z日分の按分）"
+3. ヘルプセンターに按分ポリシーを文書化します
+</Accordion>
+
+<Accordion title="チェックアウトにアドオンが表示されない">
+**症状**: チェックアウト中にシートアドオンが利用できません。
+
+**原因**:
+- アドオンが製品に添付されていない
+- アドオンがアーカイブまたは削除されている
+- 製品とアドオンの間で通貨が不一致
+
+**解決策**:
+1. 製品設定でアドオンが添付されていることを確認します
+2. アドオンダッシュボードでアドオンのステータスを確認します
+3. 通貨が正確に一致していることを確認します
+</Accordion>
+
+<Accordion title="現在の使用量を下回るシートを減らせない">
+**症状**: 顧客がシートを減らしたいが、ユーザーが割り当てられています。
+
+**解決策**:
+1. シートを減らす前に削除する必要があるユーザーを表示します
+2. ワークフローを実装します: ユーザーを削除 → シートを減らす
+3. シート削減を強制する前に猶予期間を考慮します
+</Accordion>
+</AccordionGroup>
+
+---
+
+## 関連ドキュメント
+
+<CardGroup cols={2}>
+<Card title="シートベースの価格設定チュートリアル" icon="code" href="/developer-resources/seat-based-pricing">
+  コードを含む完全な実装ガイド。
+</Card>
+
+<Card title="アドオン" icon="puzzle" href="/features/addons">
+  アドオンシステムを深く理解します。
+</Card>
+
+<Card title="プラン変更と按分" icon="arrows-rotate" href="/developer-resources/subscription-upgrade-downgrade">
+  サブスクリプションの変更を処理します。
+</Card>
+
+<Card title="サブスクリプションWebhook" icon="bell" href="/developer-resources/webhooks/intents/subscription">
+  サブスクリプションイベントを追跡します。
+</Card>
+</CardGroup>

@@ -1,0 +1,1183 @@
+---
+sidebarTitle: Facturation Hybride
+title: Modèles de Facturation Hybride
+description: "Combinez plusieurs modes de facturation pour créer des stratégies
+  de tarification sophistiquées : abonnement + utilisation, sièges + options,
+  base + dépassement, et plus encore."
+icon: layer-group
+---
+
+<Info>
+La facturation hybride combine deux ou plusieurs modèles de facturation en une seule stratégie de tarification. Cela vous permet de capturer de la valeur à partir de différentes dimensions : frais récurrents, utilisation, sièges et fonctionnalités, tout en offrant aux clients flexibilité et prévisibilité.
+</Info>
+
+<CardGroup cols={2}>
+<Card title="Facturation Basée sur l'Utilisation" icon="chart-line" href="/features/usage-based-billing/introduction">
+  Base pour la tarification basée sur la consommation.
+</Card>
+
+<Card title="Abonnements" icon="repeat" href="/features/subscription">
+  Base pour la facturation récurrente.
+</Card>
+
+<Card title="Options" icon="puzzle" href="/features/addons">
+  Étendez les abonnements avec des mises à niveau optionnelles.
+</Card>
+
+<Card title="Facturation Basée sur les Sièges" icon="users" href="/features/seat-based-billing">
+  Modèles de tarification par utilisateur.
+</Card>
+</CardGroup>
+
+---
+
+## Qu'est-ce que la Facturation Hybride ?
+
+La facturation hybride combine plusieurs dimensions de tarification en une seule offre de produit. Au lieu de choisir entre des abonnements à tarif fixe OU une tarification basée sur l'utilisation, vous utilisez les deux ensemble.
+
+### Pourquoi Utiliser la Facturation Hybride ?
+
+| Objectif Commercial | Solution Hybride |
+|--------------------|------------------|
+| Revenus prévisibles + potentiel de croissance | Abonnement de base + dépassement d'utilisation |
+| Tarification d'équipe évolutive | Par siège + options de fonctionnalités |
+| Acquérir des clients, élargir plus tard | Frais de base faibles + frais de consommation |
+| Flexibilité pour les entreprises | Dépenses engagées + frais à la demande |
+| Tarification équitable pour une utilisation variable | Allocation incluse + paiement à l'utilisation |
+
+### Modèles Hybrides Courants
+
+| Modèle | Description | Exemple | Support Natif |
+|--------|-------------|---------|----------------|
+| **1. Abonnement + Utilisation** | Frais de base + frais de consommation | \$49/mois + \$0.01/appel API après 10K gratuits | ✅ Complet |
+| **2. Abonnement + Sièges** | Frais de plateforme + frais par utilisateur | \$99/mois + \$15/siège | ✅ Complet |
+| **3. Abonnement + Options de Fonctionnalités** | Plan de base + mises à niveau optionnelles | \$29/mois + \$19/mois pour l'analyse + \$9/mois pour l'accès API | ✅ Complet |
+| **4. Sièges + Utilisation** | Frais par utilisateur + dépassement de consommation | \$10/utilisateur/mois + \$0.05/Go après 5Go/utilisateur | ⚠️ Solution de contournement |
+| **5. Abonnement + Sièges + Utilisation** | Plateforme + utilisateurs + consommation (triple hybride) | \$199/mois + \$20/siège + dépassement d'utilisation | ⚠️ Solution de contournement |
+| **6. Base Échelonnée + Dépassement d'Utilisation** | Différents niveaux avec différentes allocations | Starter (5K appels) vs Pro (50K appels) + dépassement | ✅ Complet |
+| **7. Abonnement + Frais à la Demande** | Frais récurrents + frais manuels variables | \$99/mois de retenue + facturation horaire pour le travail | ✅ Complet |
+
+---
+
+## Modèle Hybride 1 : Abonnement + Utilisation
+
+Le modèle hybride le plus courant. Les clients paient un frais d'abonnement de base plus des frais pour la consommation qui dépasse les allocations incluses.
+
+### Comment Cela Fonctionne
+
+**Plan Pro : 49$/mois**
+
+- **Inclus** : 10 000 appels API/mois
+- **Dépassement** : 0,005 $ par appel après 10 000
+
+**Exemple de calcul** (le client utilise 25 000 appels ce mois-ci) :
+- Abonnement de base : 49,00 $
+- Dépassement : (25 000 - 10 000) × 0,005 $ = 75,00 $
+- **Total : 124,00 $**
+
+### Cas d'Utilisation
+
+- **Plateformes API** : Accès de base + frais par demande
+- **Services IA/ML** : Abonnement + utilisation de jetons/génération
+- **Services de stockage** : Plan de base + dépassement par Go
+- **Plateformes de communication** : Base + frais par message/minute
+
+### Mise en Œuvre
+
+<Steps>
+<Step title="Créer un Compteur d'Utilisation">
+Configurez un compteur pour suivre la dimension d'utilisation facturable.
+
+```bash
+Dashboard: Meters → Create Meter
+Event Name: "api.call"
+Aggregation: Count
+This tracks API calls per customer
+```
+
+</Step>
+
+<Step title="Créer un Produit d'Abonnement avec Tarification d'Utilisation">
+Créez un produit d'abonnement et attachez le compteur d'utilisation avec la tarification.
+
+```bash
+Dashboard: Create Product → Subscription
+Name: "Pro Plan"
+Base Price: $49/month
+
+Then attach usage pricing:
+- Meter: api.call
+- Price per unit: $0.005
+- Free threshold: 10,000 (included in subscription)
+```
+
+<Info>
+Le compteur d'utilisation est directement attaché au produit d'abonnement. Les frais d'utilisation sont calculés et ajoutés à la facture d'abonnement automatiquement.
+</Info>
+</Step>
+
+<Step title="Créer une Session de Paiement">
+Créez une session de paiement avec votre produit d'abonnement.
+
+```typescript
+const session = await client.checkoutSessions.create({
+  product_cart: [
+    { product_id: 'prod_pro_plan', quantity: 1 }
+  ],
+  customer: { email: 'customer@example.com' },
+  return_url: 'https://yourapp.com/success'
+});
+```
+
+</Step>
+
+<Step title="Envoyer des Événements d'Utilisation">
+Suivez l'utilisation tout au long de la période de facturation.
+
+```typescript
+await fetch('https://api.dodopayments.com/events/ingest', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${apiKey}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    events: [{
+      event_id: `call_${Date.now()}`,
+      customer_id: 'cus_123',
+      event_name: 'api.call',
+      timestamp: new Date().toISOString(),
+      metadata: { endpoint: '/v1/generate' }
+    }]
+  })
+});
+```
+
+</Step>
+</Steps>
+
+### Variations de Tarification
+
+<Tabs>
+<Tab title="Allocation Incluse">
+Le seuil gratuit couvre l'utilisation incluse dans l'abonnement de base.
+
+**Plan Pro : 49$/mois**
+- Inclus : 10 000 appels API
+- Dépassement : 0,005 $/appel après 10 000
+- Le client utilise 8 000 → Paie 49 $ (pas de dépassement)
+</Tab>
+
+<Tab title="Base Nulle + Utilisation Pure">
+Pas de frais de base, chaque unité est facturable dès la première utilisation.
+
+**Pay-As-You-Go : 0$/mois de base**
+- Inclus : 0 appels API
+- Utilisation : 0,01 $/appel dès le premier appel
+- Le client utilise 5 000 → Paie 50 $
+</Tab>
+
+<Tab title="Allocations Échelonnées">
+Différents niveaux incluent différentes allocations.
+
+- **Starter** : 19$/mois (1 000 appels inclus)
+- **Pro** : 49$/mois (10 000 appels inclus)
+- **Enterprise** : 199$/mois (100 000 appels inclus)
+- Tous les niveaux : 0,005 $/appel de dépassement
+</Tab>
+</Tabs>
+
+---
+
+## Modèle Hybride 2 : Abonnement + Sièges
+
+Frais de plateforme plus frais par utilisateur. Idéal pour les outils de collaboration d'équipe et le SaaS B2B.
+
+### Comment Cela Fonctionne
+
+**Plan Équipe : 99$/mois + 15$/siège**
+
+- **Frais de plateforme de base** : 99$/mois (inclut 3 sièges)
+- **Sièges supplémentaires** : 15$/siège/mois
+
+**Exemple de calcul** (équipe de 12 utilisateurs) :
+- Frais de plateforme : 99,00 $
+- Sièges supplémentaires : (12 - 3) × 15 $ = 135,00 $
+- **Total : 234,00 $/mois**
+
+### Cas d'Utilisation
+
+- **Outils de collaboration** : Frais d'espace de travail + par membre
+- **Systèmes CRM** : Licence de plateforme + par représentant commercial
+- **Gestion de projet** : Plan d'équipe + par contributeur
+- **Outils de développement** : Frais d'organisation + par développeur
+
+### Mise en Œuvre
+
+<Steps>
+<Step title="Créer une Option de Siège">
+Créez une option pour des sièges supplémentaires.
+
+```bash
+Dashboard: Products → Add-ons → Create Add-on
+Name: "Additional Seat"
+Price: $15/month
+Description: "Add another team member"
+```
+
+</Step>
+
+<Step title="Créer un Abonnement de Base">
+Créez le produit d'abonnement avec des frais de plateforme et attachez l'option.
+
+```bash
+Dashboard: Create Product → Subscription
+Name: "Team Plan"
+Price: $99/month
+Description: "Includes 3 team members"
+
+Then in Add-ons section:
+- Attach: "Additional Seat" add-on
+```
+
+</Step>
+
+<Step title="Créer un Paiement avec Sièges">
+Spécifiez la quantité de sièges lors du paiement.
+
+```typescript
+const session = await client.checkoutSessions.create({
+  product_cart: [{
+    product_id: 'prod_team_plan',
+    quantity: 1,
+    addons: [{
+      addon_id: 'addon_seat',
+      quantity: 9  // 9 extra seats (12 total with 3 included)
+    }]
+  }],
+  customer: { email: 'admin@company.com' },
+  return_url: 'https://yourapp.com/success'
+});
+```
+
+</Step>
+
+<Step title="Ajuster les Sièges au Besoin">
+Ajoutez ou retirez des sièges sur les abonnements existants.
+
+```typescript
+// Add 5 more seats
+await client.subscriptions.changePlan('sub_123', {
+  product_id: 'prod_team_plan',
+  quantity: 1,
+  proration_billing_mode: 'prorated_immediately',
+  addons: [{
+    addon_id: 'addon_seat',
+    quantity: 14  // New total: 14 extra seats
+  }]
+});
+```
+
+</Step>
+</Steps>
+
+### Variations de Tarification
+
+<Tabs>
+<Tab title="Sièges Inclus">
+Le plan de base inclut certains sièges, des frais pour les extras.
+
+**Plan Équipe : 99$/mois**
+- Inclus : 5 sièges
+- Sièges supplémentaires : 15$/siège/mois
+- 20 utilisateurs = \$99 + (15 × \$15) = \$324/mois
+</Tab>
+
+<Tab title="Pure Par-Siège">
+Pas de frais de plateforme, uniquement des frais par utilisateur.
+
+**Par Utilisateur : 25$/utilisateur/mois**
+- Pas de frais de plateforme
+- 5 utilisateurs = 125$/mois
+- 50 utilisateurs = 1 250$/mois
+
+
+Mise en œuvre : Fixez le prix de l'abonnement de base à 0, utilisez uniquement l'option de siège.
+</Tab>
+
+<Tab title="Par-Siège Échelonné">
+Le prix par siège diminue à des niveaux plus élevés.
+
+- **Starter** : 20$/siège (1-10 sièges)
+- **Croissance** : 15$/siège (11-50 sièges)
+- **Enterprise** : 10$/siège (51+ sièges)
+
+Mise en œuvre : Créez des produits d'abonnement séparés pour chaque niveau avec des prix d'options différents.
+</Tab>
+</Tabs>
+
+---
+
+## Modèle Hybride 3 : Abonnement + Options de Fonctionnalités
+
+Abonnement de base avec des mises à niveau de fonctionnalités optionnelles que les clients peuvent ajouter.
+
+### Comment Cela Fonctionne
+
+**Plan de Base : 29$/mois**
+
+**Options d'Options :**
+- Analytique Avancée : +19$/mois
+- Accès API : +9$/mois
+- Support Prioritaire : +29$/mois
+- Marque Blanche : +49$/mois
+
+**Exemple de calcul** (le client choisit Core + Analytics + Accès API) :
+- Plan de base : 29,00 $
+- Analytique : 19,00 $
+- Accès API : 9,00 $
+- **Total : 57,00 $/mois**
+
+### Cas d'Utilisation
+
+- **Plateformes SaaS** : Fonctionnalités de base + modules premium
+- **Outils de marketing** : Outil de base + intégrations
+- **Produits d'analyse** : Tableau de bord + rapports avancés
+- **Logiciels de sécurité** : Protection de base + fonctionnalités avancées
+
+### Mise en Œuvre
+
+<Steps>
+<Step title="Créer des Options de Fonctionnalités">
+Créez une option pour chaque fonctionnalité optionnelle.
+
+```bash
+# Add-on 1: Advanced Analytics
+Dashboard: Products → Add-ons → Create Add-on
+Name: "Advanced Analytics"
+Price: $19/month
+
+# Add-on 2: API Access
+Name: "API Access"
+Price: $9/month
+
+# Add-on 3: Priority Support
+Name: "Priority Support"
+Price: $29/month
+
+# Add-on 4: White-label
+Name: "White-label"
+Price: $49/month
+```
+
+</Step>
+
+<Step title="Créer un Abonnement de Base">
+Définissez votre abonnement de base et attachez toutes les options de fonctionnalités.
+
+```bash
+Dashboard: Create Product → Subscription
+Name: "Core Plan"
+Price: $29/month
+
+Then in Add-ons section:
+- Attach all feature add-ons
+```
+
+</Step>
+
+<Step title="Laissez les Clients Choisir">
+Paiement avec les fonctionnalités sélectionnées.
+
+```typescript
+const session = await client.checkoutSessions.create({
+  product_cart: [{
+    product_id: 'prod_core_plan',
+    quantity: 1,
+    addons: [
+      { addon_id: 'addon_analytics', quantity: 1 },
+      { addon_id: 'addon_api_access', quantity: 1 }
+      // Customer didn't select support or white-label
+    ]
+  }],
+  return_url: 'https://yourapp.com/success'
+});
+```
+
+</Step>
+
+<Step title="Ajouter des Fonctionnalités Plus Tard">
+Les clients peuvent ajouter des fonctionnalités aux abonnements existants.
+
+```typescript
+// Customer wants to add Priority Support
+await client.subscriptions.changePlan('sub_123', {
+  product_id: 'prod_core_plan',
+  quantity: 1,
+  proration_billing_mode: 'prorated_immediately',
+  addons: [
+    { addon_id: 'addon_analytics', quantity: 1 },
+    { addon_id: 'addon_api_access', quantity: 1 },
+    { addon_id: 'addon_priority_support', quantity: 1 }  // New!
+  ]
+});
+```
+
+</Step>
+</Steps>
+
+---
+
+## Modèle Hybride 4 : Sièges + Utilisation
+
+Frais par utilisateur combinés avec des frais basés sur la consommation. Chaque utilisateur reçoit une allocation.
+
+<Warning>
+**Contrainte** : Dodo Payments ne prend actuellement pas en charge l'attachement de compteurs d'utilisation et d'options au même produit d'abonnement. Ce modèle nécessite une solution de contournement utilisant une logique au niveau de l'application.
+</Warning>
+
+<Info>
+**À Venir** : Le support natif pour la facturation hybride Sièges + Utilisation est sur notre feuille de route. Cela vous permettra d'attacher à la fois des compteurs d'utilisation et des options de sièges au même produit d'abonnement.
+</Info>
+
+### Comment Cela Fonctionne
+
+**Analyse d'Équipe : 20$/utilisateur/mois**
+
+**Chaque utilisateur inclut :**
+- 5 Go de traitement de données/mois
+- Dépassement : 2$/Go après allocation
+
+**Exemple de calcul** (équipe de 10 utilisateurs utilisant 80 Go au total) :
+- Frais de siège : 10 × 20 $ = 200,00 $
+- Données incluses : 10 × 5 Go = 50 Go
+- Dépassement : (80 - 50) × 2 $ = 60,00 $
+- **Total : 260,00 $/mois**
+
+### Cas d'Utilisation
+
+- **Plateformes d'analyse** : Par analyste + traitement de données
+- **Outils de design** : Par designer + stockage/exportations
+- **Environnements de développement** : Par développeur + heures de calcul
+- **Outils de communication** : Par utilisateur + volume de messages/appels
+
+### Options de Mise en Œuvre
+
+Puisque vous ne pouvez pas attacher à la fois des compteurs d'utilisation et des options au même abonnement, choisissez l'une de ces approches :
+
+<Tabs>
+<Tab title="Option A : Produit d'Utilisation + Sièges Gérés par l'Application">
+Utilisez un abonnement basé sur l'utilisation et gérez la facturation des sièges dans votre application.
+
+<Steps>
+<Step title="Créer un Compteur d'Utilisation">
+
+```bash
+Dashboard: Meters → Create Meter
+Event Name: "data.processed"
+Aggregation: Sum
+Property: "bytes"
+```
+
+</Step>
+
+<Step title="Créer un Abonnement Basé sur l'Utilisation">
+
+```bash
+Dashboard: Create Product → Subscription
+Name: "Team Analytics"
+Base Price: $0/month
+
+Attach usage pricing:
+- Meter: data.processed
+- Price per unit: $2/GB
+- Free threshold: 0 (managed by your app)
+```
+
+</Step>
+
+<Step title="Gérer les Sièges dans Votre Application">
+Suivez le nombre de sièges et calculez les frais de sièges séparément.
+
+```typescript
+// Your application tracks seats and calculates total cost
+async function calculateMonthlyBill(customerId: string) {
+  const seatCount = await getSeatCount(customerId);
+  const seatFee = seatCount * 20; // $20/seat
+
+  // Usage is billed by Dodo automatically
+  // You invoice/charge seat fees separately or include in base price
+
+  // Alternatively, adjust base subscription price when seats change
+  const totalBasePrice = seatCount * 2000; // $20/seat in cents
+  await client.subscriptions.update('sub_123', {
+    // Update subscription to reflect seat-based pricing
+  });
+}
+```
+
+</Step>
+
+<Step title="Calculer le Seuil Gratuit Dynamique">
+Ajustez l'utilisation incluse en fonction du nombre de sièges.
+
+```typescript
+// When checking usage, apply per-seat allowance
+async function checkUsageOverage(customerId: string) {
+  const seatCount = await getSeatCount(customerId);
+  const includedGB = seatCount * 5; // 5 GB per user
+
+  const currentUsage = await getUsageFromDodo(customerId);
+  const overage = Math.max(0, currentUsage - includedGB);
+
+  // Overage is billed by Dodo at $2/GB
+  return { included: includedGB, used: currentUsage, overage };
+}
+```
+
+</Step>
+</Steps>
+</Tab>
+
+<Tab title="Option B : Option de Siège + Frais d'Utilisation à la Demande">
+Utilisez des options pour les sièges et facturez l'utilisation manuellement via des frais à la demande.
+
+<Steps>
+<Step title="Créer une Option de Siège">
+
+```bash
+Dashboard: Products → Add-ons → Create Add-on
+Name: "Team Member"
+Price: $20/month
+```
+
+</Step>
+
+<Step title="Créer un Abonnement avec Option">
+
+```bash
+Dashboard: Create Product → Subscription
+Name: "Team Analytics"
+Base Price: $0/month
+
+Attach add-on:
+- "Team Member" add-on
+
+Enable on-demand charging
+```
+
+</Step>
+
+<Step title="Suivre l'Utilisation dans Votre Application">
+
+```typescript
+// Track usage events in your system
+async function trackDataProcessed(customerId: string, bytes: number) {
+  await saveUsageEvent({
+    customer_id: customerId,
+    event_type: 'data.processed',
+    bytes: bytes,
+    timestamp: new Date()
+  });
+}
+```
+
+</Step>
+
+<Step title="Facturer l'Utilisation à la Fin du Cycle">
+Calculez et facturez les dépassements d'utilisation manuellement.
+
+```typescript
+async function billUsageOverage(subscriptionId: string) {
+  const subscription = await getSubscription(subscriptionId);
+  const seatCount = subscription.addons.find(a => a.id === 'addon_seat')?.quantity || 0;
+
+  const includedGB = seatCount * 5;
+  const usedGB = await calculatePeriodUsage(subscription.customer_id);
+  const overageGB = Math.max(0, usedGB - includedGB);
+
+  if (overageGB > 0) {
+    const overageCharge = overageGB * 200; // $2/GB in cents
+    await client.subscriptions.charge(subscriptionId, {
+      product_price: overageCharge,
+      product_description: `Data overage: ${overageGB} GB × $2/GB`
+    });
+  }
+}
+```
+
+</Step>
+</Steps>
+</Tab>
+</Tabs>
+
+<Info>
+**Recommandation** : L'Option B (Option de Siège + Utilisation à la Demande) est souvent plus facile à mettre en œuvre car Dodo gère automatiquement la facturation des sièges. Vous devez seulement suivre et facturer les dépassements d'utilisation.
+</Info>
+
+---
+
+## Modèle Hybride 5 : Abonnement + Sièges + Utilisation (Triple Hybride)
+
+Le modèle le plus complet : frais de plateforme + par utilisateur + consommation.
+
+<Warning>
+**Contrainte** : Dodo Payments ne prend actuellement pas en charge l'attachement de compteurs d'utilisation et d'options au même produit d'abonnement. Ce modèle nécessite une approche de contournement.
+</Warning>
+
+<Info>
+**À Venir** : Le support natif pour la facturation Triple Hybride (Base + Sièges + Utilisation) est sur notre feuille de route. Cela vous permettra d'attacher à la fois des compteurs d'utilisation et des options de sièges au même produit d'abonnement.
+</Info>
+
+### Comment Cela Fonctionne
+
+**Plateforme Entreprise**
+
+- **Frais de Plateforme** : 199$/mois
+- **Par Siège** : 25$/utilisateur/mois
+- **Utilisation** : 0,10 $/1000 appels API (50K inclus)
+
+**Exemple de calcul** (entreprise avec 20 utilisateurs, 150 000 appels API) :
+- Plateforme : 199,00 $
+- Sièges : 20 × 25 $ = 500,00 $
+- Utilisation : (150K - 50K) × \$0,10/1K = \$10,00
+- **Total : 709,00 $/mois**
+
+### Cas d'Utilisation
+
+- **SaaS d'Entreprise** : Plateforme + équipe + consommation
+- **Plateformes de Données** : Espace de travail + analystes + requêtes
+- **Plateformes d'Intégration** : Hub + connecteurs + transactions
+- **Plateformes IA** : Espace de travail + développeurs + inférence
+
+### Options de Mise en Œuvre
+
+Choisissez l'une de ces approches pour mettre en œuvre la facturation hybride triple :
+
+<Tabs>
+<Tab title="Option A : Base + Sièges (Option) + Utilisation à la Demande">
+Utilisez un abonnement avec des options de sièges, facturez l'utilisation manuellement via des frais à la demande.
+
+**C'est l'approche recommandée** car Dodo gère automatiquement les frais de plateforme et la facturation des sièges.
+
+<Steps>
+<Step title="Créer une Option de Siège">
+
+```bash
+Dashboard: Products → Add-ons → Create Add-on
+Name: "User Seat"
+Price: $25/month
+```
+
+</Step>
+
+<Step title="Créer un Produit d'Abonnement">
+
+```bash
+Dashboard: Create Product → Subscription
+Name: "Enterprise Platform"
+Base Price: $199/month
+
+Attach add-on:
+- "User Seat" add-on
+
+Enable on-demand charging
+```
+
+</Step>
+
+<Step title="Créer un Paiement avec Sièges">
+
+```typescript
+const session = await client.checkoutSessions.create({
+  product_cart: [{
+    product_id: 'prod_enterprise_platform',
+    quantity: 1,
+    addons: [{
+      addon_id: 'addon_user_seat',
+      quantity: 20  // 20 users
+    }]
+  }],
+  customer: { email: 'enterprise@company.com' },
+  return_url: 'https://yourapp.com/success'
+});
+```
+
+</Step>
+
+<Step title="Suivre l'Utilisation dans Votre Application">
+Stockez les événements d'utilisation dans votre système.
+
+```typescript
+// Track API calls in your system
+async function trackApiCall(customerId: string, endpoint: string) {
+  await saveUsageEvent({
+    customer_id: customerId,
+    event_type: 'api.call',
+    endpoint: endpoint,
+    timestamp: new Date()
+  });
+}
+```
+
+</Step>
+
+<Step title="Facturer l'Utilisation à la Fin du Cycle">
+Calculez et facturez les dépassements d'utilisation via des frais à la demande.
+
+```typescript
+async function billUsageOverage(subscriptionId: string) {
+  const usage = await calculatePeriodUsage(subscriptionId);
+  const includedCalls = 50000;
+  const overageCalls = Math.max(0, usage.totalCalls - includedCalls);
+
+  if (overageCalls > 0) {
+    // $0.10 per 1000 calls = $0.0001 per call
+    const overageCharge = Math.ceil(overageCalls / 1000) * 10; // cents
+    await client.subscriptions.charge(subscriptionId, {
+      product_price: overageCharge,
+      product_description: `API usage: ${overageCalls.toLocaleString()} calls over 50K included`
+    });
+  }
+}
+```
+
+</Step>
+</Steps>
+</Tab>
+
+<Tab title="Option B : Base + Utilisation (Compteur) + Sièges Gérés par l'Application">
+Utilisez un abonnement avec un compteur d'utilisation, gérez la facturation des sièges dans votre application.
+
+<Steps>
+<Step title="Créer un Compteur d'Utilisation">
+
+```bash
+Dashboard: Meters → Create Meter
+Event Name: "api.call"
+Aggregation: Count
+```
+
+</Step>
+
+<Step title="Créer un Produit d'Abonnement avec Utilisation">
+
+```bash
+Dashboard: Create Product → Subscription
+Name: "Enterprise Platform"
+Base Price: $199/month
+
+Attach usage pricing:
+- Meter: api.call
+- Price: $0.10 per 1000 calls
+- Free threshold: 50,000
+```
+
+</Step>
+
+<Step title="Gérer les Sièges dans Votre Application">
+Suivez le nombre de sièges et ajustez le prix de l'abonnement de base en conséquence.
+
+```typescript
+// When seats change, update subscription price
+async function updateSeatCount(subscriptionId: string, newSeatCount: number) {
+  const basePlatformFee = 19900; // $199 in cents
+  const perSeatFee = 2500; // $25 in cents
+  const totalPrice = basePlatformFee + (newSeatCount * perSeatFee);
+
+  // Store seat count in your system
+  await updateSeatsInDatabase(subscriptionId, newSeatCount);
+
+  // Note: You may need to handle this via plan changes or
+  // create multiple tier products for common seat counts
+}
+```
+
+</Step>
+
+<Step title="Envoyer des Événements d'Utilisation à Dodo">
+```typescript
+await fetch('https://api.dodopayments.com/events/ingest', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${apiKey}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    events: [{
+      event_id: `api_${Date.now()}`,
+      customer_id: 'cus_enterprise',
+      event_name: 'api.call',
+      timestamp: new Date().toISOString()
+    }]
+  })
+});
+```
+</Step>
+</Steps>
+</Tab>
+</Tabs>
+
+<Info>
+**Recommandation** : L'Option A (Base + Sièges + Utilisation à la Demande) est généralement plus facile car Dodo gère automatiquement la facturation de la plateforme et des sièges. Vous devez seulement suivre l'utilisation et soumettre les frais à la fin de chaque cycle de facturation.
+</Info>
+
+---
+
+## Modèle Hybride 6 : Base Échelonnée + Dépassement d'Utilisation
+
+Différents niveaux d'abonnement avec différentes allocations incluses et taux de dépassement.
+
+### Comment Cela Fonctionne
+
+| Niveau | Prix | Appels Inclus | Taux de Dépassement |
+|--------|-------|----------------|-------------------|
+| **Starter** | 19$/mois | 1 000 | 0,02$/appel |
+| **Pro** | 79$/mois | 25 000 | 0,01$/appel |
+| **Business** | 199$/mois | 100 000 | 0,005$/appel |
+| **Enterprise** | 499$/mois | 500 000 | 0,002$/appel |
+
+### Mise en Œuvre
+
+Créez des produits d'abonnement séparés pour chaque niveau, chacun avec sa propre configuration d'utilisation :
+
+```bash
+# For each tier, create a subscription product:
+
+# Starter Tier
+Dashboard: Create Product → Subscription
+Name: "Starter"
+Base Price: $19/month
+Usage Pricing:
+- Meter: api.call
+- Price: $0.02/call
+- Free threshold: 1,000
+
+# Pro Tier
+Name: "Pro"
+Base Price: $79/month
+Usage Pricing:
+- Meter: api.call
+- Price: $0.01/call
+- Free threshold: 25,000
+
+# ... and so on for Business and Enterprise
+```
+
+### Chemin de Mise à Niveau
+
+Lorsque les clients passent à des niveaux supérieurs, ils obtiennent :
+- Allocation incluse plus élevée
+- Taux de dépassement plus bas
+- Plus de valeur par dollar
+
+```typescript
+// Customer upgrades from Starter to Pro
+await client.subscriptions.changePlan('sub_123', {
+  product_id: 'prod_pro',
+  quantity: 1,
+  proration_billing_mode: 'prorated_immediately'
+});
+```
+
+---
+
+## Modèle Hybride 7 : Abonnement + Frais à la Demande
+
+Abonnement récurrent plus frais manuels variables pour des services ou des dépassements.
+
+### Comment Cela Fonctionne
+
+**Plan de Retenue : 199$/mois**
+
+**Inclus :**
+- Accès à la plateforme
+- 5 heures de consultation/mois
+- Support par e-mail
+
+**Frais à la Demande (au besoin) :**
+- Consultation supplémentaire : 150$/heure
+- Développement personnalisé : 200$/heure
+- Support d'urgence : 100$/incident
+
+**Exemple de calcul** (ce mois-ci) :
+- Retenue : 199,00 $
+- 3 heures de consultation supplémentaires : 450,00 $
+- 1 support d'urgence : 100,00 $
+- **Total : 749,00 $**
+
+### Cas d'Utilisation
+
+- **Services de consultation** : Retenue + facturation horaire
+- **Services gérés** : Frais de base + frais d'incident
+- **Services d'agence** : Frais mensuels + frais de projet
+- **Plans de support** : Frais SLA + par ticket ou par heure
+
+### Mise en Œuvre
+
+<Steps>
+<Step title="Créer un Abonnement à la Demande">
+Configurez un abonnement avec la facturation à la demande activée.
+
+```typescript
+const subscription = await client.subscriptions.create({
+  billing: {
+    city: 'San Francisco',
+    country: 'US',
+    state: 'CA',
+    street: '123 Main St',
+    zipcode: '94105'
+  },
+  customer: { customer_id: 'cus_123' },
+  product_id: 'prod_retainer',
+  quantity: 1,
+  payment_link: true,
+  return_url: 'https://yourapp.com/success',
+  on_demand: {
+    mandate_only: false,
+    product_price: 19900  // $199 initial charge
+  }
+});
+```
+
+</Step>
+
+<Step title="Facturer pour les Services">
+Créez des frais lorsque les services sont fournis.
+
+```typescript
+// Charge for 3 hours of consulting
+await client.subscriptions.charge('sub_123', {
+  product_price: 45000,  // $450.00 (3 × $150)
+  product_description: 'Consulting - 3 hours (March 15)'
+});
+
+// Charge for emergency support incident
+await client.subscriptions.charge('sub_123', {
+  product_price: 10000,  // $100.00
+  product_description: 'Emergency support - Server outage (March 18)'
+});
+```
+
+</Step>
+
+<Step title="Suivre et Facturer">
+Tous les frais apparaissent sur la facture du client.
+
+```typescript
+// Retrieve subscription charges
+const payments = await client.payments.list({
+  subscription_id: 'sub_123'
+});
+
+// Show itemized breakdown to customer
+payments.items.forEach(payment => {
+  console.log(`${payment.description}: $${payment.amount / 100}`);
+});
+```
+
+</Step>
+</Steps>
+
+---
+
+## Exemples du Monde Réel
+
+<Info>
+Ces exemples montrent des structures de tarification idéales. En raison de la contrainte selon laquelle les compteurs d'utilisation et les options ne peuvent pas être attachés au même produit, certaines combinaisons nécessitent des solutions de contournement (utilisation de frais à la demande pour l'utilisation ou sièges gérés par l'application).
+</Info>
+
+### Exemple 1 : Plateforme SaaS IA
+
+**Structure de Tarification :**
+- **Abonnement de Base** : 99$/mois (accès à la plateforme, 5 sièges inclus)
+- **Option de Siège** : 20$/siège/mois
+- **Options de Fonctionnalités** : Modèles Personnalisés (\$49/mois), Accès API (\$29/mois), File d'Attente Prioritaire (\$19/mois)
+- **Dépassement d'Utilisation** : 0,02 $ par 1 000 jetons après 100K (facturé via à la demande)
+
+**Mise en Œuvre** : Utilisez un abonnement avec des options de sièges et de fonctionnalités. Suivez l'utilisation des jetons dans votre application et facturez les dépassements via des frais à la demande à la fin du cycle de facturation.
+
+**Client Exemple** (12 utilisateurs, 500K jetons, Modèles Personnalisés + Accès API) :
+| Composant | Calcul | Montant |
+|-----------|--------|--------|
+| Base | Frais de plateforme | 99 |
+| Sièges supplémentaires | 7 × 20 | 140 |
+| Modèles Personnalisés | Option | 49 |
+| Accès API | Option | 29 |
+| Dépassement de jetons | 400K × \$0,02/1K (à la demande) | \$8 |
+| **Total** | | **325$/mois** |
+
+### Exemple 2 : Plateforme d'Outils de Développement
+
+**Options de Niveaux :**
+
+| | Gratuit | Pro | Entreprise |
+|---|------|-----|------------|
+| **Prix** | 0$/mois | 29$/mois | 199$/mois |
+| **Utilisateurs** | 1 | 5 inclus | Illimité |
+| **Builds** | 100 | 1 000 | 10 000 |
+| **Stockage** | 1 Go | 10 Go | 100 Go |
+
+**Options de Mise en Œuvre :**
+
+**Option A** (Axée sur l'Utilisation) : Créez des produits avec des compteurs d'utilisation pour les builds/stockage. Gérez les utilisateurs dans votre application.
+
+**Option B** (Axée sur les Sièges) : Créez des produits avec des options de sièges. Suivez l'utilisation des builds/stockage et facturez les dépassements via à la demande.
+
+**Options (si vous utilisez l'Option B) :**
+- Utilisateurs supplémentaires : 10$/utilisateur/mois
+- Builds prioritaires : 19$/mois
+- Domaines personnalisés : 9$/domaine/mois
+
+### Exemple 3 : Automatisation Marketing
+
+**Structure de Tarification :**
+- **Base** : 79$/mois (fonctionnalités d'automatisation de base, 3 sièges inclus)
+- **Niveaux de Contacts** (options) : 1K inclus, 5K (+\$30), 25K (+\$80), 100K (+\$200)
+- **Options de Fonctionnalités** : Marketing par SMS (\$29/mois), Pages de Destination (\$19/mois), Tests A/B (\$29/mois)
+- **Sièges d'Équipe** : 15$/utilisateur/mois en option
+- **Volume d'Emails** : Suivi dans l'application, facturation des dépassements via à la demande (1$/1 000 emails au-delà de la limite)
+
+**Mise en Œuvre** : Utilisez un abonnement avec des options de niveaux de contacts, des options de fonctionnalités et des options de sièges. Suivez les envois d'emails dans votre application et facturez les dépassements via des frais à la demande.
+
+---
+
+## Meilleures Pratiques de Mise en Œuvre
+
+### Clarté de la Page de Tarification
+
+<Tip>
+Rendez la tarification hybride facile à comprendre. Affichez clairement les coûts de base, ce qui est inclus et comment fonctionnent les dépassements sur votre page de tarification.
+</Tip>
+
+**Bon** : "\$49/mois inclut 10 000 appels API. Appels supplémentaires : \$0,005 chacun"
+
+**Mauvais** : "\$49/mois + frais d'utilisation"
+
+### Prévisibilité des Coûts
+
+Aidez les clients à estimer leurs coûts :
+
+```typescript
+// Provide a cost calculator
+function estimateMonthlyCost({
+  plan,
+  seats,
+  expectedUsage,
+  addons
+}: EstimateParams): number {
+  let total = plan.basePrice;
+
+  // Add seat costs
+  const extraSeats = Math.max(0, seats - plan.includedSeats);
+  total += extraSeats * plan.seatPrice;
+
+  // Add usage overage
+  const overage = Math.max(0, expectedUsage - plan.includedUsage);
+  total += overage * plan.overageRate;
+
+  // Add feature add-ons
+  total += addons.reduce((sum, addon) => sum + addon.price, 0);
+
+  return total;
+}
+```
+
+### Visibilité de l'Utilisation
+
+Montrez aux clients leur utilisation en temps réel :
+
+```typescript
+// Display usage dashboard
+async function getUsageSummary(subscriptionId: string) {
+  const usage = await client.subscriptions.getUsageHistory(subscriptionId);
+
+  return {
+    current: usage.current_period_usage,
+    included: usage.free_threshold,
+    remaining: Math.max(0, usage.free_threshold - usage.current_period_usage),
+    overage: Math.max(0, usage.current_period_usage - usage.free_threshold),
+    projectedCost: calculateProjectedOverage(usage)
+  };
+}
+```
+
+### Transparence de la Facturation
+
+Fournissez des factures détaillées montrant tous les composants :
+
+| Élément de Ligne | Montant |
+|-----------------|--------|
+| Plan Pro (Mensuel) | 49,00 $ |
+| Sièges Supplémentaires (7 × 15,00 $) | 105,00 $ |
+| Utilisation API - Inclus (10 000 appels) | 0,00 $ |
+| Utilisation API - Dépassement (15 420 appels × 0,005 $) | 77,10 $ |
+| Option d'Analyse Avancée | 19,00 $ |
+| **Sous-total** | **250,10 $** |
+| Taxe (8,5 %) | 21,26 $ |
+| **Total Dû** | **271,36 $** |
+
+---
+
+## Dépannage de la Facturation Hybride
+
+<AccordionGroup>
+<Accordion title="L'utilisation n'est pas suivie correctement">
+**Symptômes** : L'utilisation montre 0 ou des valeurs incorrectes.
+
+**Solutions** :
+1. Vérifiez que l'ingestion des événements fonctionne (vérifiez les réponses API)
+2. Confirmez que `customer_id` correspond au client d'abonnement
+3. Vérifiez que `event_name` correspond à la configuration du compteur
+4. Vérifiez que les événements ont des horodatages corrects (pas de dates futures)
+</Accordion>
+
+<Accordion title="Confusion de Prorata avec plusieurs composants">
+**Symptômes** : Le client est facturé des montants inattendus lors du changement de plans.
+
+**Solutions** :
+1. Utilisez `previewChangePlan` API pour montrer les frais exacts avant de confirmer
+2. Communiquez que le prorata s'applique à l'abonnement ET aux options
+3. Envisagez d'utiliser `difference_immediately` pour une facturation de mise à niveau plus simple
+</Accordion>
+
+<Accordion title="Le seuil gratuit ne s'applique pas correctement">
+**Symptômes** : Le client est facturé pour une utilisation qui devrait être gratuite.
+
+**Solutions** :
+1. Vérifiez que le seuil gratuit est configuré sur le produit basé sur l'utilisation
+2. Vérifiez que l'unité de seuil correspond à l'agrégation des événements (appels vs. demandes)
+3. Confirmez que le compteur d'utilisation est correctement attaché au produit d'abonnement
+</Accordion>
+
+<Accordion title="Les options n'apparaissent pas lors du paiement">
+**Symptômes** : Impossible d'ajouter des sièges ou des fonctionnalités lors du paiement.
+
+**Solutions** :
+1. Vérifiez que les options sont attachées au produit d'abonnement dans le tableau de bord
+2. Vérifiez que les ID des options sont corrects dans les appels API
+3. Assurez-vous que la devise des options correspond à la devise du produit d'abonnement
+</Accordion>
+</AccordionGroup>
+
+---
+
+## Documentation Connexe
+
+<CardGroup cols={2}>
+<Card title="Produits" icon="box" href="/features/products">
+  Vue d'ensemble de tous les types de produits et guides.
+</Card>
+
+<Card title="Guide de Facturation Basée sur l'Utilisation" icon="chart-line" href="/developer-resources/usage-based-billing-guide">
+  Mise en œuvre complète de la facturation d'utilisation.
+</Card>
+
+<Card title="Gestion des Abonnements" icon="repeat" href="/features/subscription">
+  Gestion des abonnements récurrents.
+</Card>
+
+<Card title="Options" icon="puzzle" href="/features/addons">
+  Extension des abonnements avec des options.
+</Card>
+</CardGroup>

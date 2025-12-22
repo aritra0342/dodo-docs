@@ -1,0 +1,1182 @@
+---
+sidebarTitle: Hybrid Billing
+title: Hybrid Billing Models
+description: "Kombinera flera faktureringslägen för att skapa sofistikerade
+  prissättningsstrategier: prenumeration + användning, platser + tillägg, bas +
+  överage och mer."
+icon: layer-group
+---
+
+<Info>
+Hybrid billing kombinerar två eller flera faktureringsmodeller till en enda prissättningsstrategi. Detta gör att du kan fånga värde från olika dimensioner—återkommande avgifter, användning, platser och funktioner—samtidigt som du ger kunderna flexibilitet och förutsägbarhet.
+</Info>
+
+<CardGroup cols={2}>
+<Card title="Användningsbaserad fakturering" icon="chart-line" href="/features/usage-based-billing/introduction">
+  Grund för konsumtionsbaserad prissättning.
+</Card>
+
+<Card title="Prenumerationer" icon="repeat" href="/features/subscription">
+  Grund för återkommande fakturering.
+</Card>
+
+<Card title="Tillägg" icon="puzzle" href="/features/addons">
+  Utöka prenumerationer med valfria uppgraderingar.
+</Card>
+
+<Card title="Platsbaserad fakturering" icon="users" href="/features/seat-based-billing">
+  Prissättningsmodeller per användare.
+</Card>
+</CardGroup>
+
+---
+
+## Vad är Hybrid Billing?
+
+Hybrid billing kombinerar flera prissättningsdimensioner till ett enda produktutbud. Istället för att välja mellan fasta prenumerationer ELLER användningsbaserad prissättning, använder du båda tillsammans.
+
+### Varför använda Hybrid Billing?
+
+| Affärsmål | Hybridlösning |
+|--------------|-----------------|
+| Förutsägbar intäkt + tillväxtpotential | Basprenumeration + användningsöverage |
+| Teamprissättning som skalar | Per-plats + funktionstillägg |
+| Landa kunder, expandera senare | Låg basavgift + konsumtionsavgifter |
+| Företagsflexibilitet | Åtagandeutgifter + on-demand avgifter |
+| Rättvis prissättning för variabel användning | Inkluderad tillåtelse + betalning per användning |
+
+### Vanliga hybridmönster
+
+| Modell | Beskrivning | Exempel | Inbyggt stöd |
+|-------|-------------|---------|----------------|
+| **1. Prenumeration + Användning** | Basavgift + konsumtionsavgifter | \$49/månad + \$0.01/API-anrop efter 10K gratis | ✅ Fullt |
+| **2. Prenumeration + Platser** | Plattformavgift + per-användare avgifter | \$99/månad + \$15/plats | ✅ Fullt |
+| **3. Prenumeration + Funktionstillägg** | Kärnplan + valfria uppgraderingar | \$29/månad + \$19/månad analys + \$9/månad API-åtkomst | ✅ Fullt |
+| **4. Platser + Användning** | Per-användare avgift + konsumtionsöverage | \$10/användare/månad + \$0.05/GB efter 5GB/användare | ⚠️ Arbetsrunda |
+| **5. Prenumeration + Platser + Användning** | Plattform + användare + konsumtion (trippel hybrid) | \$199/månad + \$20/plats + användningsöverage | ⚠️ Arbetsrunda |
+| **6. Tiered Base + Användningsöverage** | Olika nivåer med olika tillåtelser | Starter (5K anrop) vs Pro (50K anrop) + överage | ✅ Fullt |
+| **7. Prenumeration + On-Demand Avgifter** | Återkommande avgift + variabla manuella avgifter | \$99/månad retainer + timdebitering för arbete | ✅ Fullt |
+
+---
+
+## Hybridmodell 1: Prenumeration + Användning
+
+Den vanligaste hybridmodellen. Kunder betalar en basprenumerationsavgift plus avgifter för konsumtion som överstiger inkluderade tillåtelser.
+
+### Hur det fungerar
+
+**Pro-plan: $49/månad**
+
+- **Inkluderat**: 10 000 API-anrop/månad
+- **Överage**: $0.005 per anrop efter 10 000
+
+**Exempelberäkning** (kunden använder 25 000 anrop denna månad):
+- Basprenumeration: $49.00
+- Överage: (25 000 - 10 000) × $0.005 = $75.00
+- **Totalt: $124.00**
+
+### Användningsfall
+
+- **API-plattformar**: Basåtkomst + per-begäran avgifter
+- **AI/ML-tjänster**: Prenumeration + token/genereringsanvändning
+- **Lagringstjänster**: Basplan + per-GB överage
+- **Kommunikationsplattformar**: Bas + per-meddelande/minut avgifter
+
+### Implementering
+
+<Steps>
+<Step title="Skapa Användningsmätare">
+Ställ in en mätare för att spåra den fakturerbara användningsdimensionen.
+
+```bash
+Dashboard: Meters → Create Meter
+Event Name: "api.call"
+Aggregation: Count
+This tracks API calls per customer
+```
+
+</Step>
+
+<Step title="Skapa Prenumerationsprodukt med Användningsprissättning">
+Skapa en prenumerationsprodukt och koppla användningsmätaren med prissättning.
+
+```bash
+Dashboard: Create Product → Subscription
+Name: "Pro Plan"
+Base Price: $49/month
+
+Then attach usage pricing:
+- Meter: api.call
+- Price per unit: $0.005
+- Free threshold: 10,000 (included in subscription)
+```
+
+<Info>
+Användningsmätaren är kopplad direkt till prenumerationsprodukten. Användningsavgifter beräknas och läggs automatiskt till prenumerationsfakturan.
+</Info>
+</Step>
+
+<Step title="Skapa Kassa-session">
+Skapa en kassa-session med din prenumerationsprodukt.
+
+```typescript
+const session = await client.checkoutSessions.create({
+  product_cart: [
+    { product_id: 'prod_pro_plan', quantity: 1 }
+  ],
+  customer: { email: 'customer@example.com' },
+  return_url: 'https://yourapp.com/success'
+});
+```
+
+</Step>
+
+<Step title="Skicka Användningsevenemang">
+Spåra användning under faktureringsperioden.
+
+```typescript
+await fetch('https://api.dodopayments.com/events/ingest', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${apiKey}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    events: [{
+      event_id: `call_${Date.now()}`,
+      customer_id: 'cus_123',
+      event_name: 'api.call',
+      timestamp: new Date().toISOString(),
+      metadata: { endpoint: '/v1/generate' }
+    }]
+  })
+});
+```
+
+</Step>
+</Steps>
+
+### Prissättningsvariationer
+
+<Tabs>
+<Tab title="Inkluderad Tillåtelse">
+Gratis tröskel täcker användning som ingår i basprenumerationen.
+
+**Pro-plan: $49/månad**
+- Inkluderar: 10 000 API-anrop
+- Överage: $0.005/anrop efter 10 000
+- Kunden använder 8 000 → Betalar $49 (ingen överage)
+</Tab>
+
+<Tab title="Ingen Bas + Ren Användning">
+Ingen basavgift, varje enhet är fakturerbar från första användning.
+
+**Betala-efter-användning: $0/månad bas**
+- Inkluderar: 0 API-anrop
+- Användning: $0.01/anrop från första anrop
+- Kunden använder 5 000 → Betalar $50
+</Tab>
+
+<Tab title="Tiered Tillåtelser">
+Olika nivåer inkluderar olika tillåtelser.
+
+- **Starter**: $19/månad (1 000 anrop inkluderade)
+- **Pro**: $49/månad (10 000 anrop inkluderade)
+- **Enterprise**: $199/månad (100 000 anrop inkluderade)
+- Alla nivåer: $0.005/anrop överage
+</Tab>
+</Tabs>
+
+---
+
+## Hybridmodell 2: Prenumeration + Platser
+
+Plattformavgift plus per-användare avgifter. Idealisk för teamarbetsverktyg och B2B SaaS.
+
+### Hur det fungerar
+
+**Teamplan: $99/månad + $15/plats**
+
+- **Basplattformavgift**: $99/månad (inkluderar 3 platser)
+- **Ytterligare platser**: $15/plats/månad
+
+**Exempelberäkning** (team av 12 användare):
+- Plattformavgift: $99.00
+- Extra platser: (12 - 3) × $15 = $135.00
+- **Totalt: $234.00/månad**
+
+### Användningsfall
+
+- **Samarbetsverktyg**: Arbetsytans avgift + per-medlem
+- **CRM-system**: Plattformlicens + per-försäljningsrepresentant
+- **Projektledning**: Teamplan + per-bidragande
+- **Utvecklarverktyg**: Organisationsavgift + per-utvecklare
+
+### Implementering
+
+<Steps>
+<Step title="Skapa Plats Tillägg">
+Skapa ett tillägg för ytterligare platser.
+
+```bash
+Dashboard: Products → Add-ons → Create Add-on
+Name: "Additional Seat"
+Price: $15/month
+Description: "Add another team member"
+```
+
+</Step>
+
+<Step title="Skapa Basprenumeration">
+Skapa prenumerationsprodukten med plattformavgift och koppla tillägget.
+
+```bash
+Dashboard: Create Product → Subscription
+Name: "Team Plan"
+Price: $99/month
+Description: "Includes 3 team members"
+
+Then in Add-ons section:
+- Attach: "Additional Seat" add-on
+```
+
+</Step>
+
+<Step title="Skapa Kassa med Platser">
+Specificera antal platser under kassan.
+
+```typescript
+const session = await client.checkoutSessions.create({
+  product_cart: [{
+    product_id: 'prod_team_plan',
+    quantity: 1,
+    addons: [{
+      addon_id: 'addon_seat',
+      quantity: 9  // 9 extra seats (12 total with 3 included)
+    }]
+  }],
+  customer: { email: 'admin@company.com' },
+  return_url: 'https://yourapp.com/success'
+});
+```
+
+</Step>
+
+<Step title="Justera Platser vid Behov">
+Lägg till eller ta bort platser på befintliga prenumerationer.
+
+```typescript
+// Add 5 more seats
+await client.subscriptions.changePlan('sub_123', {
+  product_id: 'prod_team_plan',
+  quantity: 1,
+  proration_billing_mode: 'prorated_immediately',
+  addons: [{
+    addon_id: 'addon_seat',
+    quantity: 14  // New total: 14 extra seats
+  }]
+});
+```
+
+</Step>
+</Steps>
+
+### Prissättningsvariationer
+
+<Tabs>
+<Tab title="Inkluderade Platser">
+Basplanen inkluderar några platser, avgift för extra.
+
+**Teamplan: $99/månad**
+- Inkluderar: 5 platser
+- Extra platser: $15/plats/månad
+- 20 användare = \$99 + (15 × \$15) = \$324/månad
+</Tab>
+
+<Tab title="Ren Per-Plats">
+Ingen plattformavgift, endast per-användare avgifter.
+
+**Per Användare: $25/användare/månad**
+- Ingen plattformavgift
+- 5 användare = $125/månad
+- 50 användare = $1 250/månad
+
+Implementering: Ställ in basprenumerationspriset till $0, använd endast plats-tillägget.
+</Tab>
+
+<Tab title="Tiered Per-Plats">
+Per-platspriset minskar vid högre nivåer.
+
+- **Starter**: $20/plats (1-10 platser)
+- **Tillväxt**: $15/plats (11-50 platser)
+- **Enterprise**: $10/plats (51+ platser)
+
+Implementering: Skapa separata prenumerationsprodukter för varje nivå med olika tilläggspriser.
+</Tab>
+</Tabs>
+
+---
+
+## Hybridmodell 3: Prenumeration + Funktionstillägg
+
+Kärnprenumeration med valfria funktionsuppgraderingar som kunder kan lägga till.
+
+### Hur det fungerar
+
+**Kärnplan: $29/månad**
+
+**Valfria Tillägg:**
+- Avancerad Analys: +$19/månad
+- API-åtkomst: +$9/månad
+- Prioriterad Support: +$29/månad
+- White-label: +$49/månad
+
+**Exempelberäkning** (kunden väljer Kärna + Analys + API-åtkomst):
+- Kärnplan: $29.00
+- Analys: $19.00
+- API-åtkomst: $9.00
+- **Totalt: $57.00/månad**
+
+### Användningsfall
+
+- **SaaS-plattformar**: Kärnfunktioner + premiummoduler
+- **Marknadsföringsverktyg**: Basverktyg + integrationer
+- **Analysprodukter**: Dashboard + avancerade rapporter
+- **Säkerhetsprogramvara**: Grundläggande skydd + avancerade funktioner
+
+### Implementering
+
+<Steps>
+<Step title="Skapa Funktionstillägg">
+Skapa ett tillägg för varje valfri funktion.
+
+```bash
+# Add-on 1: Advanced Analytics
+Dashboard: Products → Add-ons → Create Add-on
+Name: "Advanced Analytics"
+Price: $19/month
+
+# Add-on 2: API Access
+Name: "API Access"
+Price: $9/month
+
+# Add-on 3: Priority Support
+Name: "Priority Support"
+Price: $29/month
+
+# Add-on 4: White-label
+Name: "White-label"
+Price: $49/month
+```
+
+</Step>
+
+<Step title="Skapa Kärnprenumeration">
+Definiera din basprenumeration och koppla alla funktionstillägg.
+
+```bash
+Dashboard: Create Product → Subscription
+Name: "Core Plan"
+Price: $29/month
+
+Then in Add-ons section:
+- Attach all feature add-ons
+```
+
+</Step>
+
+<Step title="Låt Kunder Välja">
+Kassa med valda funktioner.
+
+```typescript
+const session = await client.checkoutSessions.create({
+  product_cart: [{
+    product_id: 'prod_core_plan',
+    quantity: 1,
+    addons: [
+      { addon_id: 'addon_analytics', quantity: 1 },
+      { addon_id: 'addon_api_access', quantity: 1 }
+      // Customer didn't select support or white-label
+    ]
+  }],
+  return_url: 'https://yourapp.com/success'
+});
+```
+
+</Step>
+
+<Step title="Lägg till Funktioner Senare">
+Kunder kan lägga till funktioner till befintliga prenumerationer.
+
+```typescript
+// Customer wants to add Priority Support
+await client.subscriptions.changePlan('sub_123', {
+  product_id: 'prod_core_plan',
+  quantity: 1,
+  proration_billing_mode: 'prorated_immediately',
+  addons: [
+    { addon_id: 'addon_analytics', quantity: 1 },
+    { addon_id: 'addon_api_access', quantity: 1 },
+    { addon_id: 'addon_priority_support', quantity: 1 }  // New!
+  ]
+});
+```
+
+</Step>
+</Steps>
+
+---
+
+## Hybridmodell 4: Platser + Användning
+
+Per-användare avgift kombinerad med konsumtionsbaserade avgifter. Varje användare får en tillåtelse.
+
+<Warning>
+**Begränsning**: Dodo Payments stöder för närvarande inte att koppla både användningsmätare och tillägg till samma prenumerationsprodukt. Denna modell kräver en arbetsrunda med hjälp av applikationslogik.
+</Warning>
+
+<Info>
+**Kommer Snart**: Inbyggt stöd för hybridfakturering av Platser + Användning finns på vår vägkarta. Detta kommer att göra det möjligt för dig att koppla både användningsmätare och plats-tillägg till samma prenumerationsprodukt.
+</Info>
+
+### Hur det fungerar
+
+**Teamanalys: $20/användare/månad**
+
+**Varje användare inkluderar:**
+- 5 GB databehandling/månad
+- Överage: $2/GB efter tillåtelse
+
+**Exempelberäkning** (10-användarteam som använder totalt 80 GB):
+- Platsavgifter: 10 × $20 = $200.00
+- Inkluderad data: 10 × 5 GB = 50 GB
+- Överage: (80 - 50) × $2 = $60.00
+- **Totalt: $260.00/månad**
+
+### Användningsfall
+
+- **Analysplattformar**: Per-analytiker + databehandling
+- **Designverktyg**: Per-designer + lagring/exporter
+- **Utvecklingsmiljöer**: Per-utvecklare + beräknings timmar
+- **Kommunikationsverktyg**: Per-användare + meddelande/samtalsvolym
+
+### Implementeringsalternativ
+
+Eftersom du inte kan koppla både användningsmätare och tillägg till samma prenumeration, välj ett av dessa tillvägagångssätt:
+
+<Tabs>
+<Tab title="Alternativ A: Användningsprodukt + App-hanterade Platser">
+Använd en användningsbaserad prenumeration och hantera platsfakturering i din applikation.
+
+<Steps>
+<Step title="Skapa Användningsmätare">
+
+```bash
+Dashboard: Meters → Create Meter
+Event Name: "data.processed"
+Aggregation: Sum
+Property: "bytes"
+```
+
+</Step>
+
+<Step title="Skapa Användningsbaserad Prenumeration">
+
+```bash
+Dashboard: Create Product → Subscription
+Name: "Team Analytics"
+Base Price: $0/month
+
+Attach usage pricing:
+- Meter: data.processed
+- Price per unit: $2/GB
+- Free threshold: 0 (managed by your app)
+```
+
+</Step>
+
+<Step title="Hantera Platser i Din Applikation">
+Spåra antal platser och beräkna platsavgifter separat.
+
+```typescript
+// Your application tracks seats and calculates total cost
+async function calculateMonthlyBill(customerId: string) {
+  const seatCount = await getSeatCount(customerId);
+  const seatFee = seatCount * 20; // $20/seat
+
+  // Usage is billed by Dodo automatically
+  // You invoice/charge seat fees separately or include in base price
+
+  // Alternatively, adjust base subscription price when seats change
+  const totalBasePrice = seatCount * 2000; // $20/seat in cents
+  await client.subscriptions.update('sub_123', {
+    // Update subscription to reflect seat-based pricing
+  });
+}
+```
+
+</Step>
+
+<Step title="Beräkna Dynamisk Gratis Tröskel">
+Justera inkluderad användning baserat på antal platser.
+
+```typescript
+// When checking usage, apply per-seat allowance
+async function checkUsageOverage(customerId: string) {
+  const seatCount = await getSeatCount(customerId);
+  const includedGB = seatCount * 5; // 5 GB per user
+
+  const currentUsage = await getUsageFromDodo(customerId);
+  const overage = Math.max(0, currentUsage - includedGB);
+
+  // Overage is billed by Dodo at $2/GB
+  return { included: includedGB, used: currentUsage, overage };
+}
+```
+
+</Step>
+</Steps>
+</Tab>
+
+<Tab title="Alternativ B: Plats Tillägg + On-Demand Användningsavgifter">
+Använd tillägg för platser och ta ut användning manuellt via on-demand avgifter.
+
+<Steps>
+<Step title="Skapa Plats Tillägg">
+
+```bash
+Dashboard: Products → Add-ons → Create Add-on
+Name: "Team Member"
+Price: $20/month
+```
+
+</Step>
+
+<Step title="Skapa Prenumeration med Tillägg">
+
+```bash
+Dashboard: Create Product → Subscription
+Name: "Team Analytics"
+Base Price: $0/month
+
+Attach add-on:
+- "Team Member" add-on
+
+Enable on-demand charging
+```
+
+</Step>
+
+<Step title="Spåra Användning i Din Applikation">
+
+```typescript
+// Track usage events in your system
+async function trackDataProcessed(customerId: string, bytes: number) {
+  await saveUsageEvent({
+    customer_id: customerId,
+    event_type: 'data.processed',
+    bytes: bytes,
+    timestamp: new Date()
+  });
+}
+```
+
+</Step>
+
+<Step title="Ta Ut Användning i Slutet av Cykeln">
+Beräkna och ta ut användningsöverage manuellt.
+
+```typescript
+async function billUsageOverage(subscriptionId: string) {
+  const subscription = await getSubscription(subscriptionId);
+  const seatCount = subscription.addons.find(a => a.id === 'addon_seat')?.quantity || 0;
+
+  const includedGB = seatCount * 5;
+  const usedGB = await calculatePeriodUsage(subscription.customer_id);
+  const overageGB = Math.max(0, usedGB - includedGB);
+
+  if (overageGB > 0) {
+    const overageCharge = overageGB * 200; // $2/GB in cents
+    await client.subscriptions.charge(subscriptionId, {
+      product_price: overageCharge,
+      product_description: `Data overage: ${overageGB} GB × $2/GB`
+    });
+  }
+}
+```
+
+</Step>
+</Steps>
+</Tab>
+</Tabs>
+
+<Info>
+**Rekommendation**: Alternativ B (Plats Tillägg + On-Demand Användning) är ofta enklare att implementera eftersom Dodo hanterar platsfakturering automatiskt. Du behöver bara spåra och ta ut användningsöverage.
+</Info>
+
+---
+
+## Hybridmodell 5: Prenumeration + Platser + Användning (Trippel Hybrid)
+
+Den mest omfattande modellen: plattformavgift + per-användare + konsumtion.
+
+<Warning>
+**Begränsning**: Dodo Payments stöder för närvarande inte att koppla både användningsmätare och tillägg till samma prenumerationsprodukt. Denna modell kräver en arbetsrunda.
+</Warning>
+
+<Info>
+**Kommer Snart**: Inbyggt stöd för Trippel Hybrid fakturering (Bas + Platser + Användning) finns på vår vägkarta. Detta kommer att göra det möjligt för dig att koppla både användningsmätare och plats-tillägg till samma prenumerationsprodukt.
+</Info>
+
+### Hur det fungerar
+
+**Enterprise Plattform**
+
+- **Plattformavgift**: $199/månad
+- **Per Plats**: $25/användare/månad
+- **Användning**: $0.10/1000 API-anrop (50K inkluderade)
+
+**Exempelberäkning** (företag med 20 användare, 150 000 API-anrop):
+- Plattform: $199.00
+- Platser: 20 × $25 = $500.00
+- Användning: (150K - 50K) × \$0.10/1K = \$10.00
+- **Totalt: $709.00/månad**
+
+### Användningsfall
+
+- **Enterprise SaaS**: Plattform + team + konsumtion
+- **Dataplattformar**: Arbetsyta + analytiker + frågor
+- **Integrationsplattformar**: Hub + anslutningar + transaktioner
+- **AI-plattformar**: Arbetsyta + utvecklare + inferens
+
+### Implementeringsalternativ
+
+Välj ett av dessa tillvägagångssätt för att implementera trippel hybridfakturering:
+
+<Tabs>
+<Tab title="Alternativ A: Bas + Platser (Tillägg) + On-Demand Användning">
+Använd prenumeration med plats-tillägg, ta ut användning manuellt via on-demand avgifter.
+
+**Detta är det rekommenderade tillvägagångssättet** eftersom Dodo hanterar plattformavgiften och platsfaktureringen automatiskt.
+
+<Steps>
+<Step title="Skapa Plats Tillägg">
+
+```bash
+Dashboard: Products → Add-ons → Create Add-on
+Name: "User Seat"
+Price: $25/month
+```
+
+</Step>
+
+<Step title="Skapa Prenumerationsprodukt">
+
+```bash
+Dashboard: Create Product → Subscription
+Name: "Enterprise Platform"
+Base Price: $199/month
+
+Attach add-on:
+- "User Seat" add-on
+
+Enable on-demand charging
+```
+
+</Step>
+
+<Step title="Skapa Kassa med Platser">
+
+```typescript
+const session = await client.checkoutSessions.create({
+  product_cart: [{
+    product_id: 'prod_enterprise_platform',
+    quantity: 1,
+    addons: [{
+      addon_id: 'addon_user_seat',
+      quantity: 20  // 20 users
+    }]
+  }],
+  customer: { email: 'enterprise@company.com' },
+  return_url: 'https://yourapp.com/success'
+});
+```
+
+</Step>
+
+<Step title="Spåra Användning i Din Applikation">
+Spara användningsevenemang i ditt system.
+
+```typescript
+// Track API calls in your system
+async function trackApiCall(customerId: string, endpoint: string) {
+  await saveUsageEvent({
+    customer_id: customerId,
+    event_type: 'api.call',
+    endpoint: endpoint,
+    timestamp: new Date()
+  });
+}
+```
+
+</Step>
+
+<Step title="Ta Ut Användning i Slutet av Cykeln">
+Beräkna och ta ut användningsöverage via on-demand avgift.
+
+```typescript
+async function billUsageOverage(subscriptionId: string) {
+  const usage = await calculatePeriodUsage(subscriptionId);
+  const includedCalls = 50000;
+  const overageCalls = Math.max(0, usage.totalCalls - includedCalls);
+
+  if (overageCalls > 0) {
+    // $0.10 per 1000 calls = $0.0001 per call
+    const overageCharge = Math.ceil(overageCalls / 1000) * 10; // cents
+    await client.subscriptions.charge(subscriptionId, {
+      product_price: overageCharge,
+      product_description: `API usage: ${overageCalls.toLocaleString()} calls over 50K included`
+    });
+  }
+}
+```
+
+</Step>
+</Steps>
+</Tab>
+
+<Tab title="Alternativ B: Bas + Användning (Mätare) + App-hanterade Platser">
+Använd prenumeration med användningsmätare, hantera platsfaktureringen i din applikation.
+
+<Steps>
+<Step title="Skapa Användningsmätare">
+
+```bash
+Dashboard: Meters → Create Meter
+Event Name: "api.call"
+Aggregation: Count
+```
+
+</Step>
+
+<Step title="Skapa Prenumerationsprodukt med Användning">
+
+```bash
+Dashboard: Create Product → Subscription
+Name: "Enterprise Platform"
+Base Price: $199/month
+
+Attach usage pricing:
+- Meter: api.call
+- Price: $0.10 per 1000 calls
+- Free threshold: 50,000
+```
+
+</Step>
+
+<Step title="Hantera Platser i Din Applikation">
+Spåra antal platser och justera basprenumerationspriset därefter.
+
+```typescript
+// When seats change, update subscription price
+async function updateSeatCount(subscriptionId: string, newSeatCount: number) {
+  const basePlatformFee = 19900; // $199 in cents
+  const perSeatFee = 2500; // $25 in cents
+  const totalPrice = basePlatformFee + (newSeatCount * perSeatFee);
+
+  // Store seat count in your system
+  await updateSeatsInDatabase(subscriptionId, newSeatCount);
+
+  // Note: You may need to handle this via plan changes or
+  // create multiple tier products for common seat counts
+}
+```
+
+</Step>
+
+<Step title="Skicka Användningsevenemang till Dodo">
+```typescript
+await fetch('https://api.dodopayments.com/events/ingest', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${apiKey}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    events: [{
+      event_id: `api_${Date.now()}`,
+      customer_id: 'cus_enterprise',
+      event_name: 'api.call',
+      timestamp: new Date().toISOString()
+    }]
+  })
+});
+```
+</Step>
+</Steps>
+</Tab>
+</Tabs>
+
+<Info>
+**Rekommendation**: Alternativ A (Bas + Platser + On-Demand Användning) är generellt enklare eftersom Dodo hanterar plattform och platsfakturering automatiskt. Du behöver bara spåra användning och skicka avgifter i slutet av varje faktureringscykel.
+</Info>
+
+---
+
+## Hybridmodell 6: Tiered Base + Användningsöverage
+
+Olika prenumerationsnivåer med olika inkluderade tillåtelser och överagepriser.
+
+### Hur det fungerar
+
+| Nivå | Pris | Inkluderade Anrop | Överagepris |
+|------|-------|----------------|--------------|
+| **Starter** | $19/månad | 1 000 | $0.02/anrop |
+| **Pro** | $79/månad | 25 000 | $0.01/anrop |
+| **Business** | $199/månad | 100 000 | $0.005/anrop |
+| **Enterprise** | $499/månad | 500 000 | $0.002/anrop |
+
+### Implementering
+
+Skapa separata prenumerationsprodukter för varje nivå, var och en med sin egen användningskonfiguration:
+
+```bash
+# For each tier, create a subscription product:
+
+# Starter Tier
+Dashboard: Create Product → Subscription
+Name: "Starter"
+Base Price: $19/month
+Usage Pricing:
+- Meter: api.call
+- Price: $0.02/call
+- Free threshold: 1,000
+
+# Pro Tier
+Name: "Pro"
+Base Price: $79/month
+Usage Pricing:
+- Meter: api.call
+- Price: $0.01/call
+- Free threshold: 25,000
+
+# ... and so on for Business and Enterprise
+```
+
+### Uppgraderingsväg
+
+När kunder uppgraderar nivåer får de:
+- Högre inkluderad tillåtelse
+- Lägre överagepriser
+- Mer värde per dollar
+
+```typescript
+// Customer upgrades from Starter to Pro
+await client.subscriptions.changePlan('sub_123', {
+  product_id: 'prod_pro',
+  quantity: 1,
+  proration_billing_mode: 'prorated_immediately'
+});
+```
+
+---
+
+## Hybridmodell 7: Prenumeration + On-Demand Avgifter
+
+Återkommande prenumeration plus variabla manuella avgifter för tjänster eller överage.
+
+### Hur det fungerar
+
+**Retainer-plan: $199/månad**
+
+**Inkluderar:**
+- Plattformåtkomst
+- 5 timmar konsultation/månad
+- E-postsupport
+
+**On-Demand Avgifter (vid behov):**
+- Extra konsultation: $150/timme
+- Anpassad utveckling: $200/timme
+- Nödsupport: $100/händelse
+
+**Exempelberäkning** (denna månad):
+- Retainer: $199.00
+- 3 extra konsultationstimmar: $450.00
+- 1 nödsupport: $100.00
+- **Totalt: $749.00**
+
+### Användningsfall
+
+- **Konsulttjänster**: Retainer + timdebitering
+- **Hanterade tjänster**: Basavgift + händelseavgifter
+- **Byråtjänster**: Månatlig avgift + projektavgifter
+- **Supportplaner**: SLA-avgift + per-biljett eller per-timme
+
+### Implementering
+
+<Steps>
+<Step title="Skapa On-Demand Prenumeration">
+Ställ in prenumeration med on-demand avgifter aktiverade.
+
+```typescript
+const subscription = await client.subscriptions.create({
+  billing: {
+    city: 'San Francisco',
+    country: 'US',
+    state: 'CA',
+    street: '123 Main St',
+    zipcode: '94105'
+  },
+  customer: { customer_id: 'cus_123' },
+  product_id: 'prod_retainer',
+  quantity: 1,
+  payment_link: true,
+  return_url: 'https://yourapp.com/success',
+  on_demand: {
+    mandate_only: false,
+    product_price: 19900  // $199 initial charge
+  }
+});
+```
+
+</Step>
+
+<Step title="Ta Ut Avgifter för Tjänster">
+Skapa avgifter när tjänster levereras.
+
+```typescript
+// Charge for 3 hours of consulting
+await client.subscriptions.charge('sub_123', {
+  product_price: 45000,  // $450.00 (3 × $150)
+  product_description: 'Consulting - 3 hours (March 15)'
+});
+
+// Charge for emergency support incident
+await client.subscriptions.charge('sub_123', {
+  product_price: 10000,  // $100.00
+  product_description: 'Emergency support - Server outage (March 18)'
+});
+```
+
+</Step>
+
+<Step title="Spåra och Fakturera">
+Alla avgifter visas på kundens faktura.
+
+```typescript
+// Retrieve subscription charges
+const payments = await client.payments.list({
+  subscription_id: 'sub_123'
+});
+
+// Show itemized breakdown to customer
+payments.items.forEach(payment => {
+  console.log(`${payment.description}: $${payment.amount / 100}`);
+});
+```
+
+</Step>
+</Steps>
+
+---
+
+## Verkliga Exempel
+
+<Info>
+Dessa exempel visar idealiska prissättningsstrukturer. På grund av begränsningen att användningsmätare och tillägg inte kan kopplas till samma produkt, kräver vissa kombinationer arbetsrundor (användning av on-demand avgifter för användning eller app-hanterade platser).
+</Info>
+
+### Exempel 1: AI SaaS Plattform
+
+**Prissättningsstruktur:**
+- **Basprenumeration**: $99/månad (plattformåtkomst, 5 platser inkluderade)
+- **Plats Tillägg**: $20/plats/månad
+- **Funktionstillägg**: Anpassade Modeller (\$49/månad), API-åtkomst (\$29/månad), Prioriterad Kö (\$19/månad)
+- **Användningsöverage**: $0.02 per 1 000 tokens efter 100K (debiteras via on-demand)
+
+**Implementering**: Använd prenumeration med plats- och funktionstillägg. Spåra tokenanvändning i din applikation och ta ut överage via on-demand avgifter i slutet av faktureringscykeln.
+
+**Exempelkund** (12 användare, 500K tokens, Anpassade Modeller + API-åtkomst):
+| Komponent | Beräkning | Belopp |
+|-----------|-------------|--------|
+| Bas | Plattformavgift | $99 |
+| Extra platser | 7 × $20 | $140 |
+| Anpassade Modeller | Tillägg | $49 |
+| API-åtkomst | Tillägg | $29 |
+| Tokenöverage | 400K × \$0.02/1K (on-demand) | \$8 |
+| **Totalt** | | **$325/månad** |
+
+### Exempel 2: Utvecklarverktyg Plattform
+
+**Nivåalternativ:**
+
+| | Gratis | Pro | Enterprise |
+|---|------|-----|------------|
+| **Pris** | $0/månad | $29/månad | $199/månad |
+| **Användare** | 1 | 5 inkluderade | Obegränsat |
+| **Byggnader** | 100 | 1 000 | 10 000 |
+| **Lagring** | 1 GB | 10 GB | 100 GB |
+
+**Implementeringsalternativ**:
+
+**Alternativ A** (Användningsfokuserad): Skapa produkter med användningsmätare för byggnader/lagring. Hantera användare i din applikation.
+
+**Alternativ B** (Platsfokuserad): Skapa produkter med plats-tillägg. Spåra byggnader/lagringsanvändning och ta ut överage via on-demand.
+
+**Tillägg (om du använder Alternativ B):**
+- Extra användare: $10/användare/månad
+- Prioriterade byggnader: $19/månad
+- Anpassade domäner: $9/domän/månad
+
+### Exempel 3: Marknadsföringsautomation
+
+**Prissättningsstruktur:**
+- **Bas**: $79/månad (kärnautomationfunktioner, 3 platser inkluderade)
+- **Kontakt Nivåer** (tillägg): 1K inkluderat, 5K (+\$30), 25K (+\$80), 100K (+\$200)
+- **Funktionstillägg**: SMS-marknadsföring (\$29/månad), Landningssidor (\$19/månad), A/B-testning (\$29/månad)
+- **Teamplatser**: $15/användare/månad tillägg
+- **E-postvolym**: Spåra i applikationen, ta ut överage via on-demand ($1/1 000 e-postmeddelanden över gränsen)
+
+**Implementering**: Använd prenumeration med kontakt nivåer, funktionstillägg och plats-tillägg. Spåra e-postutskick i din applikation och ta ut överage via on-demand avgifter.
+
+---
+
+## Implementeringsbästa praxis
+
+### Tydlighet på Prissättningssidan
+
+<Tip>
+Gör hybridprissättning lätt att förstå. Visa basavgifter, vad som ingår och hur överage fungerar tydligt på din prissättningssida.
+</Tip>
+
+**Bra**: "\$49/månad inkluderar 10 000 API-anrop. Ytterligare anrop: \$0.005 vardera"
+
+**Dåligt**: "\$49/månad + användningsavgifter"
+
+### Kostnadsförutsägbarhet
+
+Hjälp kunder att uppskatta sina kostnader:
+
+```typescript
+// Provide a cost calculator
+function estimateMonthlyCost({
+  plan,
+  seats,
+  expectedUsage,
+  addons
+}: EstimateParams): number {
+  let total = plan.basePrice;
+
+  // Add seat costs
+  const extraSeats = Math.max(0, seats - plan.includedSeats);
+  total += extraSeats * plan.seatPrice;
+
+  // Add usage overage
+  const overage = Math.max(0, expectedUsage - plan.includedUsage);
+  total += overage * plan.overageRate;
+
+  // Add feature add-ons
+  total += addons.reduce((sum, addon) => sum + addon.price, 0);
+
+  return total;
+}
+```
+
+### Användningssynlighet
+
+Visa kunder deras användning i realtid:
+
+```typescript
+// Display usage dashboard
+async function getUsageSummary(subscriptionId: string) {
+  const usage = await client.subscriptions.getUsageHistory(subscriptionId);
+
+  return {
+    current: usage.current_period_usage,
+    included: usage.free_threshold,
+    remaining: Math.max(0, usage.free_threshold - usage.current_period_usage),
+    overage: Math.max(0, usage.current_period_usage - usage.free_threshold),
+    projectedCost: calculateProjectedOverage(usage)
+  };
+}
+```
+
+### Fakturatransparens
+
+Ge detaljerade fakturor som visar alla komponenter:
+
+| Radpost | Belopp |
+|-----------|--------|
+| Pro-plan (Månatlig) | $49.00 |
+| Ytterligare Platser (7 × $15.00) | $105.00 |
+| API-användning - Inkluderad (10 000 anrop) | $0.00 |
+| API-användning - Överage (15 420 anrop × $0.005) | $77.10 |
+| Avancerad Analys Tillägg | $19.00 |
+| **Delsumma** | **$250.10** |
+| Skatt (8.5%) | $21.26 |
+| **Totalt Skuldbelopp** | **$271.36** |
+
+---
+
+## Felsökning av Hybrid Billing
+
+<AccordionGroup>
+<Accordion title="Användning spåras inte korrekt">
+**Symptom**: Användning visar 0 eller felaktiga värden.
+
+**Lösningar**:
+1. Verifiera att händelseinmatning fungerar (kontrollera API-svar)
+2. Bekräfta `customer_id` matchar prenumerationskunden
+3. Kontrollera `event_name` matchar mätarkonfigurationen
+4. Verifiera att händelser har korrekta tidsstämplar (inte framtidsdatum)
+</Accordion>
+
+<Accordion title="Prorateringsförvirring med flera komponenter">
+**Symptom**: Kunden debiteras oväntade belopp när planer ändras.
+
+**Lösningar**:
+1. Använd `previewChangePlan` API för att visa exakta avgifter innan bekräftelse
+2. Kommunicera att prorateringen gäller både prenumeration OCH tillägg
+3. Överväg att använda `difference_immediately` för enklare uppgraderingsfakturering
+</Accordion>
+
+<Accordion title="Gratis tröskel tillämpas inte korrekt">
+**Symptom**: Kunden debiteras för användning som borde vara gratis.
+
+**Lösningar**:
+1. Verifiera att gratis tröskel är konfigurerad på den användningsbaserade produkten
+2. Kontrollera att tröskelenheten matchar händelseaggregationen (anrop vs. begärningar)
+3. Bekräfta att användningsmätaren är korrekt kopplad till prenumerationsprodukten
+</Accordion>
+
+<Accordion title="Tillägg visas inte i kassan">
+**Symptom**: Kan inte lägga till platser eller funktioner under kassan.
+
+**Lösningar**:
+1. Verifiera att tillägg är kopplade till prenumerationsprodukten i instrumentpanelen
+2. Kontrollera att tilläggs-ID:n är korrekta i API-anrop
+3. Se till att tilläggsvalutan matchar prenumerationsproduktens valuta
+</Accordion>
+</AccordionGroup>
+
+---
+
+## Relaterad Dokumentation
+
+<CardGroup cols={2}>
+<Card title="Produkter" icon="box" href="/features/products">
+  Översikt över alla produkttyper och guider.
+</Card>
+
+<Card title="Användningsbaserad Faktureringsguide" icon="chart-line" href="/developer-resources/usage-based-billing-guide">
+  Komplett implementering av användningsfakturering.
+</Card>
+
+<Card title="Prenumerationshantering" icon="repeat" href="/features/subscription">
+  Hantera återkommande prenumerationer.
+</Card>
+
+<Card title="Tillägg" icon="puzzle" href="/features/addons">
+  Utöka prenumerationer med tillägg.
+</Card>
+</CardGroup>
