@@ -1,0 +1,1140 @@
+---
+sidebarTitle: "Hybrid Billing"
+title: "Hybrid Billing Models"
+description: "Combine multiple billing modes to create sophisticated pricing strategies: subscription + usage, seats + add-ons, base + overage, and more."
+icon: "layer-group"
+---
+
+<Info>
+Hybrid billing combines two or more billing models into a single pricing strategy. This lets you capture value from different dimensions—recurring fees, usage, seats, and features—while giving customers flexibility and predictability.
+</Info>
+
+<CardGroup cols={2}>
+<Card title="Usage-Based Billing" icon="chart-line" href="/features/usage-based-billing/introduction">
+  Foundation for consumption-based pricing.
+</Card>
+
+<Card title="Subscriptions" icon="repeat" href="/features/subscription">
+  Foundation for recurring billing.
+</Card>
+
+<Card title="Add-ons" icon="puzzle" href="/features/addons">
+  Extend subscriptions with optional upgrades.
+</Card>
+
+<Card title="Seat-Based Billing" icon="users" href="/features/seat-based-billing">
+  Per-user pricing models.
+</Card>
+</CardGroup>
+
+---
+
+## What is Hybrid Billing?
+
+Hybrid billing combines multiple pricing dimensions into a single product offering. Instead of choosing between flat-rate subscriptions OR usage-based pricing, you use both together.
+
+### Why Use Hybrid Billing?
+
+| Business Goal | Hybrid Solution |
+|--------------|-----------------|
+| Predictable revenue + growth upside | Base subscription + usage overage |
+| Team pricing that scales | Per-seat + feature add-ons |
+| Land customers, expand later | Low base fee + consumption charges |
+| Enterprise flexibility | Committed spend + on-demand charges |
+| Fair pricing for variable usage | Included allowance + pay-per-use |
+
+### Common Hybrid Patterns
+
+| Model | Description | Example | Native Support |
+|-------|-------------|---------|----------------|
+| **1. Subscription + Usage** | Base fee + consumption charges | \$49/mo + \$0.01/API call after 10K free | ✅ Full |
+| **2. Subscription + Seats** | Platform fee + per-user charges | \$99/mo + \$15/seat | ✅ Full |
+| **3. Subscription + Feature Add-ons** | Core plan + optional upgrades | \$29/mo + \$19/mo analytics + \$9/mo API access | ✅ Full |
+| **4. Seats + Usage** | Per-user fee + consumption overage | \$10/user/mo + \$0.05/GB after 5GB/user | ⚠️ Workaround |
+| **5. Subscription + Seats + Usage** | Platform + users + consumption (triple hybrid) | \$199/mo + \$20/seat + usage overage | ⚠️ Workaround |
+| **6. Tiered Base + Usage Overage** | Different tiers with different allowances | Starter (5K calls) vs Pro (50K calls) + overage | ✅ Full |
+| **7. Subscription + On-Demand Charges** | Recurring fee + variable manual charges | \$99/mo retainer + hourly billing for work | ✅ Full |
+
+---
+
+## Hybrid Model 1: Subscription + Usage
+
+The most common hybrid model. Customers pay a base subscription fee plus charges for consumption that exceeds included allowances.
+
+### How It Works
+
+**Pro Plan: $49/month**
+
+- **Included**: 10,000 API calls/month
+- **Overage**: $0.005 per call after 10,000
+
+**Example calculation** (customer uses 25,000 calls this month):
+- Base subscription: $49.00
+- Overage: (25,000 - 10,000) × $0.005 = $75.00
+- **Total: $124.00**
+
+### Use Cases
+
+- **API platforms**: Base access + per-request charges
+- **AI/ML services**: Subscription + token/generation usage
+- **Storage services**: Base plan + per-GB overage
+- **Communication platforms**: Base + per-message/minute charges
+
+### Implementation
+
+<Steps>
+<Step title="Create Usage Meter">
+Set up a meter to track the billable usage dimension.
+
+```bash
+Dashboard: Meters → Create Meter
+Event Name: "api.call"
+Aggregation: Count
+This tracks API calls per customer
+```
+</Step>
+
+<Step title="Create Subscription Product with Usage Pricing">
+Create a subscription product and attach the usage meter with pricing.
+
+```bash
+Dashboard: Create Product → Subscription
+Name: "Pro Plan"
+Base Price: $49/month
+
+Then attach usage pricing:
+- Meter: api.call
+- Price per unit: $0.005
+- Free threshold: 10,000 (included in subscription)
+```
+
+<Info>
+The usage meter is attached directly to the subscription product. Usage charges are calculated and added to the subscription invoice automatically.
+</Info>
+</Step>
+
+<Step title="Create Checkout Session">
+Create a checkout session with your subscription product.
+
+```typescript
+const session = await client.checkoutSessions.create({
+  product_cart: [
+    { product_id: 'prod_pro_plan', quantity: 1 }
+  ],
+  customer: { email: 'customer@example.com' },
+  return_url: 'https://yourapp.com/success'
+});
+```
+</Step>
+
+<Step title="Send Usage Events">
+Track usage throughout the billing period.
+
+```typescript
+await fetch('https://api.dodopayments.com/events/ingest', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${apiKey}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    events: [{
+      event_id: `call_${Date.now()}`,
+      customer_id: 'cus_123',
+      event_name: 'api.call',
+      timestamp: new Date().toISOString(),
+      metadata: { endpoint: '/v1/generate' }
+    }]
+  })
+});
+```
+</Step>
+</Steps>
+
+### Pricing Variations
+
+<Tabs>
+<Tab title="Included Allowance">
+Free threshold covers usage included in base subscription.
+
+**Pro Plan: $49/month**
+- Includes: 10,000 API calls
+- Overage: $0.005/call after 10,000
+- Customer uses 8,000 → Pays $49 (no overage)
+</Tab>
+
+<Tab title="Zero Base + Pure Usage">
+No base fee, every unit is billable from the first use.
+
+**Pay-As-You-Go: $0/month base**
+- Includes: 0 API calls
+- Usage: $0.01/call from first call
+- Customer uses 5,000 → Pays $50
+</Tab>
+
+<Tab title="Tiered Allowances">
+Different tiers include different allowances.
+
+- **Starter**: $19/month (1,000 calls included)
+- **Pro**: $49/month (10,000 calls included)
+- **Enterprise**: $199/month (100,000 calls included)
+- All tiers: $0.005/call overage
+</Tab>
+</Tabs>
+
+---
+
+## Hybrid Model 2: Subscription + Seats
+
+Platform fee plus per-user charges. Ideal for team collaboration tools and B2B SaaS.
+
+### How It Works
+
+**Team Plan: $99/month + $15/seat**
+
+- **Base platform fee**: $99/month (includes 3 seats)
+- **Additional seats**: $15/seat/month
+
+**Example calculation** (team of 12 users):
+- Platform fee: $99.00
+- Extra seats: (12 - 3) × $15 = $135.00
+- **Total: $234.00/month**
+
+### Use Cases
+
+- **Collaboration tools**: Workspace fee + per-member
+- **CRM systems**: Platform license + per-sales-rep
+- **Project management**: Team plan + per-contributor
+- **Developer tools**: Organization fee + per-developer
+
+### Implementation
+
+<Steps>
+<Step title="Create Seat Add-on">
+Create an add-on for additional seats.
+
+```bash
+Dashboard: Products → Add-ons → Create Add-on
+Name: "Additional Seat"
+Price: $15/month
+Description: "Add another team member"
+```
+</Step>
+
+<Step title="Create Base Subscription">
+Create the subscription product with platform fee and attach the add-on.
+
+```bash
+Dashboard: Create Product → Subscription
+Name: "Team Plan"
+Price: $99/month
+Description: "Includes 3 team members"
+
+Then in Add-ons section:
+- Attach: "Additional Seat" add-on
+```
+</Step>
+
+<Step title="Create Checkout with Seats">
+Specify seat quantity during checkout.
+
+```typescript
+const session = await client.checkoutSessions.create({
+  product_cart: [{
+    product_id: 'prod_team_plan',
+    quantity: 1,
+    addons: [{
+      addon_id: 'addon_seat',
+      quantity: 9  // 9 extra seats (12 total with 3 included)
+    }]
+  }],
+  customer: { email: 'admin@company.com' },
+  return_url: 'https://yourapp.com/success'
+});
+```
+</Step>
+
+<Step title="Adjust Seats as Needed">
+Add or remove seats on existing subscriptions.
+
+```typescript
+// Add 5 more seats
+await client.subscriptions.changePlan('sub_123', {
+  product_id: 'prod_team_plan',
+  quantity: 1,
+  proration_billing_mode: 'prorated_immediately',
+  addons: [{
+    addon_id: 'addon_seat',
+    quantity: 14  // New total: 14 extra seats
+  }]
+});
+```
+</Step>
+</Steps>
+
+### Pricing Variations
+
+<Tabs>
+<Tab title="Included Seats">
+Base plan includes some seats, charge for extras.
+
+**Team Plan: $99/month**
+- Includes: 5 seats
+- Extra seats: $15/seat/month
+- 20 users = \$99 + (15 × \$15) = \$324/month
+</Tab>
+
+<Tab title="Pure Per-Seat">
+No platform fee, only per-user charges.
+
+**Per User: $25/user/month**
+- No platform fee
+- 5 users = $125/month
+- 50 users = $1,250/month
+
+Implementation: Set base subscription price to $0, use seat add-on only.
+</Tab>
+
+<Tab title="Tiered Per-Seat">
+Per-seat price decreases at higher tiers.
+
+- **Starter**: $20/seat (1-10 seats)
+- **Growth**: $15/seat (11-50 seats)
+- **Enterprise**: $10/seat (51+ seats)
+
+Implementation: Create separate subscription products for each tier with different add-on prices.
+</Tab>
+</Tabs>
+
+---
+
+## Hybrid Model 3: Subscription + Feature Add-ons
+
+Core subscription with optional feature upgrades customers can add.
+
+### How It Works
+
+**Core Plan: $29/month**
+
+**Optional Add-ons:**
+- Advanced Analytics: +$19/month
+- API Access: +$9/month
+- Priority Support: +$29/month
+- White-label: +$49/month
+
+**Example calculation** (customer chooses Core + Analytics + API Access):
+- Core plan: $29.00
+- Analytics: $19.00
+- API Access: $9.00
+- **Total: $57.00/month**
+
+### Use Cases
+
+- **SaaS platforms**: Core features + premium modules
+- **Marketing tools**: Base tool + integrations
+- **Analytics products**: Dashboard + advanced reports
+- **Security software**: Basic protection + advanced features
+
+### Implementation
+
+<Steps>
+<Step title="Create Feature Add-ons">
+Create an add-on for each optional feature.
+
+```bash
+# Add-on 1: Advanced Analytics
+Dashboard: Products → Add-ons → Create Add-on
+Name: "Advanced Analytics"
+Price: $19/month
+
+# Add-on 2: API Access
+Name: "API Access"
+Price: $9/month
+
+# Add-on 3: Priority Support
+Name: "Priority Support"
+Price: $29/month
+
+# Add-on 4: White-label
+Name: "White-label"
+Price: $49/month
+```
+</Step>
+
+<Step title="Create Core Subscription">
+Define your base subscription and attach all feature add-ons.
+
+```bash
+Dashboard: Create Product → Subscription
+Name: "Core Plan"
+Price: $29/month
+
+Then in Add-ons section:
+- Attach all feature add-ons
+```
+</Step>
+
+<Step title="Let Customers Choose">
+Checkout with selected features.
+
+```typescript
+const session = await client.checkoutSessions.create({
+  product_cart: [{
+    product_id: 'prod_core_plan',
+    quantity: 1,
+    addons: [
+      { addon_id: 'addon_analytics', quantity: 1 },
+      { addon_id: 'addon_api_access', quantity: 1 }
+      // Customer didn't select support or white-label
+    ]
+  }],
+  return_url: 'https://yourapp.com/success'
+});
+```
+</Step>
+
+<Step title="Add Features Later">
+Customers can add features to existing subscriptions.
+
+```typescript
+// Customer wants to add Priority Support
+await client.subscriptions.changePlan('sub_123', {
+  product_id: 'prod_core_plan',
+  quantity: 1,
+  proration_billing_mode: 'prorated_immediately',
+  addons: [
+    { addon_id: 'addon_analytics', quantity: 1 },
+    { addon_id: 'addon_api_access', quantity: 1 },
+    { addon_id: 'addon_priority_support', quantity: 1 }  // New!
+  ]
+});
+```
+</Step>
+</Steps>
+
+---
+
+## Hybrid Model 4: Seats + Usage
+
+Per-user fee combined with consumption-based charges. Each user gets an allowance.
+
+<Warning>
+**Constraint**: Dodo Payments does not currently support attaching both usage meters and add-ons to the same subscription product. This model requires a workaround using application-level logic.
+</Warning>
+
+<Info>
+**Coming Soon**: Native support for Seats + Usage hybrid billing is on our roadmap. This will allow you to attach both usage meters and seat add-ons to the same subscription product.
+</Info>
+
+### How It Works
+
+**Team Analytics: $20/user/month**
+
+**Each user includes:**
+- 5 GB data processing/month
+- Overage: $2/GB after allowance
+
+**Example calculation** (10-user team using 80 GB total):
+- Seat fees: 10 × $20 = $200.00
+- Included data: 10 × 5 GB = 50 GB
+- Overage: (80 - 50) × $2 = $60.00
+- **Total: $260.00/month**
+
+### Use Cases
+
+- **Analytics platforms**: Per-analyst + data processing
+- **Design tools**: Per-designer + storage/exports
+- **Development environments**: Per-developer + compute hours
+- **Communication tools**: Per-user + message/call volume
+
+### Implementation Options
+
+Since you cannot attach both usage meters and add-ons to the same subscription, choose one of these approaches:
+
+<Tabs>
+<Tab title="Option A: Usage Product + App-Managed Seats">
+Use a usage-based subscription and manage seat billing in your application.
+
+<Steps>
+<Step title="Create Usage Meter">
+```bash
+Dashboard: Meters → Create Meter
+Event Name: "data.processed"
+Aggregation: Sum
+Property: "bytes"
+```
+</Step>
+
+<Step title="Create Usage-Based Subscription">
+```bash
+Dashboard: Create Product → Subscription
+Name: "Team Analytics"
+Base Price: $0/month
+
+Attach usage pricing:
+- Meter: data.processed
+- Price per unit: $2/GB
+- Free threshold: 0 (managed by your app)
+```
+</Step>
+
+<Step title="Manage Seats in Your Application">
+Track seat count and calculate seat fees separately.
+
+```typescript
+// Your application tracks seats and calculates total cost
+async function calculateMonthlyBill(customerId: string) {
+  const seatCount = await getSeatCount(customerId);
+  const seatFee = seatCount * 20; // $20/seat
+
+  // Usage is billed by Dodo automatically
+  // You invoice/charge seat fees separately or include in base price
+
+  // Alternatively, adjust base subscription price when seats change
+  const totalBasePrice = seatCount * 2000; // $20/seat in cents
+  await client.subscriptions.update('sub_123', {
+    // Update subscription to reflect seat-based pricing
+  });
+}
+```
+</Step>
+
+<Step title="Calculate Dynamic Free Threshold">
+Adjust included usage based on seat count.
+
+```typescript
+// When checking usage, apply per-seat allowance
+async function checkUsageOverage(customerId: string) {
+  const seatCount = await getSeatCount(customerId);
+  const includedGB = seatCount * 5; // 5 GB per user
+
+  const currentUsage = await getUsageFromDodo(customerId);
+  const overage = Math.max(0, currentUsage - includedGB);
+
+  // Overage is billed by Dodo at $2/GB
+  return { included: includedGB, used: currentUsage, overage };
+}
+```
+</Step>
+</Steps>
+</Tab>
+
+<Tab title="Option B: Seat Add-on + On-Demand Usage Charges">
+Use add-ons for seats and charge usage manually via on-demand charges.
+
+<Steps>
+<Step title="Create Seat Add-on">
+```bash
+Dashboard: Products → Add-ons → Create Add-on
+Name: "Team Member"
+Price: $20/month
+```
+</Step>
+
+<Step title="Create Subscription with Add-on">
+```bash
+Dashboard: Create Product → Subscription
+Name: "Team Analytics"
+Base Price: $0/month
+
+Attach add-on:
+- "Team Member" add-on
+
+Enable on-demand charging
+```
+</Step>
+
+<Step title="Track Usage in Your Application">
+```typescript
+// Track usage events in your system
+async function trackDataProcessed(customerId: string, bytes: number) {
+  await saveUsageEvent({
+    customer_id: customerId,
+    event_type: 'data.processed',
+    bytes: bytes,
+    timestamp: new Date()
+  });
+}
+```
+</Step>
+
+<Step title="Charge Usage at End of Cycle">
+Calculate and charge usage overages manually.
+
+```typescript
+async function billUsageOverage(subscriptionId: string) {
+  const subscription = await getSubscription(subscriptionId);
+  const seatCount = subscription.addons.find(a => a.id === 'addon_seat')?.quantity || 0;
+
+  const includedGB = seatCount * 5;
+  const usedGB = await calculatePeriodUsage(subscription.customer_id);
+  const overageGB = Math.max(0, usedGB - includedGB);
+
+  if (overageGB > 0) {
+    const overageCharge = overageGB * 200; // $2/GB in cents
+    await client.subscriptions.charge(subscriptionId, {
+      product_price: overageCharge,
+      product_description: `Data overage: ${overageGB} GB × $2/GB`
+    });
+  }
+}
+```
+</Step>
+</Steps>
+</Tab>
+</Tabs>
+
+<Info>
+**Recommendation**: Option B (Seat Add-on + On-Demand Usage) is often easier to implement because Dodo handles seat billing automatically. You only need to track and charge usage overages.
+</Info>
+
+---
+
+## Hybrid Model 5: Subscription + Seats + Usage (Triple Hybrid)
+
+The most comprehensive model: platform fee + per-user + consumption.
+
+<Warning>
+**Constraint**: Dodo Payments does not currently support attaching both usage meters and add-ons to the same subscription product. This model requires a workaround approach.
+</Warning>
+
+<Info>
+**Coming Soon**: Native support for Triple Hybrid billing (Base + Seats + Usage) is on our roadmap. This will allow you to attach both usage meters and seat add-ons to the same subscription product.
+</Info>
+
+### How It Works
+
+**Enterprise Platform**
+
+- **Platform Fee**: $199/month
+- **Per Seat**: $25/user/month
+- **Usage**: $0.10/1000 API calls (50K included)
+
+**Example calculation** (company with 20 users, 150,000 API calls):
+- Platform: $199.00
+- Seats: 20 × $25 = $500.00
+- Usage: (150K - 50K) × \$0.10/1K = \$10.00
+- **Total: $709.00/month**
+
+### Use Cases
+
+- **Enterprise SaaS**: Platform + team + consumption
+- **Data platforms**: Workspace + analysts + queries
+- **Integration platforms**: Hub + connectors + transactions
+- **AI platforms**: Workspace + developers + inference
+
+### Implementation Options
+
+Choose one of these approaches to implement triple hybrid billing:
+
+<Tabs>
+<Tab title="Option A: Base + Seats (Add-on) + On-Demand Usage">
+Use subscription with seat add-ons, charge usage manually via on-demand charges.
+
+**This is the recommended approach** because Dodo handles the platform fee and seat billing automatically.
+
+<Steps>
+<Step title="Create Seat Add-on">
+```bash
+Dashboard: Products → Add-ons → Create Add-on
+Name: "User Seat"
+Price: $25/month
+```
+</Step>
+
+<Step title="Create Subscription Product">
+```bash
+Dashboard: Create Product → Subscription
+Name: "Enterprise Platform"
+Base Price: $199/month
+
+Attach add-on:
+- "User Seat" add-on
+
+Enable on-demand charging
+```
+</Step>
+
+<Step title="Create Checkout with Seats">
+```typescript
+const session = await client.checkoutSessions.create({
+  product_cart: [{
+    product_id: 'prod_enterprise_platform',
+    quantity: 1,
+    addons: [{
+      addon_id: 'addon_user_seat',
+      quantity: 20  // 20 users
+    }]
+  }],
+  customer: { email: 'enterprise@company.com' },
+  return_url: 'https://yourapp.com/success'
+});
+```
+</Step>
+
+<Step title="Track Usage in Your Application">
+Store usage events in your system.
+
+```typescript
+// Track API calls in your system
+async function trackApiCall(customerId: string, endpoint: string) {
+  await saveUsageEvent({
+    customer_id: customerId,
+    event_type: 'api.call',
+    endpoint: endpoint,
+    timestamp: new Date()
+  });
+}
+```
+</Step>
+
+<Step title="Charge Usage at End of Cycle">
+Calculate and charge usage overages via on-demand charge.
+
+```typescript
+async function billUsageOverage(subscriptionId: string) {
+  const usage = await calculatePeriodUsage(subscriptionId);
+  const includedCalls = 50000;
+  const overageCalls = Math.max(0, usage.totalCalls - includedCalls);
+
+  if (overageCalls > 0) {
+    // $0.10 per 1000 calls = $0.0001 per call
+    const overageCharge = Math.ceil(overageCalls / 1000) * 10; // cents
+    await client.subscriptions.charge(subscriptionId, {
+      product_price: overageCharge,
+      product_description: `API usage: ${overageCalls.toLocaleString()} calls over 50K included`
+    });
+  }
+}
+```
+</Step>
+</Steps>
+</Tab>
+
+<Tab title="Option B: Base + Usage (Meter) + App-Managed Seats">
+Use subscription with usage meter, manage seat billing in your application.
+
+<Steps>
+<Step title="Create Usage Meter">
+```bash
+Dashboard: Meters → Create Meter
+Event Name: "api.call"
+Aggregation: Count
+```
+</Step>
+
+<Step title="Create Subscription Product with Usage">
+```bash
+Dashboard: Create Product → Subscription
+Name: "Enterprise Platform"
+Base Price: $199/month
+
+Attach usage pricing:
+- Meter: api.call
+- Price: $0.10 per 1000 calls
+- Free threshold: 50,000
+```
+</Step>
+
+<Step title="Manage Seats in Your Application">
+Track seat count and adjust base subscription price accordingly.
+
+```typescript
+// When seats change, update subscription price
+async function updateSeatCount(subscriptionId: string, newSeatCount: number) {
+  const basePlatformFee = 19900; // $199 in cents
+  const perSeatFee = 2500; // $25 in cents
+  const totalPrice = basePlatformFee + (newSeatCount * perSeatFee);
+
+  // Store seat count in your system
+  await updateSeatsInDatabase(subscriptionId, newSeatCount);
+
+  // Note: You may need to handle this via plan changes or
+  // create multiple tier products for common seat counts
+}
+```
+</Step>
+
+<Step title="Send Usage Events to Dodo">
+```typescript
+await fetch('https://api.dodopayments.com/events/ingest', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${apiKey}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    events: [{
+      event_id: `api_${Date.now()}`,
+      customer_id: 'cus_enterprise',
+      event_name: 'api.call',
+      timestamp: new Date().toISOString()
+    }]
+  })
+});
+```
+</Step>
+</Steps>
+</Tab>
+</Tabs>
+
+<Info>
+**Recommendation**: Option A (Base + Seats + On-Demand Usage) is generally easier because Dodo handles platform and seat billing automatically. You only need to track usage and submit charges at the end of each billing cycle.
+</Info>
+
+---
+
+## Hybrid Model 6: Tiered Base + Usage Overage
+
+Different subscription tiers with different included allowances and overage rates.
+
+### How It Works
+
+| Tier | Price | Included Calls | Overage Rate |
+|------|-------|----------------|--------------|
+| **Starter** | $19/month | 1,000 | $0.02/call |
+| **Pro** | $79/month | 25,000 | $0.01/call |
+| **Business** | $199/month | 100,000 | $0.005/call |
+| **Enterprise** | $499/month | 500,000 | $0.002/call |
+
+### Implementation
+
+Create separate subscription products for each tier, each with its own usage configuration:
+
+```bash
+# For each tier, create a subscription product:
+
+# Starter Tier
+Dashboard: Create Product → Subscription
+Name: "Starter"
+Base Price: $19/month
+Usage Pricing:
+- Meter: api.call
+- Price: $0.02/call
+- Free threshold: 1,000
+
+# Pro Tier
+Name: "Pro"
+Base Price: $79/month
+Usage Pricing:
+- Meter: api.call
+- Price: $0.01/call
+- Free threshold: 25,000
+
+# ... and so on for Business and Enterprise
+```
+
+### Upgrade Path
+
+When customers upgrade tiers, they get:
+- Higher included allowance
+- Lower overage rates
+- More value per dollar
+
+```typescript
+// Customer upgrades from Starter to Pro
+await client.subscriptions.changePlan('sub_123', {
+  product_id: 'prod_pro',
+  quantity: 1,
+  proration_billing_mode: 'prorated_immediately'
+});
+```
+
+---
+
+## Hybrid Model 7: Subscription + On-Demand Charges
+
+Recurring subscription plus variable manual charges for services or overages.
+
+### How It Works
+
+**Retainer Plan: $199/month**
+
+**Includes:**
+- Platform access
+- 5 hours consulting/month
+- Email support
+
+**On-Demand Charges (as needed):**
+- Extra consulting: $150/hour
+- Custom development: $200/hour
+- Emergency support: $100/incident
+
+**Example calculation** (this month):
+- Retainer: $199.00
+- 3 extra consulting hours: $450.00
+- 1 emergency support: $100.00
+- **Total: $749.00**
+
+### Use Cases
+
+- **Consulting services**: Retainer + hourly billing
+- **Managed services**: Base fee + incident charges
+- **Agency services**: Monthly fee + project charges
+- **Support plans**: SLA fee + per-ticket or per-hour
+
+### Implementation
+
+<Steps>
+<Step title="Create On-Demand Subscription">
+Set up subscription with on-demand charging enabled.
+
+```typescript
+const subscription = await client.subscriptions.create({
+  billing: {
+    city: 'San Francisco',
+    country: 'US',
+    state: 'CA',
+    street: '123 Main St',
+    zipcode: '94105'
+  },
+  customer: { customer_id: 'cus_123' },
+  product_id: 'prod_retainer',
+  quantity: 1,
+  payment_link: true,
+  return_url: 'https://yourapp.com/success',
+  on_demand: {
+    mandate_only: false,
+    product_price: 19900  // $199 initial charge
+  }
+});
+```
+</Step>
+
+<Step title="Charge for Services">
+Create charges when services are delivered.
+
+```typescript
+// Charge for 3 hours of consulting
+await client.subscriptions.charge('sub_123', {
+  product_price: 45000,  // $450.00 (3 × $150)
+  product_description: 'Consulting - 3 hours (March 15)'
+});
+
+// Charge for emergency support incident
+await client.subscriptions.charge('sub_123', {
+  product_price: 10000,  // $100.00
+  product_description: 'Emergency support - Server outage (March 18)'
+});
+```
+</Step>
+
+<Step title="Track and Invoice">
+All charges appear on the customer's invoice.
+
+```typescript
+// Retrieve subscription charges
+const payments = await client.payments.list({
+  subscription_id: 'sub_123'
+});
+
+// Show itemized breakdown to customer
+payments.items.forEach(payment => {
+  console.log(`${payment.description}: $${payment.amount / 100}`);
+});
+```
+</Step>
+</Steps>
+
+---
+
+## Real-World Examples
+
+<Info>
+These examples show ideal pricing structures. Due to the constraint that usage meters and add-ons cannot be attached to the same product, some combinations require workarounds (using on-demand charges for usage or app-managed seats).
+</Info>
+
+### Example 1: AI SaaS Platform
+
+**Pricing Structure:**
+- **Base Subscription**: $99/month (platform access, 5 seats included)
+- **Seat Add-on**: $20/seat/month
+- **Feature Add-ons**: Custom Models (\$49/mo), API Access (\$29/mo), Priority Queue (\$19/mo)
+- **Usage Overage**: $0.02 per 1,000 tokens after 100K (charged via on-demand)
+
+**Implementation**: Use subscription with seat and feature add-ons. Track token usage in your application and charge overages via on-demand charges at end of billing cycle.
+
+**Example Customer** (12 users, 500K tokens, Custom Models + API Access):
+| Component | Calculation | Amount |
+|-----------|-------------|--------|
+| Base | Platform fee | $99 |
+| Extra seats | 7 × $20 | $140 |
+| Custom Models | Add-on | $49 |
+| API Access | Add-on | $29 |
+| Token overage | 400K × \$0.02/1K (on-demand) | \$8 |
+| **Total** | | **$325/month** |
+
+### Example 2: Developer Tools Platform
+
+**Tier Options:**
+
+| | Free | Pro | Enterprise |
+|---|------|-----|------------|
+| **Price** | $0/month | $29/month | $199/month |
+| **Users** | 1 | 5 included | Unlimited |
+| **Builds** | 100 | 1,000 | 10,000 |
+| **Storage** | 1 GB | 10 GB | 100 GB |
+
+**Implementation Options**:
+
+**Option A** (Usage-focused): Create products with usage meters for builds/storage. Manage users in your application.
+
+**Option B** (Seat-focused): Create products with seat add-ons. Track builds/storage usage and charge overages via on-demand.
+
+**Add-ons (if using Option B):**
+- Extra users: $10/user/month
+- Priority builds: $19/month
+- Custom domains: $9/domain/month
+
+### Example 3: Marketing Automation
+
+**Pricing Structure:**
+- **Base**: $79/month (core automation features, 3 seats included)
+- **Contact Tiers** (add-ons): 1K included, 5K (+\$30), 25K (+\$80), 100K (+\$200)
+- **Feature Add-ons**: SMS Marketing (\$29/mo), Landing Pages (\$19/mo), A/B Testing (\$29/mo)
+- **Team Seats**: $15/user/month add-on
+- **Email Volume**: Track in application, charge overage via on-demand ($1/1,000 emails over limit)
+
+**Implementation**: Use subscription with contact tier add-ons, feature add-ons, and seat add-ons. Track email sends in your application and charge overages via on-demand charges.
+
+---
+
+## Implementation Best Practices
+
+### Pricing Page Clarity
+
+<Tip>
+Make hybrid pricing easy to understand. Show base costs, what's included, and how overages work prominently on your pricing page.
+</Tip>
+
+**Good**: "\$49/month includes 10,000 API calls. Additional calls: \$0.005 each"
+
+**Bad**: "\$49/month + usage fees"
+
+### Cost Predictability
+
+Help customers estimate their costs:
+
+```typescript
+// Provide a cost calculator
+function estimateMonthlyCost({
+  plan,
+  seats,
+  expectedUsage,
+  addons
+}: EstimateParams): number {
+  let total = plan.basePrice;
+
+  // Add seat costs
+  const extraSeats = Math.max(0, seats - plan.includedSeats);
+  total += extraSeats * plan.seatPrice;
+
+  // Add usage overage
+  const overage = Math.max(0, expectedUsage - plan.includedUsage);
+  total += overage * plan.overageRate;
+
+  // Add feature add-ons
+  total += addons.reduce((sum, addon) => sum + addon.price, 0);
+
+  return total;
+}
+```
+
+### Usage Visibility
+
+Show customers their usage in real-time:
+
+```typescript
+// Display usage dashboard
+async function getUsageSummary(subscriptionId: string) {
+  const usage = await client.subscriptions.getUsageHistory(subscriptionId);
+
+  return {
+    current: usage.current_period_usage,
+    included: usage.free_threshold,
+    remaining: Math.max(0, usage.free_threshold - usage.current_period_usage),
+    overage: Math.max(0, usage.current_period_usage - usage.free_threshold),
+    projectedCost: calculateProjectedOverage(usage)
+  };
+}
+```
+
+### Billing Transparency
+
+Provide detailed invoices showing all components:
+
+| Line Item | Amount |
+|-----------|--------|
+| Pro Plan (Monthly) | $49.00 |
+| Additional Seats (7 × $15.00) | $105.00 |
+| API Usage - Included (10,000 calls) | $0.00 |
+| API Usage - Overage (15,420 calls × $0.005) | $77.10 |
+| Advanced Analytics Add-on | $19.00 |
+| **Subtotal** | **$250.10** |
+| Tax (8.5%) | $21.26 |
+| **Total Due** | **$271.36** |
+
+---
+
+## Troubleshooting Hybrid Billing
+
+<AccordionGroup>
+<Accordion title="Usage not being tracked correctly">
+**Symptoms**: Usage shows 0 or incorrect values.
+
+**Solutions**:
+1. Verify event ingestion is working (check API responses)
+2. Confirm `customer_id` matches the subscription customer
+3. Check `event_name` matches the meter configuration
+4. Verify events have correct timestamps (not future-dated)
+</Accordion>
+
+<Accordion title="Proration confusion with multiple components">
+**Symptoms**: Customer charged unexpected amounts when changing plans.
+
+**Solutions**:
+1. Use `previewChangePlan` API to show exact charges before confirming
+2. Communicate that proration applies to subscription AND add-ons
+3. Consider using `difference_immediately` for simpler upgrade billing
+</Accordion>
+
+<Accordion title="Free threshold not applying correctly">
+**Symptoms**: Customer charged for usage that should be free.
+
+**Solutions**:
+1. Verify free threshold is configured on the usage-based product
+2. Check threshold unit matches event aggregation (calls vs. requests)
+3. Confirm usage meter is correctly attached to the subscription product
+</Accordion>
+
+<Accordion title="Add-ons not appearing in checkout">
+**Symptoms**: Can't add seats or features during checkout.
+
+**Solutions**:
+1. Verify add-ons are attached to the subscription product in dashboard
+2. Check add-on IDs are correct in API calls
+3. Ensure add-on currency matches subscription product currency
+</Accordion>
+</AccordionGroup>
+
+---
+
+## Related Documentation
+
+<CardGroup cols={2}>
+<Card title="Products" icon="box" href="/features/products">
+  Overview of all product types and guides.
+</Card>
+
+<Card title="Usage-Based Billing Guide" icon="chart-line" href="/developer-resources/usage-based-billing-guide">
+  Complete usage billing implementation.
+</Card>
+
+<Card title="Subscription Management" icon="repeat" href="/features/subscription">
+  Managing recurring subscriptions.
+</Card>
+
+<Card title="Add-ons" icon="puzzle" href="/features/addons">
+  Extending subscriptions with add-ons.
+</Card>
+</CardGroup>
