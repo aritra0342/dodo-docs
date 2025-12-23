@@ -1,8 +1,7 @@
 ---
-title: Inline Checkout (Draft)
+title: Inline Checkout
 description: Embed Dodo Payments checkout directly into your website for a seamless, branded payment experience.
 icon: "credit-card"
-draft: true
 ---
 
 ## Overview
@@ -99,6 +98,316 @@ Dodo Payments automatically creates a subscription for the customer, ready for y
 
 </Step>
 </Steps>
+
+## Quick Start
+
+Get started with the Dodo Payments Inline Checkout in just a few lines of code:
+
+```typescript
+import { DodoPayments } from "dodopayments-checkout";
+
+// Initialize the SDK for inline mode
+DodoPayments.Initialize({
+  mode: "test",
+  displayType: "inline",
+  onEvent: (event) => {
+    console.log("Checkout event:", event);
+  },
+});
+
+// Open checkout in a specific container
+DodoPayments.Checkout.open({
+  checkoutUrl: "https://test.dodopayments.com/session/cks_123",
+  elementId: "dodo-inline-checkout" // ID of the container element
+});
+```
+
+<Tip>
+Ensure you have a container element with the corresponding `id` on your page: `<div id="dodo-inline-checkout"></div>`.
+</Tip>
+
+## Step-by-Step Integration Guide
+
+<Steps>
+<Step title="Install the SDK">
+
+Install the Dodo Payments Checkout SDK:
+
+<CodeGroup>
+```bash npm
+npm install dodopayments-checkout
+```
+
+```bash yarn
+yarn add dodopayments-checkout
+```
+
+```bash pnpm
+pnpm add dodopayments-checkout
+```
+</CodeGroup>
+
+</Step>
+
+<Step title="Initialize the SDK for Inline Display">
+
+Initialize the SDK and specify `displayType: 'inline'`. You should also listen for the `checkout.breakdown` event to update your UI with real-time tax and total calculations.
+
+```typescript
+import { DodoPayments } from "dodopayments-checkout";
+
+DodoPayments.Initialize({
+  mode: "test",
+  displayType: "inline",
+  onEvent: (event) => {
+    if (event.event_type === "checkout.breakdown") {
+      const breakdown = event.data?.message;
+      // Update your UI with breakdown.subTotal, breakdown.tax, breakdown.total, etc.
+    }
+  },
+});
+```
+
+</Step>
+
+<Step title="Create a Container Element">
+
+Add an element to your HTML where the checkout frame will be injected:
+
+```html
+<div id="dodo-inline-checkout"></div>
+```
+
+</Step>
+
+<Step title="Open the Checkout">
+
+Call `DodoPayments.Checkout.open()` with the `checkoutUrl` and the `elementId` of your container:
+
+```typescript
+DodoPayments.Checkout.open({
+  checkoutUrl: "https://test.dodopayments.com/session/cks_123",
+  elementId: "dodo-inline-checkout"
+});
+```
+
+</Step>
+
+<Step title="Test Your Integration">
+
+1. Start your development server:
+```bash
+npm run dev
+```
+
+2. Test the checkout flow:
+   - Enter your email and address details in the inline frame.
+   - Verify that your custom order summary updates in real-time.
+   - Test the payment flow using test credentials.
+   - Confirm redirects work correctly.
+
+<Check>
+You should see `checkout.breakdown` events logged in your browser console if you added a console log in the `onEvent` callback.
+</Check>
+
+</Step>
+
+<Step title="Go Live">
+
+When you're ready for production:
+
+1. Change the mode to `'live'`:
+```typescript
+DodoPayments.Initialize({
+  mode: "live",
+  displayType: "inline",
+  onEvent: (event) => {
+    // Handle events
+  }
+});
+```
+
+2. Update your checkout URLs to use live checkout sessions from your backend.
+3. Test the complete flow in production.
+
+</Step>
+</Steps>
+
+## Complete React Example
+
+This example demonstrates how to implement a custom order summary alongside the inline checkout, keeping them in sync using the `checkout.breakdown` event.
+
+```tsx
+"use client";
+
+import { useEffect, useState } from 'react';
+import { DodoPayments, CheckoutBreakdownData } from 'dodopayments-checkout';
+
+export default function CheckoutPage() {
+  const [subTotal, setSubTotal] = useState<number | null>(null);
+  const [discount, setDiscount] = useState<number | null>(null);
+  const [total, setTotal] = useState<number | null>(null);
+  const [tax, setTax] = useState<number | null>(null);
+  const [currency, setCurrency] = useState<string | null>(null);
+
+  useEffect(() => {
+    // 1. Initialize the SDK
+    DodoPayments.Initialize({
+      mode: 'test',
+      displayType: 'inline',
+      onEvent: (event) => {
+        // 2. Listen for the 'checkout.breakdown' event
+        // This fires whenever the user changes their location or triggers a tax calculation.
+        if (event.event_type === "checkout.breakdown") {
+          const message = event.data?.message as CheckoutBreakdownData;
+          if (message) {
+            setSubTotal(message?.subTotal ?? null);
+            setDiscount(message.discount);
+            setTotal(message?.total ?? null);
+            setTax(message?.tax ?? null);
+            setCurrency(message?.currency ?? null);
+          }
+        }
+      }
+    });
+
+    // 3. Open the checkout in the specified container
+    DodoPayments.Checkout.open({
+      checkoutUrl: 'https://test.dodopayments.com/session/cks_123',
+      elementId: 'dodo-inline-checkout'
+    });
+
+    return () => {
+      DodoPayments.Checkout.close();
+    };
+  }, []);
+
+  const formattedAmt = (amt: number) => {
+    return `${currency} ${amt.toFixed(2)}`;
+  }
+
+  return (
+    <div className="flex flex-col md:flex-row min-h-screen">
+      {/* Left Side - Checkout Form */}
+      <div className="w-full md:w-1/2">
+        <div id="dodo-inline-checkout" />
+      </div>
+
+      {/* Right Side - Custom Order Summary */}
+      <div className="w-full md:w-1/2 p-8 bg-gray-50">
+        <h2 className="text-2xl font-bold mb-4">Order Summary</h2>
+        <div className="space-y-2">
+          {subTotal && (
+            <div className="flex justify-between">
+              <span>Subtotal</span>
+              <span>{formattedAmt(subTotal)}</span>
+            </div>
+          )}
+          {discount && (
+            <div className="flex justify-between">
+              <span>Discount</span>
+              <span>-{formattedAmt(discount)}</span>
+            </div>
+          )}
+          {tax && (
+            <div className="flex justify-between">
+              <span>Tax</span>
+              <span>{formattedAmt(tax)}</span>
+            </div>
+          )}
+          <hr />
+          <div className="flex justify-between font-bold text-xl">
+            <span>Total</span>
+            <span>{formattedAmt(total ?? 0)}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+```
+
+## API Reference
+
+### Configuration
+
+#### Initialize Options
+
+```typescript
+interface InitializeOptions {
+  mode: "test" | "live";
+  displayType: "inline"; // Required for inline checkout
+  onEvent: (event: CheckoutEvent) => void;
+}
+```
+
+| Option | Type | Required | Description |
+|--------|------|----------|-------------|
+| `mode` | `"test" \| "live"` | Yes | Environment mode. |
+| `displayType` | `"inline"` | Yes | Must be set to `"inline"` to embed the checkout. |
+| `onEvent` | `function` | Yes | Callback function for handling checkout events. |
+
+#### Checkout Options
+
+```typescript
+interface CheckoutOptions {
+  checkoutUrl: string;
+  elementId: string; // Required for inline checkout
+}
+```
+
+| Option | Type | Required | Description |
+|--------|------|----------|-------------|
+| `checkoutUrl` | `string` | Yes | Checkout session URL. |
+| `elementId` | `string` | Yes | The `id` of the DOM element where the checkout should be rendered. |
+
+### Events
+
+The SDK provides real-time events through the `onEvent` callback. For inline checkout, `checkout.breakdown` is particularly useful for syncing your UI.
+
+| Event Type | Description |
+|------------|-------------|
+| `checkout.opened` | Checkout frame has been loaded. |
+| `checkout.breakdown` | Fired when prices, taxes, or discounts are updated. |
+| `checkout.customer_details_submitted` | Customer details have been submitted. |
+| `checkout.redirect` | Checkout will perform a redirect (e.g., to a bank page). |
+| `checkout.error` | An error occurred during checkout. |
+
+#### Checkout Breakdown Data
+
+The `checkout.breakdown` event provides the following data:
+
+```typescript
+interface CheckoutBreakdownData {
+  subTotal?: number;  // Amount in cents
+  discount?: number;  // Amount in cents
+  tax?: number;       // Amount in cents
+  total?: number;     // Amount in cents
+  currency?: string;  // e.g., "USD"
+}
+```
+
+## Best Practices
+
+1. **Responsive Design**: Ensure your container element has enough width and height. The iframe will typically expand to fill its container.
+2. **Synchronization**: Use the `checkout.breakdown` event to keep your custom order summary or pricing tables in sync with what the user sees in the checkout frame.
+3. **Skeleton States**: Show a loading indicator in your container until the `checkout.opened` event fires.
+4. **Cleanup**: Call `DodoPayments.Checkout.close()` when your component unmounts to clean up the iframe and event listeners.
+
+## Troubleshooting
+
+<AccordionGroup>
+<Accordion title="Checkout frame is not appearing">
+- Verify that `elementId` matches the `id` of a `div` that actually exists in the DOM.
+- Ensure `displayType: 'inline'` was passed to `Initialize`.
+- Check that the `checkoutUrl` is valid.
+</Accordion>
+
+<Accordion title="Taxes are not updating in my UI">
+- Ensure you are listening for the `checkout.breakdown` event.
+- Taxes are only calculated after the user enters a valid country and postal code in the checkout frame.
+</Accordion>
+</AccordionGroup>
 
 ## Inline vs Overlay Checkout
 
