@@ -1,0 +1,238 @@
+---
+title: v1.70.0 (December 23, 2025)
+description: "Use existing payment methods for instant checkouts, manage subscription plans from dashboard, generate short payment links, skip success pages with redirect_immediately, and enable on-demand subscriptions for all businesses"
+icon: "link"
+---
+
+## New Features 🚀
+
+1. **Create Payments, Subscriptions, and Checkouts Using Existing Payment Methods**  
+    Streamline checkout flows by using saved payment methods from existing customers. The new `payment_method_id` parameter allows you to create payments, subscriptions, or checkout sessions using a customer's previously saved payment method.
+
+   ### Benefits
+
+   - **Faster checkout**: Skip payment method collection for returning customers
+   - **One-click purchases**: Enable instant purchases with saved payment methods
+   - **Subscription management**: Easily create subscriptions using existing payment methods
+   - **Improved conversion**: Reduce checkout friction for repeat customers
+
+   ### How It Works
+
+   Use `payment_method_id` when creating checkout sessions, payments, or subscriptions:
+
+   <Tabs>
+   <Tab title="Checkout Sessions">
+   ```javascript
+   const session = await client.checkoutSessions.create({
+     product_cart: [{ product_id: 'prod_123', quantity: 1 }],
+     customer: {
+       email: 'customer@example.com'
+     },
+     payment_method_id: 'pm_abc123',
+     confirm: true
+   });
+   ```
+   </Tab>
+
+   <Tab title="One-Time Payments">
+   ```javascript
+   const payment = await client.payments.create({
+     product_cart: [{ product_id: 'prod_123', quantity: 1 }],
+     customer_id: 'cus_123',
+     payment_method_id: 'pm_abc123'
+   });
+   ```
+   </Tab>
+
+   <Tab title="Subscriptions">
+   ```javascript
+   const subscription = await client.subscriptions.create({
+     customer_id: 'cus_123',
+     product_id: 'prod_subscription',
+     payment_method_id: 'pm_abc123'
+   });
+   ```
+   </Tab>
+   </Tabs>
+
+   <Warning>
+   When using `payment_method_id` in checkout sessions, `confirm` must be set to `true`, and an existing `customer_id` must be provided. The payment method will be validated for eligibility with the payment's currency.
+   </Warning>
+
+   <Info>
+   The payment method must belong to the customer and be compatible with the payment currency. If validation fails, the request will return an error.
+   </Info>
+
+2. **Subscription Plan Changes in Dashboard with Next Billing Date Updates**  
+    
+    Manage subscription plans directly from the dashboard with enhanced control. You can now change subscription plans and update the next billing date in a single action, giving you complete flexibility over subscription management.  
+
+    <Frame>
+    <img src="/images/changelog/subscription-plan-changes.png" alt="Subscription plan changes in dashboard" />
+    </Frame>
+
+   ### Dashboard Features
+
+   - **Plan changes**: Upgrade or downgrade subscriptions with a single click
+   - **Billing date control**: Update the next billing date when changing plans
+   - **Proration options**: Choose how to handle proration when changing plans
+   - **Visual preview**: See exactly how plan changes affect billing before confirming
+
+   ### Use Cases
+
+   - **Customer support**: Quickly adjust subscription plans for customer requests
+   - **Promotional upgrades**: Temporarily upgrade customers with specific billing dates
+   - **Plan migrations**: Smoothly transition customers between subscription tiers
+   - **Billing alignment**: Align billing dates across multiple subscriptions
+
+   <Check>
+   Result: Complete subscription management control from the dashboard, reducing the need for API calls for common subscription adjustments.
+   </Check>
+
+   <Tip>
+   Use the dashboard for quick subscription plan changes, and the API for programmatic subscription management in your application.
+   </Tip>
+
+3. **Short Links for Payment URLs**  
+   Generate cleaner, more shareable payment links with our new short link feature. Short links provide shortened checkout URLs with custom slugs, making them easier to share with customers or embed on your website.
+
+   <Frame>
+   <img src="/images/changelog/short-links.png" alt="Short links feature for payment URLs" />
+   </Frame>
+
+   ### Benefits
+
+   - **Cleaner URLs**: Replace long payment URLs with short, branded links
+   - **Better trust**: Professional-looking links that build customer confidence
+   - **Easier sharing**: Simplified URLs perfect for SMS, email, or social media
+   - **Custom slugs**: Create memorable, branded short links for your products
+
+   ### How It Works
+
+   Enable short links when creating checkout sessions or payment links:
+
+   <Tabs>
+   <Tab title="Checkout Sessions">
+   ```javascript
+   const session = await client.checkoutSessions.create({
+     product_cart: [{ product_id: 'prod_123', quantity: 1 }],
+     short_link: true,
+     return_url: 'https://yourapp.com/success'
+   });
+   ```
+   </Tab>
+
+   <Tab title="Payment Links">
+   ```javascript
+   const payment = await client.payments.create({
+     product_cart: [{ product_id: 'prod_123', quantity: 1 }],
+     short_link: true,
+     return_url: 'https://yourapp.com/success'
+   });
+   ```
+   </Tab>
+   </Tabs>
+
+   <Check>
+   Result: A shortened payment link that's easier to share and more professional-looking, improving conversion rates and customer trust.
+   </Check>
+
+   <Info>
+   Short links are managed in your dashboard and can be viewed via the [List Short Links API](/api-reference/products/get-products-short-links).
+   </Info>
+
+
+4. **`redirect_immediately` Flag - Skip Payment Success Page**  
+   Control the checkout flow with the new `redirect_immediately` flag. When enabled, customers are redirected immediately after payment completion, bypassing the default success page for a faster, more streamlined experience.
+
+   ### Use Cases
+
+   - **Faster checkout flow**: Reduce friction by skipping intermediate pages
+   - **Custom success pages**: Redirect directly to your branded success page
+   - **Mobile optimization**: Improve mobile checkout experience with immediate redirects
+   - **Embedded checkouts**: Seamlessly integrate with overlay or embedded checkout flows
+
+   ### How It Works
+
+   Enable immediate redirects in checkout sessions, payments, or subscriptions:
+
+   <Tabs>
+   <Tab title="Checkout Sessions">
+   ```javascript
+   const session = await client.checkoutSessions.create({
+     product_cart: [{ product_id: 'prod_123', quantity: 1 }],
+     redirect_immediately: true,
+     return_url: 'https://yourapp.com/success'
+   });
+   ```
+   </Tab>
+
+   <Tab title="One-Time Payments">
+   ```javascript
+   const payment = await client.payments.create({
+     product_cart: [{ product_id: 'prod_123', quantity: 1 }],
+     redirect_immediately: true,
+     return_url: 'https://yourapp.com/success'
+   });
+   ```
+   </Tab>
+
+   <Tab title="Subscriptions">
+   ```javascript
+   const subscription = await client.subscriptions.create({
+     customer_id: 'cus_123',
+     product_id: 'prod_subscription',
+     redirect_immediately: true,
+     return_url: 'https://yourapp.com/success'
+   });
+   ```
+   </Tab>
+   </Tabs>
+
+   <Tip>
+   Use `redirect_immediately: true` when you have a custom success page that provides better user experience than the default payment success page.
+   </Tip>
+
+   <Note>
+   When `redirect_immediately` is enabled, customers are redirected to your `return_url` immediately after payment completion, skipping the default success page entirely.
+   </Note>
+
+5. **On-Demand Subscriptions - Available for All Businesses**  
+   On-demand subscriptions are now enabled for all businesses, giving you flexible billing control for usage-based and metered services.
+
+   ### What This Enables
+
+   - **Usage-based billing**: Create subscriptions and charge customers based on actual usage
+   - **Flexible billing cycles**: Charge customers on-demand rather than fixed intervals
+   - **Metered services**: Perfect for API usage, storage, compute time, and other metered resources
+   - **Manual charge control**: Create charges manually when needed, giving you full control over billing timing
+
+   ### How It Works
+
+   Create an on-demand subscription and charge customers as needed:
+
+   ```javascript
+   // Create an on-demand subscription
+   const subscription = await client.subscriptions.create({
+     customer_id: 'cus_123',
+     product_id: 'prod_api_access',
+     on_demand: true
+   });
+
+   // Charge the customer when usage occurs
+   await client.subscriptions.createCharge(subscription.id, {
+     amount: 4900,
+     currency: 'USD',
+     description: 'API usage for September: 1,000 requests'
+   });
+   ```
+
+   <Check>
+   Result: Full control over when and how much to charge customers, perfect for usage-based business models.
+   </Check>
+
+   Learn more: [On-Demand Subscriptions](/developer-resources/ondemand-subscriptions)
+
+6. **General Bug Fixes and Enhancements**  
+   This release includes performance improvements, UI polish, and resolves minor bugs for a more reliable, streamlined experience.
+

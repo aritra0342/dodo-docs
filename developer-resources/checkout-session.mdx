@@ -969,6 +969,93 @@ const session = await client.checkoutSessions.create({
 });
 ```
 
+### 11. Using Existing Payment Methods for Instant Checkout
+
+Use a customer's saved payment method to create a checkout session that processes immediately, skipping payment method collection:
+
+```javascript expandable
+const session = await client.checkoutSessions.create({
+  product_cart: [
+    {
+      product_id: 'prod_premium_plan',
+      quantity: 1
+    }
+  ],
+  customer: {
+    email: 'returning.customer@example.com',
+    customer_id: 'cus_123'  // Required when using payment_method_id
+  },
+  payment_method_id: 'pm_abc123',  // Use customer's saved payment method
+  confirm: true,  // Required when using payment_method_id
+  return_url: 'https://yourapp.com/success'
+});
+```
+
+<Warning>
+When using `payment_method_id`, `confirm` must be set to `true` and an existing `customer_id` must be provided. The payment method will be validated for eligibility with the payment's currency.
+</Warning>
+
+<Info>
+The payment method must belong to the customer and be compatible with the payment currency. This enables one-click purchases for returning customers.
+</Info>
+
+### 12. Short Links for Cleaner Payment URLs
+
+Generate shortened, shareable payment links with custom slugs:
+
+```javascript expandable
+const session = await client.checkoutSessions.create({
+  product_cart: [
+    {
+      product_id: 'prod_monthly_subscription',
+      quantity: 1
+    }
+  ],
+  short_link: true,  // Generate a shortened payment link
+  return_url: 'https://yourapp.com/success',
+  customer: {
+    email: 'customer@example.com',
+    name: 'John Doe'
+  }
+});
+
+// The checkout_url will be a shortened, cleaner link
+console.log(session.checkout_url);  // e.g., https://checkout.dodopayments.com/buy/abc123
+```
+
+<Tip>
+Short links are perfect for SMS, email, or social media sharing. They're easier to remember and build more customer trust than long URLs.
+</Tip>
+
+### 13. Skip Payment Success Page with Immediate Redirect
+
+Redirect customers immediately after payment completion, bypassing the default success page:
+
+```javascript expandable
+const session = await client.checkoutSessions.create({
+  product_cart: [
+    {
+      product_id: 'prod_digital_product',
+      quantity: 1
+    }
+  ],
+  redirect_immediately: true,  // Skip success page, redirect immediately
+  return_url: 'https://yourapp.com/success',
+  customer: {
+    email: 'customer@example.com',
+    name: 'Jane Smith'
+  }
+});
+```
+
+<Tip>
+Use `redirect_immediately: true` when you have a custom success page that provides better user experience than the default payment success page. This is especially useful for mobile apps and embedded checkout flows.
+</Tip>
+
+<Note>
+When `redirect_immediately` is enabled, customers are redirected to your `return_url` immediately after payment completion, skipping the default success page entirely.
+</Note>
+
 ## Moving from Dynamic Links to Checkout Sessions
 
 ### Key Differences
