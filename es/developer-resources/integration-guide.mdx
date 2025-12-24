@@ -32,8 +32,9 @@ Para integrar la API de Dodo Payments, necesitarás:
 
 Elige la ruta de integración que se ajuste a tu caso de uso:
 - **Sesiones de Pago (recomendado)**: Mejor para la mayoría de las integraciones. Crea una sesión en tu servidor y redirige a los clientes a un pago seguro y alojado.
-- **Pago Superpuesto (embebido)**: Úsalo cuando necesites una experiencia en la página que embeba el pago alojado en tu sitio.
-- **Enlaces de Pago Estáticos**: URLs instantáneamente compartibles sin código para una rápida recolección de pagos.
+- **Pago en Superposición**: Utiliza cuando necesites una experiencia en la página que abra el pago como una superposición modal en tu sitio.
+- **Pago en Línea**: Integra el pago directamente en el diseño de tu página para experiencias de pago completamente integradas y de marca.
+- **Enlaces de Pago Estáticos**: URLs compartibles instantáneamente sin código para una rápida recolección de pagos.
 - **Enlaces de Pago Dinámicos**: Enlaces creados programáticamente. Sin embargo, se recomiendan las Sesiones de Pago, ya que ofrecen más flexibilidad.
 
 #### 1. Sesiones de Pago
@@ -129,12 +130,16 @@ Prefiere las Sesiones de Pago para la forma más rápida y confiable de comenzar
 
 Para una experiencia de pago en página sin interrupciones, explora nuestra integración de [Pago Superpuesto](/developer-resources/overlay-checkout) que permite a los clientes completar pagos sin salir de tu sitio web.
 
-#### 3. Enlaces de Pago Estáticos
+#### 3. Pago en Línea
 
-Los enlaces de pago estáticos te permiten aceptar pagos rápidamente compartiendo una URL simple. Puedes personalizar la experiencia de pago pasando parámetros de consulta para prellenar detalles del cliente, controlar campos del formulario y agregar metadatos personalizados.
+Para experiencias de pago completamente integradas incrustadas directamente en tu página, utiliza nuestra integración de [Pago en Línea](/developer-resources/inline-checkout). Esto te permite construir resúmenes de pedidos personalizados y tener control total sobre el diseño del pago mientras Dodo Payments maneja de forma segura la recolección de pagos.
+
+#### 4. Enlaces de Pago Estáticos
+
+Los enlaces de pago estáticos te permiten aceptar pagos rápidamente compartiendo una URL simple. Puedes personalizar la experiencia de pago pasando parámetros de consulta para prellenar detalles del cliente, controlar campos de formulario y agregar metadatos personalizados.
 
 <Steps>
-<Step title="Construir tu enlace de pago">
+<Step title="Construye tu enlace de pago">
   Comienza con la URL base y agrega tu ID de producto:
 
   ```text
@@ -142,10 +147,10 @@ Los enlaces de pago estáticos te permiten aceptar pagos rápidamente compartien
   ```
 
 </Step>
-<Step title="Agregar parámetros principales">
+<Step title="Agrega parámetros básicos">
   Incluye parámetros de consulta esenciales:
   - <ParamField query="quantity" type="integer" default="1">Número de artículos a comprar.</ParamField>
-  - <ParamField query="redirect_url" type="string" required>URL a redirigir después de completar el pago.</ParamField>
+  - <ParamField query="redirect_url" type="string" required>URL a la que redirigir después de completar el pago.</ParamField>
   <Note>
   La URL de redirección incluirá detalles de pago como parámetros de consulta, por ejemplo:<br/>
   <code>https://example.com/?payment_id=pay_ts2ySpzg07phGeBZqePbH&status=succeeded</code>
@@ -168,11 +173,11 @@ Los enlaces de pago estáticos te permiten aceptar pagos rápidamente compartien
     </Accordion>
   </AccordionGroup>
 </Step>
-<Step title="Controlar campos del formulario (opcional)">
+<Step title="Controlar campos de formulario (opcional)">
   <Info>
   Puedes deshabilitar campos específicos para que sean de solo lectura para el cliente. Esto es útil cuando ya tienes los detalles del cliente (por ejemplo, usuarios que han iniciado sesión).
   </Info>
-  Para deshabilitar un campo, proporciona su valor y establece la bandera correspondiente <code>disable...</code> en <code>true</code>:
+  Para deshabilitar un campo, proporciona su valor y establece el correspondiente <code>disable...</code> flag a <code>true</code>:
   <CodeGroup>
 
   ```text Example
@@ -181,18 +186,18 @@ Los enlaces de pago estáticos te permiten aceptar pagos rápidamente compartien
 
   </CodeGroup>
   <Tabs>
-    <Tab title="Tabla de Banderas de Desactivación">
-      | Campo         | Bandera de Desactivación | Parámetro Requerido |
-      |---------------|-------------------------|---------------------|
-      | Nombre Completo | `disableFullName`   | `fullName`        |
-      | Nombre        | `disableFirstName`  | `firstName`       |
-      | Apellido      | `disableLastName`   | `lastName`        |
-      | Correo        | `disableEmail`      | `email`           |
-      | País          | `disableCountry`    | `country`         |
-      | Línea de Dirección | `disableAddressLine`| `addressLine`     |
-      | Ciudad        | `disableCity`       | `city`            |
-      | Estado        | `disableState`      | `state`           |
-      | Código Postal  | `disableZipCode`    | `zipCode`         |
+    <Tab title="Tabla de Flags de Desactivación">
+      | Campo         | Flag de Desactivación | Parámetro Requerido |
+      |---------------|---------------------|-------------------|
+      | Nombre Completo     | `disableFullName`   | `fullName`        |
+      | Nombre    | `disableFirstName`  | `firstName`       |
+      | Apellido     | `disableLastName`   | `lastName`        |
+      | Correo         | `disableEmail`      | `email`           |
+      | País       | `disableCountry`    | `country`         |
+      | Línea de Dirección  | `disableAddressLine`| `addressLine`     |
+      | Ciudad          | `disableCity`       | `city`            |
+      | Estado         | `disableState`      | `state`           |
+      | Código Postal      | `disableZipCode`    | `zipCode`         |
     </Tab>
   </Tabs>
   <Tip>
@@ -206,10 +211,10 @@ Los enlaces de pago estáticos te permiten aceptar pagos rápidamente compartien
 <Step title="Agregar controles avanzados (opcional)">
   - <ParamField query="paymentCurrency" type="string">Especifica la moneda de pago. Por defecto, es la moneda del país de facturación.</ParamField>
   - <ParamField query="showCurrencySelector" type="boolean" default="true">Mostrar u ocultar el selector de moneda.</ParamField>
-  - <ParamField query="paymentAmount" type="integer">Monto en centavos (solo para precios de Paga lo que quieras).</ParamField>
+  - <ParamField query="paymentAmount" type="integer">Cantidad en centavos (solo para precios de Paga lo que quieras).</ParamField>
   - <ParamField query="metadata_*" type="string">Campos de metadatos personalizados (por ejemplo, <code>metadata_orderId=123</code>).</ParamField>
 </Step>
-<Step title="Compartir el enlace">
+<Step title="Comparte el enlace">
   Envía el enlace de pago completado a tu cliente. Cuando lo visiten, todos los parámetros de consulta se recopilan y se almacenan con un ID de sesión. La URL se simplifica para incluir solo el parámetro de sesión (por ejemplo, <code>?session=sess_1a2b3c4d</code>). La información almacenada persiste a través de las actualizaciones de página y es accesible durante todo el proceso de pago.
   <Check>
   La experiencia de pago del cliente ahora está optimizada y personalizada según tus parámetros.
@@ -404,7 +409,7 @@ export async function POST(request: NextRequest) {
 
 <Info>Después de crear el enlace de pago, redirige a tus clientes para completar su pago.</Info>
 
-### Implementación de Webhooks
+### Implementando Webhooks
 
 Configura un endpoint de API para recibir notificaciones de pago. Aquí hay un ejemplo usando Next.js:
 

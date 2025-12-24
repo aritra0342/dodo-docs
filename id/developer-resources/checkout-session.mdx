@@ -293,6 +293,9 @@ window.location.href = session.checkout_url;
 window.open(session.checkout_url, '_blank');
 ```
 
+<Tip>
+**Opsi Integrasi Alternatif**: Alih-alih mengalihkan, Anda dapat menyematkan checkout langsung di halaman Anda menggunakan [Overlay Checkout](/developer-resources/overlay-checkout) (overlay modal) atau [Inline Checkout](/developer-resources/inline-checkout) (sepenuhnya disematkan). Kedua opsi menggunakan URL sesi checkout yang sama.
+</Tip>
 </Step>
 
 <Step title="Tangani pengembalian">
@@ -975,16 +978,102 @@ const session = await client.checkoutSessions.create({
 });
 ```
 
+### 11. Menggunakan Metode Pembayaran yang Ada untuk Checkout Instan
+
+Gunakan metode pembayaran yang disimpan oleh pelanggan untuk membuat sesi checkout yang diproses segera, melewati pengumpulan metode pembayaran:
+
+```javascript expandable
+const session = await client.checkoutSessions.create({
+  product_cart: [
+    {
+      product_id: 'prod_premium_plan',
+      quantity: 1
+    }
+  ],
+  customer: {
+    customer_id: 'cus_123'  // Required when using payment_method_id
+  },
+  payment_method_id: 'pm_abc123',  // Use customer's saved payment method
+  confirm: true,  // Required when using payment_method_id
+  return_url: 'https://yourapp.com/success'
+});
+```
+
+<Warning>
+Saat menggunakan `payment_method_id`, `confirm` harus diatur ke `true` dan `customer_id` yang ada harus disediakan. Metode pembayaran akan divalidasi untuk kelayakan dengan mata uang pembayaran.
+</Warning>
+
+<Info>
+Metode pembayaran harus milik pelanggan dan kompatibel dengan mata uang pembayaran. Ini memungkinkan pembelian satu klik untuk pelanggan yang kembali.
+</Info>
+
+### 12. Tautan Pendek untuk URL Pembayaran yang Lebih Bersih
+
+Hasilkan tautan pembayaran yang dipersingkat dan dapat dibagikan dengan slug kustom:
+
+```javascript expandable
+const session = await client.checkoutSessions.create({
+  product_cart: [
+    {
+      product_id: 'prod_monthly_subscription',
+      quantity: 1
+    }
+  ],
+  short_link: true,  // Generate a shortened payment link
+  return_url: 'https://yourapp.com/success',
+  customer: {
+    email: 'customer@example.com',
+    name: 'John Doe'
+  }
+});
+
+// The checkout_url will be a shortened, cleaner link
+console.log(session.checkout_url);  // e.g., https://checkout.dodopayments.com/buy/abc123
+```
+
+<Tip>
+Tautan pendek sangat cocok untuk berbagi melalui SMS, email, atau media sosial. Mereka lebih mudah diingat dan membangun lebih banyak kepercayaan pelanggan dibandingkan URL yang panjang.
+</Tip>
+
+### 13. Lewati Halaman Sukses Pembayaran dengan Pengalihan Langsung
+
+Alihkan pelanggan segera setelah penyelesaian pembayaran, melewati halaman sukses default:
+
+```javascript expandable
+const session = await client.checkoutSessions.create({
+  product_cart: [
+    {
+      product_id: 'prod_digital_product',
+      quantity: 1
+    }
+  ],
+  redirect_immediately: true,  // Skip success page, redirect immediately
+  return_url: 'https://yourapp.com/success',
+  customer: {
+    email: 'customer@example.com',
+    name: 'Jane Smith'
+  }
+});
+```
+
+<Tip>
+Gunakan `redirect_immediately: true` ketika Anda memiliki halaman sukses kustom yang memberikan pengalaman pengguna yang lebih baik daripada halaman sukses pembayaran default. Ini sangat berguna untuk aplikasi seluler dan alur checkout yang disematkan.
+</Tip>
+
+<Note>
+Ketika `redirect_immediately` diaktifkan, pelanggan akan dialihkan ke `return_url` Anda segera setelah penyelesaian pembayaran, sepenuhnya melewati halaman sukses default.
+</Note>
+
 ## Beralih dari Tautan Dinamis ke Sesi Checkout
 
 ### Perbedaan Utama
 Sebelumnya, saat membuat tautan pembayaran dengan Tautan Dinamis, Anda diharuskan untuk memberikan alamat penagihan lengkap pelanggan.
 
-Dengan Sesi Checkout, ini tidak lagi diperlukan. Anda cukup mengirimkan informasi yang Anda miliki, dan kami akan menangani sisanya. Sebagai contoh:
+Dengan Sesi Checkout, ini tidak lagi diperlukan. Anda cukup menyampaikan informasi yang Anda miliki, dan kami akan menangani sisanya. Misalnya:
 
 - Jika Anda hanya tahu negara penagihan pelanggan, cukup berikan itu.
 - Alur checkout akan secara otomatis mengumpulkan detail yang hilang sebelum memindahkan pelanggan ke halaman pembayaran.
-- Di sisi lain, jika Anda sudah memiliki semua informasi yang diperlukan dan ingin langsung ke halaman pembayaran, Anda dapat mengirimkan seluruh set data dan menyertakan `confirm=true` dalam badan permintaan Anda.
+- Di sisi lain, jika Anda sudah memiliki semua informasi yang diperlukan dan ingin langsung ke halaman pembayaran, Anda dapat menyampaikan kumpulan data lengkap dan menyertakan `confirm=true` dalam body permintaan Anda.
 
 ### Proses Migrasi
 

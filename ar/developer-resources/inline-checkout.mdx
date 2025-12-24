@@ -1,9 +1,9 @@
 ---
-title: الدفع المباشر (مسودة)
+title: الدفع الفوري
 description: قم بتضمين عملية الدفع من Dodo Payments مباشرة في موقعك الإلكتروني
   لتجربة دفع سلسة ومميزة.
 icon: credit-card
-draft: true
+tag: BETA
 ---
 
 ## نظرة عامة
@@ -60,8 +60,8 @@ draft: true
 <Steps>
 <Step title="يفتح العميل عملية الدفع">
 
-يمكنك فتح الدفع المباشر عن طريق تمرير العناصر أو معاملة موجودة. استخدم SDK لعرض وتحديث المعلومات على الصفحة، وطرق SDK لتحديث العناصر بناءً على تفاعل العميل.
-    <img src="/images/inline-checkout/1.svg" alt="صفحة الدفع الأولية مع قائمة العناصر ونموذج الدفع"/>
+يمكنك فتح الدفع الفوري عن طريق تمرير العناصر أو معاملة موجودة. استخدم SDK لعرض وتحديث المعلومات على الصفحة، وطرق SDK لتحديث العناصر بناءً على تفاعل العميل.
+    <img src="/images/inline-checkout/1.png" alt="الصفحة الأولية للدفع مع قائمة العناصر ونموذج الدفع"/>
 
 </Step>
 
@@ -79,7 +79,7 @@ draft: true
 
 عرض طرق الدفع المحفوظة إذا كانت متاحة لتسريع عملية الدفع.
 
-<img src="/images/inline-checkout/3.svg" alt="طرق الدفع المتاحة ونموذج تفاصيل البطاقة"/>
+<img src="/images/inline-checkout/2.png" alt="طرق الدفع المتاحة ونموذج تفاصيل البطاقة"/>
 
 </Step>
 
@@ -87,7 +87,7 @@ draft: true
 
 تقوم Dodo Payments بتوجيه كل عملية دفع إلى أفضل جهة إصدار لتلك المعاملة للحصول على أفضل فرصة للنجاح. يدخل العملاء في سير عمل النجاح الذي يمكنك بناؤه.
 
-<img src="/images/inline-checkout/4.svg" alt="شاشة النجاح مع علامة تأكيد"/>
+<img src="/images/inline-checkout/3.png" alt="شاشة النجاح مع علامة تأكيد"/>
 
 </Step>
 
@@ -95,25 +95,486 @@ draft: true
 
 تقوم Dodo Payments تلقائيًا بإنشاء اشتراك للعميل، جاهزًا للتوفير. يتم الاحتفاظ بطريقة الدفع التي استخدمها العميل في السجل للتجديدات أو تغييرات الاشتراك.
 
-<img src="/images/inline-checkout/5.svg" alt="تم إنشاء الاشتراك مع إشعار webhook"/>
+<img src="/images/inline-checkout/4.png" alt="تم إنشاء الاشتراك مع إشعار webhook"/>
 
 </Step>
 </Steps>
 
-## الدفع المباشر مقابل الدفع المنبثق
+## البداية السريعة
+
+ابدأ مع الدفع الفوري من Dodo Payments في بضع أسطر من التعليمات البرمجية:
+
+```typescript
+import { DodoPayments } from "dodopayments-checkout";
+
+// Initialize the SDK for inline mode
+DodoPayments.Initialize({
+  mode: "test",
+  displayType: "inline",
+  onEvent: (event) => {
+    console.log("Checkout event:", event);
+  },
+});
+
+// Open checkout in a specific container
+DodoPayments.Checkout.open({
+  checkoutUrl: "https://test.dodopayments.com/session/cks_123",
+  elementId: "dodo-inline-checkout" // ID of the container element
+});
+```
+
+<Tip>
+تأكد من وجود عنصر حاوية مع `id` المقابل على صفحتك: `<div id="dodo-inline-checkout"></div>`.
+</Tip>
+
+## دليل التكامل خطوة بخطوة
+
+<Steps>
+<Step title="تثبيت SDK">
+
+قم بتثبيت SDK الدفع من Dodo Payments:
+
+<CodeGroup>
+
+```bash npm
+npm install dodopayments-checkout
+```
+
+```bash yarn
+yarn add dodopayments-checkout
+```
+
+```bash pnpm
+pnpm add dodopayments-checkout
+```
+
+</CodeGroup>
+
+</Step>
+
+<Step title="تهيئة SDK لعرض الدفع الفوري">
+
+قم بتهيئة SDK وحدد `displayType: 'inline'`. يجب عليك أيضًا الاستماع لحدث `checkout.breakdown` لتحديث واجهة المستخدم الخاصة بك بحسابات الضرائب والإجماليات في الوقت الحقيقي.
+
+```typescript
+import { DodoPayments } from "dodopayments-checkout";
+
+DodoPayments.Initialize({
+  mode: "test",
+  displayType: "inline",
+  onEvent: (event) => {
+    if (event.event_type === "checkout.breakdown") {
+      const breakdown = event.data?.message;
+      // Update your UI with breakdown.subTotal, breakdown.tax, breakdown.total, etc.
+    }
+  },
+});
+```
+
+</Step>
+
+<Step title="إنشاء عنصر حاوية">
+
+أضف عنصرًا إلى HTML الخاص بك حيث سيتم حقن إطار الدفع:
+
+```html
+<div id="dodo-inline-checkout"></div>
+```
+
+</Step>
+
+<Step title="فتح الدفع">
+
+استدعاء `DodoPayments.Checkout.open()` مع `checkoutUrl` و `elementId` من الحاوية الخاصة بك:
+
+```typescript
+DodoPayments.Checkout.open({
+  checkoutUrl: "https://test.dodopayments.com/session/cks_123",
+  elementId: "dodo-inline-checkout"
+});
+```
+
+</Step>
+
+<Step title="اختبر تكاملك">
+
+1. ابدأ خادم التطوير الخاص بك:
+
+```bash
+npm run dev
+```
+
+2. اختبر تدفق الدفع:
+   - أدخل تفاصيل بريدك الإلكتروني والعنوان في الإطار الفوري.
+   - تحقق من أن ملخص الطلب المخصص الخاص بك يتم تحديثه في الوقت الحقيقي.
+   - اختبر تدفق الدفع باستخدام بيانات اعتماد الاختبار.
+   - تأكد من أن عمليات إعادة التوجيه تعمل بشكل صحيح.
+
+<Check>
+يجب أن ترى أحداث `checkout.breakdown` مسجلة في وحدة تحكم المتصفح الخاصة بك إذا قمت بإضافة سجل وحدة تحكم في رد الاتصال `onEvent`.
+</Check>
+
+</Step>
+
+<Step title="اذهب للعيش">
+
+عندما تكون جاهزًا للإنتاج:
+
+1. غير الوضع إلى `'live'`:
+
+```typescript
+DodoPayments.Initialize({
+  mode: "live",
+  displayType: "inline",
+  onEvent: (event) => {
+    // Handle events
+  }
+});
+```
+
+2. قم بتحديث عناوين URL للدفع الخاصة بك لاستخدام جلسات الدفع الحية من الخلفية الخاصة بك.
+3. اختبر التدفق الكامل في الإنتاج.
+
+</Step>
+</Steps>
+
+## مثال كامل على React
+
+هذا المثال يوضح كيفية تنفيذ ملخص طلب مخصص بجانب الدفع الفوري، مع الحفاظ على تزامنهم باستخدام حدث `checkout.breakdown`.
+
+```tsx
+"use client";
+
+import { useEffect, useState } from 'react';
+import { DodoPayments, CheckoutBreakdownData } from 'dodopayments-checkout';
+
+export default function CheckoutPage() {
+  const [breakdown, setBreakdown] = useState<Partial<CheckoutBreakdownData>>({});
+
+  useEffect(() => {
+    // 1. Initialize the SDK
+    DodoPayments.Initialize({
+      mode: 'test',
+      displayType: 'inline',
+      onEvent: (event) => {
+        // 2. Listen for the 'checkout.breakdown' event
+        if (event.event_type === "checkout.breakdown") {
+          const message = event.data?.message as CheckoutBreakdownData;
+          if (message) setBreakdown(message);
+        }
+      }
+    });
+
+    // 3. Open the checkout in the specified container
+    DodoPayments.Checkout.open({
+      checkoutUrl: 'https://test.dodopayments.com/session/cks_123',
+      elementId: 'dodo-inline-checkout'
+    });
+
+    return () => DodoPayments.Checkout.close();
+  }, []);
+
+  const format = (amt: number | null | undefined, curr: string | null | undefined) => 
+    amt != null && curr ? `${curr} ${(amt/100).toFixed(2)}` : '0.00';
+
+  const currency = breakdown.currency ?? breakdown.finalTotalCurrency ?? '';
+
+  return (
+    <div className="flex flex-col md:flex-row min-h-screen">
+      {/* Left Side - Checkout Form */}
+      <div className="w-full md:w-1/2 flex items-center">
+        <div id="dodo-inline-checkout" className='w-full' />
+      </div>
+
+      {/* Right Side - Custom Order Summary */}
+      <div className="w-full md:w-1/2 p-8 bg-gray-50">
+        <h2 className="text-2xl font-bold mb-4">Order Summary</h2>
+        <div className="space-y-2">
+          {breakdown.subTotal && (
+            <div className="flex justify-between">
+              <span>Subtotal</span>
+              <span>{format(breakdown.subTotal, currency)}</span>
+            </div>
+          )}
+          {breakdown.discount && (
+            <div className="flex justify-between">
+              <span>Discount</span>
+              <span>{format(breakdown.discount, currency)}</span>
+            </div>
+          )}
+          {breakdown.tax != null && (
+            <div className="flex justify-between">
+              <span>Tax</span>
+              <span>{format(breakdown.tax, currency)}</span>
+            </div>
+          )}
+          <hr />
+          {(breakdown.finalTotal ?? breakdown.total) && (
+            <div className="flex justify-between font-bold text-xl">
+              <span>Total</span>
+              <span>{format(breakdown.finalTotal ?? breakdown.total, breakdown.finalTotalCurrency ?? currency)}</span>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+```
+
+## مرجع API
+
+### التكوين
+
+#### خيارات التهيئة
+
+```typescript
+interface InitializeOptions {
+  mode: "test" | "live";
+  displayType: "inline"; // Required for inline checkout
+  onEvent: (event: CheckoutEvent) => void;
+}
+```
+
+| الخيار | النوع | مطلوب | الوصف |
+|--------|------|----------|-------------|
+| `mode` | `"test" \| "live"` | نعم | وضع البيئة. |
+| `displayType` | `"inline" \| "overlay"` | نعم | يجب تعيينه إلى `"inline"` لتضمين الدفع. |
+| `onEvent` | `function` | نعم | دالة رد الاتصال لمعالجة أحداث الدفع. |
+
+#### خيارات الدفع
+
+```typescript
+interface CheckoutOptions {
+  checkoutUrl: string;
+  elementId: string; // Required for inline checkout
+}
+```
+
+| الخيار | النوع | مطلوب | الوصف |
+|--------|------|----------|-------------|
+| `checkoutUrl` | `string` | نعم | عنوان URL لجلسة الدفع. |
+| `elementId` | `string` | نعم | `id` لعنصر DOM حيث يجب عرض الدفع. |
+
+### الطرق
+
+#### فتح الدفع
+
+يفتح إطار الدفع في الحاوية المحددة.
+
+```typescript
+DodoPayments.Checkout.open({
+  checkoutUrl: "https://test.dodopayments.com/session/cks_123",
+  elementId: "dodo-inline-checkout"
+});
+```
+
+#### إغلاق الدفع
+
+يزيل إطار الدفع برمجيًا وينظف مستمعي الأحداث.
+
+```typescript
+DodoPayments.Checkout.close();
+```
+
+#### تحقق من الحالة
+
+يعود ما إذا كان إطار الدفع محقونًا حاليًا.
+
+```typescript
+const isOpen = DodoPayments.Checkout.isOpen();
+// Returns: boolean
+```
+
+### الأحداث
+
+يوفر SDK أحداثًا في الوقت الحقيقي من خلال رد الاتصال `onEvent`. بالنسبة للدفع الفوري، فإن `checkout.breakdown` مفيد بشكل خاص لمزامنة واجهة المستخدم الخاصة بك.
+
+| نوع الحدث | الوصف |
+|------------|-------------|
+| `checkout.opened` | تم تحميل إطار الدفع. |
+| `checkout.breakdown` | تم إطلاقه عند تحديث الأسعار أو الضرائب أو الخصومات. |
+| `checkout.customer_details_submitted` | تم تقديم تفاصيل العميل. |
+| `checkout.redirect` | سيقوم الدفع بإجراء إعادة توجيه (على سبيل المثال، إلى صفحة بنك). |
+| `checkout.error` | حدث خطأ أثناء الدفع. |
+
+#### بيانات تحليل الدفع
+
+يوفر حدث `checkout.breakdown` البيانات التالية:
+
+```typescript
+interface CheckoutBreakdownData {
+  subTotal?: number;          // Amount in cents
+  discount?: number;         // Amount in cents
+  tax?: number;              // Amount in cents
+  total?: number;            // Amount in cents
+  currency?: string;         // e.g., "USD"
+  finalTotal?: number;       // Final amount including adjustments
+  finalTotalCurrency?: string; // Currency for the final total
+}
+```
+
+#### فهم حدث التحليل
+
+يعد حدث `checkout.breakdown` الطريقة الأساسية للحفاظ على واجهة المستخدم الخاصة بتطبيقك متزامنة مع حالة دفع Dodo Payments.
+
+**عندما يتم إطلاقه:**
+- **عند التهيئة**: مباشرة بعد تحميل إطار الدفع واستعداده.
+- **عند تغيير العنوان**: كلما اختار العميل دولة أو أدخل رمزًا بريديًا يؤدي إلى إعادة حساب الضرائب.
+
+**تفاصيل الحقول:**
+
+| الحقل | الوصف |
+|-------|-------------|
+| `subTotal` | مجموع جميع العناصر في الجلسة قبل تطبيق أي خصومات أو ضرائب. |
+| `discount` | القيمة الإجمالية لجميع الخصومات المطبقة. |
+| `tax` | مبلغ الضريبة المحسوب. في وضع `inline`، يتم تحديث هذا ديناميكيًا أثناء تفاعل المستخدم مع حقول العنوان. |
+| `total` | النتيجة الرياضية لـ `subTotal - discount + tax` في العملة الأساسية للجلسة. |
+| `currency` | رمز العملة ISO (على سبيل المثال، `"USD"`) للقيم القياسية للفرعية والخصم والضرائب. |
+| `finalTotal` | المبلغ الفعلي الذي يتم تحصيله من العميل. قد يتضمن ذلك تعديلات إضافية على سعر الصرف أو رسوم طريقة الدفع المحلية التي ليست جزءًا من تحليل السعر الأساسي. |
+| `finalTotalCurrency` | العملة التي يدفع بها العميل فعليًا. قد تختلف هذه عن `currency` إذا كانت القدرة الشرائية أو تحويل العملة المحلية نشطة. |
+
+**نصائح تكامل رئيسية:**
+
+1.  **تنسيق العملة**: يتم دائمًا إرجاع الأسعار كأعداد صحيحة في أصغر وحدة عملة (على سبيل المثال، السنتات للدولار الأمريكي، والين للياباني). لعرضها، قسمها على 100 (أو القوة المناسبة لـ 10) أو استخدم مكتبة تنسيق مثل `Intl.NumberFormat`.
+2.  **معالجة الحالات الأولية**: عند تحميل الدفع لأول مرة، قد تكون `tax` و `discount` إما `0` أو `null` حتى يقدم المستخدم معلومات الفوترة الخاصة به أو يطبق رمزًا. يجب أن تتعامل واجهة المستخدم الخاصة بك مع هذه الحالات بشكل جيد (على سبيل المثال، عرض شرطة `—` أو إخفاء الصف).
+3.  **"الإجمالي النهائي" مقابل "الإجمالي"**: بينما يعطيك `total` حساب السعر القياسي، فإن `finalTotal` هو مصدر الحقيقة للمعاملة. إذا كان `finalTotal` موجودًا، فإنه يعكس بالضبط ما سيتم تحصيله من بطاقة العميل، بما في ذلك أي تعديلات ديناميكية.
+4.  **التعليقات في الوقت الحقيقي**: استخدم حقل `tax` لإظهار للمستخدمين أن الضرائب يتم حسابها في الوقت الحقيقي. يوفر هذا شعورًا "حيًا" لصفحة الدفع الخاصة بك ويقلل من الاحتكاك أثناء خطوة إدخال العنوان.
+
+## خيارات التنفيذ
+
+### تثبيت عبر مدير الحزم
+
+قم بالتثبيت عبر npm أو yarn أو pnpm كما هو موضح في [دليل التكامل خطوة بخطوة](#step-by-step-integration-guide).
+
+### تنفيذ CDN
+
+للتكامل السريع دون خطوة بناء، يمكنك استخدام CDN الخاص بنا:
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dodo Payments Inline Checkout</title>
+    
+    <!-- Load DodoPayments -->
+    <script src="https://cdn.jsdelivr.net/npm/dodopayments-checkout@latest/dist/index.js"></script>
+    <script>
+        // Initialize the SDK
+        DodoPaymentsCheckout.DodoPayments.Initialize({
+            mode: "test",
+            displayType: "inline",
+            onEvent: (event) => {
+                console.log('Checkout event:', event);
+            }
+        });
+    </script>
+</head>
+<body>
+    <div id="dodo-inline-checkout"></div>
+
+    <script>
+        // Open the checkout
+        DodoPaymentsCheckout.DodoPayments.Checkout.open({
+            checkoutUrl: "https://test.dodopayments.com/session/cks_123",
+            elementId: "dodo-inline-checkout"
+        });
+    </script>
+</body>
+</html>
+```
+
+## دعم TypeScript
+
+تم كتابة SDK بلغة TypeScript ويشمل تعريفات نوع شاملة.
+
+```typescript
+import { DodoPayments, CheckoutEvent } from "dodopayments-checkout";
+
+DodoPayments.Initialize({
+  mode: "test",
+  displayType: "inline",
+  onEvent: (event: CheckoutEvent) => {
+    // event is fully typed
+    console.log(event.event_type, event.data);
+  },
+});
+```
+
+## معالجة الأخطاء
+
+يوفر SDK معلومات تفصيلية عن الأخطاء من خلال نظام الأحداث. دائمًا قم بتنفيذ معالجة الأخطاء المناسبة في رد الاتصال `onEvent`:
+
+```typescript
+DodoPayments.Initialize({
+  mode: "test",
+  displayType: "inline",
+  onEvent: (event: CheckoutEvent) => {
+    if (event.event_type === "checkout.error") {
+      console.error("Checkout error:", event.data?.message);
+      // Handle error appropriately
+    }
+  }
+});
+```
+
+<Warning>
+دائمًا تعامل مع حدث `checkout.error` لتوفير تجربة مستخدم جيدة عند حدوث مشكلات.
+</Warning>
+
+## أفضل الممارسات
+
+1. **تصميم متجاوب**: تأكد من أن عنصر الحاوية لديك له عرض وارتفاع كافيين. سيتوسع iframe عادةً لملء حاويته.
+2. **المزامنة**: استخدم حدث `checkout.breakdown` للحفاظ على ملخص الطلب المخصص أو جداول الأسعار متزامنة مع ما يراه المستخدم في إطار الدفع.
+3. **حالات الهيكل العظمي**: عرض مؤشر تحميل في الحاوية الخاصة بك حتى يتم إطلاق حدث `checkout.opened`.
+4. **التنظيف**: استدعاء `DodoPayments.Checkout.close()` عند تفكيك المكون الخاص بك لتنظيف iframe ومستمعي الأحداث.
+
+## استكشاف الأخطاء وإصلاحها
+
+<AccordionGroup>
+<Accordion title="إطار الدفع لا يظهر">
+- تحقق من أن `elementId` يتطابق مع `id` ل `div` الذي يوجد بالفعل في DOM.
+- تأكد من أنه تم تمرير `displayType: 'inline'` إلى `Initialize`.
+- تحقق من أن `checkoutUrl` صالح.
+</Accordion>
+
+<Accordion title="الضرائب لا تتحدث في واجهتي">
+- تأكد من أنك تستمع لحدث `checkout.breakdown`.
+- يتم حساب الضرائب فقط بعد أن يدخل المستخدم دولة ورمزًا بريديًا صالحين في إطار الدفع.
+</Accordion>
+</AccordionGroup>
+
+## دعم المتصفح
+
+يدعم SDK الدفع من Dodo Payments المتصفحات التالية:
+
+- Chrome (الأحدث)
+- Firefox (الأحدث)
+- Safari (الأحدث)
+- Edge (الأحدث)
+- IE11+
+
+<Note>
+Apple Pay غير مدعوم حاليًا في تجربة الدفع الفوري. نخطط لإضافة دعم لـ Apple Pay في إصدار مستقبلي.
+</Note>
+
+## الدفع الفوري مقابل الدفع المنبثق
 
 اختر نوع الدفع المناسب لحالتك:
 
-| الميزة | الدفع المباشر | الدفع المنبثق |
+| الميزة | الدفع الفوري | الدفع المنبثق |
 |---------|-----------------|------------------|
 | عمق التكامل | مدمج بالكامل في الصفحة | نافذة منبثقة فوق الصفحة |
 | التحكم في التخطيط | تحكم كامل | محدود |
 | العلامة التجارية | سلس | منفصل عن الصفحة |
 | جهد التنفيذ | أعلى | أقل |
-| الأفضل لـ | صفحات دفع مخصصة، تدفقات عالية التحويل | تكامل سريع، صفحات موجودة |
+| الأفضل لـ | صفحات الدفع المخصصة، تدفقات التحويل العالية | تكامل سريع، صفحات موجودة |
 
 <Tip>
-استخدم **الدفع المباشر** عندما تريد أقصى تحكم في تجربة الدفع وعلامة تجارية سلسة. استخدم **الدفع المنبثق** للتكامل الأسرع مع تغييرات طفيفة على صفحاتك الحالية.
+استخدم **الدفع الفوري** عندما تريد أقصى قدر من التحكم في تجربة الدفع والعلامة التجارية السلسة. استخدم **الدفع المنبثق** للتكامل الأسرع مع تغييرات طفيفة في صفحاتك الحالية.
 </Tip>
 
 ## الموارد ذات الصلة
@@ -123,8 +584,8 @@ draft: true
     استخدم الدفع المنبثق للتكامل السريع القائم على النوافذ المنبثقة.
 </Card>
 
-<Card title="واجهة برمجة تطبيقات جلسات الدفع" icon="code" href="/api-reference/checkout-sessions/create">
-    أنشئ جلسات دفع لتفعيل تجارب الدفع الخاصة بك.
+<Card title="API لجلسات الدفع" icon="code" href="/api-reference/checkout-sessions/create">
+    أنشئ جلسات دفع لتشغيل تجارب الدفع الخاصة بك.
 </Card>
 
 <Card title="Webhooks" icon="webhook" href="/developer-resources/webhooks">

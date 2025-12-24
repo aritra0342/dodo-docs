@@ -293,6 +293,9 @@ window.location.href = session.checkout_url;
 window.open(session.checkout_url, '_blank');
 ```
 
+<Tip>
+**Các tùy chọn tích hợp thay thế**: Thay vì chuyển hướng, bạn có thể nhúng thanh toán trực tiếp vào trang của mình bằng cách sử dụng [Overlay Checkout](/developer-resources/overlay-checkout) (overlay modal) hoặc [Inline Checkout](/developer-resources/inline-checkout) (nhúng hoàn toàn). Cả hai tùy chọn đều sử dụng cùng một URL phiên thanh toán.
+</Tip>
 </Step>
 
 <Step title="Xử lý việc trở lại">
@@ -975,31 +978,117 @@ const session = await client.checkoutSessions.create({
 });
 ```
 
-## Chuyển Từ Liên Kết Động Sang Các Phiên Giao Dịch Thanh Toán
+### 11. Sử dụng các phương thức thanh toán hiện có cho thanh toán ngay lập tức
 
-### Sự Khác Biệt Chính
-Trước đây, khi tạo một liên kết thanh toán với Liên Kết Động, bạn phải cung cấp địa chỉ thanh toán đầy đủ của khách hàng.
+Sử dụng phương thức thanh toán đã lưu của khách hàng để tạo một phiên thanh toán được xử lý ngay lập tức, bỏ qua việc thu thập phương thức thanh toán:
 
-Với Các Phiên Giao Dịch Thanh Toán, điều này không còn cần thiết. Bạn chỉ cần truyền bất kỳ thông tin nào bạn có, và chúng tôi sẽ xử lý phần còn lại. Ví dụ:
+```javascript expandable
+const session = await client.checkoutSessions.create({
+  product_cart: [
+    {
+      product_id: 'prod_premium_plan',
+      quantity: 1
+    }
+  ],
+  customer: {
+    customer_id: 'cus_123'  // Required when using payment_method_id
+  },
+  payment_method_id: 'pm_abc123',  // Use customer's saved payment method
+  confirm: true,  // Required when using payment_method_id
+  return_url: 'https://yourapp.com/success'
+});
+```
+
+<Warning>
+Khi sử dụng `payment_method_id`, `confirm` phải được đặt thành `true` và một `customer_id` hiện có phải được cung cấp. Phương thức thanh toán sẽ được xác thực để kiểm tra tính đủ điều kiện với loại tiền tệ của thanh toán.
+</Warning>
+
+<Info>
+Phương thức thanh toán phải thuộc về khách hàng và tương thích với loại tiền tệ thanh toán. Điều này cho phép mua hàng một lần cho khách hàng quay lại.
+</Info>
+
+### 12. Liên kết ngắn cho URL thanh toán sạch hơn
+
+Tạo các liên kết thanh toán ngắn gọn, có thể chia sẻ với các slug tùy chỉnh:
+
+```javascript expandable
+const session = await client.checkoutSessions.create({
+  product_cart: [
+    {
+      product_id: 'prod_monthly_subscription',
+      quantity: 1
+    }
+  ],
+  short_link: true,  // Generate a shortened payment link
+  return_url: 'https://yourapp.com/success',
+  customer: {
+    email: 'customer@example.com',
+    name: 'John Doe'
+  }
+});
+
+// The checkout_url will be a shortened, cleaner link
+console.log(session.checkout_url);  // e.g., https://checkout.dodopayments.com/buy/abc123
+```
+
+<Tip>
+Liên kết ngắn rất phù hợp cho việc chia sẻ qua SMS, email hoặc mạng xã hội. Chúng dễ nhớ hơn và tạo được sự tin tưởng hơn cho khách hàng so với các URL dài.
+</Tip>
+
+### 13. Bỏ qua trang thành công thanh toán với chuyển hướng ngay lập tức
+
+Chuyển hướng khách hàng ngay lập tức sau khi hoàn tất thanh toán, bỏ qua trang thành công mặc định:
+
+```javascript expandable
+const session = await client.checkoutSessions.create({
+  product_cart: [
+    {
+      product_id: 'prod_digital_product',
+      quantity: 1
+    }
+  ],
+  redirect_immediately: true,  // Skip success page, redirect immediately
+  return_url: 'https://yourapp.com/success',
+  customer: {
+    email: 'customer@example.com',
+    name: 'Jane Smith'
+  }
+});
+```
+
+<Tip>
+Sử dụng `redirect_immediately: true` khi bạn có một trang thành công tùy chỉnh cung cấp trải nghiệm người dùng tốt hơn so với trang thành công thanh toán mặc định. Điều này đặc biệt hữu ích cho các ứng dụng di động và quy trình thanh toán nhúng.
+</Tip>
+
+<Note>
+Khi `redirect_immediately` được kích hoạt, khách hàng sẽ được chuyển hướng đến `return_url` ngay sau khi hoàn tất thanh toán, hoàn toàn bỏ qua trang thành công mặc định.
+</Note>
+
+## Chuyển từ Liên kết động sang Phiên thanh toán
+
+### Sự khác biệt chính
+Trước đây, khi tạo một liên kết thanh toán với Liên kết động, bạn phải cung cấp địa chỉ thanh toán đầy đủ của khách hàng.
+
+Với Phiên thanh toán, điều này không còn cần thiết. Bạn chỉ cần truyền bất kỳ thông tin nào bạn có, và chúng tôi sẽ xử lý phần còn lại. Ví dụ:
 
 - Nếu bạn chỉ biết quốc gia thanh toán của khách hàng, chỉ cần cung cấp điều đó.
 - Quy trình thanh toán sẽ tự động thu thập các chi tiết còn thiếu trước khi chuyển khách hàng đến trang thanh toán.
 - Mặt khác, nếu bạn đã có tất cả thông tin cần thiết và muốn bỏ qua trực tiếp đến trang thanh toán, bạn có thể truyền toàn bộ tập dữ liệu và bao gồm `confirm=true` trong thân yêu cầu của bạn.
 
-### Quy Trình Di Chuyển
+### Quy trình di chuyển
 
-Di chuyển từ Liên Kết Động sang Các Phiên Giao Dịch Thanh Toán là đơn giản:
+Di chuyển từ Liên kết động sang Phiên thanh toán là đơn giản:
 
 <Steps>
-<Step title="Cập Nhật tích hợp của bạn">
+<Step title="Cập nhật tích hợp của bạn">
 Cập nhật tích hợp của bạn để sử dụng phương thức API hoặc SDK mới.
 </Step>
 
-<Step title="Điều Chỉnh tải trọng yêu cầu">
-Điều chỉnh tải trọng yêu cầu theo định dạng Các Phiên Giao Dịch Thanh Toán.
+<Step title="Điều chỉnh payload yêu cầu">
+Điều chỉnh payload yêu cầu theo định dạng Phiên thanh toán.
 </Step>
 
-<Step title="Chỉ vậy thôi!">
-Đúng vậy. Không cần xử lý thêm hoặc các bước di chuyển đặc biệt nào cần thiết từ phía bạn.
+<Step title="Thế là xong!">
+Đúng vậy. Không cần xử lý thêm hoặc các bước di chuyển đặc biệt nào khác từ phía bạn.
 </Step>
 </Steps>

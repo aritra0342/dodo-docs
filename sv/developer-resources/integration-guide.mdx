@@ -30,11 +30,12 @@ För att integrera Dodo Payments API behöver du:
 
 ### Betalningslänkar
 
-Välj den integrationsväg som passar ditt användningsfall:
-- **Checkout Sessions (rekommenderas)**: Bäst för de flesta integrationer. Skapa en session på din server och omdirigera kunder till en säker, hostad checkout.
-- **Overlay Checkout (inbäddad)**: Används när du behöver en in-page-upplevelse som bäddar in den hostade checkouten på din webbplats.
-- **Statisk betalningslänk**: Ingen kod, omedelbart delbara URL:er för snabb betalningsinsamling.
-- **Dynamiska betalningslänkar**: Programmässigt skapade länkar. Checkout Sessions rekommenderas och ger mer flexibilitet.
+Välj integrationsväg som passar ditt användningsfall:
+- **Checkout Sessions (rekommenderas)**: Bäst för de flesta integrationer. Skapa en session på din server och omdirigera kunder till en säker, hostad kassa.
+- **Overlay Checkout**: Använd när du behöver en in-page-upplevelse som öppnar kassan som en modal overlay på din webbplats.
+- **Inline Checkout**: Bädda in kassan direkt i din sidlayout för helt integrerade, varumärkesanpassade kassaupplevelser.
+- **Statisk betalningslänkar**: Ingen kod, omedelbart delbara URL:er för snabb betalningsinsamling.
+- **Dynamiska betalningslänkar**: Programmatisk skapade länkar. Dock rekommenderas Checkout Sessions och ger mer flexibilitet.
 
 #### 1. Checkout Sessions
 
@@ -129,13 +130,17 @@ Föredra Checkout Sessions för det snabbaste, mest pålitliga sättet att börj
 
 För en sömlös in-page checkoutupplevelse, utforska vår [Overlay Checkout](/developer-resources/overlay-checkout) integration som gör att kunder kan slutföra betalningar utan att lämna din webbplats.
 
-#### 3. Statisk betalningslänk
+#### 3. Inline Checkout
 
-Statisk betalningslänkar låter dig snabbt ta emot betalningar genom att dela en enkel URL. Du kan anpassa checkoutupplevelsen genom att skicka med frågeparametrar för att förfylla kunduppgifter, kontrollera formulärfält och lägga till anpassad metadata.
+För helt integrerade kassaupplevelser som är inbäddade direkt i din sida, använd vår [Inline Checkout](/developer-resources/inline-checkout) integration. Detta gör att du kan bygga anpassade orderöversikter och ha full kontroll över kassalayouten medan Dodo Payments säkert hanterar betalningsinsamlingen.
+
+#### 4. Statisk betalningslänkar
+
+Statisk betalningslänkar låter dig snabbt ta emot betalningar genom att dela en enkel URL. Du kan anpassa kassaupplevelsen genom att skicka med frågeparametrar för att förifylla kunduppgifter, kontrollera formulärfält och lägga till anpassad metadata.
 
 <Steps>
 <Step title="Konstruera din betalningslänk">
-  Börja med bas-URL:en och lägg till din produkt-ID:
+  Börja med bas-URL:en och lägg till ditt produkt-ID:
 
   ```text
   https://checkout.dodopayments.com/buy/{productid}
@@ -145,14 +150,14 @@ Statisk betalningslänkar låter dig snabbt ta emot betalningar genom att dela e
 <Step title="Lägg till kärnparametrar">
   Inkludera viktiga frågeparametrar:
   - <ParamField query="quantity" type="integer" default="1">Antal artiklar att köpa.</ParamField>
-  - <ParamField query="redirect_url" type="string" required>URL att omdirigera efter betalningens slutförande.</ParamField>
+  - <ParamField query="redirect_url" type="string" required>URL att omdirigera till efter betalningens slutförande.</ParamField>
   <Note>
   Omdirigerings-URL:en kommer att inkludera betalningsdetaljer som frågeparametrar, till exempel:<br/>
   <code>https://example.com/?payment_id=pay_ts2ySpzg07phGeBZqePbH&status=succeeded</code>
   </Note>
 </Step>
-<Step title="Förfylla kundinformation (valfritt)">
-  Lägg till kund- eller faktureringsfält som frågeparametrar för att strömlinjeforma checkout.
+<Step title="Förifyll kundinformation (valfritt)">
+  Lägg till kund- eller faktureringsfält som frågeparametrar för att effektivisera kassan.
   <AccordionGroup>
     <Accordion title="Stödda kundfält">
       - <ParamField query="fullName" type="string">Kundens fullständiga namn (ignoreras om firstName eller lastName anges).</ParamField>
@@ -189,7 +194,7 @@ Statisk betalningslänkar låter dig snabbt ta emot betalningar genom att dela e
       | Efternamn    | `disableLastName`   | `lastName`        |
       | E-post       | `disableEmail`      | `email`           |
       | Land         | `disableCountry`    | `country`         |
-      | Adressrad    | `disableAddressLine`| `addressLine`     |
+      | Gatuadress   | `disableAddressLine`| `addressLine`     |
       | Stad         | `disableCity`       | `city`            |
       | Stat         | `disableState`      | `state`           |
       | ZIP-kod      | `disableZipCode`    | `zipCode`         |
@@ -199,20 +204,20 @@ Statisk betalningslänkar låter dig snabbt ta emot betalningar genom att dela e
   Inaktivering av fält hjälper till att förhindra oavsiktliga ändringar och säkerställer datakonsistens.
   </Tip>
   <Note>
-  Att ställa in <code>showDiscounts=false</code> kommer att inaktivera och dölja rabatteringssektionen i checkoutformuläret. Använd detta om du vill förhindra att kunder anger kupong- eller kampanjkoder under checkout.
+  Att ställa in <code>showDiscounts=false</code> kommer att inaktivera och dölja rabattsektionen i kassafältet. Använd detta om du vill förhindra att kunder anger kupong- eller kampanjkoder under kassan.
   </Note>
 
 </Step>
 <Step title="Lägg till avancerade kontroller (valfritt)">
-  - <ParamField query="paymentCurrency" type="string">Anger betalningsvalutan. Standard är den fakturerande landets valuta.</ParamField>
+  - <ParamField query="paymentCurrency" type="string">Anger betalningsvalutan. Standard är den faktureringslandets valuta.</ParamField>
   - <ParamField query="showCurrencySelector" type="boolean" default="true">Visa eller dölja valutaväljaren.</ParamField>
   - <ParamField query="paymentAmount" type="integer">Belopp i cent (endast för Pay What You Want-prissättning).</ParamField>
   - <ParamField query="metadata_*" type="string">Anpassade metadatafält (t.ex. <code>metadata_orderId=123</code>).</ParamField>
 </Step>
 <Step title="Dela länken">
-  Skicka den färdiga betalningslänken till din kund. När de besöker, samlas alla frågeparametrar in och lagras med ett session-ID. URL:en förenklas sedan för att endast inkludera sessionsparametern (t.ex. <code>?session=sess_1a2b3c4d</code>). Den lagrade informationen kvarstår genom siduppdateringar och är tillgänglig under hela checkoutprocessen.
+  Skicka den färdiga betalningslänken till din kund. När de besöker, samlas alla frågeparametrar in och lagras med ett session-ID. URL:en förenklas sedan för att endast inkludera sessionsparametern (t.ex. <code>?session=sess_1a2b3c4d</code>). Den lagrade informationen kvarstår genom siduppdateringar och är tillgänglig under hela kassa-processen.
   <Check>
-  Kundens checkoutupplevelse är nu strömlinjeformad och personlig baserat på dina parametrar.
+  Kundens kassaupplevelse är nu strömlinjeformad och personlig baserat på dina parametrar.
   </Check>
 </Step>
 </Steps>
@@ -222,16 +227,16 @@ Statisk betalningslänkar låter dig snabbt ta emot betalningar genom att dela e
 Föredra Checkout Sessions för de flesta användningsfall, de erbjuder mer flexibilitet och kontroll.
 </Tip>
 
-Skapad via API-anrop eller vårt SDK med kunduppgifter. Här är ett exempel:
+Skapad via API-anrop eller vår SDK med kunduppgifter. Här är ett exempel:
 
 Det finns två API:er för att skapa dynamiska betalningslänkar:
 
 - Engångsbetalningslänk API [API-referens](/api-reference/payments/post-payments)
 - Prenumerationsbetalningslänk API [API-referens](/api-reference/subscriptions/post-subscriptions)
 
-Guiden nedan handlar om skapande av engångsbetalningslänkar.
+Guiden nedan är för skapande av engångsbetalningslänkar.
 
-För detaljerade instruktioner om att integrera prenumerationer, se denna [Integrationsguide för prenumerationer](/developer-resources/subscription-integration-guide).
+För detaljerade instruktioner om att integrera prenumerationer, se denna [Prenumerationsintegrationsguide](/developer-resources/subscription-integration-guide).
 
 <Info>Se till att du skickar `payment_link = true` för att få betalningslänk </Info>
 
@@ -339,7 +344,7 @@ func main() {
     ```
 
     </Tab>
-<Tab title="Api Reference">
+<Tab title="API-referens">
 
     ```javascript
 import { NextRequest, NextResponse } from "next/server";      
@@ -432,8 +437,8 @@ export async function POST(request: Request) {
 }
 ```
 
-Vår webhook-implementering följer [Standard Webhooks](https://standardwebhooks.com/) specifikationen. För definitioner av webhook-typer, se vår [Webhook Event Guide](/developer-resources/webhooks/intents/webhook-events-guide).
+Vår webhook-implementation följer [Standard Webhooks](https://standardwebhooks.com/) specifikationen. För webhook-typdefinitioner, se vår [Webhook Event Guide](/developer-resources/webhooks/intents/webhook-events-guide).
 
-Du kan hänvisa till detta projekt med demoimplementering på [GitHub](https://github.com/dodopayments/dodo-checkout-demo) med Next.js och TypeScript.
+Du kan hänvisa till detta projekt med demoimplementation på [GitHub](https://github.com/dodopayments/dodo-checkout-demo) med Next.js och TypeScript.
 
-Du kan kolla in den live-implementeringen [här](https://atlas.dodopayments.com/).
+Du kan kolla in den live implementationen [här](https://atlas.dodopayments.com/).

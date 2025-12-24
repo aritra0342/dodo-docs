@@ -10,6 +10,10 @@ icon: bolt
 
 Les abonnements à la demande vous permettent d'autoriser une méthode de paiement d'un client une fois, puis de facturer des montants variables chaque fois que vous en avez besoin, au lieu de suivre un calendrier fixe.
 
+<Info>
+Les abonnements à la demande sont désormais disponibles pour toutes les entreprises. Cette fonctionnalité permet un contrôle de facturation flexible pour les services basés sur l'utilisation et mesurés.
+</Info>
+
 Utilisez ce guide pour :
 - Créer un abonnement à la demande (autoriser un mandat avec un prix initial optionnel)
 - Déclencher des charges ultérieures avec des montants personnalisés
@@ -24,12 +28,12 @@ Pour une configuration d'abonnement générale, consultez le [Guide d'intégrati
 - Un produit d'abonnement dans votre catalogue
 
 <Tip>
-Si vous souhaitez que le client approuve le mandat via un paiement hébergé, définissez `payment_link: true` et fournissez un `return_url`.
+Si vous souhaitez que le client approuve le mandat via le paiement hébergé, définissez `payment_link: true` et fournissez un `return_url`.
 </Tip>
 
 ## Comment fonctionne la demande
 
-1. Vous créez un abonnement avec l'objet `on_demand` pour autoriser une méthode de paiement et éventuellement collecter un frais initial.
+1. Vous créez un abonnement avec l'objet `on_demand` pour autoriser un moyen de paiement et éventuellement collecter un frais initial.
 2. Plus tard, vous créez des charges contre cet abonnement avec des montants personnalisés en utilisant le point de terminaison de charge dédié.
 3. Vous écoutez les webhooks (par exemple, `payment.succeeded`, `payment.failed`) pour mettre à jour votre système.
 
@@ -66,19 +70,19 @@ Champs de requête clés (corps) :
   </ParamField>
 
   <ParamField body="on_demand.mandate_only" type="boolean" required>
-    Si vrai, autorise la méthode de paiement sans facturer le client lors de la création.
+    Si vrai, autorise le moyen de paiement sans facturer le client lors de la création.
   </ParamField>
 
   <ParamField body="on_demand.product_price" type="integer">
-    Montant de la charge initiale (dans la plus petite unité monétaire). Si spécifié, cette valeur remplace le prix d'origine du produit défini lors de la création du produit. Si omis, le prix stocké du produit est utilisé. Exemple : pour facturer 1,00 $, passez <code>100</code>.
+    Montant de la charge initiale (dans la plus petite unité monétaire). Si spécifié, cette valeur remplace le prix original du produit défini lors de la création du produit. Si omis, le prix stocké du produit est utilisé. Exemple : pour facturer 1,00 $, passez <code>100</code>.
   </ParamField>
 
   <ParamField body="on_demand.product_currency" type="string">
-    Remplacement de devise optionnel pour la charge initiale. Par défaut, c'est la devise du produit.
+    Remplacement de la devise optionnelle pour la charge initiale. Par défaut, c'est la devise du produit.
   </ParamField>
 
   <ParamField body="on_demand.product_description" type="string">
-    Remplacement de description optionnel pour la facturation et les lignes d'articles.
+    Remplacement de la description optionnelle pour la facturation et les lignes d'articles.
   </ParamField>
 
   <ParamField body="on_demand.adaptive_currency_fees_inclusive" type="boolean">
@@ -259,11 +263,11 @@ Champs de requête clés (corps) :
     </ParamField>
 
     <ParamField body="product_currency" type="string">
-      Remplacement de devise optionnel pour la charge.
+      Remplacement de la devise optionnelle pour la charge.
     </ParamField>
 
     <ParamField body="product_description" type="string">
-      Remplacement de description optionnel pour cette charge.
+      Remplacement de la description optionnelle pour cette charge.
     </ParamField>
 
     <ParamField body="adaptive_currency_fees_inclusive" type="boolean">
@@ -367,14 +371,14 @@ Facturer un abonnement qui n'est pas à la demande peut échouer. Assurez-vous q
 Notre système de détection de fraude peut bloquer des modèles de réessai agressifs (et peut les signaler comme des tests de carte potentiels). Suivez une politique de réessai sécurisée.
 
 <Warning>
-Les modèles de réessai en rafale peuvent être signalés comme frauduleux ou comme des tests de carte suspects par nos systèmes de risque et nos processeurs. Évitez les réessais groupés ; suivez le calendrier de retour et les conseils d'alignement temporel ci-dessous.
+Les modèles de réessai en rafale peuvent être signalés comme frauduleux ou comme tests de carte suspects par nos systèmes de risque et nos processeurs. Évitez les réessais groupés ; suivez le calendrier de retour et les conseils d'alignement temporel ci-dessous.
 </Warning>
 
 ### Principes pour des politiques de réessai sécurisées
 
 - **Mécanisme de retour** : Utilisez un retour exponentiel entre les réessais.
 - **Limites de réessai** : Limitez le nombre total de réessais (3 à 4 tentatives maximum).
-- **Filtrage intelligent** : Réessayez uniquement en cas d'échecs réessayables (par exemple, erreurs réseau/émetteur, fonds insuffisants) ; ne réessayez jamais les refus fermes.
+- **Filtrage intelligent** : Réessayez uniquement en cas d'échecs réessayables (par exemple, erreurs réseau/émetteur, fonds insuffisants) ; ne réessayez jamais les refus catégoriques.
 - **Prévention des tests de carte** : Ne réessayez pas les échecs comme `DO_NOT_HONOR`, `STOLEN_CARD`, `LOST_CARD`, `PICKUP_CARD`, `FRAUDULENT`, `AUTHENTICATION_FAILURE`.
 - **Varier les métadonnées (optionnel)** : Si vous maintenez votre propre système de réessai, différenciez les réessais via des métadonnées (par exemple, `retry_attempt`).
 
@@ -385,19 +389,19 @@ Les modèles de réessai en rafale peuvent être signalés comme frauduleux ou c
 - **3ème tentative** : Après 7 jours supplémentaires (10 jours au total)
 - **4ème tentative (finale)** : Après 7 jours supplémentaires (17 jours au total)
 
-Étape finale : si toujours impayé, marquez l'abonnement comme impayé ou annulez-le, selon votre politique. Informez le client pendant la période pour mettre à jour sa méthode de paiement.
+Étape finale : si toujours impayé, marquez l'abonnement comme impayé ou annulez-le, selon votre politique. Informez le client pendant la période pour mettre à jour son moyen de paiement.
 
 ### Évitez les réessais en rafale ; alignez-vous sur le temps d'autorisation
 
 - Ancrez les réessais à l'horodatage d'autorisation original pour éviter un comportement de "rafale" dans votre portefeuille.
 - Exemple : Si le client commence un essai ou un mandat à 13h10 aujourd'hui, planifiez les réessais de suivi à 13h10 les jours suivants selon votre retour (par exemple, +3 jours → 13h10, +7 jours → 13h10).
-- Alternativement, si vous stockez le dernier temps de paiement réussi `T`, planifiez la prochaine tentative à `T + X days` pour préserver l'alignement de l'heure de la journée.
+- Alternativement, si vous stockez le dernier temps de paiement réussi `T`, planifiez la prochaine tentative à `T + X days` pour préserver l'alignement horaire.
 
 <Note>
 Fuseau horaire et DST : utilisez une norme horaire cohérente pour la planification et convertissez uniquement pour l'affichage afin de maintenir les intervalles.
 </Note>
 
-### Codes de refus que vous ne devez pas réessayer
+### Codes de refus que vous ne devriez pas réessayer
 
 - `STOLEN_CARD`
 - `DO_NOT_HONOR`
@@ -418,21 +422,21 @@ Ne réessayez que sur des problèmes temporaires/doux (par exemple, `insufficien
 ### Directives de mise en œuvre (sans code)
 
 - Utilisez un planificateur/queue qui persiste des horodatages précis ; calculez la prochaine tentative à l'heure exacte (par exemple, `T + 3 days` à la même HH:MM).
-- Maintenez et référencez l'horodatage du dernier paiement réussi `T` pour calculer la prochaine tentative ; ne regroupez pas plusieurs abonnements au même instant.
-- Évaluez toujours la dernière raison de refus ; arrêtez les réessais pour les refus fermes dans la liste d'ignorés ci-dessus.
+- Maintenez et référencez le dernier horodatage de paiement réussi `T` pour calculer la prochaine tentative ; ne regroupez pas plusieurs abonnements au même instant.
+- Évaluez toujours la dernière raison de refus ; arrêtez les réessais pour les refus catégoriques dans la liste d'ignorance ci-dessus.
 - Limitez les réessais simultanés par client et par compte pour éviter des pics accidentels.
-- Communiquez de manière proactive : envoyez un e-mail/SMS au client pour mettre à jour sa méthode de paiement avant la prochaine tentative prévue.
+- Communiquez de manière proactive : envoyez un e-mail/SMS au client pour mettre à jour son moyen de paiement avant la prochaine tentative prévue.
 - Utilisez les métadonnées uniquement pour l'observabilité (par exemple, `retry_attempt`) ; n'essayez jamais de "contourner" les systèmes de fraude/risque en faisant tourner des champs sans conséquence.
 
 ## Suivre les résultats avec des webhooks
 
-Implémentez la gestion des webhooks pour suivre le parcours du client. Voir [Implémentation des webhooks](/developer-resources/integration-guide#implementing-webhooks).
+Implémentez la gestion des webhooks pour suivre le parcours du client. Voir [Implémentation des Webhooks](/developer-resources/integration-guide#implementing-webhooks).
 
 - **subscription.active** : Mandat autorisé et abonnement activé
-- **subscription.failed** : Échec de la création (par exemple, échec du mandat)
+- **subscription.failed** : La création a échoué (par exemple, échec du mandat)
 - **subscription.on_hold** : Abonnement mis en attente (par exemple, état impayé)
 - **payment.succeeded** : Charge réussie
-- **payment.failed** : Échec de la charge
+- **payment.failed** : Charge échouée
 
 <Tip>
 Pour les flux à la demande, concentrez-vous sur `payment.succeeded` et `payment.failed` pour réconcilier les charges basées sur l'utilisation.

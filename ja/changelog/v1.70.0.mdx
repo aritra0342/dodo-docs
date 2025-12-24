@@ -1,0 +1,311 @@
+---
+title: v1.70.0 (2025年12月24日)
+description: インラインチェックアウトのサポート、既存の支払い方法を使用した即時チェックアウト、ダッシュボードからのサブスクリプションプランの管理、短い支払いリンクの生成、成功ページをスキップするリダイレクト、すべてのビジネス向けのオンデマンドサブスクリプションの有効化
+icon: arrows-turn-right
+---
+
+## 新機能 🚀
+
+1. **インラインチェックアウト - 完全に埋め込まれたチェックアウト体験 (BETA)**  
+
+   Dodo Paymentsのチェックアウトを直接ウェブサイトに埋め込んで、シームレスでブランド化された支払い体験を提供します。モーダルとして開くオーバーレイチェックアウトとは異なり、インラインチェックアウトは支払いフォームをページレイアウトに直接埋め込みます。
+
+   <Frame>
+   <img src="/images/inline-checkout/cover.png" alt="インラインチェックアウトカバー画像" />
+   </Frame>
+
+   ### 利点
+
+   - **完全統合**: ウェブサイトとシームレスに融合するチェックアウト体験を作成
+   - **カスタム注文サマリー**: チェックアウトとリアルタイムで同期するカスタムUIを構築
+   - **最大の制御**: チェックアウトのレイアウトとデザインを完全に制御
+   - **PCI準拠**: Dodo Paymentsはすべての機密支払い情報を安全に処理
+   - **リアルタイム同期**: SDKイベントを使用してUIをチェックアウト状態と同期
+
+   ### 仕組み
+
+   `displayType: 'inline'`でSDKを初期化し、コンテナ要素にチェックアウトを埋め込みます:
+
+   ```typescript
+   import { DodoPayments } from "dodopayments-checkout";
+
+   // Initialize the SDK for inline mode
+   DodoPayments.Initialize({
+     mode: "test",
+     displayType: "inline",
+     onEvent: (event) => {
+       if (event.event_type === "checkout.breakdown") {
+         // Update your UI with real-time tax and total calculations
+         const breakdown = event.data?.message;
+       }
+     },
+   });
+
+   // Open checkout in a specific container
+   DodoPayments.Checkout.open({
+     checkoutUrl: "https://test.dodopayments.com/session/cks_123",
+     elementId: "dodo-inline-checkout" // ID of the container element
+   });
+   ```
+
+   ### 主な機能
+
+   - **リアルタイムの内訳イベント**: 顧客が詳細を入力する際に`checkout.breakdown`イベントを受信
+   - **カスタム注文サマリー**: リアルタイムで更新される独自の価格表示を構築
+   - **シームレスな統合**: チェックアウトフレームが支払い収集を処理し、レイアウトを制御
+   - **SDKメソッド**: `open()`、`close()`、および`isOpen()`を使用してプログラム的にチェックアウトを制御
+
+   <Check>
+   結果: ブランドに合った完全統合のチェックアウト体験を提供し、支払いフローに対する最大の制御を実現。
+   </Check>
+
+   <Tip>
+   チェックアウトデザインに対する最大の制御が必要な場合はインラインチェックアウトを使用してください。既存のページに最小限の変更で迅速に統合するには[オーバーレイチェックアウト](/developer-resources/overlay-checkout)を使用してください。
+   </Tip>
+
+   詳細はこちら: [インラインチェックアウトガイド](/developer-resources/inline-checkout)
+
+2. **既存の支払い方法を使用して支払い、サブスクリプション、チェックアウトを作成**  
+    既存の顧客から保存された支払い方法を使用してチェックアウトフローを簡素化します。新しい`payment_method_id`パラメータを使用すると、顧客の以前に保存された支払い方法を使用して支払い、サブスクリプション、またはチェックアウトセッションを作成できます。
+
+   ### 利点
+
+   - **迅速なチェックアウト**: リピート顧客のために支払い方法の収集をスキップ
+   - **ワンクリック購入**: 保存された支払い方法で即時購入を有効化
+   - **サブスクリプション管理**: 既存の支払い方法を使用してサブスクリプションを簡単に作成
+   - **コンバージョンの向上**: リピート顧客のチェックアウトの摩擦を減少
+
+   ### 仕組み
+
+   チェックアウトセッション、支払い、またはサブスクリプションを作成する際に`payment_method_id`を使用します:
+
+   <Tabs>
+   <Tab title="チェックアウトセッション">
+
+   ```javascript
+   const session = await client.checkoutSessions.create({
+     product_cart: [{ product_id: 'prod_123', quantity: 1 }],
+     customer: {
+       customer_id: 'cus_123'
+     },
+     payment_method_id: 'pm_abc123',
+     confirm: true
+   });
+   ```
+
+   </Tab>
+
+   <Tab title="ワンタイム支払い">
+
+   ```javascript
+   const payment = await client.payments.create({
+     product_cart: [{ product_id: 'prod_123', quantity: 1 }],
+     customer_id: 'cus_123',
+     payment_method_id: 'pm_abc123'
+   });
+   ```
+
+   </Tab>
+
+   <Tab title="サブスクリプション">
+
+   ```javascript
+   const subscription = await client.subscriptions.create({
+     customer_id: 'cus_123',
+     product_id: 'prod_subscription',
+     payment_method_id: 'pm_abc123'
+   });
+   ```
+
+   </Tab>
+   </Tabs>
+
+   <Warning>
+   チェックアウトセッションで`payment_method_id`を使用する場合、`confirm`は`true`に設定する必要があり、既存の`customer_id`を提供する必要があります。支払い方法は、支払いの通貨に対して適格性が検証されます。
+   </Warning>
+
+   <Info>
+   支払い方法は顧客に属し、支払い通貨と互換性がある必要があります。検証に失敗した場合、リクエストはエラーを返します。
+   </Info>
+
+3. **ダッシュボードでのサブスクリプションプランの変更と次回請求日更新**  
+    
+    ダッシュボードから直接サブスクリプションプランを管理し、強化された制御を提供します。サブスクリプションプランを変更し、次回請求日を単一のアクションで更新できるようになり、サブスクリプション管理に完全な柔軟性を提供します。  
+
+    <Frame>
+    <img src="/images/changelog/subscription-plan-changes.png" alt="ダッシュボードでのサブスクリプションプランの変更" />
+    </Frame>
+
+   ### ダッシュボード機能
+
+   - **プラン変更**: 1クリックでサブスクリプションをアップグレードまたはダウングレード
+   - **請求日制御**: プラン変更時に次回請求日を更新
+   - **按分オプション**: プラン変更時の按分処理方法を選択
+   - **視覚的プレビュー**: 確認前にプラン変更が請求に与える影響を正確に確認
+
+   ### 使用例
+
+   - **顧客サポート**: 顧客のリクエストに応じてサブスクリプションプランを迅速に調整
+   - **プロモーションアップグレード**: 特定の請求日を持つ顧客を一時的にアップグレード
+   - **プラン移行**: サブスクリプションティア間で顧客をスムーズに移行
+   - **請求の整合性**: 複数のサブスクリプション間で請求日を整合させる
+
+   <Check>
+   結果: ダッシュボードからの完全なサブスクリプション管理制御により、一般的なサブスクリプション調整のためのAPI呼び出しの必要性が減少します。
+   </Check>
+
+   <Tip>
+   サブスクリプションプランの迅速な変更にはダッシュボードを使用し、アプリケーション内でのプログラム的なサブスクリプション管理にはAPIを使用してください。
+   </Tip>
+
+4. **支払いURLの短縮リンク**  
+   新しい短縮リンク機能を使用して、クリーンで共有しやすい支払いリンクを生成します。短縮リンクはカスタムスラッグを持つ短縮されたチェックアウトURLを提供し、顧客と共有したり、ウェブサイトに埋め込んだりするのが簡単です。
+
+   <Frame>
+   <img src="/images/changelog/short-links.png" alt="支払いURLの短縮リンク機能" />
+   </Frame>
+
+   ### 利点
+
+   - **クリーンなURL**: 長い支払いURLを短く、ブランド化されたリンクに置き換え
+   - **信頼性の向上**: 顧客の信頼を築くプロフェッショナルな外観のリンク
+   - **共有の容易さ**: SMS、メール、またはソーシャルメディアに最適な簡素化されたURL
+   - **カスタムスラッグ**: 製品のための記憶に残るブランド化された短縮リンクを作成
+
+   ### 仕組み
+
+   チェックアウトセッションまたは支払いリンクを作成する際に短縮リンクを有効にします:
+
+   <Tabs>
+   <Tab title="チェックアウトセッション">
+
+   ```javascript
+   const session = await client.checkoutSessions.create({
+     product_cart: [{ product_id: 'prod_123', quantity: 1 }],
+     short_link: true,
+     return_url: 'https://yourapp.com/success'
+   });
+   ```
+
+   </Tab>
+
+   <Tab title="支払いリンク">
+
+   ```javascript
+   const payment = await client.payments.create({
+     product_cart: [{ product_id: 'prod_123', quantity: 1 }],
+     short_link: true,
+     return_url: 'https://yourapp.com/success'
+   });
+   ```
+
+   </Tab>
+   </Tabs>
+
+   <Check>
+   結果: 共有が容易で、よりプロフェッショナルな外観の短縮支払いリンクが生成され、コンバージョン率と顧客の信頼が向上します。
+   </Check>
+
+   <Info>
+   短縮リンクはダッシュボードで管理され、[短縮リンクのリストAPI](/api-reference/products/get-products-short-links)を介して表示できます。
+   </Info>
+
+5. **`redirect_immediately` フラグ - 支払い成功ページをスキップ**  
+   新しい`redirect_immediately`フラグを使用してチェックアウトフローを制御します。有効にすると、顧客は支払い完了後に即座にリダイレクトされ、デフォルトの成功ページをバイパスして、より迅速でスムーズな体験を提供します。
+
+   ### 使用例
+
+   - **迅速なチェックアウトフロー**: 中間ページをスキップすることで摩擦を減少
+   - **カスタム成功ページ**: ブランド化された成功ページに直接リダイレクト
+   - **モバイル最適化**: 即時リダイレクトでモバイルチェックアウト体験を改善
+   - **埋め込みチェックアウト**: オーバーレイまたは埋め込みチェックアウトフローとシームレスに統合
+
+   ### 仕組み
+
+   チェックアウトセッション、支払い、またはサブスクリプションで即時リダイレクトを有効にします:
+
+   <Tabs>
+   <Tab title="チェックアウトセッション">
+
+   ```javascript
+   const session = await client.checkoutSessions.create({
+     product_cart: [{ product_id: 'prod_123', quantity: 1 }],
+     redirect_immediately: true,
+     return_url: 'https://yourapp.com/success'
+   });
+   ```
+
+   </Tab>
+
+   <Tab title="ワンタイム支払い">
+
+   ```javascript
+   const payment = await client.payments.create({
+     product_cart: [{ product_id: 'prod_123', quantity: 1 }],
+     redirect_immediately: true,
+     return_url: 'https://yourapp.com/success'
+   });
+   ```
+
+   </Tab>
+
+   <Tab title="サブスクリプション">
+
+   ```javascript
+   const subscription = await client.subscriptions.create({
+     customer_id: 'cus_123',
+     product_id: 'prod_subscription',
+     redirect_immediately: true,
+     return_url: 'https://yourapp.com/success'
+   });
+   ```
+
+   </Tab>
+   </Tabs>
+
+   <Tip>
+   カスタム成功ページがデフォルトの支払い成功ページよりも優れたユーザー体験を提供する場合は`redirect_immediately: true`を使用してください。
+   </Tip>
+
+   <Note>
+   `redirect_immediately`が有効な場合、顧客は支払い完了後に即座に`return_url`にリダイレクトされ、デフォルトの成功ページを完全にスキップします。
+   </Note>
+
+6. **オンデマンドサブスクリプション - すべてのビジネス向けに利用可能**  
+   オンデマンドサブスクリプションはすべてのビジネス向けに有効化され、使用ベースおよびメーターサービスの柔軟な請求制御を提供します。
+
+   ### これにより可能になること
+
+   - **使用ベースの請求**: 実際の使用に基づいて顧客に請求するサブスクリプションを作成
+   - **柔軟な請求サイクル**: 固定の間隔ではなく、オンデマンドで顧客に請求
+   - **メーターサービス**: API使用量、ストレージ、計算時間、その他のメーターリソースに最適
+   - **手動請求制御**: 必要に応じて手動で請求を作成し、請求タイミングを完全に制御
+
+   ### 仕組み
+
+   オンデマンドサブスクリプションを作成し、必要に応じて顧客に請求します:
+
+   ```javascript
+   // Create an on-demand subscription
+   const subscription = await client.subscriptions.create({
+     customer_id: 'cus_123',
+     product_id: 'prod_api_access',
+     on_demand: true
+   });
+
+   // Charge the customer when usage occurs
+   await client.subscriptions.createCharge(subscription.id, {
+     amount: 4900,
+     currency: 'USD',
+     description: 'API usage for September: 1,000 requests'
+   });
+   ```
+
+   <Check>
+   結果: 顧客にいつ、いくら請求するかを完全に制御でき、使用ベースのビジネスモデルに最適です。
+   </Check>
+
+   詳細はこちら: [オンデマンドサブスクリプション](/developer-resources/ondemand-subscriptions)
+
+7. **一般的なバグ修正と改善**  
+   このリリースには、パフォーマンスの向上、UIの洗練、そしてより信頼性の高いスムーズな体験のための小さなバグの修正が含まれています。

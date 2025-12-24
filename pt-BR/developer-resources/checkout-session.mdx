@@ -293,6 +293,9 @@ window.location.href = session.checkout_url;
 window.open(session.checkout_url, '_blank');
 ```
 
+<Tip>
+**Opções de Integração Alternativas**: Em vez de redirecionar, você pode incorporar o checkout diretamente em sua página usando [Overlay Checkout](/developer-resources/overlay-checkout) (sobreposição modal) ou [Inline Checkout](/developer-resources/inline-checkout) (totalmente incorporado). Ambas as opções usam a mesma URL de sessão de checkout.
+</Tip>
 </Step>
 
 <Step title="Lidar com o retorno">
@@ -975,6 +978,92 @@ const session = await client.checkoutSessions.create({
 });
 ```
 
+### 11. Usando Métodos de Pagamento Existentes para Checkout Instantâneo
+
+Use um método de pagamento salvo do cliente para criar uma sessão de checkout que processa imediatamente, pulando a coleta do método de pagamento:
+
+```javascript expandable
+const session = await client.checkoutSessions.create({
+  product_cart: [
+    {
+      product_id: 'prod_premium_plan',
+      quantity: 1
+    }
+  ],
+  customer: {
+    customer_id: 'cus_123'  // Required when using payment_method_id
+  },
+  payment_method_id: 'pm_abc123',  // Use customer's saved payment method
+  confirm: true,  // Required when using payment_method_id
+  return_url: 'https://yourapp.com/success'
+});
+```
+
+<Warning>
+Ao usar `payment_method_id`, `confirm` deve ser definido como `true` e um `customer_id` existente deve ser fornecido. O método de pagamento será validado quanto à elegibilidade com a moeda do pagamento.
+</Warning>
+
+<Info>
+O método de pagamento deve pertencer ao cliente e ser compatível com a moeda do pagamento. Isso permite compras com um clique para clientes que retornam.
+</Info>
+
+### 12. Links Curtos para URLs de Pagamento Mais Limpos
+
+Gere links de pagamento encurtados e compartilháveis com slugs personalizados:
+
+```javascript expandable
+const session = await client.checkoutSessions.create({
+  product_cart: [
+    {
+      product_id: 'prod_monthly_subscription',
+      quantity: 1
+    }
+  ],
+  short_link: true,  // Generate a shortened payment link
+  return_url: 'https://yourapp.com/success',
+  customer: {
+    email: 'customer@example.com',
+    name: 'John Doe'
+  }
+});
+
+// The checkout_url will be a shortened, cleaner link
+console.log(session.checkout_url);  // e.g., https://checkout.dodopayments.com/buy/abc123
+```
+
+<Tip>
+Links curtos são perfeitos para compartilhamento por SMS, e-mail ou redes sociais. Eles são mais fáceis de lembrar e geram mais confiança do cliente do que URLs longas.
+</Tip>
+
+### 13. Pular Página de Sucesso do Pagamento com Redirecionamento Imediato
+
+Redirecione os clientes imediatamente após a conclusão do pagamento, pulando a página de sucesso padrão:
+
+```javascript expandable
+const session = await client.checkoutSessions.create({
+  product_cart: [
+    {
+      product_id: 'prod_digital_product',
+      quantity: 1
+    }
+  ],
+  redirect_immediately: true,  // Skip success page, redirect immediately
+  return_url: 'https://yourapp.com/success',
+  customer: {
+    email: 'customer@example.com',
+    name: 'Jane Smith'
+  }
+});
+```
+
+<Tip>
+Use `redirect_immediately: true` quando você tiver uma página de sucesso personalizada que oferece uma melhor experiência do usuário do que a página de sucesso de pagamento padrão. Isso é especialmente útil para aplicativos móveis e fluxos de checkout incorporados.
+</Tip>
+
+<Note>
+Quando `redirect_immediately` está habilitado, os clientes são redirecionados para seu `return_url` imediatamente após a conclusão do pagamento, pulando completamente a página de sucesso padrão.
+</Note>
+
 ## Mudando de Links Dinâmicos para Sessões de Checkout
 
 ### Principais Diferenças
@@ -992,14 +1081,14 @@ Migrar de Links Dinâmicos para Sessões de Checkout é simples:
 
 <Steps>
 <Step title="Atualize sua integração">
-Atualize sua integração para usar o novo método da API ou SDK.
+Atualize sua integração para usar o novo método de API ou SDK.
 </Step>
 
-<Step title="Ajuste a carga útil da solicitação">
-Ajuste a carga útil da solicitação de acordo com o formato das Sessões de Checkout.
+<Step title="Ajuste o payload da solicitação">
+Ajuste o payload da solicitação de acordo com o formato das Sessões de Checkout.
 </Step>
 
 <Step title="É isso!">
-Sim. Nenhum manuseio adicional ou etapas de migração especiais são necessárias do seu lado.
+Sim. Nenhum tratamento adicional ou etapas especiais de migração são necessárias do seu lado.
 </Step>
 </Steps>

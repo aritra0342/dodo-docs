@@ -8,9 +8,13 @@ icon: bolt
 
 온디맨드 구독을 사용하면 고객의 결제 수단을 한 번 승인한 후 필요할 때마다 고정된 일정이 아닌 가변 금액을 청구할 수 있습니다.
 
+<Info>
+온디맨드 구독이 이제 모든 비즈니스에 대해 사용할 수 있습니다. 이 기능은 사용 기반 및 계량 서비스에 대한 유연한 청구 제어를 가능하게 합니다.
+</Info>
+
 이 가이드를 사용하여:
-- 온디맨드 구독 생성 (선택적 초기 가격으로 위임 승인)
-- 사용자 정의 금액으로 후속 청구 트리거
+- 온디맨드 구독 생성 (선택적 초기 가격으로 위임 권한 부여)
+- 사용자 정의 금액으로 후속 요금 발생
 - 웹훅을 사용하여 결과 추적
 
 일반 구독 설정에 대한 내용은 [구독 통합 가이드](/developer-resources/subscription-integration-guide)를 참조하세요.
@@ -18,7 +22,7 @@ icon: bolt
 ## 전제 조건
 
 - Dodo Payments 상인 계정 및 API 키
-- 웹훅 비밀이 구성되어 있고 이벤트를 수신할 엔드포인트
+- 이벤트를 수신할 웹훅 비밀 및 엔드포인트 구성
 - 카탈로그에 구독 제품이 있어야 합니다.
 
 <Tip>
@@ -27,15 +31,15 @@ icon: bolt
 
 ## 온디맨드 작동 방식
 
-1. `on_demand` 객체를 사용하여 결제 수단을 승인하고 선택적으로 초기 요금을 수집하는 구독을 생성합니다.
-2. 나중에 전용 청구 엔드포인트를 사용하여 해당 구독에 대해 사용자 정의 금액으로 청구를 생성합니다.
+1. `on_demand` 객체를 사용하여 결제 수단을 승인하고 선택적으로 초기 요금을 수집하여 구독을 생성합니다.
+2. 나중에 전용 요금 엔드포인트를 사용하여 해당 구독에 대해 사용자 정의 금액으로 요금을 생성합니다.
 3. 웹훅을 수신하여 시스템을 업데이트합니다 (예: `payment.succeeded`, `payment.failed`).
 
 ## 온디맨드 구독 생성
 
 엔드포인트: [POST /subscriptions](/api-reference/subscriptions/post-subscriptions)
 
-주요 요청 필드 (본문):
+요청 필수 필드 (본문):
 
 <AccordionGroup>
 <Accordion title="요청 본문 매개변수">
@@ -44,7 +48,7 @@ icon: bolt
   </ParamField>
 
   <ParamField body="quantity" type="integer" required>
-    단위 수. 최소 1입니다.
+    단위 수. 최소 1.
   </ParamField>
 
   <ParamField body="billing" type="object" required>
@@ -52,11 +56,11 @@ icon: bolt
   </ParamField>
 
   <ParamField body="customer" type="object" required>
-    기존 고객을 연결하거나 고객 세부정보를 제공합니다.
+    기존 고객을 연결하거나 고객 세부정보를 제공하세요.
   </ParamField>
 
   <ParamField body="payment_link" type="boolean" default="false">
-    true인 경우, 위임 승인을 위한 호스팅된 체크아웃 링크를 생성하고 선택적 초기 결제를 제공합니다.
+    true인 경우, 위임 권한 부여 및 선택적 초기 결제를 위한 호스팅된 체크아웃 링크를 생성합니다.
   </ParamField>
 
   <ParamField body="return_url" type="string">
@@ -64,23 +68,23 @@ icon: bolt
   </ParamField>
 
   <ParamField body="on_demand.mandate_only" type="boolean" required>
-    true인 경우, 생성 중에 고객에게 청구하지 않고 결제 수단을 승인합니다.
+    true인 경우, 생성 중에 고객에게 요금을 부과하지 않고 결제 수단을 승인합니다.
   </ParamField>
 
   <ParamField body="on_demand.product_price" type="integer">
-    초기 청구 금액 (가장 작은 통화 단위). 지정된 경우, 이 값은 제품 생성 시 설정된 원래 가격을 덮어씁니다. 생략하면 제품의 저장된 가격이 사용됩니다. 예: $1.00를 청구하려면 <code>100</code>을 전달합니다.
+    초기 요금 금액 (가장 작은 통화 단위). 지정된 경우, 이 값은 제품 생성 시 설정된 원래 가격을 덮어씁니다. 생략하면 제품의 저장된 가격이 사용됩니다. 예: $1.00를 청구하려면 <code>100</code>을 전달하세요.
   </ParamField>
 
   <ParamField body="on_demand.product_currency" type="string">
-    초기 청구에 대한 선택적 통화 재정의입니다. 기본값은 제품 통화입니다.
+    초기 요금에 대한 선택적 통화 재정의입니다. 기본값은 제품 통화입니다.
   </ParamField>
 
   <ParamField body="on_demand.product_description" type="string">
-    청구 및 품목에 대한 선택적 설명 재정의입니다.
+    청구 및 항목에 대한 선택적 설명 재정의입니다.
   </ParamField>
 
   <ParamField body="on_demand.adaptive_currency_fees_inclusive" type="boolean">
-    true인 경우, <code>product_price</code>에 적응형 통화 수수료를 포함합니다. false인 경우, 수수료가 추가됩니다. 적응형 가격 책정이 비활성화된 경우 무시됩니다.
+    true인 경우, <code>product_price</code> 내에 적응형 통화 수수료를 포함합니다. false인 경우, 수수료가 추가됩니다. 적응형 가격 책정이 비활성화된 경우 무시됩니다.
   </ParamField>
 </Accordion>
 </AccordionGroup>
@@ -228,7 +232,7 @@ curl -X POST "$DODO_API/subscriptions" \
 </Tabs>
 
 <Check>
-`payment_link: true`를 설정하고, 고객을 `payment_link`로 리디렉션하여 위임 승인을 완료하세요.
+`payment_link: true`를 설정하고, 고객을 `payment_link`로 리디렉션하여 위임 권한 부여를 완료하세요.
 </Check>
 
 ```json Success
@@ -242,30 +246,30 @@ curl -X POST "$DODO_API/subscriptions" \
 }
 ```
 
-## 온디맨드 구독 청구
+## 온디맨드 구독 요금 청구
 
-위임이 승인된 후 필요에 따라 청구를 생성합니다.
+위임이 승인된 후 필요에 따라 요금을 생성합니다.
 
 엔드포인트: [POST /subscriptions/\{subscription_id\}/charge](/api-reference/subscriptions/create-charge)
 
-주요 요청 필드 (본문):
+요청 필수 필드 (본문):
 
 <AccordionGroup>
-  <Accordion title="청구 요청 본문 매개변수">
+  <Accordion title="요금 요청 본문 매개변수">
     <ParamField body="product_price" type="integer" required>
-      청구할 금액 (가장 작은 통화 단위). 예: $25.00를 청구하려면 <code>2500</code>을 전달합니다.
+      청구할 금액 (가장 작은 통화 단위). 예: $25.00를 청구하려면 <code>2500</code>을 전달하세요.
     </ParamField>
 
     <ParamField body="product_currency" type="string">
-      청구에 대한 선택적 통화 재정의입니다.
+      요금에 대한 선택적 통화 재정의입니다.
     </ParamField>
 
     <ParamField body="product_description" type="string">
-      이 청구에 대한 선택적 설명 재정의입니다.
+      이 요금에 대한 선택적 설명 재정의입니다.
     </ParamField>
 
     <ParamField body="adaptive_currency_fees_inclusive" type="boolean">
-      true인 경우, <code>product_price</code>에 적응형 통화 수수료를 포함합니다. false인 경우, 수수료가 추가됩니다.
+      true인 경우, <code>product_price</code> 내에 적응형 통화 수수료를 포함합니다. false인 경우, 수수료가 추가됩니다.
     </ParamField>
 
     <ParamField body="metadata" type="object">
@@ -357,12 +361,12 @@ curl -X POST "$DODO_API/subscriptions/sub_123/charge" \
 ```
 
 <Warning>
-온디맨드가 아닌 구독을 청구하면 실패할 수 있습니다. 청구하기 전에 구독에 `on_demand: true`가 포함되어 있는지 확인하세요.
+온디맨드가 아닌 구독에 요금을 청구하면 실패할 수 있습니다. 청구하기 전에 구독에 `on_demand: true`가 포함되어 있는지 확인하세요.
 </Warning>
 
 ## 결제 재시도
 
-우리의 사기 탐지 시스템은 공격적인 재시도 패턴을 차단할 수 있으며 (잠재적인 카드 테스트로 표시될 수 있음) 안전한 재시도 정책을 따르세요.
+우리의 사기 탐지 시스템은 공격적인 재시도 패턴을 차단할 수 있습니다 (그리고 이를 잠재적인 카드 테스트로 표시할 수 있습니다). 안전한 재시도 정책을 따르세요.
 
 <Warning>
 버스트 재시도 패턴은 우리의 위험 시스템 및 프로세서에 의해 사기 또는 의심스러운 카드 테스트로 표시될 수 있습니다. 클러스터 재시도를 피하고 아래의 백오프 일정 및 시간 정렬 지침을 따르세요.
@@ -372,24 +376,24 @@ curl -X POST "$DODO_API/subscriptions/sub_123/charge" \
 
 - **백오프 메커니즘**: 재시도 간에 지수 백오프를 사용하세요.
 - **재시도 한도**: 총 재시도를 제한하세요 (최대 3-4회 시도).
-- **지능형 필터링**: 재시도 가능한 실패(예: 네트워크/발급자 오류, 자금 부족)에서만 재시도하세요; 하드 거부는 절대 재시도하지 마세요.
+- **지능형 필터링**: 재시도 가능한 실패(예: 네트워크/발급자 오류, 자금 부족)에서만 재시도하세요; 하드 거부는 재시도하지 마세요.
 - **카드 테스트 방지**: `DO_NOT_HONOR`, `STOLEN_CARD`, `LOST_CARD`, `PICKUP_CARD`, `FRAUDULENT`, `AUTHENTICATION_FAILURE`와 같은 실패는 재시도하지 마세요.
-- **메타데이터 다양화 (선택적)**: 자체 재시도 시스템을 유지하는 경우, 메타데이터를 통해 재시도를 구분하세요 (예: `retry_attempt`).
+- **메타데이터 변경 (선택적)**: 자체 재시도 시스템을 유지하는 경우, 메타데이터를 통해 재시도를 구분하세요 (예: `retry_attempt`).
 
 ### 권장 재시도 일정 (구독)
 
-- **1차 시도**: 청구를 생성할 때 즉시
+- **1차 시도**: 요금을 생성할 때 즉시
 - **2차 시도**: 3일 후
 - **3차 시도**: 7일 후 (총 10일)
 - **4차 시도 (최종)**: 7일 후 (총 17일)
 
-최종 단계: 여전히 미납인 경우, 구독을 미납으로 표시하거나 정책에 따라 취소하세요. 고객에게 결제 수단을 업데이트할 수 있는 기간 동안 알리세요.
+최종 단계: 여전히 미납인 경우, 구독을 미납으로 표시하거나 정책에 따라 취소하세요. 고객에게 결제 방법을 업데이트할 수 있는 기간 동안 알리세요.
 
 ### 버스트 재시도를 피하고 승인 시간에 맞추세요
 
 - 재시도를 원래 승인 타임스탬프에 고정하여 포트폴리오 전반에 걸쳐 "버스트" 동작을 피하세요.
-- 예: 고객이 오늘 오후 1시 10분에 체험판 또는 위임을 시작하면, 후속 재시도를 백오프에 따라 다음 날 오후 1시 10분에 예약하세요 (예: +3일 → 오후 1시 10분, +7일 → 오후 1시 10분).
-- 또는 마지막 성공적인 결제 시간을 저장하는 경우 `T`, 다음 시도를 `T + X days`에서 예약하여 시간대 정렬을 유지하세요.
+- 예: 고객이 오늘 오후 1:10에 체험판 또는 위임을 시작하면, 백오프에 따라 후속 재시도를 오후 1:10에 예약하세요 (예: +3일 → 오후 1:10, +7일 → 오후 1:10).
+- 또는, 마지막 성공적인 결제 시간을 저장하는 경우 `T`, 다음 시도를 `T + X days`에서 예약하여 시간대 정렬을 유지하세요.
 
 <Note>
 시간대 및 DST: 일정을 위해 일관된 시간 표준을 사용하고 표시를 위해서만 변환하여 간격을 유지하세요.
@@ -417,9 +421,9 @@ curl -X POST "$DODO_API/subscriptions/sub_123/charge" \
 
 - 정확한 타임스탬프를 유지하는 스케줄러/큐를 사용하세요; 다음 시도를 정확한 시간대 오프셋에서 계산하세요 (예: `T + 3 days`에서 같은 HH:MM).
 - 마지막 성공적인 결제 타임스탬프 `T`를 유지하고 참조하여 다음 시도를 계산하세요; 여러 구독을 동시에 묶지 마세요.
-- 항상 마지막 거부 사유를 평가하세요; 위의 스킵 목록에서 하드 거부에 대한 재시도를 중단하세요.
+- 마지막 거부 사유를 항상 평가하세요; 위의 스킵 목록에서 하드 거부에 대한 재시도를 중단하세요.
 - 고객 및 계정당 동시 재시도를 제한하여 우발적인 급증을 방지하세요.
-- 다음 예정된 시도 전에 고객에게 결제 수단을 업데이트하도록 이메일/SMS로 사전 통지하세요.
+- 사전 커뮤니케이션: 다음 예정된 시도 전에 고객에게 결제 방법을 업데이트하도록 이메일/SMS로 알리세요.
 - 메타데이터는 관찰 가능성을 위해서만 사용하세요 (예: `retry_attempt`); 중요하지 않은 필드를 회전하여 사기/위험 시스템을 "회피"하려고 하지 마세요.
 
 ## 웹훅으로 결과 추적
@@ -429,11 +433,11 @@ curl -X POST "$DODO_API/subscriptions/sub_123/charge" \
 - **subscription.active**: 위임이 승인되고 구독이 활성화됨
 - **subscription.failed**: 생성 실패 (예: 위임 실패)
 - **subscription.on_hold**: 구독이 보류됨 (예: 미납 상태)
-- **payment.succeeded**: 청구 성공
-- **payment.failed**: 청구 실패
+- **payment.succeeded**: 요금 성공
+- **payment.failed**: 요금 실패
 
 <Tip>
-온디맨드 흐름의 경우, `payment.succeeded` 및 `payment.failed`에 집중하여 사용 기반 청구를 조정하세요.
+온디맨드 흐름의 경우, `payment.succeeded` 및 `payment.failed`에 집중하여 사용 기반 요금을 조정하세요.
 </Tip>
 
 ## 테스트 및 다음 단계
@@ -442,8 +446,8 @@ curl -X POST "$DODO_API/subscriptions/sub_123/charge" \
 <Step title="테스트 모드에서 생성">
 테스트 API 키를 사용하여 `payment_link: true`로 구독을 생성한 후, 링크를 열고 위임을 완료하세요.
 </Step>
-<Step title="청구 트리거">
-작은 `product_price` (예: `100`)로 청구 엔드포인트를 호출하고 `payment.succeeded`를 수신하는지 확인하세요.
+<Step title="요금 발생">
+작은 `product_price` (예: `100`)로 요금 엔드포인트를 호출하고 `payment.succeeded`를 수신하는지 확인하세요.
 </Step>
 <Step title="라이브 전환">
 이벤트 및 내부 상태 업데이트를 검증한 후 라이브 API 키로 전환하세요.
@@ -452,6 +456,6 @@ curl -X POST "$DODO_API/subscriptions/sub_123/charge" \
 
 ## 문제 해결
 
-- **422 잘못된 요청**: 생성 시 `on_demand.mandate_only`가 제공되었는지 확인하고, 청구를 위해 `product_price`가 제공되었는지 확인하세요.
+- **422 잘못된 요청**: 생성 시 `on_demand.mandate_only`가 제공되었는지 확인하고, 요금에 대해 `product_price`가 제공되었는지 확인하세요.
 - **통화 오류**: `product_currency`를 재정의하는 경우, 해당 통화가 귀하의 계정 및 고객에 대해 지원되는지 확인하세요.
-- **웹훅 수신 안 됨**: 웹훅 URL 및 서명 비밀 구성을 확인하세요.
+- **웹훅 수신 안 됨**: 웹훅 URL 및 서명 비밀 구성 확인.

@@ -1,9 +1,9 @@
 ---
-title: Inline Checkout (Draft)
+title: Checkout Inline
 description: Sisipkan checkout Dodo Payments langsung ke dalam situs web Anda
   untuk pengalaman pembayaran yang mulus dan bermerek.
 icon: credit-card
-draft: true
+tag: BETA
 ---
 
 ## Ikhtisar
@@ -60,8 +60,8 @@ Alur checkout ditentukan oleh konfigurasi sesi checkout Anda. Tergantung pada ba
 <Steps>
 <Step title="Pelanggan membuka checkout">
 
-Anda dapat membuka checkout inline dengan mengirimkan item atau transaksi yang ada. Gunakan SDK untuk menampilkan dan memperbarui informasi di halaman, dan metode SDK untuk memperbarui item berdasarkan interaksi pelanggan.
-    <img src="/images/inline-checkout/1.svg" alt="Halaman checkout awal dengan daftar item dan formulir pembayaran"/>
+Anda dapat membuka checkout inline dengan mengirimkan item atau transaksi yang sudah ada. Gunakan SDK untuk menampilkan dan memperbarui informasi di halaman, dan metode SDK untuk memperbarui item berdasarkan interaksi pelanggan.
+    <img src="/images/inline-checkout/1.png" alt="Halaman checkout awal dengan daftar item dan formulir pembayaran"/>
 
 </Step>
 
@@ -79,7 +79,7 @@ Setelah memasukkan detail mereka, pelanggan disajikan dengan metode pembayaran y
 
 Tampilkan metode pembayaran yang disimpan jika tersedia untuk mempercepat checkout.
 
-<img src="/images/inline-checkout/3.svg" alt="Metode pembayaran yang tersedia dan formulir detail kartu"/>
+<img src="/images/inline-checkout/2.png" alt="Metode pembayaran yang tersedia dan formulir detail kartu"/>
 
 </Step>
 
@@ -87,7 +87,7 @@ Tampilkan metode pembayaran yang disimpan jika tersedia untuk mempercepat checko
 
 Dodo Payments mengarahkan setiap pembayaran ke pengakuisisi terbaik untuk penjualan tersebut untuk mendapatkan peluang terbaik untuk sukses. Pelanggan memasuki alur kerja sukses yang dapat Anda bangun.
 
-<img src="/images/inline-checkout/4.svg" alt="Layar sukses dengan tanda centang konfirmasi"/>
+<img src="/images/inline-checkout/3.png" alt="Layar sukses dengan tanda centang konfirmasi"/>
 
 </Step>
 
@@ -95,43 +95,504 @@ Dodo Payments mengarahkan setiap pembayaran ke pengakuisisi terbaik untuk penjua
 
 Dodo Payments secara otomatis membuat langganan untuk pelanggan, siap untuk Anda provision. Metode pembayaran yang digunakan pelanggan disimpan untuk pembaruan atau perubahan langganan.
 
-<img src="/images/inline-checkout/5.svg" alt="Langganan dibuat dengan notifikasi webhook"/>
+<img src="/images/inline-checkout/4.png" alt="Langganan dibuat dengan notifikasi webhook"/>
 
 </Step>
 </Steps>
+
+## Memulai dengan Cepat
+
+Mulai dengan Dodo Payments Inline Checkout hanya dalam beberapa baris kode:
+
+```typescript
+import { DodoPayments } from "dodopayments-checkout";
+
+// Initialize the SDK for inline mode
+DodoPayments.Initialize({
+  mode: "test",
+  displayType: "inline",
+  onEvent: (event) => {
+    console.log("Checkout event:", event);
+  },
+});
+
+// Open checkout in a specific container
+DodoPayments.Checkout.open({
+  checkoutUrl: "https://test.dodopayments.com/session/cks_123",
+  elementId: "dodo-inline-checkout" // ID of the container element
+});
+```
+
+<Tip>
+Pastikan Anda memiliki elemen kontainer dengan `id` yang sesuai di halaman Anda: `<div id="dodo-inline-checkout"></div>`.
+</Tip>
+
+## Panduan Integrasi Langkah-demi-Langkah
+
+<Steps>
+<Step title="Instal SDK">
+
+Instal Dodo Payments Checkout SDK:
+
+<CodeGroup>
+
+```bash npm
+npm install dodopayments-checkout
+```
+
+```bash yarn
+yarn add dodopayments-checkout
+```
+
+```bash pnpm
+pnpm add dodopayments-checkout
+```
+
+</CodeGroup>
+
+</Step>
+
+<Step title="Inisialisasi SDK untuk Tampilan Inline">
+
+Inisialisasi SDK dan tentukan `displayType: 'inline'`. Anda juga harus mendengarkan event `checkout.breakdown` untuk memperbarui UI Anda dengan perhitungan pajak dan total secara real-time.
+
+```typescript
+import { DodoPayments } from "dodopayments-checkout";
+
+DodoPayments.Initialize({
+  mode: "test",
+  displayType: "inline",
+  onEvent: (event) => {
+    if (event.event_type === "checkout.breakdown") {
+      const breakdown = event.data?.message;
+      // Update your UI with breakdown.subTotal, breakdown.tax, breakdown.total, etc.
+    }
+  },
+});
+```
+
+</Step>
+
+<Step title="Buat Elemen Kontainer">
+
+Tambahkan elemen ke HTML Anda di mana bingkai checkout akan disuntikkan:
+
+```html
+<div id="dodo-inline-checkout"></div>
+```
+
+</Step>
+
+<Step title="Buka Checkout">
+
+Panggil `DodoPayments.Checkout.open()` dengan `checkoutUrl` dan `elementId` dari kontainer Anda:
+
+```typescript
+DodoPayments.Checkout.open({
+  checkoutUrl: "https://test.dodopayments.com/session/cks_123",
+  elementId: "dodo-inline-checkout"
+});
+```
+
+</Step>
+
+<Step title="Uji Integrasi Anda">
+
+1. Mulai server pengembangan Anda:
+
+```bash
+npm run dev
+```
+
+2. Uji alur checkout:
+   - Masukkan email dan detail alamat Anda di bingkai inline.
+   - Verifikasi bahwa ringkasan pesanan kustom Anda diperbarui secara real-time.
+   - Uji alur pembayaran menggunakan kredensial uji.
+   - Konfirmasi pengalihan berfungsi dengan benar.
+
+<Check>
+Anda harus melihat event `checkout.breakdown` tercatat di konsol browser Anda jika Anda menambahkan log konsol di callback `onEvent`.
+</Check>
+
+</Step>
+
+<Step title="Go Live">
+
+Ketika Anda siap untuk produksi:
+
+1. Ubah mode menjadi `'live'`:
+
+```typescript
+DodoPayments.Initialize({
+  mode: "live",
+  displayType: "inline",
+  onEvent: (event) => {
+    // Handle events
+  }
+});
+```
+
+2. Perbarui URL checkout Anda untuk menggunakan sesi checkout langsung dari backend Anda.
+3. Uji alur lengkap di produksi.
+
+</Step>
+</Steps>
+
+## Contoh React Lengkap
+
+Contoh ini menunjukkan cara mengimplementasikan ringkasan pesanan kustom bersamaan dengan checkout inline, menjaga mereka tetap sinkron menggunakan event `checkout.breakdown`.
+
+```tsx
+"use client";
+
+import { useEffect, useState } from 'react';
+import { DodoPayments, CheckoutBreakdownData } from 'dodopayments-checkout';
+
+export default function CheckoutPage() {
+  const [breakdown, setBreakdown] = useState<Partial<CheckoutBreakdownData>>({});
+
+  useEffect(() => {
+    // 1. Initialize the SDK
+    DodoPayments.Initialize({
+      mode: 'test',
+      displayType: 'inline',
+      onEvent: (event) => {
+        // 2. Listen for the 'checkout.breakdown' event
+        if (event.event_type === "checkout.breakdown") {
+          const message = event.data?.message as CheckoutBreakdownData;
+          if (message) setBreakdown(message);
+        }
+      }
+    });
+
+    // 3. Open the checkout in the specified container
+    DodoPayments.Checkout.open({
+      checkoutUrl: 'https://test.dodopayments.com/session/cks_123',
+      elementId: 'dodo-inline-checkout'
+    });
+
+    return () => DodoPayments.Checkout.close();
+  }, []);
+
+  const format = (amt: number | null | undefined, curr: string | null | undefined) => 
+    amt != null && curr ? `${curr} ${(amt/100).toFixed(2)}` : '0.00';
+
+  const currency = breakdown.currency ?? breakdown.finalTotalCurrency ?? '';
+
+  return (
+    <div className="flex flex-col md:flex-row min-h-screen">
+      {/* Left Side - Checkout Form */}
+      <div className="w-full md:w-1/2 flex items-center">
+        <div id="dodo-inline-checkout" className='w-full' />
+      </div>
+
+      {/* Right Side - Custom Order Summary */}
+      <div className="w-full md:w-1/2 p-8 bg-gray-50">
+        <h2 className="text-2xl font-bold mb-4">Order Summary</h2>
+        <div className="space-y-2">
+          {breakdown.subTotal && (
+            <div className="flex justify-between">
+              <span>Subtotal</span>
+              <span>{format(breakdown.subTotal, currency)}</span>
+            </div>
+          )}
+          {breakdown.discount && (
+            <div className="flex justify-between">
+              <span>Discount</span>
+              <span>{format(breakdown.discount, currency)}</span>
+            </div>
+          )}
+          {breakdown.tax != null && (
+            <div className="flex justify-between">
+              <span>Tax</span>
+              <span>{format(breakdown.tax, currency)}</span>
+            </div>
+          )}
+          <hr />
+          {(breakdown.finalTotal ?? breakdown.total) && (
+            <div className="flex justify-between font-bold text-xl">
+              <span>Total</span>
+              <span>{format(breakdown.finalTotal ?? breakdown.total, breakdown.finalTotalCurrency ?? currency)}</span>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+```
+
+## Referensi API
+
+### Konfigurasi
+
+#### Opsi Inisialisasi
+
+```typescript
+interface InitializeOptions {
+  mode: "test" | "live";
+  displayType: "inline"; // Required for inline checkout
+  onEvent: (event: CheckoutEvent) => void;
+}
+```
+
+| Opsi | Tipe | Diperlukan | Deskripsi |
+|--------|------|----------|-------------|
+| `mode` | `"test" \| "live"` | Ya | Mode lingkungan. |
+| `displayType` | `"inline" \| "overlay"` | Ya | Harus diatur ke `"inline"` untuk menyematkan checkout. |
+| `onEvent` | `function` | Ya | Fungsi callback untuk menangani event checkout. |
+
+#### Opsi Checkout
+
+```typescript
+interface CheckoutOptions {
+  checkoutUrl: string;
+  elementId: string; // Required for inline checkout
+}
+```
+
+| Opsi | Tipe | Diperlukan | Deskripsi |
+|--------|------|----------|-------------|
+| `checkoutUrl` | `string` | Ya | URL sesi checkout. |
+| `elementId` | `string` | Ya | `id` dari elemen DOM di mana checkout harus dirender. |
+
+### Metode
+
+#### Buka Checkout
+
+Membuka bingkai checkout di kontainer yang ditentukan.
+
+```typescript
+DodoPayments.Checkout.open({
+  checkoutUrl: "https://test.dodopayments.com/session/cks_123",
+  elementId: "dodo-inline-checkout"
+});
+```
+
+#### Tutup Checkout
+
+Secara programatis menghapus bingkai checkout dan membersihkan pendengar event.
+
+```typescript
+DodoPayments.Checkout.close();
+```
+
+#### Periksa Status
+
+Mengembalikan apakah bingkai checkout saat ini disuntikkan.
+
+```typescript
+const isOpen = DodoPayments.Checkout.isOpen();
+// Returns: boolean
+```
+
+### Event
+
+SDK menyediakan event real-time melalui callback `onEvent`. Untuk checkout inline, `checkout.breakdown` sangat berguna untuk menyinkronkan UI Anda.
+
+| Tipe Event | Deskripsi |
+|------------|-------------|
+| `checkout.opened` | Bingkai checkout telah dimuat. |
+| `checkout.breakdown` | Ditembak ketika harga, pajak, atau diskon diperbarui. |
+| `checkout.customer_details_submitted` | Detail pelanggan telah diserahkan. |
+| `checkout.redirect` | Checkout akan melakukan pengalihan (misalnya, ke halaman bank). |
+| `checkout.error` | Terjadi kesalahan selama checkout. |
+
+#### Data Rincian Checkout
+
+Event `checkout.breakdown` menyediakan data berikut:
+
+```typescript
+interface CheckoutBreakdownData {
+  subTotal?: number;          // Amount in cents
+  discount?: number;         // Amount in cents
+  tax?: number;              // Amount in cents
+  total?: number;            // Amount in cents
+  currency?: string;         // e.g., "USD"
+  finalTotal?: number;       // Final amount including adjustments
+  finalTotalCurrency?: string; // Currency for the final total
+}
+```
+
+#### Memahami Event Rincian
+
+Event `checkout.breakdown` adalah cara utama untuk menjaga UI aplikasi Anda tetap sinkron dengan status checkout Dodo Payments.
+
+**Kapan itu terjadi:**
+- **Saat inisialisasi**: Segera setelah bingkai checkout dimuat dan siap.
+- **Saat perubahan alamat**: Setiap kali pelanggan memilih negara atau memasukkan kode pos yang mengakibatkan perhitungan pajak ulang.
+
+**Detail Field:**
+
+| Field | Deskripsi |
+|-------|-------------|
+| `subTotal` | Jumlah semua item dalam sesi sebelum diskon atau pajak diterapkan. |
+| `discount` | Nilai total dari semua diskon yang diterapkan. |
+| `tax` | Jumlah pajak yang dihitung. Dalam mode `inline`, ini diperbarui secara dinamis saat pengguna berinteraksi dengan field alamat. |
+| `total` | Hasil matematis dari `subTotal - discount + tax` dalam mata uang dasar sesi. |
+| `currency` | Kode mata uang ISO (misalnya, `"USD"`) untuk subtotal standar, diskon, dan nilai pajak. |
+| `finalTotal` | Jumlah yang sebenarnya dibebankan kepada pelanggan. Ini mungkin termasuk penyesuaian nilai tukar asing tambahan atau biaya metode pembayaran lokal yang bukan bagian dari rincian harga dasar. |
+| `finalTotalCurrency` | Mata uang di mana pelanggan sebenarnya membayar. Ini dapat berbeda dari `currency` jika paritas daya beli atau konversi mata uang lokal aktif. |
+
+**Tips Integrasi Utama:**
+
+1.  **Format Mata Uang**: Harga selalu dikembalikan sebagai bilangan bulat dalam unit mata uang terkecil (misalnya, sen untuk USD, yen untuk JPY). Untuk menampilkannya, bagi dengan 100 (atau pangkat 10 yang sesuai) atau gunakan pustaka format seperti `Intl.NumberFormat`.
+2.  **Menangani Status Awal**: Ketika checkout pertama kali dimuat, `tax` dan `discount` mungkin `0` atau `null` sampai pengguna memberikan informasi penagihan mereka atau menerapkan kode. UI Anda harus menangani status ini dengan baik (misalnya, menampilkan dash `—` atau menyembunyikan baris).
+3.  **"Total Akhir" vs "Total"**: Sementara `total` memberi Anda perhitungan harga standar, `finalTotal` adalah sumber kebenaran untuk transaksi. Jika `finalTotal` ada, itu mencerminkan persis apa yang akan dibebankan ke kartu pelanggan, termasuk penyesuaian dinamis apa pun.
+4.  **Umpan Balik Real-time**: Gunakan field `tax` untuk menunjukkan kepada pengguna bahwa pajak sedang dihitung secara real-time. Ini memberikan nuansa "langsung" pada halaman checkout Anda dan mengurangi gesekan selama langkah entri alamat.
+
+## Opsi Implementasi
+
+### Instalasi Manajer Paket
+
+Instal melalui npm, yarn, atau pnpm seperti yang ditunjukkan dalam [Panduan Integrasi Langkah-demi-Langkah](#panduan-integrasi-langkah-demi-langkah).
+
+### Implementasi CDN
+
+Untuk integrasi cepat tanpa langkah build, Anda dapat menggunakan CDN kami:
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dodo Payments Inline Checkout</title>
+    
+    <!-- Load DodoPayments -->
+    <script src="https://cdn.jsdelivr.net/npm/dodopayments-checkout@latest/dist/index.js"></script>
+    <script>
+        // Initialize the SDK
+        DodoPaymentsCheckout.DodoPayments.Initialize({
+            mode: "test",
+            displayType: "inline",
+            onEvent: (event) => {
+                console.log('Checkout event:', event);
+            }
+        });
+    </script>
+</head>
+<body>
+    <div id="dodo-inline-checkout"></div>
+
+    <script>
+        // Open the checkout
+        DodoPaymentsCheckout.DodoPayments.Checkout.open({
+            checkoutUrl: "https://test.dodopayments.com/session/cks_123",
+            elementId: "dodo-inline-checkout"
+        });
+    </script>
+</body>
+</html>
+```
+
+## Dukungan TypeScript
+
+SDK ditulis dalam TypeScript dan mencakup definisi tipe yang komprehensif.
+
+```typescript
+import { DodoPayments, CheckoutEvent } from "dodopayments-checkout";
+
+DodoPayments.Initialize({
+  mode: "test",
+  displayType: "inline",
+  onEvent: (event: CheckoutEvent) => {
+    // event is fully typed
+    console.log(event.event_type, event.data);
+  },
+});
+```
+
+## Penanganan Kesalahan
+
+SDK menyediakan informasi kesalahan yang detail melalui sistem event. Selalu terapkan penanganan kesalahan yang tepat dalam callback `onEvent` Anda:
+
+```typescript
+DodoPayments.Initialize({
+  mode: "test",
+  displayType: "inline",
+  onEvent: (event: CheckoutEvent) => {
+    if (event.event_type === "checkout.error") {
+      console.error("Checkout error:", event.data?.message);
+      // Handle error appropriately
+    }
+  }
+});
+```
+
+<Warning>
+Selalu tangani event `checkout.error` untuk memberikan pengalaman pengguna yang baik ketika masalah terjadi.
+</Warning>
+
+## Praktik Terbaik
+
+1. **Desain Responsif**: Pastikan elemen kontainer Anda memiliki lebar dan tinggi yang cukup. Iframe biasanya akan berkembang untuk mengisi kontainernya.
+2. **Sinkronisasi**: Gunakan event `checkout.breakdown` untuk menjaga ringkasan pesanan kustom atau tabel harga Anda tetap sinkron dengan apa yang dilihat pengguna di bingkai checkout.
+3. **Status Skeleton**: Tampilkan indikator pemuatan di kontainer Anda sampai event `checkout.opened` terjadi.
+4. **Pembersihan**: Panggil `DodoPayments.Checkout.close()` saat komponen Anda dibongkar untuk membersihkan iframe dan pendengar event.
+
+## Pemecahan Masalah
+
+<AccordionGroup>
+<Accordion title="Bingkai checkout tidak muncul">
+- Verifikasi bahwa `elementId` cocok dengan `id` dari `div` yang benar-benar ada di DOM.
+- Pastikan `displayType: 'inline'` telah diteruskan ke `Initialize`.
+- Periksa bahwa `checkoutUrl` valid.
+</Accordion>
+
+<Accordion title="Pajak tidak diperbarui di UI saya">
+- Pastikan Anda mendengarkan event `checkout.breakdown`.
+- Pajak hanya dihitung setelah pengguna memasukkan negara dan kode pos yang valid di bingkai checkout.
+</Accordion>
+</AccordionGroup>
+
+## Dukungan Browser
+
+Dodo Payments Checkout SDK mendukung browser berikut:
+
+- Chrome (terbaru)
+- Firefox (terbaru)
+- Safari (terbaru)
+- Edge (terbaru)
+- IE11+
+
+<Note>
+Apple Pay saat ini tidak didukung dalam pengalaman checkout inline. Kami berencana untuk menambahkan dukungan untuk Apple Pay di rilis mendatang.
+</Note>
 
 ## Checkout Inline vs Overlay
 
 Pilih jenis checkout yang tepat untuk kasus penggunaan Anda:
 
-| Fitur | Inline Checkout | Overlay Checkout |
+| Fitur | Checkout Inline | Checkout Overlay |
 |---------|-----------------|------------------|
 | Kedalaman integrasi | Sepenuhnya disematkan di halaman | Modal di atas halaman |
 | Kontrol tata letak | Kontrol penuh | Terbatas |
-| Branding | Mulus | Terpisah dari halaman |
+| Branding | Tanpa batas | Terpisah dari halaman |
 | Upaya implementasi | Lebih tinggi | Lebih rendah |
 | Terbaik untuk | Halaman checkout kustom, alur konversi tinggi | Integrasi cepat, halaman yang ada |
 
 <Tip>
-Gunakan **inline checkout** ketika Anda menginginkan kontrol maksimum atas pengalaman checkout dan branding yang mulus. Gunakan **overlay checkout** untuk integrasi yang lebih cepat dengan perubahan minimal pada halaman yang ada.
+Gunakan **checkout inline** ketika Anda menginginkan kontrol maksimum atas pengalaman checkout dan branding yang mulus. Gunakan **checkout overlay** untuk integrasi yang lebih cepat dengan perubahan minimal pada halaman yang ada.
 </Tip>
 
 ## Sumber Daya Terkait
 
 <CardGroup cols={2}>
-<Card title="Overlay Checkout" icon="layer-group" href="/developer-resources/overlay-checkout">
-    Gunakan overlay checkout untuk integrasi berbasis modal yang cepat.
+<Card title="Checkout Overlay" icon="layer-group" href="/developer-resources/overlay-checkout">
+    Gunakan checkout overlay untuk integrasi berbasis modal yang cepat.
 </Card>
 
-<Card title="Checkout Sessions API" icon="code" href="/api-reference/checkout-sessions/create">
+<Card title="API Sesi Checkout" icon="code" href="/api-reference/checkout-sessions/create">
     Buat sesi checkout untuk mendukung pengalaman checkout Anda.
 </Card>
 
-<Card title="Webhooks" icon="webhook" href="/developer-resources/webhooks">
-    Tangani peristiwa pembayaran di sisi server dengan webhook.
+<Card title="Webhook" icon="webhook" href="/developer-resources/webhooks">
+    Tangani event pembayaran di sisi server dengan webhook.
 </Card>
 
-<Card title="Integration Guide" icon="book" href="/developer-resources/integration-guide">
+<Card title="Panduan Integrasi" icon="book" href="/developer-resources/integration-guide">
     Panduan lengkap untuk mengintegrasikan Dodo Payments.
 </Card>
 </CardGroup>

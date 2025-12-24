@@ -10,12 +10,16 @@ icon: bolt
 
 On-demand prenumerationer låter dig auktorisera en kunds betalningsmetod en gång och sedan ta ut variabla belopp när du behöver, istället för på ett fast schema.
 
+<Info>
+On-demand-prenumeration är nu tillgängliga för alla företag. Denna funktion möjliggör flexibel fakturering för användningsbaserade och mätbara tjänster.
+</Info>
+
 Använd denna guide för att:
-- Skapa en on-demand prenumeration (auktorisera ett mandat med valfritt initialt pris)
+- Skapa en on-demand-prenumeration (auktorisera ett mandat med valfritt initialpris)
 - Utlösa efterföljande avgifter med anpassade belopp
 - Spåra resultat med hjälp av webhooks
 
-För en allmän prenumerationsinställning, se [Prenumerationsintegrationsguide](/developer-resources/subscription-integration-guide).
+För en allmän prenumerationsinställning, se [Prenumerationsintegrationsguiden](/developer-resources/subscription-integration-guide).
 
 ## Förutsättningar
 
@@ -24,7 +28,7 @@ För en allmän prenumerationsinställning, se [Prenumerationsintegrationsguide]
 - En prenumerationsprodukt i din katalog
 
 <Tip>
-Om du vill att kunden ska godkänna mandatet via en hostad kassa, ställ in `payment_link: true` och tillhandahåll en `return_url`.
+Om du vill att kunden ska godkänna mandatet via en värd-checkout, ställ in `payment_link: true` och tillhandahåll en `return_url`.
 </Tip>
 
 ## Hur on-demand fungerar
@@ -33,11 +37,11 @@ Om du vill att kunden ska godkänna mandatet via en hostad kassa, ställ in `pay
 2. Senare skapar du avgifter mot den prenumerationen med anpassade belopp via den dedikerade avgiftsslutpunkten.
 3. Du lyssnar på webhooks (t.ex. `payment.succeeded`, `payment.failed`) för att uppdatera ditt system.
 
-## Skapa en on-demand prenumeration
+## Skapa en on-demand-prenumeration
 
 Slutpunkt: [POST /subscriptions](/api-reference/subscriptions/post-subscriptions)
 
-Nyckelfält i begäran (kropp):
+Nyckelfält för begäran (kropp):
 
 <AccordionGroup>
 <Accordion title="Begäran Kropp Parametrar">
@@ -58,27 +62,27 @@ Nyckelfält i begäran (kropp):
   </ParamField>
 
   <ParamField body="payment_link" type="boolean" default="false">
-    Om sant, skapar en hostad kassa-länk för mandatauktorisering och valfri initial betalning.
+    Om sant, skapar en värd-checkout-länk för mandatauktorisering och valfri initial betalning.
   </ParamField>
 
   <ParamField body="return_url" type="string">
-    Var kunden ska omdirigeras efter att ha slutfört den hostade kassan.
+    Var kunden ska omdirigeras efter att ha slutfört värd-checkouten.
   </ParamField>
 
   <ParamField body="on_demand.mandate_only" type="boolean" required>
-    Om sant, auktoriserar betalningsmetoden utan att ta ut avgift från kunden vid skapandet.
+    Om sant, auktoriserar betalningsmetoden utan att ta betalt från kunden vid skapandet.
   </ParamField>
 
   <ParamField body="on_demand.product_price" type="integer">
-    Initial avgiftsbelopp (i den minsta valutanheten). Om angivet, åsidosätter detta värde produktens ursprungliga pris som ställts in vid produktens skapande. Om utelämnat, används produktens lagrade pris. Exempel: för att ta ut $1.00, skicka <code>100</code>.
+    Initial avgiftsbelopp (i den minsta valutaenheten). Om angivet, åsidosätter detta värde produktens ursprungliga pris som ställts in vid produktens skapande. Om utelämnat används produktens lagrade pris. Exempel: för att ta betalt $1.00, skicka <code>100</code>.
   </ParamField>
 
   <ParamField body="on_demand.product_currency" type="string">
-    Valfritt valöverskridande för den initiala avgiften. Standardinställning är produktens valuta.
+    Valfritt valutaöverskrivning för den initiala avgiften. Standard till produktens valuta.
   </ParamField>
 
   <ParamField body="on_demand.product_description" type="string">
-    Valfritt beskrivningsöverskridande för fakturering och linjeposter.
+    Valfritt beskrivningsöverskrivning för fakturering och linjeposter.
   </ParamField>
 
   <ParamField body="on_demand.adaptive_currency_fees_inclusive" type="boolean">
@@ -87,7 +91,7 @@ Nyckelfält i begäran (kropp):
 </Accordion>
 </AccordionGroup>
 
-### Skapa en on-demand prenumeration
+### Skapa en on-demand-prenumeration
 
 <Tabs>
 <Tab title="Node.js SDK">
@@ -244,26 +248,26 @@ Ställ in `payment_link: true`, omdirigera kunden till `payment_link` för att s
 }
 ```
 
-## Ta ut en on-demand prenumeration
+## Ta betalt för en on-demand-prenumeration
 
 Efter att mandatet har auktoriserats, skapa avgifter vid behov.
 
 Slutpunkt: [POST /subscriptions/\{subscription_id\}/charge](/api-reference/subscriptions/create-charge)
 
-Nyckelfält i begäran (kropp):
+Nyckelfält för begäran (kropp):
 
 <AccordionGroup>
   <Accordion title="Avgiftsbegäran kropp parametrar">
     <ParamField body="product_price" type="integer" required>
-      Belopp att ta ut (i den minsta valutanheten). Exempel: för att ta ut $25.00, skicka <code>2500</code>.
+      Belopp att ta betalt (i den minsta valutaenheten). Exempel: för att ta betalt $25.00, skicka <code>2500</code>.
     </ParamField>
 
     <ParamField body="product_currency" type="string">
-      Valfritt valöverskridande för avgiften.
+      Valfritt valutaöverskrivning för avgiften.
     </ParamField>
 
     <ParamField body="product_description" type="string">
-      Valfritt beskrivningsöverskridande för denna avgift.
+      Valfritt beskrivningsöverskrivning för denna avgift.
     </ParamField>
 
     <ParamField body="adaptive_currency_fees_inclusive" type="boolean">
@@ -271,7 +275,7 @@ Nyckelfält i begäran (kropp):
     </ParamField>
 
     <ParamField body="metadata" type="object">
-      Ytterligare metadata för betalningen. Om utelämnat, används prenumerationens metadata.
+      Ytterligare metadata för betalningen. Om utelämnat används prenumerationsmetadata.
     </ParamField>
   </Accordion>
 </AccordionGroup>
@@ -359,45 +363,45 @@ curl -X POST "$DODO_API/subscriptions/sub_123/charge" \
 ```
 
 <Warning>
-Att ta ut en prenumeration som inte är on-demand kan misslyckas. Se till att prenumerationen har `on_demand: true` i sina detaljer innan du tar ut avgiften.
+Att ta betalt för en prenumeration som inte är on-demand kan misslyckas. Se till att prenumerationen har `on_demand: true` i sina detaljer innan du tar betalt.
 </Warning>
 
-## Betalningsåterföringar
+## Betalningsåterförsök
 
-Vårt bedrägeridetekteringssystem kan blockera aggressiva återföringsmönster (och kan flagga dem som potentiell korttestning). Följ en säker återföringspolicy.
+Vårt bedrägeridetekteringssystem kan blockera aggressiva återförsöksmönster (och kan flagga dem som potentiell korttestning). Följ en säker återförsökspolicy.
 
 <Warning>
-Burst-återföringsmönster kan flaggas som bedrägliga eller misstänkta korttester av våra risk- och processor-system. Undvik klusteråterföringar; följ nedan angiven backoff-schema och tidsjusteringsriktlinjer.
+Burst-återförsöksmönster kan flaggas som bedrägliga eller misstänkta korttestningar av våra risk- och processor-system. Undvik klusteråterförsök; följ nedtrappningsschemat och tidsjusteringsguiden nedan.
 </Warning>
 
-### Principer för säkra återföringspolicyer
+### Principer för säkra återförsökspolicys
 
-- **Backoff-mekanism**: Använd exponentiell backoff mellan återföringar.
-- **Återföringsgränser**: Sätt ett tak för totala återföringar (3–4 försök max).
-- **Intelligent filtrering**: Återför endast vid återföringsbara fel (t.ex. nätverks-/utfärdarfel, otillräckliga medel); återför aldrig hårda avslag.
-- **Förhindra korttestning**: Återför inte fel som `DO_NOT_HONOR`, `STOLEN_CARD`, `LOST_CARD`, `PICKUP_CARD`, `FRAUDULENT`, `AUTHENTICATION_FAILURE`.
-- **Variera metadata (valfritt)**: Om du upprätthåller ditt eget återföringssystem, särskilj återföringar via metadata (t.ex. `retry_attempt`).
+- **Nedtrappningsmekanism**: Använd exponentiell nedtrappning mellan återförsök.
+- **Återförsöksgränser**: Sätt ett tak för totala återförsök (3–4 försök max).
+- **Intelligent filtrering**: Återförsök endast vid återförsökbara fel (t.ex. nätverks-/utfärdarfel, otillräckliga medel); återförsök aldrig hårda avslag.
+- **Förhindra korttestning**: Återförsök inte fel som `DO_NOT_HONOR`, `STOLEN_CARD`, `LOST_CARD`, `PICKUP_CARD`, `FRAUDULENT`, `AUTHENTICATION_FAILURE`.
+- **Variera metadata (valfritt)**: Om du upprätthåller ditt eget återförsökssystem, differentiera återförsök via metadata (t.ex. `retry_attempt`).
 
-### Föreslagen återföringsschema (prenumerationer)
+### Föreslaget återförsökschema (prenumerationer)
 
 - **1:a försök**: Omedelbart när du skapar avgiften
 - **2:a försök**: Efter 3 dagar
-- **3:e försök**: Efter ytterligare 7 dagar (10 dagar totalt)
-- **4:e försök (slutgiltigt)**: Efter ytterligare 7 dagar (17 dagar totalt)
+- **3:e försök**: Efter ytterligare 7 dagar (totalt 10 dagar)
+- **4:e försök (slutgiltigt)**: Efter ytterligare 7 dagar (totalt 17 dagar)
 
-Slutsteg: om fortfarande obetald, markera prenumerationen som obetald eller avbryt den, baserat på din policy. Meddela kunden under fönstret för att uppdatera sin betalningsmetod.
+Slutligt steg: om fortfarande obetald, markera prenumerationen som obetald eller avbryt den, baserat på din policy. Meddela kunden under fönstret för att uppdatera sin betalningsmetod.
 
-### Undvik burst-återföringar; justera till auktoriseringstid
+### Undvik burst-återförsök; anpassa till auktoriseringstid
 
-- Ankare återföringar till den ursprungliga auktoriseringstidsstämpeln för att undvika "burst"-beteende över din portfölj.
-- Exempel: Om kunden startar en provperiod eller mandat klockan 13:10 idag, schemalägg uppföljande återföringar klockan 13:10 på följande dagar enligt din backoff (t.ex. +3 dagar → 13:10, +7 dagar → 13:10).
+- Ankare återförsök till den ursprungliga auktoriseringstidsstämpeln för att undvika "burst"-beteende över din portfölj.
+- Exempel: Om kunden börjar en provperiod eller mandat klockan 13:10 idag, schemalägg uppföljningsåterförsök klockan 13:10 på följande dagar enligt din nedtrappning (t.ex. +3 dagar → 13:10, +7 dagar → 13:10).
 - Alternativt, om du lagrar den senaste framgångsrika betalningstiden `T`, schemalägg nästa försök vid `T + X days` för att bevara tidsjusteringen.
 
 <Note>
 Tidszon och sommartid: använd en konsekvent tidsstandard för schemaläggning och konvertera endast för visning för att upprätthålla intervall.
 </Note>
 
-### Avslag koder du inte bör återföras
+### Avslag koder du inte bör återförsöka
 
 - `STOLEN_CARD`
 - `DO_NOT_HONOR`
@@ -407,35 +411,35 @@ Tidszon och sommartid: använd en konsekvent tidsstandard för schemaläggning o
 - `LOST_CARD`
 
 <Note>
-För en omfattande lista över avslagsskäl och huruvida de kan rättas av användaren, se dokumentationen för
-[Transaktionsfel](/api-reference/transaction-failures).
+För en omfattande lista över avslagsskäl och huruvida de kan rättas av användaren, se
+[Transaktionsfel](/api-reference/transaction-failures) dokumentationen.
 </Note>
 
 <Tip>
-Återför endast vid mjuka/temporära problem (t.ex. `insufficient_funds`, `issuer_unavailable`, `processing_error`, nätverksavbrott). Om samma avslag upprepas, pausa ytterligare återföringar.
+Återförsök endast vid mjuka/tillfälliga problem (t.ex. `insufficient_funds`, `issuer_unavailable`, `processing_error`, nätverksavbrott). Om samma avslag upprepas, pausa ytterligare återförsök.
 </Tip>
 
 ### Implementeringsriktlinjer (ingen kod)
 
-- Använd en schemaläggare/kö som bevarar exakta tidsstämplar; beräkna nästa försök vid exakt tid-of-day-offset (t.ex. `T + 3 days` vid samma HH:MM).
-- Upprätthåll och referera till den senaste framgångsrika betalningstidsstämpeln `T` för att beräkna nästa försök; gruppera aldrig flera prenumerationer vid samma ögonblick.
-- Utvärdera alltid den senaste avslagsskäl; stoppa återföringar för hårda avslag i ovanstående hoppa-lista.
-- Sätt ett tak för samtidiga återföringar per kund och per konto för att förhindra oavsiktliga toppar.
+- Använd en schemaläggare/kö som bevarar exakta tidsstämplar; beräkna nästa försök vid exakt tidpunkt (t.ex. `T + 3 days` vid samma HH:MM).
+- Upprätthåll och referera till den senaste framgångsrika betalningstidsstämpeln `T` för att beräkna nästa försök; gruppera aldrig flera prenumerationer vid samma tillfälle.
+- Utvärdera alltid den senaste avslagsskäl; stoppa återförsök för hårda avslag i hoppa-listan ovan.
+- Sätt ett tak för samtidiga återförsök per kund och per konto för att förhindra oavsiktliga toppar.
 - Kommunicera proaktivt: e-posta/SMS:a kunden för att uppdatera sin betalningsmetod innan nästa schemalagda försök.
 - Använd metadata endast för observabilitet (t.ex. `retry_attempt`); försök aldrig att "undvika" bedrägeri/risk-system genom att rotera oväsentliga fält.
 
 ## Spåra resultat med webhooks
 
-Implementera webhook-hantering för att spåra kundresan. Se [Implementera Webhooks](/developer-resources/integration-guide#implementing-webhooks).
+Implementera webhookhantering för att spåra kundresan. Se [Implementera Webhooks](/developer-resources/integration-guide#implementing-webhooks).
 
 - **subscription.active**: Mandat auktoriserat och prenumeration aktiverad
-- **subscription.failed**: Skapande misslyckades (t.ex. mandatfel)
-- **subscription.on_hold**: Prenumeration placerad på håll (t.ex. obetald status)
+- **subscription.failed**: Skapande misslyckades (t.ex. mandatmisslyckande)
+- **subscription.on_hold**: Prenumeration satt på paus (t.ex. obetald status)
 - **payment.succeeded**: Avgift lyckades
 - **payment.failed**: Avgift misslyckades
 
 <Tip>
-För on-demand flöden, fokusera på `payment.succeeded` och `payment.failed` för att avstämma användningsbaserade avgifter.
+För on-demand-flöden, fokusera på `payment.succeeded` och `payment.failed` för att avstämma användningsbaserade avgifter.
 </Tip>
 
 ## Testning och nästa steg

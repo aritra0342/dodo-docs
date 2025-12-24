@@ -1,0 +1,314 @@
+---
+title: v1.70.0 (24 Desember 2025)
+description: Dukungan checkout inline, gunakan metode pembayaran yang ada untuk
+  checkout instan, kelola rencana langganan dari dasbor, buat tautan pembayaran
+  pendek, lewati halaman sukses dengan redirect_immediately, dan aktifkan
+  langganan sesuai permintaan untuk semua bisnis
+icon: arrows-turn-right
+---
+
+## Fitur Baru 🚀
+
+1. **Checkout Inline - Pengalaman Checkout Terintegrasi Penuh (BETA)**  
+
+   Sematkan checkout Dodo Payments langsung ke situs web Anda untuk pengalaman pembayaran yang mulus dan bermerek. Berbeda dengan checkout overlay yang terbuka sebagai modal, checkout inline menyematkan formulir pembayaran langsung ke tata letak halaman Anda.
+
+   <Frame>
+   <img src="/images/inline-checkout/cover.png" alt="Gambar Sampul Checkout Inline" />
+   </Frame>
+
+   ### Manfaat
+
+   - **Terintegrasi sepenuhnya**: Buat pengalaman checkout yang menyatu dengan situs web Anda
+   - **Ringkasan pesanan kustom**: Bangun UI kustom yang disinkronkan dengan checkout secara real-time
+   - **Kontrol maksimum**: Kontrol penuh atas tata letak dan desain checkout
+   - **Mematuhi PCI**: Dodo Payments menangani semua informasi pembayaran sensitif dengan aman
+   - **Sinkronisasi real-time**: Gunakan peristiwa SDK untuk menjaga UI Anda tetap sinkron dengan status checkout
+
+   ### Cara Kerjanya
+
+   Inisialisasi SDK dengan `displayType: 'inline'` dan sematkan checkout dalam elemen kontainer:
+
+   ```typescript
+   import { DodoPayments } from "dodopayments-checkout";
+
+   // Initialize the SDK for inline mode
+   DodoPayments.Initialize({
+     mode: "test",
+     displayType: "inline",
+     onEvent: (event) => {
+       if (event.event_type === "checkout.breakdown") {
+         // Update your UI with real-time tax and total calculations
+         const breakdown = event.data?.message;
+       }
+     },
+   });
+
+   // Open checkout in a specific container
+   DodoPayments.Checkout.open({
+     checkoutUrl: "https://test.dodopayments.com/session/cks_123",
+     elementId: "dodo-inline-checkout" // ID of the container element
+   });
+   ```
+
+   ### Fitur Utama
+
+   - **Peristiwa pemecahan real-time**: Terima `checkout.breakdown` peristiwa saat pelanggan memasukkan detail mereka
+   - **Ringkasan pesanan kustom**: Buat tampilan harga Anda sendiri yang diperbarui secara real-time
+   - **Integrasi mulus**: Kerangka checkout menangani pengumpulan pembayaran sementara Anda mengontrol tata letak
+   - **Metode SDK**: Gunakan `open()`, `close()`, dan `isOpen()` untuk mengontrol checkout secara programatis
+
+   <Check>
+   Hasil: Pengalaman checkout yang terintegrasi sepenuhnya yang sesuai dengan merek Anda dan memberikan kontrol maksimum atas alur pembayaran.
+   </Check>
+
+   <Tip>
+   Gunakan checkout inline ketika Anda menginginkan kontrol maksimum atas desain checkout. Gunakan [checkout overlay](/developer-resources/overlay-checkout) untuk integrasi yang lebih cepat dengan perubahan minimal pada halaman yang ada.
+   </Tip>
+
+   Pelajari lebih lanjut: [Panduan Checkout Inline](/developer-resources/inline-checkout)
+
+2. **Buat Pembayaran, Langganan, dan Checkout Menggunakan Metode Pembayaran yang Ada**  
+    Permudah alur checkout dengan menggunakan metode pembayaran yang disimpan dari pelanggan yang ada. Parameter baru `payment_method_id` memungkinkan Anda untuk membuat pembayaran, langganan, atau sesi checkout menggunakan metode pembayaran yang sebelumnya disimpan oleh pelanggan.
+
+   ### Manfaat
+
+   - **Checkout lebih cepat**: Lewati pengumpulan metode pembayaran untuk pelanggan yang kembali
+   - **Pembelian satu klik**: Aktifkan pembelian instan dengan metode pembayaran yang disimpan
+   - **Manajemen langganan**: Dengan mudah buat langganan menggunakan metode pembayaran yang ada
+   - **Tingkat konversi yang lebih baik**: Kurangi gesekan checkout untuk pelanggan yang berulang
+
+   ### Cara Kerjanya
+
+   Gunakan `payment_method_id` saat membuat sesi checkout, pembayaran, atau langganan:
+
+   <Tabs>
+   <Tab title="Sesi Checkout">
+
+   ```javascript
+   const session = await client.checkoutSessions.create({
+     product_cart: [{ product_id: 'prod_123', quantity: 1 }],
+     customer: {
+       customer_id: 'cus_123'
+     },
+     payment_method_id: 'pm_abc123',
+     confirm: true
+   });
+   ```
+
+   </Tab>
+
+   <Tab title="Pembayaran Sekali">
+
+   ```javascript
+   const payment = await client.payments.create({
+     product_cart: [{ product_id: 'prod_123', quantity: 1 }],
+     customer_id: 'cus_123',
+     payment_method_id: 'pm_abc123'
+   });
+   ```
+
+   </Tab>
+
+   <Tab title="Langganan">
+
+   ```javascript
+   const subscription = await client.subscriptions.create({
+     customer_id: 'cus_123',
+     product_id: 'prod_subscription',
+     payment_method_id: 'pm_abc123'
+   });
+   ```
+
+   </Tab>
+   </Tabs>
+
+   <Warning>
+   Saat menggunakan `payment_method_id` dalam sesi checkout, `confirm` harus diatur ke `true`, dan `customer_id` yang ada harus disediakan. Metode pembayaran akan divalidasi untuk kelayakan dengan mata uang pembayaran.
+   </Warning>
+
+   <Info>
+   Metode pembayaran harus milik pelanggan dan kompatibel dengan mata uang pembayaran. Jika validasi gagal, permintaan akan mengembalikan kesalahan.
+   </Info>
+
+3. **Perubahan Rencana Langganan di Dasbor dengan Pembaruan Tanggal Penagihan Berikutnya**  
+    
+    Kelola rencana langganan langsung dari dasbor dengan kontrol yang ditingkatkan. Anda sekarang dapat mengubah rencana langganan dan memperbarui tanggal penagihan berikutnya dalam satu tindakan, memberikan Anda fleksibilitas penuh atas manajemen langganan.  
+
+    <Frame>
+    <img src="/images/changelog/subscription-plan-changes.png" alt="Perubahan rencana langganan di dasbor" />
+    </Frame>
+
+   ### Fitur Dasbor
+
+   - **Perubahan rencana**: Tingkatkan atau turunkan langganan dengan satu klik
+   - **Kontrol tanggal penagihan**: Perbarui tanggal penagihan berikutnya saat mengubah rencana
+   - **Opsi prorata**: Pilih cara menangani prorata saat mengubah rencana
+   - **Prabaca visual**: Lihat dengan tepat bagaimana perubahan rencana mempengaruhi penagihan sebelum mengonfirmasi
+
+   ### Kasus Penggunaan
+
+   - **Dukungan pelanggan**: Sesuaikan rencana langganan dengan cepat untuk permintaan pelanggan
+   - **Peningkatan promosi**: Tingkatkan pelanggan sementara dengan tanggal penagihan tertentu
+   - **Migrasi rencana**: Transisi pelanggan dengan mulus antara tingkat langganan
+   - **Penyelarasan penagihan**: Sesuaikan tanggal penagihan di seluruh langganan yang berbeda
+
+   <Check>
+   Hasil: Kontrol manajemen langganan yang lengkap dari dasbor, mengurangi kebutuhan untuk panggilan API untuk penyesuaian langganan yang umum.
+   </Check>
+
+   <Tip>
+   Gunakan dasbor untuk perubahan rencana langganan yang cepat, dan API untuk manajemen langganan secara programatis dalam aplikasi Anda.
+   </Tip>
+
+4. **Tautan Pendek untuk URL Pembayaran**  
+   Hasilkan tautan pembayaran yang lebih bersih dan lebih mudah dibagikan dengan fitur tautan pendek baru kami. Tautan pendek menyediakan URL checkout yang dipersingkat dengan slug kustom, membuatnya lebih mudah untuk dibagikan dengan pelanggan atau disematkan di situs web Anda.
+
+   <Frame>
+   <img src="/images/changelog/short-links.png" alt="Fitur tautan pendek untuk URL pembayaran" />
+   </Frame>
+
+   ### Manfaat
+
+   - **URL yang lebih bersih**: Ganti URL pembayaran yang panjang dengan tautan pendek yang bermerek
+   - **Kepercayaan yang lebih baik**: Tautan yang terlihat profesional yang membangun kepercayaan pelanggan
+   - **Berbagi yang lebih mudah**: URL yang disederhanakan sempurna untuk SMS, email, atau media sosial
+   - **Slug kustom**: Buat tautan pendek yang mudah diingat dan bermerek untuk produk Anda
+
+   ### Cara Kerjanya
+
+   Aktifkan tautan pendek saat membuat sesi checkout atau tautan pembayaran:
+
+   <Tabs>
+   <Tab title="Sesi Checkout">
+
+   ```javascript
+   const session = await client.checkoutSessions.create({
+     product_cart: [{ product_id: 'prod_123', quantity: 1 }],
+     short_link: true,
+     return_url: 'https://yourapp.com/success'
+   });
+   ```
+
+   </Tab>
+
+   <Tab title="Tautan Pembayaran">
+
+   ```javascript
+   const payment = await client.payments.create({
+     product_cart: [{ product_id: 'prod_123', quantity: 1 }],
+     short_link: true,
+     return_url: 'https://yourapp.com/success'
+   });
+   ```
+
+   </Tab>
+   </Tabs>
+
+   <Check>
+   Hasil: Tautan pembayaran yang dipersingkat yang lebih mudah dibagikan dan terlihat lebih profesional, meningkatkan tingkat konversi dan kepercayaan pelanggan.
+   </Check>
+
+   <Info>
+   Tautan pendek dikelola di dasbor Anda dan dapat dilihat melalui [API Daftar Tautan Pendek](/api-reference/products/get-products-short-links).
+   </Info>
+
+5. **`redirect_immediately` Flag - Lewati Halaman Sukses Pembayaran**  
+   Kendalikan alur checkout dengan flag baru `redirect_immediately`. Ketika diaktifkan, pelanggan akan diarahkan segera setelah pembayaran selesai, melewati halaman sukses default untuk pengalaman yang lebih cepat dan lebih terintegrasi.
+
+   ### Kasus Penggunaan
+
+   - **Alur checkout lebih cepat**: Kurangi gesekan dengan melewati halaman perantara
+   - **Halaman sukses kustom**: Arahkan langsung ke halaman sukses bermerek Anda
+   - **Optimisasi seluler**: Tingkatkan pengalaman checkout seluler dengan pengalihan segera
+   - **Checkout yang disematkan**: Integrasikan dengan mulus dengan alur checkout overlay atau disematkan
+
+   ### Cara Kerjanya
+
+   Aktifkan pengalihan segera dalam sesi checkout, pembayaran, atau langganan:
+
+   <Tabs>
+   <Tab title="Sesi Checkout">
+
+   ```javascript
+   const session = await client.checkoutSessions.create({
+     product_cart: [{ product_id: 'prod_123', quantity: 1 }],
+     redirect_immediately: true,
+     return_url: 'https://yourapp.com/success'
+   });
+   ```
+
+   </Tab>
+
+   <Tab title="Pembayaran Sekali">
+
+   ```javascript
+   const payment = await client.payments.create({
+     product_cart: [{ product_id: 'prod_123', quantity: 1 }],
+     redirect_immediately: true,
+     return_url: 'https://yourapp.com/success'
+   });
+   ```
+
+   </Tab>
+
+   <Tab title="Langganan">
+
+   ```javascript
+   const subscription = await client.subscriptions.create({
+     customer_id: 'cus_123',
+     product_id: 'prod_subscription',
+     redirect_immediately: true,
+     return_url: 'https://yourapp.com/success'
+   });
+   ```
+
+   </Tab>
+   </Tabs>
+
+   <Tip>
+   Gunakan `redirect_immediately: true` ketika Anda memiliki halaman sukses kustom yang memberikan pengalaman pengguna yang lebih baik daripada halaman sukses pembayaran default.
+   </Tip>
+
+   <Note>
+   Ketika `redirect_immediately` diaktifkan, pelanggan akan diarahkan ke `return_url` Anda segera setelah pembayaran selesai, melewati halaman sukses default sepenuhnya.
+   </Note>
+
+6. **Langganan Sesuai Permintaan - Tersedia untuk Semua Bisnis**  
+   Langganan sesuai permintaan sekarang diaktifkan untuk semua bisnis, memberikan Anda kontrol penagihan yang fleksibel untuk layanan berbasis penggunaan dan terukur.
+
+   ### Apa yang Ini Aktifkan
+
+   - **Penagihan berbasis penggunaan**: Buat langganan dan kenakan biaya kepada pelanggan berdasarkan penggunaan aktual
+   - **Siklus penagihan yang fleksibel**: Kenakan biaya kepada pelanggan sesuai permintaan daripada interval tetap
+   - **Layanan terukur**: Sempurna untuk penggunaan API, penyimpanan, waktu komputasi, dan sumber daya terukur lainnya
+   - **Kontrol biaya manual**: Buat biaya secara manual saat diperlukan, memberikan Anda kontrol penuh atas waktu penagihan
+
+   ### Cara Kerjanya
+
+   Buat langganan sesuai permintaan dan kenakan biaya kepada pelanggan sesuai kebutuhan:
+
+   ```javascript
+   // Create an on-demand subscription
+   const subscription = await client.subscriptions.create({
+     customer_id: 'cus_123',
+     product_id: 'prod_api_access',
+     on_demand: true
+   });
+
+   // Charge the customer when usage occurs
+   await client.subscriptions.createCharge(subscription.id, {
+     amount: 4900,
+     currency: 'USD',
+     description: 'API usage for September: 1,000 requests'
+   });
+   ```
+
+   <Check>
+   Hasil: Kontrol penuh atas kapan dan berapa banyak yang harus dikenakan kepada pelanggan, sempurna untuk model bisnis berbasis penggunaan.
+   </Check>
+
+   Pelajari lebih lanjut: [Langganan Sesuai Permintaan](/developer-resources/ondemand-subscriptions)
+
+7. **Perbaikan dan Peningkatan Umum**  
+   Rilis ini mencakup peningkatan kinerja, penyempurnaan UI, dan menyelesaikan bug kecil untuk pengalaman yang lebih andal dan terintegrasi.

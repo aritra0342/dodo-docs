@@ -1,0 +1,311 @@
+---
+title: v1.70.0 (2025年12月24日)
+description: 支持内嵌结账，使用现有支付方式进行即时结账，从仪表板管理订阅计划，生成短支付链接，跳过成功页面并立即重定向，以及为所有企业启用按需订阅
+icon: arrows-turn-right
+---
+
+## 新功能 🚀
+
+1. **内嵌结账 - 完全嵌入式结账体验（测试版）**  
+
+   将Dodo Payments结账直接嵌入到您的网站中，以实现无缝的品牌支付体验。与作为模态窗口打开的覆盖结账不同，内嵌结账将支付表单直接嵌入到您的页面布局中。
+
+   <Frame>
+   <img src="/images/inline-checkout/cover.png" alt="内嵌结账封面图" />
+   </Frame>
+
+   ### 优势
+
+   - **完全集成**：创建与您的网站无缝融合的结账体验
+   - **自定义订单摘要**：构建与结账实时同步的自定义UI
+   - **最大控制**：完全控制结账布局和设计
+   - **符合PCI标准**：Dodo Payments安全处理所有敏感支付信息
+   - **实时同步**：使用SDK事件保持您的UI与结账状态同步
+
+   ### 工作原理
+
+   使用`displayType: 'inline'`初始化SDK，并在容器元素中嵌入结账：
+
+   ```typescript
+   import { DodoPayments } from "dodopayments-checkout";
+
+   // Initialize the SDK for inline mode
+   DodoPayments.Initialize({
+     mode: "test",
+     displayType: "inline",
+     onEvent: (event) => {
+       if (event.event_type === "checkout.breakdown") {
+         // Update your UI with real-time tax and total calculations
+         const breakdown = event.data?.message;
+       }
+     },
+   });
+
+   // Open checkout in a specific container
+   DodoPayments.Checkout.open({
+     checkoutUrl: "https://test.dodopayments.com/session/cks_123",
+     elementId: "dodo-inline-checkout" // ID of the container element
+   });
+   ```
+
+   ### 主要特性
+
+   - **实时分解事件**：当客户输入其详细信息时接收`checkout.breakdown`事件
+   - **自定义订单摘要**：构建您自己的定价显示，实时更新
+   - **无缝集成**：结账框处理支付收集，而您控制布局
+   - **SDK方法**：使用`open()`、`close()`和`isOpen()`以编程方式控制结账
+
+   <Check>
+   结果：完全集成的结账体验，与您的品牌匹配，并提供对支付流程的最大控制。
+   </Check>
+
+   <Tip>
+   当您希望对结账设计有最大控制时，请使用内嵌结账。使用[覆盖结账](/developer-resources/overlay-checkout)可以更快地集成，且对现有页面的更改最小。
+   </Tip>
+
+   了解更多：[内嵌结账指南](/developer-resources/inline-checkout)
+
+2. **使用现有支付方式创建支付、订阅和结账**  
+    通过使用现有客户的保存支付方式来简化结账流程。新的`payment_method_id`参数允许您使用客户之前保存的支付方式创建支付、订阅或结账会话。
+
+   ### 优势
+
+   - **更快的结账**：跳过回头客户的支付方式收集
+   - **一键购买**：使用保存的支付方式启用即时购买
+   - **订阅管理**：轻松使用现有支付方式创建订阅
+   - **提高转化率**：减少回头客户的结账摩擦
+
+   ### 工作原理
+
+   在创建结账会话、支付或订阅时使用`payment_method_id`：
+
+   <Tabs>
+   <Tab title="结账会话">
+
+   ```javascript
+   const session = await client.checkoutSessions.create({
+     product_cart: [{ product_id: 'prod_123', quantity: 1 }],
+     customer: {
+       customer_id: 'cus_123'
+     },
+     payment_method_id: 'pm_abc123',
+     confirm: true
+   });
+   ```
+
+   </Tab>
+
+   <Tab title="一次性支付">
+
+   ```javascript
+   const payment = await client.payments.create({
+     product_cart: [{ product_id: 'prod_123', quantity: 1 }],
+     customer_id: 'cus_123',
+     payment_method_id: 'pm_abc123'
+   });
+   ```
+
+   </Tab>
+
+   <Tab title="订阅">
+
+   ```javascript
+   const subscription = await client.subscriptions.create({
+     customer_id: 'cus_123',
+     product_id: 'prod_subscription',
+     payment_method_id: 'pm_abc123'
+   });
+   ```
+
+   </Tab>
+   </Tabs>
+
+   <Warning>
+   使用`payment_method_id`进行结账会话时，`confirm`必须设置为`true`，并且必须提供现有的`customer_id`。支付方式将根据支付的货币进行资格验证。
+   </Warning>
+
+   <Info>
+   支付方式必须属于客户，并与支付货币兼容。如果验证失败，请求将返回错误。
+   </Info>
+
+3. **仪表板中的订阅计划变更及下次账单日期更新**  
+    
+    直接从仪表板管理订阅计划，增强控制。您现在可以在单个操作中更改订阅计划并更新下次账单日期，给予您对订阅管理的完全灵活性。  
+
+    <Frame>
+    <img src="/images/changelog/subscription-plan-changes.png" alt="仪表板中的订阅计划变更" />
+    </Frame>
+
+   ### 仪表板功能
+
+   - **计划变更**：单击即可升级或降级订阅
+   - **账单日期控制**：更改计划时更新下次账单日期
+   - **按比例选项**：选择在更改计划时如何处理按比例计算
+   - **可视化预览**：在确认之前准确查看计划变更如何影响账单
+
+   ### 用例
+
+   - **客户支持**：快速调整客户请求的订阅计划
+   - **促销升级**：临时升级具有特定账单日期的客户
+   - **计划迁移**：顺利过渡客户之间的订阅层级
+   - **账单对齐**：对齐多个订阅的账单日期
+
+   <Check>
+   结果：从仪表板完全控制订阅管理，减少对常见订阅调整的API调用需求。
+   </Check>
+
+   <Tip>
+   使用仪表板快速更改订阅计划，使用API在您的应用程序中进行编程的订阅管理。
+   </Tip>
+
+4. **支付URL的短链接**  
+   通过我们的新短链接功能生成更简洁、更易分享的支付链接。短链接提供带有自定义短语的缩短结账URL，使其更易于与客户分享或嵌入到您的网站中。
+
+   <Frame>
+   <img src="/images/changelog/short-links.png" alt="支付URL的短链接功能" />
+   </Frame>
+
+   ### 优势
+
+   - **更简洁的URL**：用短的品牌链接替换长的支付URL
+   - **更好的信任**：专业外观的链接，增强客户信心
+   - **更易分享**：简化的URL非常适合短信、电子邮件或社交媒体
+   - **自定义短语**：为您的产品创建易记的品牌短链接
+
+   ### 工作原理
+
+   在创建结账会话或支付链接时启用短链接：
+
+   <Tabs>
+   <Tab title="结账会话">
+
+   ```javascript
+   const session = await client.checkoutSessions.create({
+     product_cart: [{ product_id: 'prod_123', quantity: 1 }],
+     short_link: true,
+     return_url: 'https://yourapp.com/success'
+   });
+   ```
+
+   </Tab>
+
+   <Tab title="支付链接">
+
+   ```javascript
+   const payment = await client.payments.create({
+     product_cart: [{ product_id: 'prod_123', quantity: 1 }],
+     short_link: true,
+     return_url: 'https://yourapp.com/success'
+   });
+   ```
+
+   </Tab>
+   </Tabs>
+
+   <Check>
+   结果：一个更易分享且外观更专业的缩短支付链接，提高转化率和客户信任。
+   </Check>
+
+   <Info>
+   短链接在您的仪表板中管理，可以通过[列出短链接API](/api-reference/products/get-products-short-links)查看。
+   </Info>
+
+5. **`redirect_immediately` 标志 - 跳过支付成功页面**  
+   使用新的`redirect_immediately`标志控制结账流程。当启用时，客户在支付完成后会立即重定向，跳过默认的成功页面，以获得更快、更流畅的体验。
+
+   ### 用例
+
+   - **更快的结账流程**：通过跳过中间页面减少摩擦
+   - **自定义成功页面**：直接重定向到您的品牌成功页面
+   - **移动优化**：通过即时重定向改善移动结账体验
+   - **嵌入式结账**：与覆盖或嵌入式结账流程无缝集成
+
+   ### 工作原理
+
+   在结账会话、支付或订阅中启用即时重定向：
+
+   <Tabs>
+   <Tab title="结账会话">
+
+   ```javascript
+   const session = await client.checkoutSessions.create({
+     product_cart: [{ product_id: 'prod_123', quantity: 1 }],
+     redirect_immediately: true,
+     return_url: 'https://yourapp.com/success'
+   });
+   ```
+
+   </Tab>
+
+   <Tab title="一次性支付">
+
+   ```javascript
+   const payment = await client.payments.create({
+     product_cart: [{ product_id: 'prod_123', quantity: 1 }],
+     redirect_immediately: true,
+     return_url: 'https://yourapp.com/success'
+   });
+   ```
+
+   </Tab>
+
+   <Tab title="订阅">
+
+   ```javascript
+   const subscription = await client.subscriptions.create({
+     customer_id: 'cus_123',
+     product_id: 'prod_subscription',
+     redirect_immediately: true,
+     return_url: 'https://yourapp.com/success'
+   });
+   ```
+
+   </Tab>
+   </Tabs>
+
+   <Tip>
+   当您有一个提供比默认支付成功页面更好的用户体验的自定义成功页面时，请使用`redirect_immediately: true`。
+   </Tip>
+
+   <Note>
+   当启用`redirect_immediately`时，客户在支付完成后会立即重定向到您的`return_url`，完全跳过默认的成功页面。
+   </Note>
+
+6. **按需订阅 - 适用于所有企业**  
+   现在所有企业都启用了按需订阅，为基于使用和计量的服务提供灵活的计费控制。
+
+   ### 这使得什么成为可能
+
+   - **基于使用的计费**：创建订阅并根据实际使用向客户收费
+   - **灵活的计费周期**：按需向客户收费，而不是固定间隔
+   - **计量服务**：非常适合API使用、存储、计算时间和其他计量资源
+   - **手动收费控制**：在需要时手动创建收费，给予您对计费时机的完全控制
+
+   ### 工作原理
+
+   创建按需订阅并根据需要向客户收费：
+
+   ```javascript
+   // Create an on-demand subscription
+   const subscription = await client.subscriptions.create({
+     customer_id: 'cus_123',
+     product_id: 'prod_api_access',
+     on_demand: true
+   });
+
+   // Charge the customer when usage occurs
+   await client.subscriptions.createCharge(subscription.id, {
+     amount: 4900,
+     currency: 'USD',
+     description: 'API usage for September: 1,000 requests'
+   });
+   ```
+
+   <Check>
+   结果：完全控制何时以及向客户收费的能力，完美适用于基于使用的商业模式。
+   </Check>
+
+   了解更多：[按需订阅](/developer-resources/ondemand-subscriptions)
+
+7. **常规错误修复和增强**  
+   此版本包括性能改进、UI优化，并解决了小错误，以提供更可靠、流畅的体验。

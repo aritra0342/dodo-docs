@@ -30,10 +30,11 @@ Dodo Payments API를 통합하려면 다음이 필요합니다:
 
 ### 결제 링크
 
-사용 사례에 맞는 통합 경로를 선택합니다:
+사용 사례에 맞는 통합 경로를 선택하세요:
 - **체크아웃 세션(추천)**: 대부분의 통합에 가장 적합합니다. 서버에서 세션을 생성하고 고객을 안전한 호스팅 체크아웃으로 리디렉션합니다.
-- **오버레이 체크아웃(임베디드)**: 사이트에 호스팅된 체크아웃을 임베드하여 페이지 내 경험이 필요할 때 사용합니다.
-- **정적 결제 링크**: 코드 없이 즉시 공유 가능한 URL로 빠른 결제 수집을 위한 것입니다.
+- **오버레이 체크아웃**: 체크아웃을 모달 오버레이로 열어야 할 때 사용합니다.
+- **인라인 체크아웃**: 페이지 레이아웃에 체크아웃을 직접 삽입하여 완전히 통합된 브랜드 체크아웃 경험을 제공합니다.
+- **정적 결제 링크**: 코드 없이 즉시 공유 가능한 URL로 빠른 결제 수집을 지원합니다.
 - **동적 결제 링크**: 프로그래밍 방식으로 생성된 링크입니다. 그러나 체크아웃 세션이 추천되며 더 많은 유연성을 제공합니다.
 
 #### 1. 체크아웃 세션
@@ -129,33 +130,37 @@ Dodo Payments API를 통합하려면 다음이 필요합니다:
 
 매끄러운 페이지 내 체크아웃 경험을 위해 고객이 웹사이트를 떠나지 않고 결제를 완료할 수 있는 [오버레이 체크아웃](/developer-resources/overlay-checkout) 통합을 탐색하세요.
 
-#### 3. 정적 결제 링크
+#### 3. 인라인 체크아웃
+
+페이지에 직접 삽입된 완전 통합 체크아웃 경험을 위해 [인라인 체크아웃](/developer-resources/inline-checkout) 통합을 사용하세요. 이를 통해 사용자 정의 주문 요약을 구축하고 Dodo Payments가 안전하게 결제 수집을 처리하는 동안 체크아웃 레이아웃을 완전히 제어할 수 있습니다.
+
+#### 4. 정적 결제 링크
 
 정적 결제 링크를 사용하면 간단한 URL을 공유하여 빠르게 결제를 수락할 수 있습니다. 쿼리 매개변수를 전달하여 고객 세부 정보를 미리 채우고, 양식 필드를 제어하며, 사용자 정의 메타데이터를 추가하여 체크아웃 경험을 사용자 정의할 수 있습니다.
 
 <Steps>
-<Step title="결제 링크 구성">
-  기본 URL로 시작하고 제품 ID를 추가합니다:
+<Step title="결제 링크 구성하기">
+  기본 URL로 시작하고 제품 ID를 추가하세요:
 
   ```text
   https://checkout.dodopayments.com/buy/{productid}
   ```
 
 </Step>
-<Step title="핵심 매개변수 추가">
-  필수 쿼리 매개변수를 포함합니다:
+<Step title="핵심 매개변수 추가하기">
+  필수 쿼리 매개변수를 포함하세요:
   - <ParamField query="quantity" type="integer" default="1">구매할 항목 수.</ParamField>
   - <ParamField query="redirect_url" type="string" required>결제 완료 후 리디렉션할 URL.</ParamField>
   <Note>
-  리디렉션 URL에는 쿼리 매개변수로 결제 세부 정보가 포함됩니다. 예:<br/>
+  리디렉션 URL에는 쿼리 매개변수로 결제 세부 정보가 포함됩니다. 예를 들어:<br/>
   <code>https://example.com/?payment_id=pay_ts2ySpzg07phGeBZqePbH&status=succeeded</code>
   </Note>
 </Step>
 <Step title="고객 정보 미리 채우기(선택 사항)">
-  체크아웃을 간소화하기 위해 고객 또는 청구 필드를 쿼리 매개변수로 추가합니다.
+  체크아웃을 간소화하기 위해 고객 또는 청구 필드를 쿼리 매개변수로 추가하세요.
   <AccordionGroup>
     <Accordion title="지원되는 고객 필드">
-      - <ParamField query="fullName" type="string">고객의 전체 이름 (firstName 또는 lastName이 제공된 경우 무시됨).</ParamField>
+      - <ParamField query="fullName" type="string">고객의 전체 이름(첫 이름 또는 성이 제공된 경우 무시됨).</ParamField>
       - <ParamField query="firstName" type="string">고객의 이름.</ParamField>
       - <ParamField query="lastName" type="string">고객의 성.</ParamField>
       - <ParamField query="email" type="string">고객의 이메일 주소.</ParamField>
@@ -168,11 +173,11 @@ Dodo Payments API를 통합하려면 다음이 필요합니다:
     </Accordion>
   </AccordionGroup>
 </Step>
-<Step title="양식 필드 제어(선택 사항)">
+<Step title="양식 필드 제어하기(선택 사항)">
   <Info>
   특정 필드를 비활성화하여 고객이 읽기 전용으로 만들 수 있습니다. 이는 고객의 세부 정보가 이미 있는 경우(예: 로그인한 사용자) 유용합니다.
   </Info>
-  필드를 비활성화하려면 해당 값을 제공하고 해당 <code>disable...</code> 플래그를 <code>true</code>로 설정합니다:
+  필드를 비활성화하려면 해당 값을 제공하고 해당 <code>disable...</code> 플래그를 <code>true</code>로 설정하세요:
   <CodeGroup>
 
   ```text Example
@@ -186,12 +191,12 @@ Dodo Payments API를 통합하려면 다음이 필요합니다:
       |---------------|---------------------|-------------------|
       | 전체 이름     | `disableFullName`   | `fullName`        |
       | 이름          | `disableFirstName`  | `firstName`       |
-      | 성           | `disableLastName`   | `lastName`        |
+      | 성            | `disableLastName`   | `lastName`        |
       | 이메일        | `disableEmail`      | `email`           |
-      | 국가         | `disableCountry`    | `country`         |
+      | 국가          | `disableCountry`    | `country`         |
       | 주소          | `disableAddressLine`| `addressLine`     |
       | 도시          | `disableCity`       | `city`            |
-      | 주           | `disableState`      | `state`           |
+      | 주            | `disableState`      | `state`           |
       | ZIP 코드      | `disableZipCode`    | `zipCode`         |
     </Tab>
   </Tabs>
@@ -203,14 +208,14 @@ Dodo Payments API를 통합하려면 다음이 필요합니다:
   </Note>
 
 </Step>
-<Step title="고급 제어 추가(선택 사항)">
-  - <ParamField query="paymentCurrency" type="string">결제 통화를 지정합니다. 기본적으로 청구 국가의 통화로 설정됩니다.</ParamField>
+<Step title="고급 제어 추가하기(선택 사항)">
+  - <ParamField query="paymentCurrency" type="string">결제 통화를 지정합니다. 기본값은 청구 국가의 통화입니다.</ParamField>
   - <ParamField query="showCurrencySelector" type="boolean" default="true">통화 선택기를 표시하거나 숨깁니다.</ParamField>
-  - <ParamField query="paymentAmount" type="integer">센트 단위의 금액 (Pay What You Want 가격 책정 전용).</ParamField>
-  - <ParamField query="metadata_*" type="string">사용자 정의 메타데이터 필드 (예: <code>metadata_orderId=123</code>).</ParamField>
+  - <ParamField query="paymentAmount" type="integer">센트 단위의 금액(원하는 가격 책정의 경우에만 해당).</ParamField>
+  - <ParamField query="metadata_*" type="string">사용자 정의 메타데이터 필드(예: <code>metadata_orderId=123</code>).</ParamField>
 </Step>
-<Step title="링크 공유">
-  완료된 결제 링크를 고객에게 전송합니다. 고객이 방문하면 모든 쿼리 매개변수가 수집되어 세션 ID와 함께 저장됩니다. 그런 다음 URL은 세션 매개변수만 포함하도록 단순화됩니다 (예: <code>?session=sess_1a2b3c4d</code>). 저장된 정보는 페이지 새로 고침을 통해 지속되며 체크아웃 과정 전반에 걸쳐 접근할 수 있습니다.
+<Step title="링크 공유하기">
+  완성된 결제 링크를 고객에게 전송하세요. 고객이 방문하면 모든 쿼리 매개변수가 수집되어 세션 ID와 함께 저장됩니다. 그런 다음 URL은 세션 매개변수만 포함하도록 단순화됩니다(예: <code>?session=sess_1a2b3c4d</code>). 저장된 정보는 페이지 새로 고침을 통해 지속되며 체크아웃 과정 전반에 걸쳐 접근할 수 있습니다.
   <Check>
   고객의 체크아웃 경험이 이제 매개변수에 따라 간소화되고 개인화되었습니다.
   </Check>
@@ -224,7 +229,7 @@ Dodo Payments API를 통합하려면 다음이 필요합니다:
 
 API 호출 또는 고객 세부 정보를 사용하여 SDK를 통해 생성됩니다. 예를 들어:
 
-동적 결제 링크를 생성하는 두 가지 API가 있습니다:
+동적 결제 링크를 생성하기 위한 두 가지 API가 있습니다:
 
 - 일회성 결제 링크 API [API 참조](/api-reference/payments/post-payments)
 - 구독 결제 링크 API [API 참조](/api-reference/subscriptions/post-subscriptions)
@@ -402,11 +407,11 @@ export async function POST(request: NextRequest) {
   </Tab>
 </Tabs>
 
-<Info>결제 링크를 생성한 후, 고객이 결제를 완료하도록 리디렉션하세요.</Info>
+<Info>결제 링크를 생성한 후 고객을 결제를 완료하도록 리디렉션하세요.</Info>
 
-### 웹훅 구현
+### 웹훅 구현하기
 
-결제 알림을 수신할 API 엔드포인트를 설정합니다. 다음은 Next.js를 사용하는 예입니다:
+결제 알림을 수신할 API 엔드포인트를 설정하세요. 다음은 Next.js를 사용하는 예입니다:
 
 ```javascript
 import { Webhook } from "standardwebhooks";
@@ -432,7 +437,7 @@ export async function POST(request: Request) {
 }
 ```
 
-우리의 웹훅 구현은 [표준 웹훅](https://standardwebhooks.com/) 사양을 따릅니다. 웹훅 유형 정의에 대해서는 [웹훅 이벤트 가이드](/developer-resources/webhooks/intents/webhook-events-guide)를 참조하세요.
+우리의 웹훅 구현은 [표준 웹훅](https://standardwebhooks.com/) 사양을 따릅니다. 웹훅 유형 정의에 대한 내용은 [웹훅 이벤트 가이드](/developer-resources/webhooks/intents/webhook-events-guide)를 참조하세요.
 
 Next.js와 TypeScript를 사용한 데모 구현이 포함된 이 프로젝트를 [GitHub](https://github.com/dodopayments/dodo-checkout-demo)에서 참조할 수 있습니다.
 

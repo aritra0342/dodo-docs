@@ -160,12 +160,16 @@ Du kan inte ställa in `next_billing_date` till en tidigare tid. Datumet måste 
 
 Ändringar av planer låter dig uppgradera eller nedgradera prenumerationer, justera kvantiteter eller migrera till olika produkter. Varje ändring utlöser en omedelbar avgift baserat på den proportioneringsmetod du väljer.
 
-### Proportioneringsmetoder
+<Tip>
+Du kan ändra prenumerationsplaner och uppdatera nästa faktureringsdatum direkt från Dodo Payments-instrumentpanelen. Detta ger ett snabbt sätt att justera prenumerationer för kundsupportförfrågningar, kampanjuppgraderingar eller planövergångar utan att göra API-anrop.
+</Tip>
 
-Välj hur kunder faktureras när de ändrar planer:
+### Prorateringslägen
+
+Välj hur kunder debiteras vid ändring av planer:
 
 #### `prorated_immediately`
-Avgifter proportioneras baserat på återstående tid i den aktuella faktureringscykeln. Bäst för rättvis fakturering som tar hänsyn till oanvänd tid.
+Debiterar proraterat belopp baserat på återstående tid i den aktuella faktureringscykeln. Bäst för rättvis fakturering som tar hänsyn till oanvänd tid.
 
 ```typescript
 await client.subscriptions.changePlan('sub_123', {
@@ -176,7 +180,7 @@ await client.subscriptions.changePlan('sub_123', {
 ```
 
 #### `difference_immediately`
-Tar ut prisskillnaden omedelbart (uppgradering) eller lägger till kredit för framtida förnyelser (nedgradering). Bäst för enkla uppgraderings/nedgraderingsscenarier.
+Debiterar prisskillnaden omedelbart (uppgradering) eller lägger till kredit för framtida förnyelser (nedgradering). Bäst för enkla uppgraderings/nedgraderingsscenarier.
 
 ```typescript
 // Upgrade: charges $50 (difference between $30 and $80)
@@ -189,11 +193,11 @@ await client.subscriptions.changePlan('sub_123', {
 ```
 
 <Info>
-Krediter från nedgraderingar med `difference_immediately` är prenumerationsomfattande och tillämpas automatiskt på framtida förnyelser. De är distinkta från <a href="/features/customer-credit">Kundkrediter</a>.
+Krediter från nedgraderingar med `difference_immediately` är prenumerationsspecifika och tillämpas automatiskt på framtida förnyelser. De är skilda från <a href="/features/customer-credit">Kundkrediter</a>.
 </Info>
 
 #### `full_immediately`
-Tar ut hela det nya planbeloppet omedelbart, oavsett återstående tid. Bäst för att återställa faktureringscykler.
+Debiterar hela beloppet för den nya planen omedelbart, utan att ta hänsyn till återstående tid. Bäst för att återställa faktureringscykler.
 
 ```typescript
 await client.subscriptions.changePlan('sub_123', {
@@ -203,9 +207,9 @@ await client.subscriptions.changePlan('sub_123', {
 });
 ```
 
-### Ändra Planer med Tillägg
+### Ändra planer med tillägg
 
-Ändra tillägg när du ändrar planer. Tillägg ingår i proportioneringsberäkningarna:
+Ändra tillägg när du ändrar planer. Tillägg ingår i prorateringsberäkningarna:
 
 ```typescript
 await client.subscriptions.changePlan('sub_123', {
@@ -218,12 +222,12 @@ await client.subscriptions.changePlan('sub_123', {
 ```
 
 <Info>
-Ändringar av planer utlöser omedelbara avgifter. Misslyckade avgifter kan flytta prenumerationen till `on_hold` status. Spåra ändringar via `subscription.plan_changed` webhook-händelser.
+Planändringar utlöser omedelbara debiteringar. Misslyckade debiteringar kan flytta prenumerationen till `on_hold` status. Spåra ändringar via `subscription.plan_changed` webhook-händelser.
 </Info>
 
-### Förhandsgranska Planändringar
+### Förhandsgranska planändringar
 
-Innan du åtar dig en planändring, förhandsgranska den exakta avgiften och den resulterande prenumerationen:
+Innan du bekräftar en planändring, förhandsgranska den exakta debiteringen och den resulterande prenumerationen:
 
 ```typescript
 const preview = await client.subscriptions.previewChangePlan('sub_123', {
@@ -237,7 +241,7 @@ console.log('You will be charged:', preview.immediate_charge.summary);
 ```
 
 <Card title="Förhandsgranska Ändra Plan API" icon="eye" href="/api-reference/subscriptions/preview-change-plan">
-  Förhandsgranska planändringar innan du åtar dig dem.
+  Förhandsgranska planändringar innan du bekräftar dem.
 </Card>
 
 ## Prenumerationsstatusar
@@ -255,7 +259,7 @@ Prenumerationer kan befinna sig i olika statusar under sin livscykel:
 En prenumeration går in i `on_hold` status när:
 
 - En förnyelsebetalning misslyckas (otillräckliga medel, utgången kort, etc.)
-- En planändringsavgift misslyckas
+- En planändringsdebitering misslyckas
 - Auktorisering av betalningsmetod misslyckas
 
 <Warning>
@@ -266,7 +270,7 @@ När en prenumeration är i `on_hold` status, kommer den inte att förnyas autom
 
 För att återaktivera en prenumeration från `on_hold` status, uppdatera betalningsmetoden. Detta automatiskt:
 
-1. Skapar en avgift för återstående skulder
+1. Skapar en debitering för återstående skulder
 2. Genererar en faktura
 3. Bearbetar betalningen med den nya betalningsmetoden
 4. Återaktiverar prenumerationen till `active` status vid lyckad betalning
@@ -287,7 +291,7 @@ if (response.payment_id) {
 ```
 
 <Info>
-Efter att ha uppdaterat betalningsmetoden för en `on_hold` prenumeration framgångsrikt, kommer du att få `payment.succeeded` följt av `subscription.active` webhook-händelser.
+Efter att ha uppdaterat betalningsmetoden för en `on_hold` prenumeration, kommer du att få `payment.succeeded` följt av `subscription.active` webhook-händelser.
 </Info>
 
 ## API-hantering
@@ -297,31 +301,34 @@ Efter att ha uppdaterat betalningsmetoden för en `on_hold` prenumeration framg�
 Använd `POST /subscriptions` för att skapa prenumerationer programmässigt från produkter, med valfria provperioder och tillägg.
 
 <Card title="API-referens" icon="code" href="/api-reference/subscriptions/post-subscriptions">
-Visa API:t för att skapa prenumerationer.
+Visa API:t för att skapa prenumeration.
 </Card>
 </Accordion>
 
 <Accordion title="Uppdatera prenumerationer">
 Använd `PATCH /subscriptions/{id}` för att uppdatera kvantiteter, avbryta vid periodens slut eller ändra metadata.
 
+<Accordion title="Uppdatera prenumerationer">
+Använd `PATCH /subscriptions/{id}` för att uppdatera kvantiteter, avbryta vid periodens slut eller ändra metadata.
+</Accordion>
 <Card title="API-referens" icon="code" href="/api-reference/subscriptions/patch-subscriptions">
-Lär dig hur man uppdaterar prenumerationsdetaljer.
+Lär dig hur du uppdaterar prenumerationsdetaljer.
 </Card>
 </Accordion>
 
-<Accordion title="Ändra planer (proportionering)">
-Ändra den aktiva produkten och kvantiteter med proportioneringskontroller.
+<Accordion title="Ändra planer (proratering)">
+Ändra den aktiva produkten och kvantiteter med prorateringskontroller.
 
 <Card title="API-referens" icon="code" href="/api-reference/subscriptions/change-plan">
 Granska alternativ för planändringar.
 </Card>
 </Accordion>
 
-<Accordion title="On-Demand Avgifter">
-För on-demand prenumerationer, ta ut specifika belopp på begäran.
+<Accordion title="On-demand debiteringar">
+För on-demand prenumerationer, debiterar specifika belopp på begäran.
 
 <Card title="API-referens" icon="code" href="/api-reference/subscriptions/create-charge">
-Ta ut en on-demand prenumeration.
+Debiterar en on-demand prenumeration.
 </Card>
 </Accordion>
 
@@ -329,12 +336,12 @@ Ta ut en on-demand prenumeration.
 Använd `GET /subscriptions` för att lista alla prenumerationer och `GET /subscriptions/{id}` för att hämta en.
 
 <Card title="API-referens" icon="code" href="/api-reference/subscriptions/get-subscriptions">
-Bläddra i listning och hämtning av API:er.
+Bläddra i listnings- och hämtning-API:er.
 </Card>
 </Accordion>
 
 <Accordion title="Användningshistorik">
-Hämta registrerad användning för mätar- eller hybridprissättningsmodeller.
+Hämta registrerad användning för mätpriser eller hybridprismodeller.
 
 <Card title="API-referens" icon="code" href="/api-reference/subscriptions/get-usage-history">
 Se API:t för användningshistorik.
@@ -342,25 +349,25 @@ Se API:t för användningshistorik.
 </Accordion>
 
 <Accordion title="Uppdatera betalningsmetod">
-Uppdatera betalningsmetoden för en prenumeration. För aktiva prenumerationer uppdaterar detta betalningsmetoden för framtida förnyelser. För prenumerationer i `on_hold` status, återaktiverar detta prenumerationen genom att skapa en avgift för återstående skulder.
+Uppdatera betalningsmetoden för en prenumeration. För aktiva prenumerationer uppdaterar detta betalningsmetoden för framtida förnyelser. För prenumerationer i `on_hold` status, återaktiverar detta prenumerationen genom att skapa en debitering för återstående skulder.
 
 <Card title="API-referens" icon="code" href="/api-reference/subscriptions/update-payment-method">
-Lär dig hur man uppdaterar betalningsmetoder och återaktiverar prenumerationer.
+Lär dig hur du uppdaterar betalningsmetoder och återaktiverar prenumerationer.
 </Card>
 </Accordion>
 </AccordionGroup>
 
-## Vanliga Användningsfall
+## Vanliga användningsfall
 
-- **SaaS och API:er**: Tierad åtkomst med tillägg för platser eller användning
-- **Innehåll och media**: Månatlig åtkomst med introduktionsprov
+- **SaaS och API:er**: Tiers med tillägg för platser eller användning
+- **Innehåll och media**: Månatlig tillgång med introduktionsprov
 - **B2B-supportplaner**: Årliga kontrakt med premiumsupporttillägg
-- **Verktyg och plugins**: Licensnycklar och versionerade utgåvor
+- **Verktyg och plugins**: Licensnycklar och versionsutgåvor
 
 ## Integreringsexempel
 
-### Kassasessioner (prenumerationer)
-När du skapar kassasessioner, inkludera din prenumerationsprodukt och valfria tillägg:
+### Kassa-sessioner (prenumerationer)
+När du skapar kassa-sessioner, inkludera din prenumerationsprodukt och valfria tillägg:
 
 ```typescript
 const session = await client.checkoutSessions.create({
@@ -373,8 +380,8 @@ const session = await client.checkoutSessions.create({
 });
 ```
 
-### Planändringar med proportionering
-Uppgradera eller nedgradera en prenumeration och kontrollera proportioneringsbeteendet:
+### Planändringar med proratering
+Uppgradera eller nedgradera en prenumeration och kontrollera prorateringsbeteende:
 
 ```typescript
 await client.subscriptions.changePlan('sub_123', {
@@ -385,7 +392,7 @@ await client.subscriptions.changePlan('sub_123', {
 ```
 
 ### Avbryt vid periodens slut
-Schemalägg en avbokning utan omedelbar uppsägning av åtkomst:
+Schemalägg en avbokning utan omedelbar uppsägning av tillgång:
 
 ```typescript
 await client.subscriptions.update('sub_123', {
@@ -393,8 +400,8 @@ await client.subscriptions.update('sub_123', {
 });
 ```
 
-### On-Demand Prenumerationer
-Skapa en on-demand prenumeration och ta betalt senare vid behov:
+### On-demand prenumerationer
+Skapa en on-demand prenumeration och debiterar senare vid behov:
 
 ```typescript
 const onDemand = await client.subscriptions.create({
@@ -427,7 +434,7 @@ await client.subscriptions.updatePaymentMethod('sub_123', {
 });
 ```
 
-### Återaktivera prenumeration från på håll
+### Återaktivera prenumeration från på_håll
 Återaktivera en prenumeration som har satts på håll på grund av misslyckad betalning:
 
 ```typescript
@@ -452,28 +459,28 @@ if (response.payment_id) {
 
   Mandattypen och beloppet beror på din prenumerations återkommande avgift:
 
-  - **Avgifter under Rs 15 000:** Vi skapar ett on-demand mandat för Rs 15 000 INR. Prenumerationsbeloppet debiteras periodiskt enligt din prenumerationsfrekvens, upp till mandatgränsen.
-  - **Avgifter Rs 15 000 eller mer:** Vi skapar ett prenumerationsmandat (eller on-demand mandat) för det exakta prenumerationsbeloppet.
+  - **Debiteringar under Rs 15,000:** Vi skapar ett on-demand mandat för Rs 15,000 INR. Prenumerationsbeloppet debiteras periodiskt enligt din prenumerationsfrekvens, upp till mandatgränsen.
+  - **Debiteringar Rs 15,000 eller mer:** Vi skapar ett prenumerationsmandat (eller on-demand mandat) för det exakta prenumerationsbeloppet.
 
   ### Uppgraderings- och nedgraderingsöverväganden
 
   **Viktigt:** När du uppgraderar eller nedgraderar prenumerationer, överväg noga mandatgränserna:
 
-  - Om en uppgradering/nedgradering resulterar i ett belopp som överstiger Rs 15 000 och går bortom den befintliga on-demand betalningsgränsen, kan transaktionsavgiften misslyckas.
+  - Om en uppgradering/nedgradering resulterar i ett debiteringsbelopp som överstiger Rs 15,000 och går bortom den befintliga on-demand betalningsgränsen, kan transaktionsavgiften misslyckas.
   - I sådana fall kan kunden behöva uppdatera sin betalningsmetod eller ändra prenumerationen igen för att etablera ett nytt mandat med rätt gräns.
 
-  ### Auktorisering för högvärdesavgifter
+  ### Auktorisering för högvärdesdebiteringar
 
-  För prenumerationsavgifter på Rs 15 000 eller mer:
+  För prenumerationsdebiteringar på Rs 15,000 eller mer:
 
   - Kunden kommer att uppmanas av sin bank att auktorisera transaktionen.
   - Om kunden misslyckas med att auktorisera transaktionen, kommer transaktionen att misslyckas och prenumerationen kommer att sättas på håll.
 
   ### 48-timmars bearbetningsfördröjning
 
-  **Bearbetningstidslinje:** Återkommande avgifter på indiska kort och UPI-prenumerationer följer ett unikt bearbetningsmönster:
+  **Bearbetningstidslinje:** Återkommande debiteringar på indiska kort och UPI-prenumerationer följer ett unikt bearbetningsmönster:
 
-  - Avgifter **initieras** på det schemalagda datumet enligt din prenumerationsfrekvens.
+  - Debiteringar **initieras** på det schemalagda datumet enligt din prenumerationsfrekvens.
   - Den faktiska **avdragningen** från kundens konto sker först efter **48 timmar** från betalningsinitiering.
   - Detta 48-timmarsfönster kan förlängas med upp till **2-3 ytterligare timmar** beroende på bankens API-svar.
 
@@ -482,27 +489,27 @@ if (response.payment_id) {
   Under 48-timmars bearbetningsfönstret:
 
   - Kunder kan avboka mandatet via sina bankappar.
-  - Om en kund avbokar mandatet under denna period kommer prenumerationen att förbli **aktiv** (detta är ett undantagsfall specifikt för indiska kort och UPI AutoPay-prenumerationer).
+  - Om en kund avbokar mandatet under denna period, kommer prenumerationen att förbli **aktiv** (detta är ett specialfall specifikt för indiska kort och UPI AutoPay-prenumerationer).
   - Men den faktiska avdragningen kan misslyckas, och i så fall kommer vi att sätta prenumerationen **på håll**.
 
-  **Undantagsfallshantering:** Om du ger fördelar, krediter eller prenumerationsanvändning till kunder omedelbart vid avgiftsinitiering, måste du hantera detta 48-timmarsfönster på rätt sätt i din applikation. Överväg:
+  **Hantering av specialfall:** Om du ger förmåner, krediter eller prenumerationsanvändning till kunder omedelbart vid debiteringsinitiering, behöver du hantera detta 48-timmarsfönster på rätt sätt i din applikation. Överväg:
 
-  - Att fördröja aktivering av fördelar tills betalningsbekräftelse
-  - Implementera nådperioder eller tillfällig åtkomst
-  - Övervaka prenumerationsstatus för mandatavbokningar
-  - Hantera prenumerationshållstatusar i din applikationslogik
+  - Att fördröja aktivering av förmåner tills betalningsbekräftelse
+  - Att implementera nådperioder eller tillfällig tillgång
+  - Att övervaka prenumerationsstatus för mandatavbokningar
+  - Att hantera prenumerationshållstatusar i din applikationslogik
 
   <Tip>
-  Övervaka prenumerationswebhooks för att spåra förändringar i betalningsstatus och hantera undantagsfall där mandat avbokas under 48-timmarsfönstret.
+  Övervaka prenumerationswebhooks för att spåra förändringar i betalningsstatus och hantera specialfall där mandat avbokas under 48-timmarsfönstret.
   </Tip>
 
-## Bästa Praxis
+## Bästa praxis
 
 - **Börja med tydliga nivåer**: 2–3 planer med uppenbara skillnader
-- **Kommunicera prissättning**: Visa totalsummor, proportionering och nästa förnyelse
+- **Kommunicera prissättning**: Visa totalsummor, proratering och nästa förnyelse
 - **Använd provperioder genomtänkt**: Konvertera med onboarding, inte bara tid
 - **Utnyttja tillägg**: Håll basplaner enkla och uppgradera extra
-- **Testa ändringar**: Validera planändringar och proportionering i testläge
+- **Testa ändringar**: Validera planändringar och proratering i testläge
 
 <Info>
 Prenumerationer är en flexibel grund för återkommande intäkter. Börja enkelt, testa noggrant och iterera baserat på adoption, churn och expansionsmått.

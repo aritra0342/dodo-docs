@@ -10,6 +10,10 @@ icon: rayo
 
 Las suscripciones bajo demanda te permiten autorizar el método de pago de un cliente una vez y luego cobrar montos variables siempre que lo necesites, en lugar de en un horario fijo.
 
+<Info>
+Las suscripciones bajo demanda ya están disponibles para todas las empresas. Esta función permite un control de facturación flexible para servicios basados en el uso y medidos.
+</Info>
+
 Utiliza esta guía para:
 - Crear una suscripción bajo demanda (autorizar un mandato con un precio inicial opcional)
 - Activar cargos posteriores con montos personalizados
@@ -27,11 +31,11 @@ Para una configuración general de suscripción, consulta la [Guía de Integraci
 Si deseas que el cliente apruebe el mandato a través de un checkout alojado, establece `payment_link: true` y proporciona un `return_url`.
 </Tip>
 
-## Cómo funciona bajo demanda
+## Cómo funciona la suscripción bajo demanda
 
 1. Creas una suscripción con el objeto `on_demand` para autorizar un método de pago y opcionalmente cobrar un cargo inicial.
 2. Más tarde, creas cargos contra esa suscripción con montos personalizados utilizando el endpoint de cargo dedicado.
-3. Escuchas webhooks (por ejemplo, `payment.succeeded`, `payment.failed`) para actualizar tu sistema.
+3. Escuchas los webhooks (por ejemplo, `payment.succeeded`, `payment.failed`) para actualizar tu sistema.
 
 ## Crear una suscripción bajo demanda
 
@@ -62,7 +66,7 @@ Campos clave de la solicitud (cuerpo):
   </ParamField>
 
   <ParamField body="return_url" type="string">
-    A dónde redirigir al cliente después de completar el checkout alojado.
+    Dónde redirigir al cliente después de completar el checkout alojado.
   </ParamField>
 
   <ParamField body="on_demand.mandate_only" type="boolean" required>
@@ -82,7 +86,7 @@ Campos clave de la solicitud (cuerpo):
   </ParamField>
 
   <ParamField body="on_demand.adaptive_currency_fees_inclusive" type="boolean">
-    Si es verdadero, incluye las tarifas de moneda adaptativa dentro de <code>product_price</code>. Si es falso, las tarifas se añaden por encima. Ignorado cuando la fijación de precios adaptativa está desactivada.
+    Si es verdadero, incluye las tarifas de moneda adaptativa dentro de <code>product_price</code>. Si es falso, las tarifas se añaden por encima. Ignorado cuando la fijación de precios adaptativa está deshabilitada.
   </ParamField>
 </Accordion>
 </AccordionGroup>
@@ -244,7 +248,7 @@ Establece `payment_link: true`, redirige al cliente a `payment_link` para comple
 }
 ```
 
-## Cobrar una suscripción bajo demanda
+## Cargar una suscripción bajo demanda
 
 Después de que se autorice el mandato, crea cargos según sea necesario.
 
@@ -359,15 +363,15 @@ curl -X POST "$DODO_API/subscriptions/sub_123/charge" \
 ```
 
 <Warning>
-Cobrar una suscripción que no es bajo demanda puede fallar. Asegúrate de que la suscripción tenga `on_demand: true` en sus detalles antes de cobrar.
+Cargar una suscripción que no es bajo demanda puede fallar. Asegúrate de que la suscripción tenga `on_demand: true` en sus detalles antes de cargar.
 </Warning>
 
 ## Reintentos de pago
 
-Nuestro sistema de detección de fraude puede bloquear patrones de reintento agresivos (y puede marcarlos como pruebas de tarjeta potenciales). Sigue una política de reintento segura.
+Nuestro sistema de detección de fraudes puede bloquear patrones de reintento agresivos (y puede marcarlos como pruebas de tarjeta potenciales). Sigue una política de reintento segura.
 
 <Warning>
-Los patrones de reintento en ráfaga pueden ser marcados como fraudulentos o sospechosos de pruebas de tarjeta por nuestros sistemas de riesgo y procesadores. Evita reintentos agrupados; sigue el programa de retroceso y la guía de alineación de tiempo a continuación.
+Los patrones de reintento en ráfaga pueden ser marcados como fraudulentos o sospechosos de pruebas de tarjeta por nuestros sistemas de riesgo y procesadores. Evita reintentos agrupados; sigue el cronograma de retroceso y la guía de alineación de tiempo a continuación.
 </Warning>
 
 ### Principios para políticas de reintento seguras
@@ -376,9 +380,9 @@ Los patrones de reintento en ráfaga pueden ser marcados como fraudulentos o sos
 - **Límites de reintento**: Limita el total de reintentos (máximo de 3 a 4 intentos).
 - **Filtrado inteligente**: Reintenta solo en fallos reintentables (por ejemplo, errores de red/emisor, fondos insuficientes); nunca reintentes rechazos duros.
 - **Prevención de pruebas de tarjeta**: No reintentes fallos como `DO_NOT_HONOR`, `STOLEN_CARD`, `LOST_CARD`, `PICKUP_CARD`, `FRAUDULENT`, `AUTHENTICATION_FAILURE`.
-- **Variar metadatos (opcional)**: Si mantienes tu propio sistema de reintentos, diferencia los reintentos a través de metadatos (por ejemplo, `retry_attempt`).
+- **Variar metadatos (opcional)**: Si mantienes tu propio sistema de reintento, diferencia los reintentos a través de metadatos (por ejemplo, `retry_attempt`).
 
-### Programa de reintentos sugerido (suscripciones)
+### Cronograma de reintento sugerido (suscripciones)
 
 - **1er intento**: Inmediato cuando creas el cargo
 - **2do intento**: Después de 3 días
@@ -389,7 +393,7 @@ Paso final: si aún no se ha pagado, marca la suscripción como impaga o cancél
 
 ### Evita reintentos en ráfaga; alinea al tiempo de autorización
 
-- Ancla los reintentos a la marca de tiempo de autorización original para evitar un comportamiento de “ráfaga” en tu cartera.
+- Ancla los reintentos a la marca de tiempo de autorización original para evitar un comportamiento de "ráfaga" en tu cartera.
 - Ejemplo: Si el cliente inicia una prueba o mandato a la 1:10 p. m. de hoy, programa los reintentos de seguimiento a la 1:10 p. m. en días posteriores según tu retroceso (por ejemplo, +3 días → 1:10 p. m., +7 días → 1:10 p. m.).
 - Alternativamente, si almacenas la última hora de pago exitosa `T`, programa el siguiente intento en `T + X days` para preservar la alineación de la hora del día.
 
@@ -412,17 +416,17 @@ Para una lista completa de razones de rechazo y si son corregibles por el usuari
 </Note>
 
 <Tip>
-Solo reintenta en problemas suaves/temporales (por ejemplo, `insufficient_funds`, `issuer_unavailable`, `processing_error`, tiempos de espera de red). Si el mismo rechazo se repite, pausa más reintentos.
+Solo reintenta en problemas suaves/temporales (por ejemplo, `insufficient_funds`, `issuer_unavailable`, `processing_error`, tiempos de espera de red). Si el mismo rechazo se repite, pausa los reintentos adicionales.
 </Tip>
 
 ### Directrices de implementación (sin código)
 
 - Utiliza un programador/cola que persista marcas de tiempo precisas; calcula el siguiente intento en el mismo desplazamiento de hora del día (por ejemplo, `T + 3 days` a la misma HH:MM).
-- Mantén y referencia la última marca de tiempo de pago exitosa `T` para calcular el siguiente intento; no agrupes múltiples suscripciones en el mismo instante.
+- Mantén y referencia la última marca de tiempo de pago exitosa `T` para calcular el siguiente intento; no agrupe múltiples suscripciones en el mismo instante.
 - Siempre evalúa la última razón de rechazo; detén los reintentos para rechazos duros en la lista de omisión anterior.
-- Limita los reintentos concurrentes por cliente y por cuenta para prevenir aumentos accidentales.
+- Limita los reintentos concurrentes por cliente y por cuenta para evitar aumentos accidentales.
 - Comunica proactivamente: envía un correo electrónico/SMS al cliente para actualizar su método de pago antes del siguiente intento programado.
-- Utiliza metadatos solo para observabilidad (por ejemplo, `retry_attempt`); nunca intentes “eludir” los sistemas de fraude/riesgo rotando campos irrelevantes.
+- Utiliza metadatos solo para observabilidad (por ejemplo, `retry_attempt`); nunca intentes "eludir" los sistemas de fraude/riesgo rotando campos irrelevantes.
 
 ## Rastrear resultados con webhooks
 

@@ -1,0 +1,314 @@
+---
+title: v1.70.0 (24 de dezembro de 2025)
+description: Suporte a checkout inline, use métodos de pagamento existentes para
+  checkouts instantâneos, gerencie planos de assinatura a partir do painel, gere
+  links de pagamento curtos, pule páginas de sucesso com redirect_immediately e
+  habilite assinaturas sob demanda para todos os negócios
+icon: arrows-turn-right
+---
+
+## Novos Recursos 🚀
+
+1. **Checkout Inline - Experiências de Checkout Totalmente Embutidas (BETA)**  
+
+   Incorpore o checkout do Dodo Payments diretamente em seu site para uma experiência de pagamento integrada e com a sua marca. Ao contrário do checkout em sobreposição, que se abre como um modal, o checkout inline incorpora o formulário de pagamento diretamente no layout da sua página.
+
+   <Frame>
+   <img src="/images/inline-checkout/cover.png" alt="Imagem de Capa do Checkout Inline" />
+   </Frame>
+
+   ### Benefícios
+
+   - **Totalmente integrado**: Crie experiências de checkout que se misturam perfeitamente ao seu site
+   - **Resumos de pedidos personalizados**: Construa uma interface personalizada que sincroniza com o checkout em tempo real
+   - **Máximo controle**: Controle total sobre o layout e design do checkout
+   - **Conformidade com PCI**: O Dodo Payments lida com todas as informações sensíveis de pagamento de forma segura
+   - **Sincronização em tempo real**: Use eventos do SDK para manter sua interface sincronizada com o estado do checkout
+
+   ### Como Funciona
+
+   Inicialize o SDK com `displayType: 'inline'` e incorpore o checkout em um elemento de contêiner:
+
+   ```typescript
+   import { DodoPayments } from "dodopayments-checkout";
+
+   // Initialize the SDK for inline mode
+   DodoPayments.Initialize({
+     mode: "test",
+     displayType: "inline",
+     onEvent: (event) => {
+       if (event.event_type === "checkout.breakdown") {
+         // Update your UI with real-time tax and total calculations
+         const breakdown = event.data?.message;
+       }
+     },
+   });
+
+   // Open checkout in a specific container
+   DodoPayments.Checkout.open({
+     checkoutUrl: "https://test.dodopayments.com/session/cks_123",
+     elementId: "dodo-inline-checkout" // ID of the container element
+   });
+   ```
+
+   ### Principais Recursos
+
+   - **Eventos de quebra em tempo real**: Receba `checkout.breakdown` eventos à medida que os clientes inserem seus dados
+   - **Resumos de pedidos personalizados**: Construa sua própria exibição de preços que atualiza em tempo real
+   - **Integração perfeita**: O quadro de checkout lida com a coleta de pagamentos enquanto você controla o layout
+   - **Métodos do SDK**: Use `open()`, `close()`, e `isOpen()` para controlar o checkout programaticamente
+
+   <Check>
+   Resultado: Experiências de checkout totalmente integradas que combinam com sua marca e fornecem controle máximo sobre o fluxo de pagamento.
+   </Check>
+
+   <Tip>
+   Use o checkout inline quando quiser controle máximo sobre o design do checkout. Use [checkout em sobreposição](/developer-resources/overlay-checkout) para uma integração mais rápida com mudanças mínimas nas páginas existentes.
+   </Tip>
+
+   Saiba mais: [Guia de Checkout Inline](/developer-resources/inline-checkout)
+
+2. **Criar Pagamentos, Assinaturas e Checkouts Usando Métodos de Pagamento Existentes**  
+    Simplifique os fluxos de checkout usando métodos de pagamento salvos de clientes existentes. O novo parâmetro `payment_method_id` permite que você crie pagamentos, assinaturas ou sessões de checkout usando um método de pagamento previamente salvo de um cliente.
+
+   ### Benefícios
+
+   - **Checkout mais rápido**: Pule a coleta de método de pagamento para clientes que retornam
+   - **Compras com um clique**: Habilite compras instantâneas com métodos de pagamento salvos
+   - **Gerenciamento de assinaturas**: Crie assinaturas facilmente usando métodos de pagamento existentes
+   - **Melhoria na conversão**: Reduza a fricção no checkout para clientes recorrentes
+
+   ### Como Funciona
+
+   Use `payment_method_id` ao criar sessões de checkout, pagamentos ou assinaturas:
+
+   <Tabs>
+   <Tab title="Sessões de Checkout">
+
+   ```javascript
+   const session = await client.checkoutSessions.create({
+     product_cart: [{ product_id: 'prod_123', quantity: 1 }],
+     customer: {
+       customer_id: 'cus_123'
+     },
+     payment_method_id: 'pm_abc123',
+     confirm: true
+   });
+   ```
+
+   </Tab>
+
+   <Tab title="Pagamentos Únicos">
+
+   ```javascript
+   const payment = await client.payments.create({
+     product_cart: [{ product_id: 'prod_123', quantity: 1 }],
+     customer_id: 'cus_123',
+     payment_method_id: 'pm_abc123'
+   });
+   ```
+
+   </Tab>
+
+   <Tab title="Assinaturas">
+
+   ```javascript
+   const subscription = await client.subscriptions.create({
+     customer_id: 'cus_123',
+     product_id: 'prod_subscription',
+     payment_method_id: 'pm_abc123'
+   });
+   ```
+
+   </Tab>
+   </Tabs>
+
+   <Warning>
+   Ao usar `payment_method_id` em sessões de checkout, `confirm` deve ser definido como `true`, e um `customer_id` existente deve ser fornecido. O método de pagamento será validado quanto à elegibilidade com a moeda do pagamento.
+   </Warning>
+
+   <Info>
+   O método de pagamento deve pertencer ao cliente e ser compatível com a moeda do pagamento. Se a validação falhar, a solicitação retornará um erro.
+   </Info>
+
+3. **Mudanças no Plano de Assinatura no Painel com Atualizações da Próxima Data de Cobrança**  
+    
+    Gerencie planos de assinatura diretamente do painel com controle aprimorado. Agora você pode alterar planos de assinatura e atualizar a próxima data de cobrança em uma única ação, dando a você total flexibilidade sobre o gerenciamento de assinaturas.  
+
+    <Frame>
+    <img src="/images/changelog/subscription-plan-changes.png" alt="Mudanças no plano de assinatura no painel" />
+    </Frame>
+
+   ### Recursos do Painel
+
+   - **Mudanças de plano**: Atualize ou diminua assinaturas com um único clique
+   - **Controle da data de cobrança**: Atualize a próxima data de cobrança ao mudar de planos
+   - **Opções de proporcionalidade**: Escolha como lidar com a proporcionalidade ao mudar de planos
+   - **Pré-visualização visual**: Veja exatamente como as mudanças de plano afetam a cobrança antes de confirmar
+
+   ### Casos de Uso
+
+   - **Suporte ao cliente**: Ajuste rapidamente planos de assinatura para solicitações de clientes
+   - **Atualizações promocionais**: Atualize temporariamente clientes com datas de cobrança específicas
+   - **Migrações de plano**: Transicione suavemente clientes entre níveis de assinatura
+   - **Alinhamento de cobrança**: Alinhe datas de cobrança em várias assinaturas
+
+   <Check>
+   Resultado: Controle completo sobre o gerenciamento de assinaturas a partir do painel, reduzindo a necessidade de chamadas de API para ajustes comuns de assinatura.
+   </Check>
+
+   <Tip>
+   Use o painel para mudanças rápidas de planos de assinatura e a API para gerenciamento programático de assinaturas em sua aplicação.
+   </Tip>
+
+4. **Links Curtos para URLs de Pagamento**  
+   Gere links de pagamento mais limpos e compartilháveis com nosso novo recurso de link curto. Links curtos fornecem URLs de checkout encurtadas com slugs personalizados, tornando-os mais fáceis de compartilhar com clientes ou incorporar em seu site.
+
+   <Frame>
+   <img src="/images/changelog/short-links.png" alt="Recurso de links curtos para URLs de pagamento" />
+   </Frame>
+
+   ### Benefícios
+
+   - **URLs mais limpas**: Substitua URLs de pagamento longas por links curtos e com a sua marca
+   - **Maior confiança**: Links com aparência profissional que aumentam a confiança do cliente
+   - **Compartilhamento mais fácil**: URLs simplificadas perfeitas para SMS, e-mail ou redes sociais
+   - **Slugs personalizados**: Crie links curtos memoráveis e com a sua marca para seus produtos
+
+   ### Como Funciona
+
+   Habilite links curtos ao criar sessões de checkout ou links de pagamento:
+
+   <Tabs>
+   <Tab title="Sessões de Checkout">
+
+   ```javascript
+   const session = await client.checkoutSessions.create({
+     product_cart: [{ product_id: 'prod_123', quantity: 1 }],
+     short_link: true,
+     return_url: 'https://yourapp.com/success'
+   });
+   ```
+
+   </Tab>
+
+   <Tab title="Links de Pagamento">
+
+   ```javascript
+   const payment = await client.payments.create({
+     product_cart: [{ product_id: 'prod_123', quantity: 1 }],
+     short_link: true,
+     return_url: 'https://yourapp.com/success'
+   });
+   ```
+
+   </Tab>
+   </Tabs>
+
+   <Check>
+   Resultado: Um link de pagamento encurtado que é mais fácil de compartilhar e com aparência mais profissional, melhorando as taxas de conversão e a confiança do cliente.
+   </Check>
+
+   <Info>
+   Links curtos são gerenciados em seu painel e podem ser visualizados através da [API List Short Links](/api-reference/products/get-products-short-links).
+   </Info>
+
+5. **`redirect_immediately` Flag - Pular Página de Sucesso do Pagamento**  
+   Controle o fluxo de checkout com a nova flag `redirect_immediately`. Quando habilitada, os clientes são redirecionados imediatamente após a conclusão do pagamento, pulando a página de sucesso padrão para uma experiência mais rápida e simplificada.
+
+   ### Casos de Uso
+
+   - **Fluxo de checkout mais rápido**: Reduza a fricção pulando páginas intermediárias
+   - **Páginas de sucesso personalizadas**: Redirecione diretamente para sua página de sucesso com a sua marca
+   - **Otimização para dispositivos móveis**: Melhore a experiência de checkout móvel com redirecionamentos imediatos
+   - **Checkouts incorporados**: Integre perfeitamente com fluxos de checkout em sobreposição ou embutidos
+
+   ### Como Funciona
+
+   Habilite redirecionamentos imediatos em sessões de checkout, pagamentos ou assinaturas:
+
+   <Tabs>
+   <Tab title="Sessões de Checkout">
+
+   ```javascript
+   const session = await client.checkoutSessions.create({
+     product_cart: [{ product_id: 'prod_123', quantity: 1 }],
+     redirect_immediately: true,
+     return_url: 'https://yourapp.com/success'
+   });
+   ```
+
+   </Tab>
+
+   <Tab title="Pagamentos Únicos">
+
+   ```javascript
+   const payment = await client.payments.create({
+     product_cart: [{ product_id: 'prod_123', quantity: 1 }],
+     redirect_immediately: true,
+     return_url: 'https://yourapp.com/success'
+   });
+   ```
+
+   </Tab>
+
+   <Tab title="Assinaturas">
+
+   ```javascript
+   const subscription = await client.subscriptions.create({
+     customer_id: 'cus_123',
+     product_id: 'prod_subscription',
+     redirect_immediately: true,
+     return_url: 'https://yourapp.com/success'
+   });
+   ```
+
+   </Tab>
+   </Tabs>
+
+   <Tip>
+   Use `redirect_immediately: true` quando você tiver uma página de sucesso personalizada que oferece uma melhor experiência do usuário do que a página de sucesso padrão do pagamento.
+   </Tip>
+
+   <Note>
+   Quando `redirect_immediately` está habilitado, os clientes são redirecionados para seu `return_url` imediatamente após a conclusão do pagamento, pulando completamente a página de sucesso padrão.
+   </Note>
+
+6. **Assinaturas Sob Demanda - Disponíveis para Todos os Negócios**  
+   Assinaturas sob demanda agora estão habilitadas para todos os negócios, dando a você controle de cobrança flexível para serviços baseados em uso e medidos.
+
+   ### O que isso possibilita
+
+   - **Cobrança baseada em uso**: Crie assinaturas e cobre clientes com base no uso real
+   - **Ciclos de cobrança flexíveis**: Cobre clientes sob demanda em vez de intervalos fixos
+   - **Serviços medidos**: Perfeito para uso de API, armazenamento, tempo de computação e outros recursos medidos
+   - **Controle de cobrança manual**: Crie cobranças manualmente quando necessário, dando a você controle total sobre o tempo de cobrança
+
+   ### Como Funciona
+
+   Crie uma assinatura sob demanda e cobre clientes conforme necessário:
+
+   ```javascript
+   // Create an on-demand subscription
+   const subscription = await client.subscriptions.create({
+     customer_id: 'cus_123',
+     product_id: 'prod_api_access',
+     on_demand: true
+   });
+
+   // Charge the customer when usage occurs
+   await client.subscriptions.createCharge(subscription.id, {
+     amount: 4900,
+     currency: 'USD',
+     description: 'API usage for September: 1,000 requests'
+   });
+   ```
+
+   <Check>
+   Resultado: Controle total sobre quando e quanto cobrar dos clientes, perfeito para modelos de negócios baseados em uso.
+   </Check>
+
+   Saiba mais: [Assinaturas Sob Demanda](/developer-resources/ondemand-subscriptions)
+
+7. **Correções Gerais de Bugs e Melhorias**  
+   Esta versão inclui melhorias de desempenho, polimento da interface do usuário e resolve bugs menores para uma experiência mais confiável e simplificada.

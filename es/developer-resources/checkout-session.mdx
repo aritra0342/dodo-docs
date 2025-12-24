@@ -293,6 +293,9 @@ window.location.href = session.checkout_url;
 window.open(session.checkout_url, '_blank');
 ```
 
+<Tip>
+**Opciones de Integración Alternativas**: En lugar de redirigir, puedes incrustar el proceso de pago directamente en tu página utilizando [Overlay Checkout](/developer-resources/overlay-checkout) (superposición modal) o [Inline Checkout](/developer-resources/inline-checkout) (totalmente incrustado). Ambas opciones utilizan la misma URL de sesión de pago.
+</Tip>
 </Step>
 
 <Step title="Manejar el retorno">
@@ -975,6 +978,92 @@ const session = await client.checkoutSessions.create({
 });
 ```
 
+### 11. Usando Métodos de Pago Existentes para Pago Instantáneo
+
+Utiliza el método de pago guardado de un cliente para crear una sesión de pago que se procese de inmediato, omitiendo la recolección del método de pago:
+
+```javascript expandable
+const session = await client.checkoutSessions.create({
+  product_cart: [
+    {
+      product_id: 'prod_premium_plan',
+      quantity: 1
+    }
+  ],
+  customer: {
+    customer_id: 'cus_123'  // Required when using payment_method_id
+  },
+  payment_method_id: 'pm_abc123',  // Use customer's saved payment method
+  confirm: true,  // Required when using payment_method_id
+  return_url: 'https://yourapp.com/success'
+});
+```
+
+<Warning>
+Al usar `payment_method_id`, `confirm` debe configurarse en `true` y debe proporcionarse un `customer_id` existente. El método de pago será validado para verificar su elegibilidad con la moneda del pago.
+</Warning>
+
+<Info>
+El método de pago debe pertenecer al cliente y ser compatible con la moneda del pago. Esto permite compras con un solo clic para clientes recurrentes.
+</Info>
+
+### 12. Enlaces Cortos para URLs de Pago Más Limpias
+
+Genera enlaces de pago acortados y compartibles con slugs personalizados:
+
+```javascript expandable
+const session = await client.checkoutSessions.create({
+  product_cart: [
+    {
+      product_id: 'prod_monthly_subscription',
+      quantity: 1
+    }
+  ],
+  short_link: true,  // Generate a shortened payment link
+  return_url: 'https://yourapp.com/success',
+  customer: {
+    email: 'customer@example.com',
+    name: 'John Doe'
+  }
+});
+
+// The checkout_url will be a shortened, cleaner link
+console.log(session.checkout_url);  // e.g., https://checkout.dodopayments.com/buy/abc123
+```
+
+<Tip>
+Los enlaces cortos son perfectos para compartir por SMS, correo electrónico o redes sociales. Son más fáciles de recordar y generan más confianza en los clientes que las URLs largas.
+</Tip>
+
+### 13. Omitir Página de Éxito de Pago con Redirección Inmediata
+
+Redirige a los clientes inmediatamente después de completar el pago, omitiendo la página de éxito predeterminada:
+
+```javascript expandable
+const session = await client.checkoutSessions.create({
+  product_cart: [
+    {
+      product_id: 'prod_digital_product',
+      quantity: 1
+    }
+  ],
+  redirect_immediately: true,  // Skip success page, redirect immediately
+  return_url: 'https://yourapp.com/success',
+  customer: {
+    email: 'customer@example.com',
+    name: 'Jane Smith'
+  }
+});
+```
+
+<Tip>
+Usa `redirect_immediately: true` cuando tengas una página de éxito personalizada que ofrezca una mejor experiencia de usuario que la página de éxito de pago predeterminada. Esto es especialmente útil para aplicaciones móviles y flujos de pago incrustados.
+</Tip>
+
+<Note>
+Cuando `redirect_immediately` está habilitado, los clientes son redirigidos a tu `return_url` inmediatamente después de completar el pago, omitiendo completamente la página de éxito predeterminada.
+</Note>
+
 ## Pasando de Enlaces Dinámicos a Sesiones de Pago
 
 ### Diferencias Clave
@@ -982,8 +1071,8 @@ Anteriormente, al crear un enlace de pago con Enlaces Dinámicos, se requería p
 
 Con las Sesiones de Pago, esto ya no es necesario. Simplemente puedes pasar la información que tengas, y nosotros nos encargaremos del resto. Por ejemplo:
 
-- Si solo conoces el país de facturación del cliente, simplemente proporciona eso.
-- El flujo de pago recopilará automáticamente los detalles faltantes antes de mover al cliente a la página de pago.
+- Si solo conoces el país de facturación del cliente, solo proporciona eso.
+- El flujo de pago recogerá automáticamente los detalles faltantes antes de llevar al cliente a la página de pago.
 - Por otro lado, si ya tienes toda la información requerida y deseas saltar directamente a la página de pago, puedes pasar el conjunto de datos completo e incluir `confirm=true` en el cuerpo de tu solicitud.
 
 ### Proceso de Migración
@@ -996,10 +1085,10 @@ Actualiza tu integración para usar el nuevo método de API o SDK.
 </Step>
 
 <Step title="Ajusta la carga útil de la solicitud">
-Ajusta la carga útil de la solicitud de acuerdo con el formato de Sesiones de Pago.
+Ajusta la carga útil de la solicitud de acuerdo con el formato de las Sesiones de Pago.
 </Step>
 
 <Step title="¡Eso es todo!">
-Sí. No se necesitan manejos adicionales ni pasos de migración especiales de tu parte.
+Sí. No se necesita manejo adicional ni pasos de migración especiales de tu parte.
 </Step>
 </Steps>

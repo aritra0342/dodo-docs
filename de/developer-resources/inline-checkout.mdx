@@ -1,9 +1,9 @@
 ---
-title: Inline Checkout (Entwurf)
+title: Inline Checkout
 description: Binden Sie den Dodo Payments Checkout direkt in Ihre Website ein,
   um ein nahtloses, markenbezogenes Zahlungserlebnis zu schaffen.
 icon: credit-card
-draft: true
+tag: BETA
 ---
 
 ## Übersicht
@@ -61,7 +61,7 @@ Der Checkout-Fluss wird durch Ihre Konfiguration der Checkout-Sitzung bestimmt. 
 <Step title="Kunde öffnet den Checkout">
 
 Sie können den Inline-Checkout öffnen, indem Sie Artikel oder eine vorhandene Transaktion übergeben. Verwenden Sie das SDK, um Informationen auf der Seite anzuzeigen und zu aktualisieren, und SDK-Methoden, um Artikel basierend auf der Interaktion des Kunden zu aktualisieren.
-    <img src="/images/inline-checkout/1.svg" alt="Initial checkout page with items list and payment form"/>
+    <img src="/images/inline-checkout/1.png" alt="Initiale Checkout-Seite mit Artikelliste und Zahlungsformular"/>
 
 </Step>
 
@@ -79,7 +79,7 @@ Nachdem sie ihre Daten eingegeben haben, werden den Kunden verfügbare Zahlungsm
 
 Zeigen Sie gespeicherte Zahlungsmethoden an, wenn verfügbar, um den Checkout zu beschleunigen.
 
-<img src="/images/inline-checkout/3.svg" alt="Available payment methods and card details form"/>
+<img src="/images/inline-checkout/2.png" alt="Verfügbare Zahlungsmethoden und Formular für Kartendetails"/>
 
 </Step>
 
@@ -87,7 +87,7 @@ Zeigen Sie gespeicherte Zahlungsmethoden an, wenn verfügbar, um den Checkout zu
 
 Dodo Payments leitet jede Zahlung an den besten Acquirer für diesen Verkauf weiter, um die bestmögliche Erfolgsquote zu erzielen. Die Kunden gelangen in einen Erfolgsworkflow, den Sie erstellen können.
 
-<img src="/images/inline-checkout/4.svg" alt="Success screen with confirmation checkmark"/>
+<img src="/images/inline-checkout/3.png" alt="Erfolgsbildschirm mit Bestätigungs-Häkchen"/>
 
 </Step>
 
@@ -95,25 +95,486 @@ Dodo Payments leitet jede Zahlung an den besten Acquirer für diesen Verkauf wei
 
 Dodo Payments erstellt automatisch ein Abonnement für den Kunden, bereit für Sie zur Bereitstellung. Die Zahlungsmethode, die der Kunde verwendet hat, wird für Erneuerungen oder Änderungen des Abonnements gespeichert.
 
-<img src="/images/inline-checkout/5.svg" alt="Subscription created with webhook notification"/>
+<img src="/images/inline-checkout/4.png" alt="Abonnement erstellt mit Webhook-Benachrichtigung"/>
 
 </Step>
 </Steps>
 
-## Inline vs Overlay Checkout
+## Schnellstart
+
+Starten Sie mit dem Dodo Payments Inline Checkout in nur wenigen Zeilen Code:
+
+```typescript
+import { DodoPayments } from "dodopayments-checkout";
+
+// Initialize the SDK for inline mode
+DodoPayments.Initialize({
+  mode: "test",
+  displayType: "inline",
+  onEvent: (event) => {
+    console.log("Checkout event:", event);
+  },
+});
+
+// Open checkout in a specific container
+DodoPayments.Checkout.open({
+  checkoutUrl: "https://test.dodopayments.com/session/cks_123",
+  elementId: "dodo-inline-checkout" // ID of the container element
+});
+```
+
+<Tip>
+Stellen Sie sicher, dass Sie ein Container-Element mit dem entsprechenden `id` auf Ihrer Seite haben: `<div id="dodo-inline-checkout"></div>`.
+</Tip>
+
+## Schritt-für-Schritt-Integrationsanleitung
+
+<Steps>
+<Step title="Installieren Sie das SDK">
+
+Installieren Sie das Dodo Payments Checkout SDK:
+
+<CodeGroup>
+
+```bash npm
+npm install dodopayments-checkout
+```
+
+```bash yarn
+yarn add dodopayments-checkout
+```
+
+```bash pnpm
+pnpm add dodopayments-checkout
+```
+
+</CodeGroup>
+
+</Step>
+
+<Step title="SDK für Inline-Anzeige initialisieren">
+
+Initialisieren Sie das SDK und geben Sie `displayType: 'inline'` an. Sie sollten auch auf das `checkout.breakdown` Ereignis hören, um Ihre UI mit Echtzeitsteuer- und Gesamtrechnungen zu aktualisieren.
+
+```typescript
+import { DodoPayments } from "dodopayments-checkout";
+
+DodoPayments.Initialize({
+  mode: "test",
+  displayType: "inline",
+  onEvent: (event) => {
+    if (event.event_type === "checkout.breakdown") {
+      const breakdown = event.data?.message;
+      // Update your UI with breakdown.subTotal, breakdown.tax, breakdown.total, etc.
+    }
+  },
+});
+```
+
+</Step>
+
+<Step title="Erstellen Sie ein Container-Element">
+
+Fügen Sie ein Element zu Ihrem HTML hinzu, in das der Checkout-Rahmen eingefügt wird:
+
+```html
+<div id="dodo-inline-checkout"></div>
+```
+
+</Step>
+
+<Step title="Öffnen Sie den Checkout">
+
+Rufen Sie `DodoPayments.Checkout.open()` mit dem `checkoutUrl` und dem `elementId` Ihres Containers auf:
+
+```typescript
+DodoPayments.Checkout.open({
+  checkoutUrl: "https://test.dodopayments.com/session/cks_123",
+  elementId: "dodo-inline-checkout"
+});
+```
+
+</Step>
+
+<Step title="Testen Sie Ihre Integration">
+
+1. Starten Sie Ihren Entwicklungsserver:
+
+```bash
+npm run dev
+```
+
+2. Testen Sie den Checkout-Fluss:
+   - Geben Sie Ihre E-Mail- und Adressdaten im Inline-Rahmen ein.
+   - Überprüfen Sie, ob Ihre benutzerdefinierte Bestellübersicht in Echtzeit aktualisiert wird.
+   - Testen Sie den Zahlungsfluss mit Testanmeldeinformationen.
+   - Bestätigen Sie, dass die Weiterleitungen korrekt funktionieren.
+
+<Check>
+Sie sollten `checkout.breakdown` Ereignisse in Ihrer Browser-Konsole sehen, wenn Sie ein Konsolenprotokoll im `onEvent` Callback hinzugefügt haben.
+</Check>
+
+</Step>
+
+<Step title="Live gehen">
+
+Wenn Sie bereit für die Produktion sind:
+
+1. Ändern Sie den Modus auf `'live'`:
+
+```typescript
+DodoPayments.Initialize({
+  mode: "live",
+  displayType: "inline",
+  onEvent: (event) => {
+    // Handle events
+  }
+});
+```
+
+2. Aktualisieren Sie Ihre Checkout-URLs, um Live-Checkout-Sitzungen von Ihrem Backend zu verwenden.
+3. Testen Sie den gesamten Fluss in der Produktion.
+
+</Step>
+</Steps>
+
+## Vollständiges React-Beispiel
+
+Dieses Beispiel zeigt, wie Sie eine benutzerdefinierte Bestellübersicht zusammen mit dem Inline-Checkout implementieren und sie mithilfe des `checkout.breakdown` Ereignisses synchron halten.
+
+```tsx
+"use client";
+
+import { useEffect, useState } from 'react';
+import { DodoPayments, CheckoutBreakdownData } from 'dodopayments-checkout';
+
+export default function CheckoutPage() {
+  const [breakdown, setBreakdown] = useState<Partial<CheckoutBreakdownData>>({});
+
+  useEffect(() => {
+    // 1. Initialize the SDK
+    DodoPayments.Initialize({
+      mode: 'test',
+      displayType: 'inline',
+      onEvent: (event) => {
+        // 2. Listen for the 'checkout.breakdown' event
+        if (event.event_type === "checkout.breakdown") {
+          const message = event.data?.message as CheckoutBreakdownData;
+          if (message) setBreakdown(message);
+        }
+      }
+    });
+
+    // 3. Open the checkout in the specified container
+    DodoPayments.Checkout.open({
+      checkoutUrl: 'https://test.dodopayments.com/session/cks_123',
+      elementId: 'dodo-inline-checkout'
+    });
+
+    return () => DodoPayments.Checkout.close();
+  }, []);
+
+  const format = (amt: number | null | undefined, curr: string | null | undefined) => 
+    amt != null && curr ? `${curr} ${(amt/100).toFixed(2)}` : '0.00';
+
+  const currency = breakdown.currency ?? breakdown.finalTotalCurrency ?? '';
+
+  return (
+    <div className="flex flex-col md:flex-row min-h-screen">
+      {/* Left Side - Checkout Form */}
+      <div className="w-full md:w-1/2 flex items-center">
+        <div id="dodo-inline-checkout" className='w-full' />
+      </div>
+
+      {/* Right Side - Custom Order Summary */}
+      <div className="w-full md:w-1/2 p-8 bg-gray-50">
+        <h2 className="text-2xl font-bold mb-4">Order Summary</h2>
+        <div className="space-y-2">
+          {breakdown.subTotal && (
+            <div className="flex justify-between">
+              <span>Subtotal</span>
+              <span>{format(breakdown.subTotal, currency)}</span>
+            </div>
+          )}
+          {breakdown.discount && (
+            <div className="flex justify-between">
+              <span>Discount</span>
+              <span>{format(breakdown.discount, currency)}</span>
+            </div>
+          )}
+          {breakdown.tax != null && (
+            <div className="flex justify-between">
+              <span>Tax</span>
+              <span>{format(breakdown.tax, currency)}</span>
+            </div>
+          )}
+          <hr />
+          {(breakdown.finalTotal ?? breakdown.total) && (
+            <div className="flex justify-between font-bold text-xl">
+              <span>Total</span>
+              <span>{format(breakdown.finalTotal ?? breakdown.total, breakdown.finalTotalCurrency ?? currency)}</span>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+```
+
+## API-Referenz
+
+### Konfiguration
+
+#### Initialisierungsoptionen
+
+```typescript
+interface InitializeOptions {
+  mode: "test" | "live";
+  displayType: "inline"; // Required for inline checkout
+  onEvent: (event: CheckoutEvent) => void;
+}
+```
+
+| Option | Typ | Erforderlich | Beschreibung |
+|--------|------|----------|-------------|
+| `mode` | `"test" \| "live"` | Ja | Umgebungsmodus. |
+| `displayType` | `"inline" \| "overlay"` | Ja | Muss auf `"inline"` gesetzt werden, um den Checkout einzubetten. |
+| `onEvent` | `function` | Ja | Callback-Funktion zur Verarbeitung von Checkout-Ereignissen. |
+
+#### Checkout-Optionen
+
+```typescript
+interface CheckoutOptions {
+  checkoutUrl: string;
+  elementId: string; // Required for inline checkout
+}
+```
+
+| Option | Typ | Erforderlich | Beschreibung |
+|--------|------|----------|-------------|
+| `checkoutUrl` | `string` | Ja | Checkout-Sitzungs-URL. |
+| `elementId` | `string` | Ja | Die `id` des DOM-Elements, in dem der Checkout gerendert werden soll. |
+
+### Methoden
+
+#### Checkout öffnen
+
+Öffnet den Checkout-Rahmen im angegebenen Container.
+
+```typescript
+DodoPayments.Checkout.open({
+  checkoutUrl: "https://test.dodopayments.com/session/cks_123",
+  elementId: "dodo-inline-checkout"
+});
+```
+
+#### Checkout schließen
+
+Entfernt programmgesteuert den Checkout-Rahmen und bereinigt die Ereignis-Listener.
+
+```typescript
+DodoPayments.Checkout.close();
+```
+
+#### Status überprüfen
+
+Gibt zurück, ob der Checkout-Rahmen derzeit eingefügt ist.
+
+```typescript
+const isOpen = DodoPayments.Checkout.isOpen();
+// Returns: boolean
+```
+
+### Ereignisse
+
+Das SDK bietet Echtzeitereignisse über das `onEvent` Callback. Für den Inline-Checkout ist `checkout.breakdown` besonders nützlich, um Ihre UI zu synchronisieren.
+
+| Ereignistyp | Beschreibung |
+|------------|-------------|
+| `checkout.opened` | Checkout-Rahmen wurde geladen. |
+| `checkout.breakdown` | Wird ausgelöst, wenn Preise, Steuern oder Rabatte aktualisiert werden. |
+| `checkout.customer_details_submitted` | Kundendaten wurden übermittelt. |
+| `checkout.redirect` | Checkout wird eine Weiterleitung durchführen (z. B. zu einer Bankseite). |
+| `checkout.error` | Ein Fehler ist während des Checkouts aufgetreten. |
+
+#### Checkout-Breakdown-Daten
+
+Das `checkout.breakdown` Ereignis liefert die folgenden Daten:
+
+```typescript
+interface CheckoutBreakdownData {
+  subTotal?: number;          // Amount in cents
+  discount?: number;         // Amount in cents
+  tax?: number;              // Amount in cents
+  total?: number;            // Amount in cents
+  currency?: string;         // e.g., "USD"
+  finalTotal?: number;       // Final amount including adjustments
+  finalTotalCurrency?: string; // Currency for the final total
+}
+```
+
+#### Verständnis des Breakdown-Ereignisses
+
+Das `checkout.breakdown` Ereignis ist der primäre Weg, um die UI Ihrer Anwendung mit dem Checkout-Zustand von Dodo Payments synchron zu halten.
+
+**Wann es ausgelöst wird:**
+- **Bei der Initialisierung**: Sofort nachdem der Checkout-Rahmen geladen und bereit ist.
+- **Bei Adressänderung**: Immer wenn der Kunde ein Land auswählt oder eine Postleitzahl eingibt, die zu einer Steuerneuberechnung führt.
+
+**Felddetails:**
+
+| Feld | Beschreibung |
+|-------|-------------|
+| `subTotal` | Die Summe aller Positionen in der Sitzung, bevor Rabatte oder Steuern angewendet werden. |
+| `discount` | Der Gesamtwert aller angewendeten Rabatte. |
+| `tax` | Der berechnete Steuerbetrag. Im `inline` Modus wird dies dynamisch aktualisiert, während der Benutzer mit den Adressfeldern interagiert. |
+| `total` | Das mathematische Ergebnis von `subTotal - discount + tax` in der Basiswährung der Sitzung. |
+| `currency` | Der ISO-Währungs-Code (z. B. `"USD"`) für die Standard-Zwischensumme, Rabatte und Steuerwerte. |
+| `finalTotal` | Der tatsächliche Betrag, den der Kunde berechnet wird. Dies kann zusätzliche Anpassungen des Devisenwechsels oder lokale Zahlungsgebühren umfassen, die nicht Teil der grundlegenden Preisaufstellung sind. |
+| `finalTotalCurrency` | Die Währung, in der der Kunde tatsächlich bezahlt. Dies kann von `currency` abweichen, wenn die Kaufkraftparität oder die lokale Währungsumrechnung aktiv ist. |
+
+**Wichtige Integrationstipps:**
+
+1.  **Währungsformatierung**: Preise werden immer als Ganzzahlen in der kleinsten Währungseinheit zurückgegeben (z. B. Cent für USD, Yen für JPY). Um sie anzuzeigen, teilen Sie durch 100 (oder die entsprechende Zehnerpotenz) oder verwenden Sie eine Formatierungsbibliothek wie `Intl.NumberFormat`.
+2.  **Umgang mit Anfangszuständen**: Wenn der Checkout zum ersten Mal geladen wird, können `tax` und `discount` `0` oder `null` sein, bis der Benutzer seine Rechnungsinformationen bereitstellt oder einen Code anwendet. Ihre UI sollte diese Zustände elegant handhaben (z. B. durch Anzeigen eines Strichs `—` oder durch Ausblenden der Zeile).
+3.  **Der "Endbetrag" vs "Gesamt"**: Während `total` Ihnen die Standardpreisberechnung gibt, ist `finalTotal` die Quelle der Wahrheit für die Transaktion. Wenn `finalTotal` vorhanden ist, spiegelt es genau wider, was der Karte des Kunden belastet wird, einschließlich aller dynamischen Anpassungen.
+4.  **Echtzeit-Feedback**: Verwenden Sie das `tax` Feld, um den Benutzern zu zeigen, dass Steuern in Echtzeit berechnet werden. Dies verleiht Ihrer Checkout-Seite ein "Live"-Gefühl und reduziert die Reibung während des Schrittes zur Eingabe der Adresse.
+
+## Implementierungsoptionen
+
+### Installation über Paketmanager
+
+Installieren Sie über npm, yarn oder pnpm, wie in der [Schritt-für-Schritt-Integrationsanleitung](#step-by-step-integration-guide) gezeigt.
+
+### CDN-Implementierung
+
+Für eine schnelle Integration ohne Build-Schritt können Sie unser CDN verwenden:
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dodo Payments Inline Checkout</title>
+    
+    <!-- Load DodoPayments -->
+    <script src="https://cdn.jsdelivr.net/npm/dodopayments-checkout@latest/dist/index.js"></script>
+    <script>
+        // Initialize the SDK
+        DodoPaymentsCheckout.DodoPayments.Initialize({
+            mode: "test",
+            displayType: "inline",
+            onEvent: (event) => {
+                console.log('Checkout event:', event);
+            }
+        });
+    </script>
+</head>
+<body>
+    <div id="dodo-inline-checkout"></div>
+
+    <script>
+        // Open the checkout
+        DodoPaymentsCheckout.DodoPayments.Checkout.open({
+            checkoutUrl: "https://test.dodopayments.com/session/cks_123",
+            elementId: "dodo-inline-checkout"
+        });
+    </script>
+</body>
+</html>
+```
+
+## TypeScript-Unterstützung
+
+Das SDK ist in TypeScript geschrieben und enthält umfassende Typdefinitionen.
+
+```typescript
+import { DodoPayments, CheckoutEvent } from "dodopayments-checkout";
+
+DodoPayments.Initialize({
+  mode: "test",
+  displayType: "inline",
+  onEvent: (event: CheckoutEvent) => {
+    // event is fully typed
+    console.log(event.event_type, event.data);
+  },
+});
+```
+
+## Fehlerbehandlung
+
+Das SDK bietet detaillierte Fehlermeldungen über das Ereignissystem. Implementieren Sie immer eine ordnungsgemäße Fehlerbehandlung in Ihrem `onEvent` Callback:
+
+```typescript
+DodoPayments.Initialize({
+  mode: "test",
+  displayType: "inline",
+  onEvent: (event: CheckoutEvent) => {
+    if (event.event_type === "checkout.error") {
+      console.error("Checkout error:", event.data?.message);
+      // Handle error appropriately
+    }
+  }
+});
+```
+
+<Warning>
+Behandeln Sie immer das `checkout.error` Ereignis, um eine gute Benutzererfahrung zu gewährleisten, wenn Probleme auftreten.
+</Warning>
+
+## Best Practices
+
+1. **Responsive Design**: Stellen Sie sicher, dass Ihr Container-Element genügend Breite und Höhe hat. Das iframe wird typischerweise erweitert, um seinen Container auszufüllen.
+2. **Synchronisation**: Verwenden Sie das `checkout.breakdown` Ereignis, um Ihre benutzerdefinierte Bestellübersicht oder Preistabellen mit dem, was der Benutzer im Checkout-Rahmen sieht, synchron zu halten.
+3. **Skeleton States**: Zeigen Sie einen Ladeindikator in Ihrem Container an, bis das `checkout.opened` Ereignis ausgelöst wird.
+4. **Bereinigung**: Rufen Sie `DodoPayments.Checkout.close()` auf, wenn Ihre Komponente unmontiert wird, um das iframe und die Ereignis-Listener zu bereinigen.
+
+## Fehlersuche
+
+<AccordionGroup>
+<Accordion title="Checkout-Rahmen wird nicht angezeigt">
+- Überprüfen Sie, ob `elementId` mit dem `id` eines `div` übereinstimmt, das tatsächlich im DOM vorhanden ist.
+- Stellen Sie sicher, dass `displayType: 'inline'` an `Initialize` übergeben wurde.
+- Überprüfen Sie, ob die `checkoutUrl` gültig ist.
+</Accordion>
+
+<Accordion title="Steuern werden in meiner UI nicht aktualisiert">
+- Stellen Sie sicher, dass Sie auf das `checkout.breakdown` Ereignis hören.
+- Steuern werden nur berechnet, nachdem der Benutzer ein gültiges Land und eine Postleitzahl im Checkout-Rahmen eingegeben hat.
+</Accordion>
+</AccordionGroup>
+
+## Browserunterstützung
+
+Das Dodo Payments Checkout SDK unterstützt die folgenden Browser:
+
+- Chrome (neueste)
+- Firefox (neueste)
+- Safari (neueste)
+- Edge (neueste)
+- IE11+
+
+<Note>
+Apple Pay wird derzeit nicht im Inline-Checkout-Erlebnis unterstützt. Wir planen, die Unterstützung für Apple Pay in einer zukünftigen Version hinzuzufügen.
+</Note>
+
+## Inline- vs. Overlay-Checkout
 
 Wählen Sie den richtigen Checkout-Typ für Ihren Anwendungsfall:
 
-| Funktion | Inline Checkout | Overlay Checkout |
+| Funktion | Inline-Checkout | Overlay-Checkout |
 |---------|-----------------|------------------|
-| Integrationsgrad | Vollständig in die Seite eingebettet | Modal über der Seite |
+| Integrationstiefe | Vollständig in die Seite eingebettet | Modal über der Seite |
 | Layoutkontrolle | Volle Kontrolle | Eingeschränkt |
 | Branding | Nahtlos | Getrennt von der Seite |
 | Implementierungsaufwand | Höher | Niedriger |
-| Am besten geeignet für | Benutzerdefinierte Checkout-Seiten, hochkonvertierende Abläufe | Schnelle Integration, bestehende Seiten |
+| Am besten geeignet für | Benutzerdefinierte Checkout-Seiten, hochkonvertierende Flüsse | Schnelle Integration, bestehende Seiten |
 
 <Tip>
-Verwenden Sie **Inline Checkout**, wenn Sie maximale Kontrolle über das Checkout-Erlebnis und nahtloses Branding wünschen. Verwenden Sie **Overlay Checkout** für eine schnellere Integration mit minimalen Änderungen an Ihren bestehenden Seiten.
+Verwenden Sie **Inline-Checkout**, wenn Sie maximale Kontrolle über das Checkout-Erlebnis und nahtloses Branding wünschen. Verwenden Sie **Overlay-Checkout** für eine schnellere Integration mit minimalen Änderungen an Ihren bestehenden Seiten.
 </Tip>
 
 ## Verwandte Ressourcen

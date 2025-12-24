@@ -291,6 +291,9 @@ window.location.href = session.checkout_url;
 window.open(session.checkout_url, '_blank');
 ```
 
+<Tip>
+**代替統合オプション**: リダイレクトの代わりに、[オーバーレイチェックアウト](/developer-resources/overlay-checkout)（モーダルオーバーレイ）または[インラインチェックアウト](/developer-resources/inline-checkout)（完全に埋め込まれた）を使用して、チェックアウトを直接ページに埋め込むことができます。どちらのオプションも同じチェックアウトセッションURLを使用します。
+</Tip>
 </Step>
 
 <Step title="戻りを処理">
@@ -973,14 +976,100 @@ const session = await client.checkoutSessions.create({
 });
 ```
 
+### 11. 既存の支払い方法を使用した即時チェックアウト
+
+顧客の保存された支払い方法を使用して、支払い方法の収集をスキップし、即座に処理されるチェックアウトセッションを作成します:
+
+```javascript expandable
+const session = await client.checkoutSessions.create({
+  product_cart: [
+    {
+      product_id: 'prod_premium_plan',
+      quantity: 1
+    }
+  ],
+  customer: {
+    customer_id: 'cus_123'  // Required when using payment_method_id
+  },
+  payment_method_id: 'pm_abc123',  // Use customer's saved payment method
+  confirm: true,  // Required when using payment_method_id
+  return_url: 'https://yourapp.com/success'
+});
+```
+
+<Warning>
+`payment_method_id`を使用する場合、`confirm`は`true`に設定され、既存の`customer_id`が提供される必要があります。支払い方法は、支払いの通貨に対して適格性が検証されます。
+</Warning>
+
+<Info>
+支払い方法は顧客に属し、支払い通貨と互換性がある必要があります。これにより、リピーターの顧客に対してワンクリック購入が可能になります。
+</Info>
+
+### 12. クリーンな支払いURLのための短縮リンク
+
+カスタムスラッグを使用して、短縮可能で共有可能な支払いリンクを生成します:
+
+```javascript expandable
+const session = await client.checkoutSessions.create({
+  product_cart: [
+    {
+      product_id: 'prod_monthly_subscription',
+      quantity: 1
+    }
+  ],
+  short_link: true,  // Generate a shortened payment link
+  return_url: 'https://yourapp.com/success',
+  customer: {
+    email: 'customer@example.com',
+    name: 'John Doe'
+  }
+});
+
+// The checkout_url will be a shortened, cleaner link
+console.log(session.checkout_url);  // e.g., https://checkout.dodopayments.com/buy/abc123
+```
+
+<Tip>
+短縮リンクはSMS、メール、またはソーシャルメディアでの共有に最適です。長いURLよりも覚えやすく、顧客の信頼を高めます。
+</Tip>
+
+### 13. 支払い成功ページをスキップして即時リダイレクト
+
+支払い完了後に顧客を即座にリダイレクトし、デフォルトの成功ページをバイパスします:
+
+```javascript expandable
+const session = await client.checkoutSessions.create({
+  product_cart: [
+    {
+      product_id: 'prod_digital_product',
+      quantity: 1
+    }
+  ],
+  redirect_immediately: true,  // Skip success page, redirect immediately
+  return_url: 'https://yourapp.com/success',
+  customer: {
+    email: 'customer@example.com',
+    name: 'Jane Smith'
+  }
+});
+```
+
+<Tip>
+カスタム成功ページがデフォルトの支払い成功ページよりも優れたユーザーエクスペリエンスを提供する場合は、`redirect_immediately: true`を使用してください。これは特にモバイルアプリや埋め込みチェックアウトフローに役立ちます。
+</Tip>
+
+<Note>
+`redirect_immediately`が有効になっている場合、顧客は支払い完了後に即座に`return_url`にリダイレクトされ、デフォルトの成功ページを完全にスキップします。
+</Note>
+
 ## ダイナミックリンクからチェックアウトセッションへの移行
 
 ### 主な違い
 以前は、ダイナミックリンクで支払いリンクを作成する際に、顧客の完全な請求先住所を提供する必要がありました。
 
-チェックアウトセッションでは、これがもはや必要ありません。お持ちの情報をそのまま渡すだけで、残りは私たちが処理します。例えば:
+チェックアウトセッションでは、これがもはや必要ありません。お持ちの情報をそのまま渡すだけで、残りは当社が処理します。例えば:
 
-- 顧客の請求国しか知らない場合は、それを提供するだけです。
+- 顧客の請求先国しかわからない場合は、それを提供するだけです。
 - チェックアウトフローは、顧客を支払いページに移動させる前に不足している詳細を自動的に収集します。
 - 一方、必要な情報がすべて揃っていて、支払いページに直接スキップしたい場合は、完全なデータセットを渡し、リクエストボディに`confirm=true`を含めることができます。
 
@@ -989,15 +1078,15 @@ const session = await client.checkoutSessions.create({
 ダイナミックリンクからチェックアウトセッションへの移行は簡単です:
 
 <Steps>
-<Step title="統合を更新">
+<Step title="統合を更新する">
 新しいAPIまたはSDKメソッドを使用するように統合を更新します。
 </Step>
 
-<Step title="リクエストペイロードを調整">
+<Step title="リクエストペイロードを調整する">
 チェックアウトセッション形式に従ってリクエストペイロードを調整します。
 </Step>
 
 <Step title="それだけです！">
-はい。追加の処理や特別な移行手順は必要ありません。
+はい。あなたの側で追加の処理や特別な移行手順は必要ありません。
 </Step>
 </Steps>

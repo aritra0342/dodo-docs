@@ -160,12 +160,16 @@ Sie können `next_billing_date` nicht auf einen vergangenen Zeitpunkt setzen. Da
 
 Änderungen an Plänen ermöglichen es Ihnen, Abonnements zu upgraden oder downgraden, Mengen anzupassen oder auf andere Produkte zu migrieren. Jede Änderung löst eine sofortige Abbuchung basierend auf dem von Ihnen ausgewählten anteiligen Abrechnungsmodus aus.
 
-### Anteilsabrechnungsmodi
+<Tip>
+Sie können Abonnementspläne ändern und das nächste Abrechnungsdatum direkt im Dodo Payments-Dashboard aktualisieren. Dies bietet eine schnelle Möglichkeit, Abonnements für Kundenanfragen, Werbe-Upgrades oder Planmigrationen anzupassen, ohne API-Aufrufe tätigen zu müssen.
+</Tip>
 
-Wählen Sie, wie Kunden bei Planänderungen abgerechnet werden:
+### Prorationsmodi
+
+Wählen Sie, wie Kunden beim Wechsel der Pläne abgerechnet werden:
 
 #### `prorated_immediately`
-Berechnet den anteiligen Betrag basierend auf der verbleibenden Zeit im aktuellen Abrechnungszyklus. Am besten für faire Abrechnung, die ungenutzte Zeit berücksichtigt.
+Berechnet den anteiligen Betrag basierend auf der verbleibenden Zeit im aktuellen Abrechnungszyklus. Am besten für faire Abrechnungen, die ungenutzte Zeit berücksichtigen.
 
 ```typescript
 await client.subscriptions.changePlan('sub_123', {
@@ -189,11 +193,11 @@ await client.subscriptions.changePlan('sub_123', {
 ```
 
 <Info>
-Guthaben aus Downgrades mit `difference_immediately` sind abonnementspezifisch und werden automatisch auf zukünftige Erneuerungen angewendet. Sie unterscheiden sich von <a href="/features/customer-credit">Kundenkrediten</a>.
+Guthaben aus Downgrades mit `difference_immediately` sind abonnementsbezogen und werden automatisch auf zukünftige Erneuerungen angewendet. Sie unterscheiden sich von <a href="/features/customer-credit">Kundenkrediten</a>.
 </Info>
 
 #### `full_immediately`
-Berechnet den vollen Betrag des neuen Plans sofort, ignoriert die verbleibende Zeit. Am besten zum Zurücksetzen von Abrechnungszyklen.
+Berechnet den vollen Betrag des neuen Plans sofort, ohne die verbleibende Zeit zu berücksichtigen. Am besten zum Zurücksetzen von Abrechnungszyklen.
 
 ```typescript
 await client.subscriptions.changePlan('sub_123', {
@@ -203,9 +207,9 @@ await client.subscriptions.changePlan('sub_123', {
 });
 ```
 
-### Pläne mit Zusatzleistungen ändern
+### Pläne mit Add-ons ändern
 
-Ändern Sie Zusatzleistungen, wenn Sie Pläne ändern. Zusatzleistungen sind in die Berechnungen der anteiligen Abrechnung einbezogen:
+Ändern Sie Add-ons beim Wechsel der Pläne. Add-ons sind in die Prorationsberechnungen einbezogen:
 
 ```typescript
 await client.subscriptions.changePlan('sub_123', {
@@ -218,12 +222,12 @@ await client.subscriptions.changePlan('sub_123', {
 ```
 
 <Info>
-Änderungen an Plänen lösen sofortige Abbuchungen aus. Fehlgeschlagene Abbuchungen können das Abonnement in den `on_hold` Status versetzen. Verfolgen Sie Änderungen über `subscription.plan_changed` Webhook-Ereignisse.
+Planänderungen führen zu sofortigen Gebühren. Fehlgeschlagene Gebühren können das Abonnement in den `on_hold` Status versetzen. Verfolgen Sie Änderungen über `subscription.plan_changed` Webhook-Ereignisse.
 </Info>
 
-### Planänderungen in der Vorschau anzeigen
+### Vorschau von Planänderungen
 
-Bevor Sie sich für eine Planänderung entscheiden, zeigen Sie die genaue Abbuchung und das resultierende Abonnement in der Vorschau an:
+Bevor Sie sich für eine Planänderung entscheiden, sehen Sie sich die genauen Gebühren und das resultierende Abonnement an:
 
 ```typescript
 const preview = await client.subscriptions.previewChangePlan('sub_123', {
@@ -236,8 +240,8 @@ const preview = await client.subscriptions.previewChangePlan('sub_123', {
 console.log('You will be charged:', preview.immediate_charge.summary);
 ```
 
-<Card title="Vorschau Planänderung API" icon="eye" href="/api-reference/subscriptions/preview-change-plan">
-  Vorschau auf Planänderungen, bevor Sie sich dazu verpflichten.
+<Card title="Vorschau Änderungsplan API" icon="eye" href="/api-reference/subscriptions/preview-change-plan">
+  Vorschau auf Planänderungen, bevor Sie sich festlegen.
 </Card>
 
 ## Abonnementzustände
@@ -246,7 +250,7 @@ Abonnements können während ihres Lebenszyklus in verschiedenen Zuständen sein
 
 - **`active`**: Abonnement ist aktiv und wird automatisch erneuert
 - **`on_hold`**: Abonnement ist aufgrund fehlgeschlagener Zahlung pausiert. Aktualisierung der Zahlungsmethode erforderlich, um es wieder zu aktivieren
-- **`cancelled`**: Abonnement ist storniert und wird nicht erneuert
+- **`cancelled`**: Abonnement ist gekündigt und wird nicht erneuert
 - **`expired`**: Abonnement hat sein Enddatum erreicht
 - **`pending`**: Abonnement wird erstellt oder verarbeitet
 
@@ -266,7 +270,7 @@ Wenn sich ein Abonnement im `on_hold` Zustand befindet, wird es nicht automatisc
 
 Um ein Abonnement aus dem `on_hold` Zustand zu reaktivieren, aktualisieren Sie die Zahlungsmethode. Dies führt automatisch zu:
 
-1. Erstellung einer Abbuchung für ausstehende Beträge
+1. Erstellung einer Gebühr für ausstehende Beträge
 2. Erstellung einer Rechnung
 3. Verarbeitung der Zahlung mit der neuen Zahlungsmethode
 4. Reaktivierung des Abonnements in den `active` Zustand nach erfolgreicher Zahlung
@@ -294,7 +298,7 @@ Nach erfolgreicher Aktualisierung der Zahlungsmethode für ein `on_hold` Abonnem
 
 <AccordionGroup>
 <Accordion title="Abonnements erstellen">
-Verwenden Sie `POST /subscriptions`, um Abonnements programmgesteuert aus Produkten zu erstellen, mit optionalen Testversionen und Zusatzleistungen.
+Verwenden Sie `POST /subscriptions`, um Abonnements programmgesteuert aus Produkten zu erstellen, mit optionalen Testphasen und Add-ons.
 
 <Card title="API-Referenz" icon="code" href="/api-reference/subscriptions/post-subscriptions">
 API zum Erstellen von Abonnements anzeigen.
@@ -302,26 +306,26 @@ API zum Erstellen von Abonnements anzeigen.
 </Accordion>
 
 <Accordion title="Abonnements aktualisieren">
-Verwenden Sie `PATCH /subscriptions/{id}`, um Mengen zu aktualisieren, am Ende der Periode zu stornieren oder Metadaten zu ändern.
+Verwenden Sie `PATCH /subscriptions/{id}`, um Mengen zu aktualisieren, am Ende der Periode zu kündigen oder Metadaten zu ändern.
 
 <Card title="API-Referenz" icon="code" href="/api-reference/subscriptions/patch-subscriptions">
 Erfahren Sie, wie Sie Abonnementdetails aktualisieren.
 </Card>
 </Accordion>
 
-<Accordion title="Pläne ändern (anteilige Abrechnung)">
-Ändern Sie das aktive Produkt und die Mengen mit anteiligen Abrechnungssteuerungen.
+<Accordion title="Pläne ändern (Proration)">
+Ändern Sie das aktive Produkt und die Mengen mit Prorationskontrollen.
 
 <Card title="API-Referenz" icon="code" href="/api-reference/subscriptions/change-plan">
 Überprüfen Sie die Optionen zur Planänderung.
 </Card>
 </Accordion>
 
-<Accordion title="Bedarfsabhängige Gebühren">
-Für bedarfsabhängige Abonnements, berechnen Sie spezifische Beträge auf Anfrage.
+<Accordion title="On-Demand-Gebühren">
+Für On-Demand-Abonnements spezifische Beträge nach Bedarf berechnen.
 
 <Card title="API-Referenz" icon="code" href="/api-reference/subscriptions/create-charge">
-Berechnen Sie ein bedarfsabhängiges Abonnement.
+Berechnen Sie ein On-Demand-Abonnement.
 </Card>
 </Accordion>
 
@@ -334,7 +338,7 @@ Durchsuchen Sie die APIs zum Auflisten und Abrufen.
 </Accordion>
 
 <Accordion title="Nutzungsverlauf">
-Rufen Sie die aufgezeichnete Nutzung für gemessene oder hybride Preismodelle ab.
+Abrufen der aufgezeichneten Nutzung für gemessene oder hybride Preismodelle.
 
 <Card title="API-Referenz" icon="code" href="/api-reference/subscriptions/get-usage-history">
 Siehe API für den Nutzungsverlauf.
@@ -342,7 +346,7 @@ Siehe API für den Nutzungsverlauf.
 </Accordion>
 
 <Accordion title="Zahlungsmethode aktualisieren">
-Aktualisieren Sie die Zahlungsmethode für ein Abonnement. Für aktive Abonnements aktualisiert dies die Zahlungsmethode für zukünftige Erneuerungen. Für Abonnements im `on_hold` Zustand reaktiviert dies das Abonnement, indem eine Abbuchung für ausstehende Beträge erstellt wird.
+Aktualisieren Sie die Zahlungsmethode für ein Abonnement. Für aktive Abonnements wird damit die Zahlungsmethode für zukünftige Erneuerungen aktualisiert. Für Abonnements im `on_hold` Zustand reaktiviert dies das Abonnement, indem eine Gebühr für ausstehende Beträge erstellt wird.
 
 <Card title="API-Referenz" icon="code" href="/api-reference/subscriptions/update-payment-method">
 Erfahren Sie, wie Sie Zahlungsmethoden aktualisieren und Abonnements reaktivieren.
@@ -352,15 +356,15 @@ Erfahren Sie, wie Sie Zahlungsmethoden aktualisieren und Abonnements reaktiviere
 
 ## Häufige Anwendungsfälle
 
-- **SaaS und APIs**: Gestaffelter Zugang mit Zusatzleistungen für Plätze oder Nutzung
-- **Inhalte und Medien**: Monatlicher Zugang mit Einführungstestversionen
-- **B2B-Supportpläne**: Jährliche Verträge mit Premium-Support-Zusatzleistungen
-- **Tools und Plugins**: Lizenzschlüssel und versionierte Veröffentlichungen
+- **SaaS und APIs**: Gestaffelter Zugriff mit Add-ons für Plätze oder Nutzung
+- **Inhalte und Medien**: Monatlicher Zugang mit Einführungstestphasen
+- **B2B-Supportpläne**: Jährliche Verträge mit Premium-Support-Add-ons
+- **Tools und Plugins**: Lizenzschlüssel und versionierte Releases
 
 ## Integrationsbeispiele
 
 ### Checkout-Sitzungen (Abonnements)
-Beim Erstellen von Checkout-Sitzungen fügen Sie Ihr Abonnementprodukt und optionale Zusatzleistungen hinzu:
+Beim Erstellen von Checkout-Sitzungen fügen Sie Ihr Abonnementprodukt und optionale Add-ons hinzu:
 
 ```typescript
 const session = await client.checkoutSessions.create({
@@ -373,8 +377,8 @@ const session = await client.checkoutSessions.create({
 });
 ```
 
-### Planänderungen mit anteiliger Abrechnung
-Upgrade oder Downgrade eines Abonnements und Steuerung des anteiligen Abrechnungsverhaltens:
+### Planänderungen mit Proration
+Upgrade oder Downgrade eines Abonnements und Steuerung des Prorationsverhaltens:
 
 ```typescript
 await client.subscriptions.changePlan('sub_123', {
@@ -384,8 +388,8 @@ await client.subscriptions.changePlan('sub_123', {
 });
 ```
 
-### Am Ende der Periode stornieren
-Planen Sie eine Stornierung, ohne den Zugang sofort zu beenden:
+### Kündigung am Ende der Periode
+Planen Sie eine Kündigung, ohne den Zugang sofort zu beenden:
 
 ```typescript
 await client.subscriptions.update('sub_123', {
@@ -393,8 +397,8 @@ await client.subscriptions.update('sub_123', {
 });
 ```
 
-### Bedarfsabhängige Abonnements
-Erstellen Sie ein bedarfsabhängiges Abonnement und berechnen Sie später nach Bedarf:
+### On-Demand-Abonnements
+Erstellen Sie ein On-Demand-Abonnement und berechnen Sie später nach Bedarf:
 
 ```typescript
 const onDemand = await client.subscriptions.create({
@@ -446,25 +450,25 @@ if (response.payment_id) {
 
 ## Abonnements mit RBI-konformen Mandaten
 
-  UPI- und indische Kartenabonnements unterliegen den Vorschriften der RBI (Reserve Bank of India) mit spezifischen Anforderungen an Mandate:
+  UPI- und indische Kartenabonnements unterliegen den Vorschriften der RBI (Reserve Bank of India) mit spezifischen Mandatsanforderungen:
 
   ### Mandatsgrenzen
 
   Der Mandatstyp und der Betrag hängen von der wiederkehrenden Gebühr Ihres Abonnements ab:
 
-  - **Gebühren unter 15.000 Rs:** Wir erstellen ein On-Demand-Mandat für 15.000 INR. Der Abonnementbetrag wird regelmäßig gemäß Ihrer Abonnementfrequenz bis zur Mandatsgrenze belastet.
-  - **Gebühren von 15.000 Rs oder mehr:** Wir erstellen ein Abonnementmandat (oder On-Demand-Mandat) für den genauen Abonnementbetrag.
+  - **Gebühren unter Rs 15.000:** Wir erstellen ein On-Demand-Mandat für Rs 15.000 INR. Der Abonnementbetrag wird regelmäßig gemäß Ihrer Abonnementfrequenz bis zur Mandatsgrenze berechnet.
+  - **Gebühren von Rs 15.000 oder mehr:** Wir erstellen ein Abonnementmandat (oder On-Demand-Mandat) für den genauen Abonnementbetrag.
 
-  ### Überlegungen zu Upgrade und Downgrade
+  ### Überlegungen zu Upgrades und Downgrades
 
   **Wichtig:** Bei Upgrades oder Downgrades von Abonnements sollten Sie die Mandatsgrenzen sorgfältig berücksichtigen:
 
-  - Wenn ein Upgrade/Downgrade zu einem Betrag führt, der 15.000 Rs übersteigt und die bestehende On-Demand-Zahlungsgrenze überschreitet, kann die Transaktionsgebühr fehlschlagen.
+  - Wenn ein Upgrade/Downgrade zu einem Betrag führt, der Rs 15.000 übersteigt und über die bestehende On-Demand-Zahlungsgrenze hinausgeht, kann die Transaktionsgebühr fehlschlagen.
   - In solchen Fällen muss der Kunde möglicherweise seine Zahlungsmethode aktualisieren oder das Abonnement erneut ändern, um ein neues Mandat mit der richtigen Grenze zu erstellen.
 
   ### Autorisierung für hochpreisige Gebühren
 
-  Für Abonnementgebühren von 15.000 Rs oder mehr:
+  Für Abonnementgebühren von Rs 15.000 oder mehr:
 
   - Der Kunde wird von seiner Bank aufgefordert, die Transaktion zu autorisieren.
   - Wenn der Kunde die Transaktion nicht autorisiert, schlägt die Transaktion fehl und das Abonnement wird auf Halt gesetzt.
@@ -473,36 +477,36 @@ if (response.payment_id) {
 
   **Verarbeitungszeitrahmen:** Wiederkehrende Gebühren auf indischen Karten und UPI-Abonnements folgen einem einzigartigen Verarbeitungsmuster:
 
-  - Gebühren werden **initiiert** am geplanten Datum gemäß Ihrer Abonnementfrequenz.
+  - Gebühren werden **am geplanten Datum** gemäß Ihrer Abonnementfrequenz **initiiert**.
   - Der tatsächliche **Abzug** vom Konto des Kunden erfolgt erst nach **48 Stunden** nach der Zahlungsinitiierung.
   - Dieses 48-Stunden-Fenster kann sich um bis zu **2-3 zusätzliche Stunden** je nach Bank-API-Antworten verlängern.
 
-  ### Stornierungsfenster für Mandate
+  ### Mandatsstornierungsfenster
 
   Während des 48-Stunden-Verarbeitungsfensters:
 
   - Kunden können das Mandat über ihre Banking-Apps stornieren.
-  - Wenn ein Kunde das Mandat während dieses Zeitraums storniert, bleibt das Abonnement **aktiv** (dies ist ein Randfall, der spezifisch für indische Karten und UPI-AutoPay-Abonnements ist).
+  - Wenn ein Kunde das Mandat während dieses Zeitraums storniert, bleibt das Abonnement **aktiv** (dies ist ein Sonderfall, der spezifisch für indische Karten und UPI AutoPay-Abonnements ist).
   - Der tatsächliche Abzug kann jedoch fehlschlagen, und in diesem Fall setzen wir das Abonnement **auf Halt**.
 
-  **Randfallbehandlung:** Wenn Sie Kunden sofort nach der Zahlungsinitiierung Vorteile, Guthaben oder Abonnementnutzung gewähren, müssen Sie dieses 48-Stunden-Fenster in Ihrer Anwendung angemessen behandeln. Berücksichtigen Sie:
+  **Umgang mit Sonderfällen:** Wenn Sie Kunden sofort nach der Zahlungsinitiierung Vorteile, Guthaben oder Abonnementnutzung gewähren, müssen Sie dieses 48-Stunden-Fenster in Ihrer Anwendung angemessen behandeln. Berücksichtigen Sie:
 
   - Aktivierung von Vorteilen bis zur Zahlungsbestätigung verzögern
   - Implementierung von Karenzzeiten oder vorübergehendem Zugang
   - Überwachung des Abonnementstatus auf Mandatsstornierungen
-  - Behandlung von Abonnement-Halt-Zuständen in Ihrer Anwendungslogik
+  - Umgang mit Abonnement-Haltzuständen in Ihrer Anwendungslogik
 
   <Tip>
-  Überwachen Sie Abonnement-Webhooks, um Änderungen des Zahlungsstatus zu verfolgen und Randfälle zu behandeln, in denen Mandate während des 48-Stunden-Fensters storniert werden.
+  Überwachen Sie Abonnement-Webhooks, um Änderungen des Zahlungsstatus zu verfolgen und Sonderfälle zu behandeln, in denen Mandate während des 48-Stunden-Fensters storniert werden.
   </Tip>
 
 ## Best Practices
 
 - **Beginnen Sie mit klaren Stufen**: 2–3 Pläne mit offensichtlichen Unterschieden
-- **Kommunizieren Sie die Preisgestaltung**: Zeigen Sie Gesamtsummen, anteilige Abrechnung und nächste Erneuerung an
-- **Nutzen Sie Testversionen durchdacht**: Konvertieren Sie mit Onboarding, nicht nur mit Zeit
-- **Nutzen Sie Zusatzleistungen**: Halten Sie Basispläne einfach und verkaufen Sie Extras
-- **Testen Sie Änderungen**: Validieren Sie Planänderungen und anteilige Abrechnung im Testmodus
+- **Kommunizieren Sie die Preise**: Zeigen Sie Gesamtsummen, Prorationen und die nächste Erneuerung an
+- **Nutzen Sie Testphasen durchdacht**: Konvertieren Sie mit Onboarding, nicht nur mit Zeit
+- **Nutzen Sie Add-ons**: Halten Sie Basispläne einfach und verkaufen Sie Extras
+- **Testen Sie Änderungen**: Validieren Sie Planänderungen und Prorationen im Testmodus
 
 <Info>
 Abonnements sind eine flexible Grundlage für wiederkehrende Einnahmen. Beginnen Sie einfach, testen Sie gründlich und iterieren Sie basierend auf Annahme-, Abwanderungs- und Expansionsmetriken.

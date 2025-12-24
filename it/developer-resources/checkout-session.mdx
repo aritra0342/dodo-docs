@@ -293,6 +293,9 @@ window.location.href = session.checkout_url;
 window.open(session.checkout_url, '_blank');
 ```
 
+<Tip>
+**Opzioni di integrazione alternative**: Invece di reindirizzare, puoi incorporare direttamente il checkout nella tua pagina utilizzando [Overlay Checkout](/developer-resources/overlay-checkout) (overlay modale) o [Inline Checkout](/developer-resources/inline-checkout) (completamente incorporato). Entrambe le opzioni utilizzano lo stesso URL della sessione di checkout.
+</Tip>
 </Step>
 
 <Step title="Gestisci il ritorno">
@@ -975,20 +978,106 @@ const session = await client.checkoutSessions.create({
 });
 ```
 
-## Passare da Link Dinamici a Sessioni di Checkout
+### 11. Utilizzo dei metodi di pagamento esistenti per il checkout istantaneo
 
-### Differenze Chiave
-In precedenza, quando creavi un link di pagamento con Link Dinamici, era necessario fornire l'indirizzo di fatturazione completo del cliente.
+Utilizza il metodo di pagamento salvato di un cliente per creare una sessione di checkout che viene elaborata immediatamente, saltando la raccolta del metodo di pagamento:
 
-Con le Sessioni di Checkout, questo non è più necessario. Puoi semplicemente fornire le informazioni che hai, e noi ci occuperemo del resto. Ad esempio:
+```javascript expandable
+const session = await client.checkoutSessions.create({
+  product_cart: [
+    {
+      product_id: 'prod_premium_plan',
+      quantity: 1
+    }
+  ],
+  customer: {
+    customer_id: 'cus_123'  // Required when using payment_method_id
+  },
+  payment_method_id: 'pm_abc123',  // Use customer's saved payment method
+  confirm: true,  // Required when using payment_method_id
+  return_url: 'https://yourapp.com/success'
+});
+```
+
+<Warning>
+Quando utilizzi `payment_method_id`, `confirm` deve essere impostato su `true` e deve essere fornito un `customer_id` esistente. Il metodo di pagamento sarà convalidato per idoneità con la valuta del pagamento.
+</Warning>
+
+<Info>
+Il metodo di pagamento deve appartenere al cliente ed essere compatibile con la valuta del pagamento. Questo consente acquisti con un clic per i clienti di ritorno.
+</Info>
+
+### 12. Link brevi per URL di pagamento più puliti
+
+Genera link di pagamento abbreviati e condivisibili con slugs personalizzati:
+
+```javascript expandable
+const session = await client.checkoutSessions.create({
+  product_cart: [
+    {
+      product_id: 'prod_monthly_subscription',
+      quantity: 1
+    }
+  ],
+  short_link: true,  // Generate a shortened payment link
+  return_url: 'https://yourapp.com/success',
+  customer: {
+    email: 'customer@example.com',
+    name: 'John Doe'
+  }
+});
+
+// The checkout_url will be a shortened, cleaner link
+console.log(session.checkout_url);  // e.g., https://checkout.dodopayments.com/buy/abc123
+```
+
+<Tip>
+I link brevi sono perfetti per SMS, email o condivisione sui social media. Sono più facili da ricordare e costruiscono maggiore fiducia nei clienti rispetto ai link lunghi.
+</Tip>
+
+### 13. Salta la pagina di successo del pagamento con reindirizzamento immediato
+
+Reindirizza i clienti immediatamente dopo il completamento del pagamento, bypassando la pagina di successo predefinita:
+
+```javascript expandable
+const session = await client.checkoutSessions.create({
+  product_cart: [
+    {
+      product_id: 'prod_digital_product',
+      quantity: 1
+    }
+  ],
+  redirect_immediately: true,  // Skip success page, redirect immediately
+  return_url: 'https://yourapp.com/success',
+  customer: {
+    email: 'customer@example.com',
+    name: 'Jane Smith'
+  }
+});
+```
+
+<Tip>
+Utilizza `redirect_immediately: true` quando hai una pagina di successo personalizzata che offre un'esperienza utente migliore rispetto alla pagina di successo del pagamento predefinita. Questo è particolarmente utile per le app mobili e i flussi di checkout incorporati.
+</Tip>
+
+<Note>
+Quando `redirect_immediately` è abilitato, i clienti vengono reindirizzati al tuo `return_url` immediatamente dopo il completamento del pagamento, saltando completamente la pagina di successo predefinita.
+</Note>
+
+## Passaggio dai link dinamici alle sessioni di checkout
+
+### Differenze chiave
+In precedenza, quando creavi un link di pagamento con i link dinamici, era necessario fornire l'indirizzo di fatturazione completo del cliente.
+
+Con le sessioni di checkout, questo non è più necessario. Puoi semplicemente fornire le informazioni che hai e noi ci occuperemo del resto. Ad esempio:
 
 - Se conosci solo il paese di fatturazione del cliente, fornisci solo quello.
-- Il flusso di checkout raccoglierà automaticamente i dettagli mancanti prima di portare il cliente alla pagina di pagamento.
+- Il flusso di checkout raccoglierà automaticamente i dettagli mancanti prima di spostare il cliente alla pagina di pagamento.
 - D'altra parte, se hai già tutte le informazioni richieste e vuoi saltare direttamente alla pagina di pagamento, puoi passare l'intero set di dati e includere `confirm=true` nel corpo della tua richiesta.
 
-### Processo di Migrazione
+### Processo di migrazione
 
-La migrazione da Link Dinamici a Sessioni di Checkout è semplice:
+La migrazione dai link dinamici alle sessioni di checkout è semplice:
 
 <Steps>
 <Step title="Aggiorna la tua integrazione">
@@ -996,10 +1085,10 @@ Aggiorna la tua integrazione per utilizzare il nuovo metodo API o SDK.
 </Step>
 
 <Step title="Regola il payload della richiesta">
-Regola il payload della richiesta secondo il formato delle Sessioni di Checkout.
+Regola il payload della richiesta secondo il formato delle sessioni di checkout.
 </Step>
 
-<Step title="Fatto!">
+<Step title="Ecco fatto!">
 Sì. Non sono necessari ulteriori gestioni o passaggi di migrazione speciali da parte tua.
 </Step>
 </Steps>

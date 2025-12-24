@@ -1,0 +1,314 @@
+---
+title: v1.70.0 (24 dicembre 2025)
+description: Supporto per il checkout inline, utilizza metodi di pagamento
+  esistenti per checkout istantanei, gestisci i piani di abbonamento dalla
+  dashboard, genera link di pagamento brevi, salta le pagine di successo con
+  redirect_immediately e abilita abbonamenti on-demand per tutte le aziende
+icon: arrows-turn-right
+---
+
+## Nuove Funzionalità 🚀
+
+1. **Checkout Inline - Esperienze di Checkout Completamente Incorporate (BETA)**  
+
+   Incorpora il checkout di Dodo Payments direttamente nel tuo sito web per un'esperienza di pagamento senza soluzione di continuità e con branding. A differenza del checkout a sovrapposizione che si apre come un modale, il checkout inline incorpora il modulo di pagamento direttamente nel layout della tua pagina.
+
+   <Frame>
+   <img src="/images/inline-checkout/cover.png" alt="Immagine di Copertura del Checkout Inline" />
+   </Frame>
+
+   ### Vantaggi
+
+   - **Completamente integrato**: Crea esperienze di checkout che si fondono perfettamente con il tuo sito web
+   - **Riepiloghi d'ordine personalizzati**: Costruisci un'interfaccia utente personalizzata che si sincronizza con il checkout in tempo reale
+   - **Massimo controllo**: Controllo totale sul layout e sul design del checkout
+   - **Conformità PCI**: Dodo Payments gestisce in modo sicuro tutte le informazioni di pagamento sensibili
+   - **Sincronizzazione in tempo reale**: Usa eventi SDK per mantenere la tua UI sincronizzata con lo stato del checkout
+
+   ### Come Funziona
+
+   Inizializza l'SDK con `displayType: 'inline'` e incorpora il checkout in un elemento contenitore:
+
+   ```typescript
+   import { DodoPayments } from "dodopayments-checkout";
+
+   // Initialize the SDK for inline mode
+   DodoPayments.Initialize({
+     mode: "test",
+     displayType: "inline",
+     onEvent: (event) => {
+       if (event.event_type === "checkout.breakdown") {
+         // Update your UI with real-time tax and total calculations
+         const breakdown = event.data?.message;
+       }
+     },
+   });
+
+   // Open checkout in a specific container
+   DodoPayments.Checkout.open({
+     checkoutUrl: "https://test.dodopayments.com/session/cks_123",
+     elementId: "dodo-inline-checkout" // ID of the container element
+   });
+   ```
+
+   ### Caratteristiche Chiave
+
+   - **Eventi di breakdown in tempo reale**: Ricevi `checkout.breakdown` eventi mentre i clienti inseriscono i loro dettagli
+   - **Riepiloghi d'ordine personalizzati**: Costruisci la tua visualizzazione dei prezzi che si aggiorna in tempo reale
+   - **Integrazione senza soluzione di continuità**: Il frame di checkout gestisce la raccolta dei pagamenti mentre controlli il layout
+   - **Metodi SDK**: Usa `open()`, `close()`, e `isOpen()` per controllare il checkout programmaticamente
+
+   <Check>
+   Risultato: Esperienze di checkout completamente integrate che si adattano al tuo marchio e forniscono il massimo controllo sul flusso di pagamento.
+   </Check>
+
+   <Tip>
+   Usa il checkout inline quando desideri il massimo controllo sul design del checkout. Usa [checkout a sovrapposizione](/developer-resources/overlay-checkout) per un'integrazione più rapida con modifiche minime alle pagine esistenti.
+   </Tip>
+
+   Scopri di più: [Guida al Checkout Inline](/developer-resources/inline-checkout)
+
+2. **Crea Pagamenti, Abbonamenti e Checkout Utilizzando Metodi di Pagamento Esistenti**  
+    Semplifica i flussi di checkout utilizzando metodi di pagamento salvati da clienti esistenti. Il nuovo `payment_method_id` parametro consente di creare pagamenti, abbonamenti o sessioni di checkout utilizzando un metodo di pagamento precedentemente salvato dal cliente.
+
+   ### Vantaggi
+
+   - **Checkout più veloce**: Salta la raccolta del metodo di pagamento per i clienti di ritorno
+   - **Acquisti con un clic**: Abilita acquisti istantanei con metodi di pagamento salvati
+   - **Gestione degli abbonamenti**: Crea facilmente abbonamenti utilizzando metodi di pagamento esistenti
+   - **Miglioramento della conversione**: Riduci l'attrito del checkout per i clienti abituali
+
+   ### Come Funziona
+
+   Usa `payment_method_id` quando crei sessioni di checkout, pagamenti o abbonamenti:
+
+   <Tabs>
+   <Tab title="Sessioni di Checkout">
+
+   ```javascript
+   const session = await client.checkoutSessions.create({
+     product_cart: [{ product_id: 'prod_123', quantity: 1 }],
+     customer: {
+       customer_id: 'cus_123'
+     },
+     payment_method_id: 'pm_abc123',
+     confirm: true
+   });
+   ```
+
+   </Tab>
+
+   <Tab title="Pagamenti Una Tantum">
+
+   ```javascript
+   const payment = await client.payments.create({
+     product_cart: [{ product_id: 'prod_123', quantity: 1 }],
+     customer_id: 'cus_123',
+     payment_method_id: 'pm_abc123'
+   });
+   ```
+
+   </Tab>
+
+   <Tab title="Abbonamenti">
+
+   ```javascript
+   const subscription = await client.subscriptions.create({
+     customer_id: 'cus_123',
+     product_id: 'prod_subscription',
+     payment_method_id: 'pm_abc123'
+   });
+   ```
+
+   </Tab>
+   </Tabs>
+
+   <Warning>
+   Quando usi `payment_method_id` nelle sessioni di checkout, `confirm` deve essere impostato su `true`, e deve essere fornito un `customer_id` esistente. Il metodo di pagamento sarà convalidato per idoneità con la valuta del pagamento.
+   </Warning>
+
+   <Info>
+   Il metodo di pagamento deve appartenere al cliente ed essere compatibile con la valuta del pagamento. Se la convalida fallisce, la richiesta restituirà un errore.
+   </Info>
+
+3. **Modifiche ai Piani di Abbonamento nella Dashboard con Aggiornamenti della Prossima Data di Fatturazione**  
+    
+    Gestisci i piani di abbonamento direttamente dalla dashboard con un controllo migliorato. Ora puoi cambiare i piani di abbonamento e aggiornare la prossima data di fatturazione in un'unica azione, offrendoti completa flessibilità nella gestione degli abbonamenti.  
+
+    <Frame>
+    <img src="/images/changelog/subscription-plan-changes.png" alt="Modifiche ai piani di abbonamento nella dashboard" />
+    </Frame>
+
+   ### Caratteristiche della Dashboard
+
+   - **Modifiche ai piani**: Aggiorna o riduci gli abbonamenti con un solo clic
+   - **Controllo della data di fatturazione**: Aggiorna la prossima data di fatturazione quando cambi piano
+   - **Opzioni di proration**: Scegli come gestire la proration quando cambi piano
+   - **Anteprima visiva**: Vedi esattamente come le modifiche ai piani influenzano la fatturazione prima di confermare
+
+   ### Casi d'Uso
+
+   - **Supporto clienti**: Regola rapidamente i piani di abbonamento per le richieste dei clienti
+   - **Aggiornamenti promozionali**: Aggiorna temporaneamente i clienti con date di fatturazione specifiche
+   - **Migrazioni di piano**: Transizioni fluide dei clienti tra i livelli di abbonamento
+   - **Allineamento della fatturazione**: Allinea le date di fatturazione su più abbonamenti
+
+   <Check>
+   Risultato: Controllo completo della gestione degli abbonamenti dalla dashboard, riducendo la necessità di chiamate API per le modifiche comuni agli abbonamenti.
+   </Check>
+
+   <Tip>
+   Usa la dashboard per modifiche rapide ai piani di abbonamento e l'API per la gestione programmatica degli abbonamenti nella tua applicazione.
+   </Tip>
+
+4. **Link Brevi per URL di Pagamento**  
+   Genera link di pagamento più puliti e condivisibili con la nostra nuova funzionalità di link brevi. I link brevi forniscono URL di checkout accorciati con slug personalizzati, rendendoli più facili da condividere con i clienti o incorporare nel tuo sito web.
+
+   <Frame>
+   <img src="/images/changelog/short-links.png" alt="Funzionalità di link brevi per URL di pagamento" />
+   </Frame>
+
+   ### Vantaggi
+
+   - **URL più puliti**: Sostituisci i lunghi URL di pagamento con link brevi e brandizzati
+   - **Maggiore fiducia**: Link dall'aspetto professionale che aumentano la fiducia dei clienti
+   - **Condivisione più facile**: URL semplificati perfetti per SMS, email o social media
+   - **Slug personalizzati**: Crea link brevi memorabili e brandizzati per i tuoi prodotti
+
+   ### Come Funziona
+
+   Abilita i link brevi quando crei sessioni di checkout o link di pagamento:
+
+   <Tabs>
+   <Tab title="Sessioni di Checkout">
+
+   ```javascript
+   const session = await client.checkoutSessions.create({
+     product_cart: [{ product_id: 'prod_123', quantity: 1 }],
+     short_link: true,
+     return_url: 'https://yourapp.com/success'
+   });
+   ```
+
+   </Tab>
+
+   <Tab title="Link di Pagamento">
+
+   ```javascript
+   const payment = await client.payments.create({
+     product_cart: [{ product_id: 'prod_123', quantity: 1 }],
+     short_link: true,
+     return_url: 'https://yourapp.com/success'
+   });
+   ```
+
+   </Tab>
+   </Tabs>
+
+   <Check>
+   Risultato: Un link di pagamento accorciato che è più facile da condividere e dall'aspetto più professionale, migliorando i tassi di conversione e la fiducia dei clienti.
+   </Check>
+
+   <Info>
+   I link brevi sono gestiti nella tua dashboard e possono essere visualizzati tramite l'[API Elenco Link Brevi](/api-reference/products/get-products-short-links).
+   </Info>
+
+5. **`redirect_immediately` Flag - Salta la Pagina di Successo del Pagamento**  
+   Controlla il flusso di checkout con il nuovo flag `redirect_immediately`. Quando abilitato, i clienti vengono reindirizzati immediatamente dopo il completamento del pagamento, bypassando la pagina di successo predefinita per un'esperienza più veloce e semplificata.
+
+   ### Casi d'Uso
+
+   - **Flusso di checkout più veloce**: Riduci l'attrito saltando le pagine intermedie
+   - **Pagine di successo personalizzate**: Reindirizza direttamente alla tua pagina di successo brandizzata
+   - **Ottimizzazione mobile**: Migliora l'esperienza di checkout mobile con reindirizzamenti immediati
+   - **Checkout incorporati**: Integra senza soluzione di continuità con flussi di checkout a sovrapposizione o incorporati
+
+   ### Come Funziona
+
+   Abilita reindirizzamenti immediati nelle sessioni di checkout, pagamenti o abbonamenti:
+
+   <Tabs>
+   <Tab title="Sessioni di Checkout">
+
+   ```javascript
+   const session = await client.checkoutSessions.create({
+     product_cart: [{ product_id: 'prod_123', quantity: 1 }],
+     redirect_immediately: true,
+     return_url: 'https://yourapp.com/success'
+   });
+   ```
+
+   </Tab>
+
+   <Tab title="Pagamenti Una Tantum">
+
+   ```javascript
+   const payment = await client.payments.create({
+     product_cart: [{ product_id: 'prod_123', quantity: 1 }],
+     redirect_immediately: true,
+     return_url: 'https://yourapp.com/success'
+   });
+   ```
+
+   </Tab>
+
+   <Tab title="Abbonamenti">
+
+   ```javascript
+   const subscription = await client.subscriptions.create({
+     customer_id: 'cus_123',
+     product_id: 'prod_subscription',
+     redirect_immediately: true,
+     return_url: 'https://yourapp.com/success'
+   });
+   ```
+
+   </Tab>
+   </Tabs>
+
+   <Tip>
+   Usa `redirect_immediately: true` quando hai una pagina di successo personalizzata che offre un'esperienza utente migliore rispetto alla pagina di successo del pagamento predefinita.
+   </Tip>
+
+   <Note>
+   Quando `redirect_immediately` è abilitato, i clienti vengono reindirizzati al tuo `return_url` immediatamente dopo il completamento del pagamento, saltando completamente la pagina di successo predefinita.
+   </Note>
+
+6. **Abbonamenti On-Demand - Disponibili per Tutte le Aziende**  
+   Gli abbonamenti on-demand sono ora abilitati per tutte le aziende, offrendoti un controllo di fatturazione flessibile per servizi basati su utilizzo e misurati.
+
+   ### Cosa Abilita Questo
+
+   - **Fatturazione basata su utilizzo**: Crea abbonamenti e addebita i clienti in base all'utilizzo effettivo
+   - **Cicli di fatturazione flessibili**: Addebita i clienti su richiesta piuttosto che a intervalli fissi
+   - **Servizi misurati**: Perfetto per utilizzo API, archiviazione, tempo di calcolo e altre risorse misurate
+   - **Controllo manuale degli addebiti**: Crea addebiti manualmente quando necessario, offrendoti il pieno controllo sul momento della fatturazione
+
+   ### Come Funziona
+
+   Crea un abbonamento on-demand e addebita i clienti secondo necessità:
+
+   ```javascript
+   // Create an on-demand subscription
+   const subscription = await client.subscriptions.create({
+     customer_id: 'cus_123',
+     product_id: 'prod_api_access',
+     on_demand: true
+   });
+
+   // Charge the customer when usage occurs
+   await client.subscriptions.createCharge(subscription.id, {
+     amount: 4900,
+     currency: 'USD',
+     description: 'API usage for September: 1,000 requests'
+   });
+   ```
+
+   <Check>
+   Risultato: Controllo totale su quando e quanto addebitare ai clienti, perfetto per modelli di business basati su utilizzo.
+   </Check>
+
+   Scopri di più: [Abbonamenti On-Demand](/developer-resources/ondemand-subscriptions)
+
+7. **Correzioni di Bug Generali e Miglioramenti**  
+   Questa versione include miglioramenti delle prestazioni, rifiniture dell'interfaccia utente e risolve bug minori per un'esperienza più affidabile e semplificata.

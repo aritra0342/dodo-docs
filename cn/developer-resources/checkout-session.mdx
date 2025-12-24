@@ -291,6 +291,9 @@ window.location.href = session.checkout_url;
 window.open(session.checkout_url, '_blank');
 ```
 
+<Tip>
+**替代集成选项**：您可以使用 [Overlay Checkout](/developer-resources/overlay-checkout)（模态覆盖）或 [Inline Checkout](/developer-resources/inline-checkout)（完全嵌入）直接在您的页面中嵌入结账，而不是重定向。两种选项都使用相同的结账会话 URL。
+</Tip>
 </Step>
 
 <Step title="处理返回">
@@ -973,16 +976,102 @@ const session = await client.checkoutSessions.create({
 });
 ```
 
+### 11. 使用现有支付方式进行即时结账
+
+使用客户保存的支付方式创建一个立即处理的结账会话，跳过支付方式收集：
+
+```javascript expandable
+const session = await client.checkoutSessions.create({
+  product_cart: [
+    {
+      product_id: 'prod_premium_plan',
+      quantity: 1
+    }
+  ],
+  customer: {
+    customer_id: 'cus_123'  // Required when using payment_method_id
+  },
+  payment_method_id: 'pm_abc123',  // Use customer's saved payment method
+  confirm: true,  // Required when using payment_method_id
+  return_url: 'https://yourapp.com/success'
+});
+```
+
+<Warning>
+使用 `payment_method_id` 时，必须将 `confirm` 设置为 `true`，并且必须提供一个现有的 `customer_id`。支付方式将根据支付的货币进行资格验证。
+</Warning>
+
+<Info>
+支付方式必须属于客户，并与支付货币兼容。这使得回头客可以实现一键购买。
+</Info>
+
+### 12. 更简洁支付 URL 的短链接
+
+生成带有自定义短语的可分享的缩短支付链接：
+
+```javascript expandable
+const session = await client.checkoutSessions.create({
+  product_cart: [
+    {
+      product_id: 'prod_monthly_subscription',
+      quantity: 1
+    }
+  ],
+  short_link: true,  // Generate a shortened payment link
+  return_url: 'https://yourapp.com/success',
+  customer: {
+    email: 'customer@example.com',
+    name: 'John Doe'
+  }
+});
+
+// The checkout_url will be a shortened, cleaner link
+console.log(session.checkout_url);  // e.g., https://checkout.dodopayments.com/buy/abc123
+```
+
+<Tip>
+短链接非常适合 SMS、电子邮件或社交媒体分享。它们更容易记住，并且比长 URL 更能建立客户信任。
+</Tip>
+
+### 13. 通过立即重定向跳过支付成功页面
+
+在支付完成后立即重定向客户，绕过默认的成功页面：
+
+```javascript expandable
+const session = await client.checkoutSessions.create({
+  product_cart: [
+    {
+      product_id: 'prod_digital_product',
+      quantity: 1
+    }
+  ],
+  redirect_immediately: true,  // Skip success page, redirect immediately
+  return_url: 'https://yourapp.com/success',
+  customer: {
+    email: 'customer@example.com',
+    name: 'Jane Smith'
+  }
+});
+```
+
+<Tip>
+当您有一个提供比默认支付成功页面更好用户体验的自定义成功页面时，请使用 `redirect_immediately: true`。这对于移动应用和嵌入式结账流程尤其有用。
+</Tip>
+
+<Note>
+当 `redirect_immediately` 被启用时，客户在支付完成后会立即重定向到您的 `return_url`，完全跳过默认的成功页面。
+</Note>
+
 ## 从动态链接迁移到结账会话
 
-### 关键区别
+### 主要区别
 之前，在使用动态链接创建支付链接时，您需要提供客户的完整账单地址。
 
-使用结账会话，这不再是必需的。您只需传递您拥有的任何信息，我们将处理其余部分。例如：
+使用结账会话，这不再是必要的。您只需传递您拥有的任何信息，我们将处理其余部分。例如：
 
 - 如果您只知道客户的账单国家，只需提供该信息。
-- 结账流程将自动收集缺失的详细信息，然后将客户转移到支付页面。
-- 另一方面，如果您已经拥有所有必需的信息并希望直接跳转到支付页面，您可以传递完整的数据集并在请求体中包含 `confirm=true`。
+- 结账流程将在将客户移动到支付页面之前自动收集缺失的详细信息。
+- 另一方面，如果您已经拥有所有所需的信息并希望直接跳转到支付页面，您可以传递完整的数据集，并在请求体中包含 `confirm=true`。
 
 ### 迁移过程
 

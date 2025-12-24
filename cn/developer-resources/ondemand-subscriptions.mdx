@@ -8,6 +8,10 @@ icon: bolt
 
 按需订阅允许您一次授权客户的支付方式，然后在需要时收取可变金额，而不是按照固定的时间表进行收费。
 
+<Info>
+按需订阅现已对所有企业开放。此功能使基于使用量和计量服务的灵活计费控制成为可能。
+</Info>
+
 使用本指南：
 - 创建按需订阅（授权一个可选的初始价格的授权）
 - 使用自定义金额触发后续收费
@@ -19,7 +23,7 @@ icon: bolt
 
 - Dodo Payments 商户账户和 API 密钥
 - 配置的 Webhook 密钥和接收事件的端点
-- 您目录中的订阅产品
+- 目录中的订阅产品
 
 <Tip>
 如果您希望客户通过托管结账批准授权，请设置 `payment_link: true` 并提供 `return_url`。
@@ -28,14 +32,14 @@ icon: bolt
 ## 按需工作原理
 
 1. 您使用 `on_demand` 对象创建订阅以授权支付方式，并可选择收取初始费用。
-2. 之后，您使用专用收费端点针对该订阅创建自定义金额的收费。
+2. 之后，您使用专用收费端点以自定义金额对该订阅进行收费。
 3. 您监听 Webhook（例如， `payment.succeeded`, `payment.failed`）以更新您的系统。
 
 ## 创建按需订阅
 
 端点：[POST /subscriptions](/api-reference/subscriptions/post-subscriptions)
 
-关键请求字段（主体）：
+请求的关键字段（主体）：
 
 <AccordionGroup>
 <Accordion title="请求主体参数">
@@ -60,7 +64,7 @@ icon: bolt
   </ParamField>
 
   <ParamField body="return_url" type="string">
-    完成托管结账后重定向客户的位置。
+    完成托管结账后重定向客户的地址。
   </ParamField>
 
   <ParamField body="on_demand.mandate_only" type="boolean" required>
@@ -68,7 +72,7 @@ icon: bolt
   </ParamField>
 
   <ParamField body="on_demand.product_price" type="integer">
-    初始收费金额（以最小货币单位计）。如果指定，则此值将覆盖在产品创建期间设置的产品原始价格。如果省略，则使用产品存储的价格。示例：要收取 $1.00，请传递 <code>100</code>。
+    初始收费金额（以最小货币单位计）。如果指定，则此值将覆盖在产品创建时设置的产品原始价格。如果省略，则使用产品存储的价格。示例：要收费 $1.00，请传递 <code>100</code>。
   </ParamField>
 
   <ParamField body="on_demand.product_currency" type="string">
@@ -248,12 +252,12 @@ curl -X POST "$DODO_API/subscriptions" \
 
 端点：[POST /subscriptions/\{subscription_id\}/charge](/api-reference/subscriptions/create-charge)
 
-关键请求字段（主体）：
+请求的关键字段（主体）：
 
 <AccordionGroup>
   <Accordion title="收费请求主体参数">
     <ParamField body="product_price" type="integer" required>
-      收费金额（以最小货币单位计）。示例：要收取 $25.00，请传递 <code>2500</code>。
+      收费金额（以最小货币单位计）。示例：要收费 $25.00，请传递 <code>2500</code>。
     </ParamField>
 
     <ParamField body="product_currency" type="string">
@@ -365,7 +369,7 @@ curl -X POST "$DODO_API/subscriptions/sub_123/charge" \
 我们的欺诈检测系统可能会阻止激进的重试模式（并可能将其标记为潜在的卡片测试）。遵循安全的重试策略。
 
 <Warning>
-突发重试模式可能会被我们的风险系统和处理器标记为欺诈或可疑的卡片测试。避免集中的重试；遵循下面的退避计划和时间对齐指导。
+突发重试模式可能会被我们的风险系统和处理器标记为欺诈或可疑的卡片测试。避免聚集重试；遵循下面的退避计划和时间对齐指导。
 </Warning>
 
 ### 安全重试策略的原则
@@ -383,7 +387,7 @@ curl -X POST "$DODO_API/subscriptions/sub_123/charge" \
 - **第三次尝试**：再过 7 天（总共 10 天）
 - **第四次尝试（最终）**：再过 7 天（总共 17 天）
 
-最后一步：如果仍未付款，请根据您的政策将订阅标记为未付款或取消它。在客户更新其支付方式的窗口期间通知客户。
+最后一步：如果仍未付款，请根据您的政策将订阅标记为未付款或取消它。在客户更新其付款方式的窗口期间通知客户。
 
 ### 避免突发重试；与授权时间对齐
 
@@ -410,7 +414,7 @@ curl -X POST "$DODO_API/subscriptions/sub_123/charge" \
 </Note>
 
 <Tip>
-仅在软/临时问题（例如， `insufficient_funds`, `issuer_unavailable`, `processing_error`, 网络超时）时重试。如果相同的拒绝重复，请暂停进一步的重试。
+仅在软/临时问题上重试（例如， `insufficient_funds`, `issuer_unavailable`, `processing_error`, 网络超时）。如果同一拒绝重复，请暂停进一步重试。
 </Tip>
 
 ### 实施指南（无代码）
@@ -419,7 +423,7 @@ curl -X POST "$DODO_API/subscriptions/sub_123/charge" \
 - 维护并引用最后一次成功付款时间戳 `T` 以计算下一次尝试；不要在同一时刻聚集多个订阅。
 - 始终评估最后一次拒绝原因；对于上述跳过列表中的硬拒绝停止重试。
 - 限制每个客户和每个账户的并发重试，以防止意外激增。
-- 主动沟通：在下次计划尝试之前，通过电子邮件/SMS 通知客户更新其支付方式。
+- 主动沟通：在下次计划尝试之前，通过电子邮件/SMS 通知客户更新其付款方式。
 - 仅将元数据用于可观察性（例如， `retry_attempt`）；绝不要试图通过轮换无关字段来“规避”欺诈/风险系统。
 
 ## 使用 Webhook 跟踪结果
@@ -433,7 +437,7 @@ curl -X POST "$DODO_API/subscriptions/sub_123/charge" \
 - **payment.failed**：收费失败
 
 <Tip>
-对于按需流程，关注 `payment.succeeded` 和 `payment.failed` 以对账基于使用的收费。
+对于按需流程，重点关注 `payment.succeeded` 和 `payment.failed` 以对账基于使用的收费。
 </Tip>
 
 ## 测试和后续步骤
@@ -443,7 +447,7 @@ curl -X POST "$DODO_API/subscriptions/sub_123/charge" \
 使用您的测试 API 密钥创建订阅，使用 `payment_link: true`，然后打开链接并完成授权。
 </Step>
 <Step title="触发收费">
-使用小的 `product_price`（例如， `100`）调用收费端点，并验证您收到 `payment.succeeded`。
+调用收费端点，使用小的 `product_price`（例如， `100`）并验证您收到 `payment.succeeded`。
 </Step>
 <Step title="上线">
 在验证事件和内部状态更新后，切换到您的实时 API 密钥。

@@ -1,0 +1,314 @@
+---
+title: v1.70.0 (24 december 2025)
+description: Inline checkout-stöd, använd befintliga betalningsmetoder för
+  omedelbara utcheckningar, hantera prenumerationsplaner från instrumentpanelen,
+  generera korta betalningslänkar, hoppa över framgångssidor med
+  redirect_immediately och aktivera on-demand-prenumerationer för alla företag
+icon: arrows-turn-right
+---
+
+## Nya funktioner 🚀
+
+1. **Inline Checkout - Fullt inbäddade utcheckningsupplevelser (BETA)**  
+
+   Bädda in Dodo Payments utcheckning direkt på din webbplats för en sömlös, varumärkesanpassad betalningsupplevelse. Till skillnad från överläggningsutcheckning som öppnas som en modal, bäddas inline checkout in direkt i din sidlayout.
+
+   <Frame>
+   <img src="/images/inline-checkout/cover.png" alt="Inline Checkout Cover Image" />
+   </Frame>
+
+   ### Fördelar
+
+   - **Fullt integrerad**: Skapa utcheckningsupplevelser som smälter samman med din webbplats
+   - **Anpassade ordersammanfattningar**: Bygg anpassad UI som synkroniseras med utcheckningen i realtid
+   - **Maximal kontroll**: Full kontroll över utcheckningslayout och design
+   - **PCI-kompatibel**: Dodo Payments hanterar säkert all känslig betalningsinformation
+   - **Realtids-synkronisering**: Använd SDK-händelser för att hålla din UI i synk med utcheckningstillståndet
+
+   ### Hur det fungerar
+
+   Initiera SDK med `displayType: 'inline'` och bädda in utcheckningen i ett behållarelement:
+
+   ```typescript
+   import { DodoPayments } from "dodopayments-checkout";
+
+   // Initialize the SDK for inline mode
+   DodoPayments.Initialize({
+     mode: "test",
+     displayType: "inline",
+     onEvent: (event) => {
+       if (event.event_type === "checkout.breakdown") {
+         // Update your UI with real-time tax and total calculations
+         const breakdown = event.data?.message;
+       }
+     },
+   });
+
+   // Open checkout in a specific container
+   DodoPayments.Checkout.open({
+     checkoutUrl: "https://test.dodopayments.com/session/cks_123",
+     elementId: "dodo-inline-checkout" // ID of the container element
+   });
+   ```
+
+   ### Nyckelfunktioner
+
+   - **Realtidsnedbrytningshändelser**: Ta emot `checkout.breakdown` händelser när kunder anger sina uppgifter
+   - **Anpassade ordersammanfattningar**: Bygg din egen prissättning som uppdateras i realtid
+   - **Sömlös integration**: Utcheckningsramen hanterar betalningsinsamling medan du kontrollerar layouten
+   - **SDK-metoder**: Använd `open()`, `close()`, och `isOpen()` för att styra utcheckningen programatiskt
+
+   <Check>
+   Resultat: Fullt integrerade utcheckningsupplevelser som matchar ditt varumärke och ger maximal kontroll över betalningsflödet.
+   </Check>
+
+   <Tip>
+   Använd inline checkout när du vill ha maximal kontroll över utcheckningsdesignen. Använd [overlay checkout](/developer-resources/overlay-checkout) för snabbare integration med minimala ändringar på befintliga sidor.
+   </Tip>
+
+   Lär dig mer: [Inline Checkout Guide](/developer-resources/inline-checkout)
+
+2. **Skapa betalningar, prenumerationer och utcheckningar med befintliga betalningsmetoder**  
+    Strömlinjeforma utcheckningsflöden genom att använda sparade betalningsmetoder från befintliga kunder. Den nya `payment_method_id` parametern gör att du kan skapa betalningar, prenumerationer eller utcheckningssessioner med en kunds tidigare sparade betalningsmetod.
+
+   ### Fördelar
+
+   - **Snabbare utcheckning**: Hoppa över insamling av betalningsmetod för återkommande kunder
+   - **Köp med ett klick**: Aktivera omedelbara köp med sparade betalningsmetoder
+   - **Prenumerationshantering**: Skapa enkelt prenumerationer med befintliga betalningsmetoder
+   - **Förbättrad konvertering**: Minska utcheckningsfriktionen för återkommande kunder
+
+   ### Hur det fungerar
+
+   Använd `payment_method_id` när du skapar utcheckningssessioner, betalningar eller prenumerationer:
+
+   <Tabs>
+   <Tab title="Utcheckningssessioner">
+
+   ```javascript
+   const session = await client.checkoutSessions.create({
+     product_cart: [{ product_id: 'prod_123', quantity: 1 }],
+     customer: {
+       customer_id: 'cus_123'
+     },
+     payment_method_id: 'pm_abc123',
+     confirm: true
+   });
+   ```
+
+   </Tab>
+
+   <Tab title="Engångsbetalningar">
+
+   ```javascript
+   const payment = await client.payments.create({
+     product_cart: [{ product_id: 'prod_123', quantity: 1 }],
+     customer_id: 'cus_123',
+     payment_method_id: 'pm_abc123'
+   });
+   ```
+
+   </Tab>
+
+   <Tab title="Prenumerationer">
+
+   ```javascript
+   const subscription = await client.subscriptions.create({
+     customer_id: 'cus_123',
+     product_id: 'prod_subscription',
+     payment_method_id: 'pm_abc123'
+   });
+   ```
+
+   </Tab>
+   </Tabs>
+
+   <Warning>
+   När du använder `payment_method_id` i utcheckningssessioner, måste `confirm` sättas till `true`, och en befintlig `customer_id` måste tillhandahållas. Betalningsmetoden kommer att valideras för berättigande med betalningens valuta.
+   </Warning>
+
+   <Info>
+   Betalningsmetoden måste tillhöra kunden och vara kompatibel med betalningsvalutan. Om valideringen misslyckas kommer begäran att returnera ett fel.
+   </Info>
+
+3. **Ändringar av prenumerationsplaner i instrumentpanelen med uppdateringar av nästa faktureringsdatum**  
+    
+    Hantera prenumerationsplaner direkt från instrumentpanelen med förbättrad kontroll. Du kan nu ändra prenumerationsplaner och uppdatera nästa faktureringsdatum i en enda åtgärd, vilket ger dig full flexibilitet över prenumerationshanteringen.  
+
+    <Frame>
+    <img src="/images/changelog/subscription-plan-changes.png" alt="Ändringar av prenumerationsplaner i instrumentpanelen" />
+    </Frame>
+
+   ### Instrumentpanelsfunktioner
+
+   - **Planändringar**: Uppgradera eller nedgradera prenumerationer med ett enda klick
+   - **Kontroll av faktureringsdatum**: Uppdatera nästa faktureringsdatum när du ändrar planer
+   - **Prorationsalternativ**: Välj hur du vill hantera prorata när du ändrar planer
+   - **Visuell förhandsgranskning**: Se exakt hur planändringar påverkar faktureringen innan du bekräftar
+
+   ### Användningsfall
+
+   - **Kundsupport**: Justera snabbt prenumerationsplaner för kundförfrågningar
+   - **Kampanjuppgraderingar**: Tillfälligt uppgradera kunder med specifika faktureringsdatum
+   - **Planövergångar**: Smidigt överföra kunder mellan prenumerationstjänster
+   - **Faktureringjustering**: Justera faktureringsdatum över flera prenumerationer
+
+   <Check>
+   Resultat: Fullständig kontroll över prenumerationshantering från instrumentpanelen, vilket minskar behovet av API-anrop för vanliga justeringar av prenumerationer.
+   </Check>
+
+   <Tip>
+   Använd instrumentpanelen för snabba ändringar av prenumerationsplaner, och API:et för programmatisk prenumerationshantering i din applikation.
+   </Tip>
+
+4. **Korta länkar för betalnings-URL:er**  
+   Generera renare, mer delbara betalningslänkar med vår nya kortlänksfunktion. Korta länkar ger förkortade utchecknings-URL:er med anpassade slugs, vilket gör dem enklare att dela med kunder eller bädda in på din webbplats.
+
+   <Frame>
+   <img src="/images/changelog/short-links.png" alt="Korta länkar-funktion för betalnings-URL:er" />
+   </Frame>
+
+   ### Fördelar
+
+   - **Renare URL:er**: Ersätt långa betalnings-URL:er med korta, varumärkesanpassade länkar
+   - **Bättre förtroende**: Professionellt utseende länkar som bygger kundens förtroende
+   - **Enklare delning**: Förenklade URL:er perfekta för SMS, e-post eller sociala medier
+   - **Anpassade slugs**: Skapa minnesvärda, varumärkesanpassade kortlänkar för dina produkter
+
+   ### Hur det fungerar
+
+   Aktivera korta länkar när du skapar utcheckningssessioner eller betalningslänkar:
+
+   <Tabs>
+   <Tab title="Utcheckningssessioner">
+
+   ```javascript
+   const session = await client.checkoutSessions.create({
+     product_cart: [{ product_id: 'prod_123', quantity: 1 }],
+     short_link: true,
+     return_url: 'https://yourapp.com/success'
+   });
+   ```
+
+   </Tab>
+
+   <Tab title="Betalningslänkar">
+
+   ```javascript
+   const payment = await client.payments.create({
+     product_cart: [{ product_id: 'prod_123', quantity: 1 }],
+     short_link: true,
+     return_url: 'https://yourapp.com/success'
+   });
+   ```
+
+   </Tab>
+   </Tabs>
+
+   <Check>
+   Resultat: En förkortad betalningslänk som är enklare att dela och ser mer professionell ut, vilket förbättrar konverteringsgraden och kundens förtroende.
+   </Check>
+
+   <Info>
+   Korta länkar hanteras i din instrumentpanel och kan ses via [List Short Links API](/api-reference/products/get-products-short-links).
+   </Info>
+
+5. **`redirect_immediately` Flagga - Hoppa över betalningsframgångssidan**  
+   Kontrollera utcheckningsflödet med den nya `redirect_immediately` flaggan. När den är aktiverad omdirigeras kunder omedelbart efter betalningsslutförande, vilket gör att de hoppar över den vanliga framgångssidan för en snabbare, mer strömlinjeformad upplevelse.
+
+   ### Användningsfall
+
+   - **Snabbare utcheckningsflöde**: Minska friktionen genom att hoppa över mellanliggande sidor
+   - **Anpassade framgångssidor**: Omdirigera direkt till din varumärkesanpassade framgångssida
+   - **Mobiloptimering**: Förbättra mobilutcheckningsupplevelsen med omedelbara omdirigeringar
+   - **Inbäddade utcheckningar**: Sömlös integration med överläggnings- eller inbäddade utcheckningsflöden
+
+   ### Hur det fungerar
+
+   Aktivera omedelbara omdirigeringar i utcheckningssessioner, betalningar eller prenumerationer:
+
+   <Tabs>
+   <Tab title="Utcheckningssessioner">
+
+   ```javascript
+   const session = await client.checkoutSessions.create({
+     product_cart: [{ product_id: 'prod_123', quantity: 1 }],
+     redirect_immediately: true,
+     return_url: 'https://yourapp.com/success'
+   });
+   ```
+
+   </Tab>
+
+   <Tab title="Engångsbetalningar">
+
+   ```javascript
+   const payment = await client.payments.create({
+     product_cart: [{ product_id: 'prod_123', quantity: 1 }],
+     redirect_immediately: true,
+     return_url: 'https://yourapp.com/success'
+   });
+   ```
+
+   </Tab>
+
+   <Tab title="Prenumerationer">
+
+   ```javascript
+   const subscription = await client.subscriptions.create({
+     customer_id: 'cus_123',
+     product_id: 'prod_subscription',
+     redirect_immediately: true,
+     return_url: 'https://yourapp.com/success'
+   });
+   ```
+
+   </Tab>
+   </Tabs>
+
+   <Tip>
+   Använd `redirect_immediately: true` när du har en anpassad framgångssida som ger en bättre användarupplevelse än den vanliga betalningsframgångssidan.
+   </Tip>
+
+   <Note>
+   När `redirect_immediately` är aktiverad, omdirigeras kunder till din `return_url` omedelbart efter betalningsslutförande, vilket helt hoppar över den vanliga framgångssidan.
+   </Note>
+
+6. **On-Demand-prenumerationer - Tillgängliga för alla företag**  
+   On-demand-prenumerationer är nu aktiverade för alla företag, vilket ger dig flexibel faktureringskontroll för användningsbaserade och mätbara tjänster.
+
+   ### Vad detta möjliggör
+
+   - **Användningsbaserad fakturering**: Skapa prenumerationer och ta betalt av kunder baserat på faktisk användning
+   - **Flexibla faktureringscykler**: Ta betalt av kunder på begäran snarare än fasta intervaller
+   - **Mätbara tjänster**: Perfekt för API-användning, lagring, beräkningstid och andra mätbara resurser
+   - **Manuell faktureringskontroll**: Skapa avgifter manuellt vid behov, vilket ger dig full kontroll över faktureringens timing
+
+   ### Hur det fungerar
+
+   Skapa en on-demand-prenumeration och ta betalt av kunder vid behov:
+
+   ```javascript
+   // Create an on-demand subscription
+   const subscription = await client.subscriptions.create({
+     customer_id: 'cus_123',
+     product_id: 'prod_api_access',
+     on_demand: true
+   });
+
+   // Charge the customer when usage occurs
+   await client.subscriptions.createCharge(subscription.id, {
+     amount: 4900,
+     currency: 'USD',
+     description: 'API usage for September: 1,000 requests'
+   });
+   ```
+
+   <Check>
+   Resultat: Full kontroll över när och hur mycket som ska debiteras kunder, perfekt för användningsbaserade affärsmodeller.
+   </Check>
+
+   Lär dig mer: [On-Demand-prenumerationer](/developer-resources/ondemand-subscriptions)
+
+7. **Allmänna buggfixar och förbättringar**  
+   Denna version inkluderar prestandaförbättringar, UI-finslipning och löser mindre buggar för en mer pålitlig, strömlinjeformad upplevelse.

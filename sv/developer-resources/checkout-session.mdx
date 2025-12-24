@@ -293,6 +293,9 @@ window.location.href = session.checkout_url;
 window.open(session.checkout_url, '_blank');
 ```
 
+<Tip>
+**Alternativa integrationsalternativ**: Istället för att omdirigera kan du bädda in kassan direkt på din sida med hjälp av [Overlay Checkout](/developer-resources/overlay-checkout) (modal overlay) eller [Inline Checkout](/developer-resources/inline-checkout) (fullständigt inbäddad). Båda alternativen använder samma kassa-session URL.
+</Tip>
 </Step>
 
 <Step title="Hantera återkomsten">
@@ -975,20 +978,107 @@ const session = await client.checkoutSessions.create({
 });
 ```
 
-## Flytta från Dynamiska Länkar till Kassa Sessioner
+### 11. Använda befintliga betalningsmetoder för omedelbar kassa
+
+Använd en kunds sparade betalningsmetod för att skapa en kassa-session som behandlas omedelbart, utan att samla in betalningsmetod:
+
+```javascript expandable
+const session = await client.checkoutSessions.create({
+  product_cart: [
+    {
+      product_id: 'prod_premium_plan',
+      quantity: 1
+    }
+  ],
+  customer: {
+    customer_id: 'cus_123'  // Required when using payment_method_id
+  },
+  payment_method_id: 'pm_abc123',  // Use customer's saved payment method
+  confirm: true,  // Required when using payment_method_id
+  return_url: 'https://yourapp.com/success'
+});
+```
+
+<Warning>
+När du använder `payment_method_id`, måste `confirm` sättas till `true` och en befintlig `customer_id` måste tillhandahållas. Betalningsmetoden kommer att valideras för berättigande med betalningens valuta.
+</Warning>
+
+<Info>
+Betalningsmetoden måste tillhöra kunden och vara kompatibel med betalningsvalutan. Detta möjliggör engångsköp för återkommande kunder.
+</Info>
+
+### 12. Kortlänkar för renare betalnings-URL:er
+
+Generera förkortade, delbara betalningslänkar med anpassade slugs:
+
+```javascript expandable
+const session = await client.checkoutSessions.create({
+  product_cart: [
+    {
+      product_id: 'prod_monthly_subscription',
+      quantity: 1
+    }
+  ],
+  short_link: true,  // Generate a shortened payment link
+  return_url: 'https://yourapp.com/success',
+  customer: {
+    email: 'customer@example.com',
+    name: 'John Doe'
+  }
+});
+
+// The checkout_url will be a shortened, cleaner link
+console.log(session.checkout_url);  // e.g., https://checkout.dodopayments.com/buy/abc123
+```
+
+<Tip>
+Kortlänkar är perfekta för SMS, e-post eller delning på sociala medier. De är lättare att komma ihåg och bygger mer kundförtroende än långa URL:er.
+</Tip>
+
+### 13. Hoppa över betalningsframgångssidan med omedelbar omdirigering
+
+Omdirigera kunder omedelbart efter betalningsslutförande, och hoppa över den standardiserade framgångssidan:
+
+```javascript expandable
+const session = await client.checkoutSessions.create({
+  product_cart: [
+    {
+      product_id: 'prod_digital_product',
+      quantity: 1
+    }
+  ],
+  redirect_immediately: true,  // Skip success page, redirect immediately
+  return_url: 'https://yourapp.com/success',
+  customer: {
+    email: 'customer@example.com',
+    name: 'Jane Smith'
+  }
+});
+```
+
+<Tip>
+Använd `redirect_immediately: true` när du har en anpassad framgångssida som ger en bättre användarupplevelse än den standardiserade betalningsframgångssidan. Detta är särskilt användbart för mobilappar och inbäddade kassa-flöden.
+</Tip>
+
+<Note>
+När `redirect_immediately` är aktiverat, omdirigeras kunder till din `return_url` omedelbart efter betalningsslutförande, och hoppar helt över den standardiserade framgångssidan.
+</Note>
+
+## Flytta från dynamiska länkar till kassa-sessioner
 
 ### Nyckelskillnader
-Tidigare, när du skapade en betalningslänk med Dynamiska Länkar, var du tvungen att tillhandahålla kundens fullständiga faktureringsadress.
+Tidigare, när du skapade en betalningslänk med dynamiska länkar, var du tvungen att ange kundens fullständiga faktureringsadress.
 
-Med Kassa Sessioner är detta inte längre nödvändigt. Du kan helt enkelt skicka med den information du har, och vi hanterar resten. Till exempel:
+Med kassa-sessioner är detta inte längre nödvändigt. Du kan helt enkelt vidarebefordra den information du har, så tar vi hand om resten. Till exempel:
 
-- Om du bara känner till kundens faktureringsland, ge bara det.
-- Kassa flödet kommer automatiskt att samla in de saknade detaljerna innan kunden flyttas till betalningssidan.
-- Å andra sidan, om du redan har all nödvändig information och vill hoppa direkt till betalningssidan, kan du skicka hela datamängden och inkludera `confirm=true` i din begärningskropp.
+- Om du bara känner till kundens faktureringsland, ange bara det.
+- Kassaflödet kommer automatiskt att samla in de saknade detaljerna innan kunden flyttas till betalningssidan.
+- Å andra sidan, om du redan har all nödvändig information och vill hoppa direkt till betalningssidan, kan du vidarebefordra hela datamängden och inkludera `confirm=true` i din begäran.
+
 
 ### Migreringsprocess
 
-Att migrera från Dynamiska Länkar till Kassa Sessioner är enkelt:
+Att migrera från dynamiska länkar till kassa-sessioner är enkelt:
 
 <Steps>
 <Step title="Uppdatera din integration">
@@ -996,7 +1086,7 @@ Uppdatera din integration för att använda den nya API- eller SDK-metoden.
 </Step>
 
 <Step title="Justera begärningspayload">
-Justera begärningspayloaden enligt Kassa Sessioner formatet.
+Justera begärningspayloaden enligt kassa-sessionernas format.
 </Step>
 
 <Step title="Det är allt!">

@@ -1,0 +1,312 @@
+---
+title: v1.70.0 (2025년 12월 24일)
+description: 인라인 체크아웃 지원, 기존 결제 수단을 사용한 즉시 체크아웃, 대시보드에서 구독 계획 관리, 짧은 결제 링크 생성,
+  성공 페이지를 건너뛰고 즉시 리디렉션, 모든 비즈니스를 위한 주문형 구독 활성화
+icon: arrows-turn-right
+---
+
+## 새로운 기능 🚀
+
+1. **인라인 체크아웃 - 완전 통합된 체크아웃 경험 (베타)**  
+
+   Dodo Payments 체크아웃을 웹사이트에 직접 임베드하여 매끄럽고 브랜드화된 결제 경험을 제공합니다. 모달로 열리는 오버레이 체크아웃과 달리, 인라인 체크아웃은 결제 양식을 페이지 레이아웃에 직접 임베드합니다.
+
+   <Frame>
+   <img src="/images/inline-checkout/cover.png" alt="인라인 체크아웃 커버 이미지" />
+   </Frame>
+
+   ### 이점
+
+   - **완전 통합**: 웹사이트와 매끄럽게 어우러지는 체크아웃 경험 생성
+   - **맞춤형 주문 요약**: 체크아웃과 실시간으로 동기화되는 맞춤형 UI 구축
+   - **최대 제어**: 체크아웃 레이아웃 및 디자인에 대한 완전한 제어
+   - **PCI 준수**: Dodo Payments는 모든 민감한 결제 정보를 안전하게 처리
+   - **실시간 동기화**: SDK 이벤트를 사용하여 UI를 체크아웃 상태와 동기화
+
+   ### 작동 방식
+
+   `displayType: 'inline'`로 SDK를 초기화하고 컨테이너 요소에 체크아웃을 임베드합니다:
+
+   ```typescript
+   import { DodoPayments } from "dodopayments-checkout";
+
+   // Initialize the SDK for inline mode
+   DodoPayments.Initialize({
+     mode: "test",
+     displayType: "inline",
+     onEvent: (event) => {
+       if (event.event_type === "checkout.breakdown") {
+         // Update your UI with real-time tax and total calculations
+         const breakdown = event.data?.message;
+       }
+     },
+   });
+
+   // Open checkout in a specific container
+   DodoPayments.Checkout.open({
+     checkoutUrl: "https://test.dodopayments.com/session/cks_123",
+     elementId: "dodo-inline-checkout" // ID of the container element
+   });
+   ```
+
+   ### 주요 기능
+
+   - **실시간 세부 사항 이벤트**: 고객이 세부 정보를 입력할 때 `checkout.breakdown` 이벤트 수신
+   - **맞춤형 주문 요약**: 실시간으로 업데이트되는 가격 표시 생성
+   - **매끄러운 통합**: 체크아웃 프레임이 결제 수집을 처리하는 동안 레이아웃 제어
+   - **SDK 메서드**: `open()`, `close()`, `isOpen()`를 사용하여 프로그래밍 방식으로 체크아웃 제어
+
+   <Check>
+   결과: 브랜드에 맞는 완전 통합된 체크아웃 경험과 결제 흐름에 대한 최대 제어.
+   </Check>
+
+   <Tip>
+   체크아웃 디자인에 대한 최대 제어가 필요할 때 인라인 체크아웃을 사용하세요. 기존 페이지에 최소한의 변경으로 빠른 통합을 원할 경우 [오버레이 체크아웃](/developer-resources/overlay-checkout)을 사용하세요.
+   </Tip>
+
+   자세히 알아보기: [인라인 체크아웃 가이드](/developer-resources/inline-checkout)
+
+2. **기존 결제 수단을 사용하여 결제, 구독 및 체크아웃 생성**  
+    기존 고객의 저장된 결제 수단을 사용하여 체크아웃 흐름을 간소화합니다. 새로운 `payment_method_id` 매개변수를 사용하면 고객의 이전에 저장된 결제 수단을 사용하여 결제, 구독 또는 체크아웃 세션을 생성할 수 있습니다.
+
+   ### 이점
+
+   - **더 빠른 체크아웃**: 재방문 고객의 결제 수단 수집 생략
+   - **원클릭 구매**: 저장된 결제 수단으로 즉시 구매 가능
+   - **구독 관리**: 기존 결제 수단을 사용하여 쉽게 구독 생성
+   - **개선된 전환율**: 재방문 고객의 체크아웃 마찰 감소
+
+   ### 작동 방식
+
+   체크아웃 세션, 결제 또는 구독을 생성할 때 `payment_method_id`를 사용하세요:
+
+   <Tabs>
+   <Tab title="체크아웃 세션">
+
+   ```javascript
+   const session = await client.checkoutSessions.create({
+     product_cart: [{ product_id: 'prod_123', quantity: 1 }],
+     customer: {
+       customer_id: 'cus_123'
+     },
+     payment_method_id: 'pm_abc123',
+     confirm: true
+   });
+   ```
+
+   </Tab>
+
+   <Tab title="일회성 결제">
+
+   ```javascript
+   const payment = await client.payments.create({
+     product_cart: [{ product_id: 'prod_123', quantity: 1 }],
+     customer_id: 'cus_123',
+     payment_method_id: 'pm_abc123'
+   });
+   ```
+
+   </Tab>
+
+   <Tab title="구독">
+
+   ```javascript
+   const subscription = await client.subscriptions.create({
+     customer_id: 'cus_123',
+     product_id: 'prod_subscription',
+     payment_method_id: 'pm_abc123'
+   });
+   ```
+
+   </Tab>
+   </Tabs>
+
+   <Warning>
+   체크아웃 세션에서 `payment_method_id`를 사용할 때, `confirm`는 `true`로 설정해야 하며, 기존의 `customer_id`가 제공되어야 합니다. 결제 수단은 결제 통화에 대한 적격성을 검증합니다.
+   </Warning>
+
+   <Info>
+   결제 수단은 고객에게 속해야 하며 결제 통화와 호환되어야 합니다. 검증에 실패하면 요청은 오류를 반환합니다.
+   </Info>
+
+3. **대시보드에서 구독 계획 변경 및 다음 청구 날짜 업데이트**  
+    
+    대시보드에서 직접 구독 계획을 관리하여 향상된 제어를 제공합니다. 이제 구독 계획을 변경하고 다음 청구 날짜를 단일 작업으로 업데이트할 수 있어 구독 관리에 대한 완전한 유연성을 제공합니다.
+
+    <Frame>
+    <img src="/images/changelog/subscription-plan-changes.png" alt="대시보드에서의 구독 계획 변경" />
+    </Frame>
+
+   ### 대시보드 기능
+
+   - **계획 변경**: 클릭 한 번으로 구독 업그레이드 또는 다운그레이드
+   - **청구 날짜 제어**: 계획 변경 시 다음 청구 날짜 업데이트
+   - **비례 배분 옵션**: 계획 변경 시 비례 배분 처리 방법 선택
+   - **시각적 미리보기**: 확인하기 전에 계획 변경이 청구에 미치는 영향을 정확히 확인
+
+   ### 사용 사례
+
+   - **고객 지원**: 고객 요청에 따라 구독 계획을 신속하게 조정
+   - **프로모션 업그레이드**: 특정 청구 날짜로 고객을 일시적으로 업그레이드
+   - **계획 마이그레이션**: 고객을 구독 계층 간 원활하게 전환
+   - **청구 정렬**: 여러 구독 간 청구 날짜 정렬
+
+   <Check>
+   결과: 대시보드에서의 완전한 구독 관리 제어로 일반적인 구독 조정에 대한 API 호출 필요성 감소.
+   </Check>
+
+   <Tip>
+   빠른 구독 계획 변경을 위해 대시보드를 사용하고, 애플리케이션에서 프로그래밍 방식의 구독 관리를 위해 API를 사용하세요.
+   </Tip>
+
+4. **결제 URL을 위한 짧은 링크**  
+   새로운 짧은 링크 기능으로 더 깔끔하고 공유하기 쉬운 결제 링크를 생성합니다. 짧은 링크는 사용자 정의 슬러그가 있는 짧은 체크아웃 URL을 제공하여 고객과 공유하거나 웹사이트에 임베드하기 쉽게 만듭니다.
+
+   <Frame>
+   <img src="/images/changelog/short-links.png" alt="결제 URL을 위한 짧은 링크 기능" />
+   </Frame>
+
+   ### 이점
+
+   - **더 깔끔한 URL**: 긴 결제 URL을 짧고 브랜드화된 링크로 교체
+   - **더 나은 신뢰**: 고객 신뢰를 구축하는 전문적인 링크
+   - **더 쉬운 공유**: SMS, 이메일 또는 소셜 미디어에 적합한 간소화된 URL
+   - **사용자 정의 슬러그**: 제품을 위한 기억에 남고 브랜드화된 짧은 링크 생성
+
+   ### 작동 방식
+
+   체크아웃 세션 또는 결제 링크를 생성할 때 짧은 링크를 활성화하세요:
+
+   <Tabs>
+   <Tab title="체크아웃 세션">
+
+   ```javascript
+   const session = await client.checkoutSessions.create({
+     product_cart: [{ product_id: 'prod_123', quantity: 1 }],
+     short_link: true,
+     return_url: 'https://yourapp.com/success'
+   });
+   ```
+
+   </Tab>
+
+   <Tab title="결제 링크">
+
+   ```javascript
+   const payment = await client.payments.create({
+     product_cart: [{ product_id: 'prod_123', quantity: 1 }],
+     short_link: true,
+     return_url: 'https://yourapp.com/success'
+   });
+   ```
+
+   </Tab>
+   </Tabs>
+
+   <Check>
+   결과: 공유하기 쉽고 더 전문적으로 보이는 짧은 결제 링크로 전환율과 고객 신뢰 향상.
+   </Check>
+
+   <Info>
+   짧은 링크는 대시보드에서 관리되며 [짧은 링크 목록 API](/api-reference/products/get-products-short-links)를 통해 볼 수 있습니다.
+   </Info>
+
+5. **`redirect_immediately` 플래그 - 결제 성공 페이지 건너뛰기**  
+   새로운 `redirect_immediately` 플래그로 체크아웃 흐름을 제어합니다. 활성화되면 고객은 결제 완료 후 즉시 리디렉션되어 기본 성공 페이지를 건너뛰고 더 빠르고 매끄러운 경험을 제공합니다.
+
+   ### 사용 사례
+
+   - **더 빠른 체크아웃 흐름**: 중간 페이지를 건너뛰어 마찰 감소
+   - **맞춤형 성공 페이지**: 브랜드화된 성공 페이지로 직접 리디렉션
+   - **모바일 최적화**: 즉시 리디렉션으로 모바일 체크아웃 경험 개선
+   - **임베디드 체크아웃**: 오버레이 또는 임베디드 체크아웃 흐름과 원활하게 통합
+
+   ### 작동 방식
+
+   체크아웃 세션, 결제 또는 구독에서 즉시 리디렉션을 활성화하세요:
+
+   <Tabs>
+   <Tab title="체크아웃 세션">
+
+   ```javascript
+   const session = await client.checkoutSessions.create({
+     product_cart: [{ product_id: 'prod_123', quantity: 1 }],
+     redirect_immediately: true,
+     return_url: 'https://yourapp.com/success'
+   });
+   ```
+
+   </Tab>
+
+   <Tab title="일회성 결제">
+
+   ```javascript
+   const payment = await client.payments.create({
+     product_cart: [{ product_id: 'prod_123', quantity: 1 }],
+     redirect_immediately: true,
+     return_url: 'https://yourapp.com/success'
+   });
+   ```
+
+   </Tab>
+
+   <Tab title="구독">
+
+   ```javascript
+   const subscription = await client.subscriptions.create({
+     customer_id: 'cus_123',
+     product_id: 'prod_subscription',
+     redirect_immediately: true,
+     return_url: 'https://yourapp.com/success'
+   });
+   ```
+
+   </Tab>
+   </Tabs>
+
+   <Tip>
+   기본 결제 성공 페이지보다 더 나은 사용자 경험을 제공하는 맞춤형 성공 페이지가 있을 때 `redirect_immediately: true`를 사용하세요.
+   </Tip>
+
+   <Note>
+   `redirect_immediately`가 활성화되면 고객은 결제 완료 후 즉시 `return_url`로 리디렉션되며 기본 성공 페이지를 완전히 건너뜁니다.
+   </Note>
+
+6. **주문형 구독 - 모든 비즈니스에서 사용 가능**  
+   주문형 구독이 이제 모든 비즈니스에서 활성화되어 사용 기반 및 계량 서비스에 대한 유연한 청구 제어를 제공합니다.
+
+   ### 이 기능이 가능하게 하는 것
+
+   - **사용 기반 청구**: 실제 사용량에 따라 구독 생성 및 고객 청구
+   - **유연한 청구 주기**: 고정 간격이 아닌 주문형으로 고객 청구
+   - **계량 서비스**: API 사용, 저장소, 컴퓨팅 시간 및 기타 계량 자원에 적합
+   - **수동 청구 제어**: 필요할 때 수동으로 청구 생성, 청구 타이밍에 대한 완전한 제어 제공
+
+   ### 작동 방식
+
+   주문형 구독을 생성하고 필요에 따라 고객에게 청구하세요:
+
+   ```javascript
+   // Create an on-demand subscription
+   const subscription = await client.subscriptions.create({
+     customer_id: 'cus_123',
+     product_id: 'prod_api_access',
+     on_demand: true
+   });
+
+   // Charge the customer when usage occurs
+   await client.subscriptions.createCharge(subscription.id, {
+     amount: 4900,
+     currency: 'USD',
+     description: 'API usage for September: 1,000 requests'
+   });
+   ```
+
+   <Check>
+   결과: 고객에게 청구할 시기와 금액에 대한 완전한 제어, 사용 기반 비즈니스 모델에 적합.
+   </Check>
+
+   자세히 알아보기: [주문형 구독](/developer-resources/ondemand-subscriptions)
+
+7. **일반 버그 수정 및 개선 사항**  
+   이 릴리스에는 성능 개선, UI 다듬기 및 더 신뢰할 수 있는 매끄러운 경험을 위한 경미한 버그 수정이 포함되어 있습니다.

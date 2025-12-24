@@ -1,8 +1,8 @@
 ---
-title: 内嵌结账（草稿）
+title: 内联结账
 description: 将 Dodo Payments 结账直接嵌入到您的网站中，以实现无缝的品牌支付体验。
 icon: credit-card
-draft: true
+tag: BETA
 ---
 
 ## 概述
@@ -59,8 +59,8 @@ Dodo Payments 在结账完成时自动创建订阅，准备供您配置。
 <Steps>
 <Step title="客户打开结账">
 
-您可以通过传递商品或现有交易来打开内嵌结账。使用 SDK 显示和更新页面上的信息，并使用 SDK 方法根据客户交互更新商品。
-    <img src="/images/inline-checkout/1.svg" alt="初始结账页面，显示商品列表和支付表单"/>
+您可以通过传递商品或现有交易来打开内联结账。使用 SDK 显示和更新页面信息，并使用 SDK 方法根据客户交互更新商品。
+    <img src="/images/inline-checkout/1.png" alt="初始结账页面，包含商品列表和支付表单"/>
 
 </Step>
 
@@ -78,7 +78,7 @@ Dodo Payments 在结账完成时自动创建订阅，准备供您配置。
 
 如果有可用的已保存支付方式，请显示以加快结账速度。
 
-<img src="/images/inline-checkout/3.svg" alt="可用支付方式和卡片详细信息表单"/>
+<img src="/images/inline-checkout/2.png" alt="可用的支付方式和卡片详细信息表单"/>
 
 </Step>
 
@@ -86,7 +86,7 @@ Dodo Payments 在结账完成时自动创建订阅，准备供您配置。
 
 Dodo Payments 将每笔支付路由到最佳收单方，以获得最佳的成功机会。客户进入您可以构建的成功工作流。
 
-<img src="/images/inline-checkout/4.svg" alt="成功屏幕，带有确认勾号"/>
+<img src="/images/inline-checkout/3.png" alt="成功屏幕，带有确认勾选标记"/>
 
 </Step>
 
@@ -94,32 +94,493 @@ Dodo Payments 将每笔支付路由到最佳收单方，以获得最佳的成功
 
 Dodo Payments 自动为客户创建订阅，准备供您配置。客户使用的支付方式将被保留以供续订或订阅更改。
 
-<img src="/images/inline-checkout/5.svg" alt="创建的订阅，带有 webhook 通知"/>
+<img src="/images/inline-checkout/4.png" alt="创建的订阅，带有 webhook 通知"/>
 
 </Step>
 </Steps>
 
-## 内嵌结账与覆盖结账
+## 快速开始
 
-根据您的用例选择合适的结账类型：
+只需几行代码即可开始使用 Dodo Payments 内联结账：
 
-| 特性 | 内嵌结账 | 覆盖结账 |
+```typescript
+import { DodoPayments } from "dodopayments-checkout";
+
+// Initialize the SDK for inline mode
+DodoPayments.Initialize({
+  mode: "test",
+  displayType: "inline",
+  onEvent: (event) => {
+    console.log("Checkout event:", event);
+  },
+});
+
+// Open checkout in a specific container
+DodoPayments.Checkout.open({
+  checkoutUrl: "https://test.dodopayments.com/session/cks_123",
+  elementId: "dodo-inline-checkout" // ID of the container element
+});
+```
+
+<Tip>
+确保您的页面上有一个包含相应 `id` 的容器元素： `<div id="dodo-inline-checkout"></div>`。
+</Tip>
+
+## 分步集成指南
+
+<Steps>
+<Step title="安装 SDK">
+
+安装 Dodo Payments 结账 SDK：
+
+<CodeGroup>
+
+```bash npm
+npm install dodopayments-checkout
+```
+
+```bash yarn
+yarn add dodopayments-checkout
+```
+
+```bash pnpm
+pnpm add dodopayments-checkout
+```
+
+</CodeGroup>
+
+</Step>
+
+<Step title="初始化 SDK 以进行内联显示">
+
+初始化 SDK 并指定 `displayType: 'inline'`。您还应该监听 `checkout.breakdown` 事件，以实时更新您的 UI 以进行税费和总额计算。
+
+```typescript
+import { DodoPayments } from "dodopayments-checkout";
+
+DodoPayments.Initialize({
+  mode: "test",
+  displayType: "inline",
+  onEvent: (event) => {
+    if (event.event_type === "checkout.breakdown") {
+      const breakdown = event.data?.message;
+      // Update your UI with breakdown.subTotal, breakdown.tax, breakdown.total, etc.
+    }
+  },
+});
+```
+
+</Step>
+
+<Step title="创建容器元素">
+
+在您的 HTML 中添加一个元素，以便结账框架将被注入：
+
+```html
+<div id="dodo-inline-checkout"></div>
+```
+
+</Step>
+
+<Step title="打开结账">
+
+使用 `DodoPayments.Checkout.open()` 调用 `checkoutUrl` 和您的容器的 `elementId`：
+
+```typescript
+DodoPayments.Checkout.open({
+  checkoutUrl: "https://test.dodopayments.com/session/cks_123",
+  elementId: "dodo-inline-checkout"
+});
+```
+
+</Step>
+
+<Step title="测试您的集成">
+
+1. 启动您的开发服务器：
+
+```bash
+npm run dev
+```
+
+2. 测试结账流程：
+   - 在内联框架中输入您的电子邮件和地址详细信息。
+   - 验证您的自定义订单摘要是否实时更新。
+   - 使用测试凭据测试支付流程。
+   - 确认重定向是否正常工作。
+
+<Check>
+如果您在 `onEvent` 回调中添加了控制台日志，您应该在浏览器控制台中看到 `checkout.breakdown` 事件的记录。
+</Check>
+
+</Step>
+
+<Step title="上线">
+
+当您准备好进行生产时：
+
+1. 将模式更改为 `'live'`：
+
+```typescript
+DodoPayments.Initialize({
+  mode: "live",
+  displayType: "inline",
+  onEvent: (event) => {
+    // Handle events
+  }
+});
+```
+
+2. 更新您的结账 URL，以使用来自后端的实时结账会话。
+3. 在生产环境中测试完整流程。
+
+</Step>
+</Steps>
+
+## 完整的 React 示例
+
+此示例演示如何在内联结账旁边实现自定义订单摘要，并使用 `checkout.breakdown` 事件保持它们同步。
+
+```tsx
+"use client";
+
+import { useEffect, useState } from 'react';
+import { DodoPayments, CheckoutBreakdownData } from 'dodopayments-checkout';
+
+export default function CheckoutPage() {
+  const [breakdown, setBreakdown] = useState<Partial<CheckoutBreakdownData>>({});
+
+  useEffect(() => {
+    // 1. Initialize the SDK
+    DodoPayments.Initialize({
+      mode: 'test',
+      displayType: 'inline',
+      onEvent: (event) => {
+        // 2. Listen for the 'checkout.breakdown' event
+        if (event.event_type === "checkout.breakdown") {
+          const message = event.data?.message as CheckoutBreakdownData;
+          if (message) setBreakdown(message);
+        }
+      }
+    });
+
+    // 3. Open the checkout in the specified container
+    DodoPayments.Checkout.open({
+      checkoutUrl: 'https://test.dodopayments.com/session/cks_123',
+      elementId: 'dodo-inline-checkout'
+    });
+
+    return () => DodoPayments.Checkout.close();
+  }, []);
+
+  const format = (amt: number | null | undefined, curr: string | null | undefined) => 
+    amt != null && curr ? `${curr} ${(amt/100).toFixed(2)}` : '0.00';
+
+  const currency = breakdown.currency ?? breakdown.finalTotalCurrency ?? '';
+
+  return (
+    <div className="flex flex-col md:flex-row min-h-screen">
+      {/* Left Side - Checkout Form */}
+      <div className="w-full md:w-1/2 flex items-center">
+        <div id="dodo-inline-checkout" className='w-full' />
+      </div>
+
+      {/* Right Side - Custom Order Summary */}
+      <div className="w-full md:w-1/2 p-8 bg-gray-50">
+        <h2 className="text-2xl font-bold mb-4">Order Summary</h2>
+        <div className="space-y-2">
+          {breakdown.subTotal && (
+            <div className="flex justify-between">
+              <span>Subtotal</span>
+              <span>{format(breakdown.subTotal, currency)}</span>
+            </div>
+          )}
+          {breakdown.discount && (
+            <div className="flex justify-between">
+              <span>Discount</span>
+              <span>{format(breakdown.discount, currency)}</span>
+            </div>
+          )}
+          {breakdown.tax != null && (
+            <div className="flex justify-between">
+              <span>Tax</span>
+              <span>{format(breakdown.tax, currency)}</span>
+            </div>
+          )}
+          <hr />
+          {(breakdown.finalTotal ?? breakdown.total) && (
+            <div className="flex justify-between font-bold text-xl">
+              <span>Total</span>
+              <span>{format(breakdown.finalTotal ?? breakdown.total, breakdown.finalTotalCurrency ?? currency)}</span>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+```
+
+## API 参考
+
+### 配置
+
+#### 初始化选项
+
+```typescript
+interface InitializeOptions {
+  mode: "test" | "live";
+  displayType: "inline"; // Required for inline checkout
+  onEvent: (event: CheckoutEvent) => void;
+}
+```
+
+| 选项 | 类型 | 必需 | 描述 |
+|--------|------|----------|-------------|
+| `mode` | `"test" \| "live"` | 是 | 环境模式。 |
+| `displayType` | `"inline" \| "overlay"` | 是 | 必须设置为 `"inline"` 以嵌入结账。 |
+| `onEvent` | `function` | 是 | 处理结账事件的回调函数。 |
+
+#### 结账选项
+
+```typescript
+interface CheckoutOptions {
+  checkoutUrl: string;
+  elementId: string; // Required for inline checkout
+}
+```
+
+| 选项 | 类型 | 必需 | 描述 |
+|--------|------|----------|-------------|
+| `checkoutUrl` | `string` | 是 | 结账会话 URL。 |
+| `elementId` | `string` | 是 | 结账应呈现的 DOM 元素的 `id`。 |
+
+### 方法
+
+#### 打开结账
+
+在指定的容器中打开结账框架。
+
+```typescript
+DodoPayments.Checkout.open({
+  checkoutUrl: "https://test.dodopayments.com/session/cks_123",
+  elementId: "dodo-inline-checkout"
+});
+```
+
+#### 关闭结账
+
+以编程方式移除结账框架并清理事件监听器。
+
+```typescript
+DodoPayments.Checkout.close();
+```
+
+#### 检查状态
+
+返回结账框架当前是否已注入。
+
+```typescript
+const isOpen = DodoPayments.Checkout.isOpen();
+// Returns: boolean
+```
+
+### 事件
+
+SDK 通过 `onEvent` 回调提供实时事件。对于内联结账， `checkout.breakdown` 对于同步您的 UI 特别有用。
+
+| 事件类型 | 描述 |
+|------------|-------------|
+| `checkout.opened` | 结账框架已加载。 |
+| `checkout.breakdown` | 当价格、税费或折扣更新时触发。 |
+| `checkout.customer_details_submitted` | 客户详细信息已提交。 |
+| `checkout.redirect` | 结账将执行重定向（例如，转到银行页面）。 |
+| `checkout.error` | 结账过程中发生错误。 |
+
+#### 结账明细数据
+
+`checkout.breakdown` 事件提供以下数据：
+
+```typescript
+interface CheckoutBreakdownData {
+  subTotal?: number;          // Amount in cents
+  discount?: number;         // Amount in cents
+  tax?: number;              // Amount in cents
+  total?: number;            // Amount in cents
+  currency?: string;         // e.g., "USD"
+  finalTotal?: number;       // Final amount including adjustments
+  finalTotalCurrency?: string; // Currency for the final total
+}
+```
+
+#### 理解明细事件
+
+`checkout.breakdown` 事件是保持您的应用程序 UI 与 Dodo Payments 结账状态同步的主要方式。
+
+**触发时机：**
+- **初始化时**：结账框架加载并准备好后立即。
+- **地址更改时**：每当客户选择一个国家或输入一个导致税费重新计算的邮政编码时。
+
+**字段详细信息：**
+
+| 字段 | 描述 |
+|-------|-------------|
+| `subTotal` | 会话中所有行项目的总和，在应用任何折扣或税费之前。 |
+| `discount` | 所有应用折扣的总值。 |
+| `tax` | 计算的税额。在 `inline` 模式下，随着用户与地址字段的交互，这一数值会动态更新。 |
+| `total` | 会话的基本货币中的 `subTotal - discount + tax` 的数学结果。 |
+| `currency` | 标准小计、折扣和税值的 ISO 货币代码（例如， `"USD"`）。 |
+| `finalTotal` | 客户实际支付的金额。这可能包括额外的外汇调整或不属于基本价格明细的本地支付方式费用。 |
+| `finalTotalCurrency` | 客户实际支付的货币。如果购买力平价或本地货币转换处于活动状态，则可能与 `currency` 不同。 |
+
+**关键集成提示：**
+
+1.  **货币格式化**：价格始终以最小货币单位的整数形式返回（例如，美元的分，日元的日元）。要显示它们，请除以 100（或适当的 10 的幂）或使用格式化库，如 `Intl.NumberFormat`。
+2.  **处理初始状态**：当结账首次加载时， `tax` 和 `discount` 可能是 `0` 或 `null`，直到用户提供其账单信息或应用代码。您的 UI 应该优雅地处理这些状态（例如，显示一个破折号 `—` 或隐藏该行）。
+3.  **“最终总额”与“总额”**：虽然 `total` 为您提供标准价格计算， `finalTotal` 是交易的真实来源。如果 `finalTotal` 存在，它反映了将确切收取的金额，包括任何动态调整。
+4.  **实时反馈**：使用 `tax` 字段向用户显示税费正在实时计算。这为您的结账页面提供了“实时”的感觉，并减少了地址输入步骤中的摩擦。
+
+## 实现选项
+
+### 包管理器安装
+
+通过 npm、yarn 或 pnpm 安装，如 [分步集成指南](#step-by-step-integration-guide) 中所示。
+
+### CDN 实现
+
+为了快速集成而无需构建步骤，您可以使用我们的 CDN：
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dodo Payments Inline Checkout</title>
+    
+    <!-- Load DodoPayments -->
+    <script src="https://cdn.jsdelivr.net/npm/dodopayments-checkout@latest/dist/index.js"></script>
+    <script>
+        // Initialize the SDK
+        DodoPaymentsCheckout.DodoPayments.Initialize({
+            mode: "test",
+            displayType: "inline",
+            onEvent: (event) => {
+                console.log('Checkout event:', event);
+            }
+        });
+    </script>
+</head>
+<body>
+    <div id="dodo-inline-checkout"></div>
+
+    <script>
+        // Open the checkout
+        DodoPaymentsCheckout.DodoPayments.Checkout.open({
+            checkoutUrl: "https://test.dodopayments.com/session/cks_123",
+            elementId: "dodo-inline-checkout"
+        });
+    </script>
+</body>
+</html>
+```
+
+## TypeScript 支持
+
+SDK 是用 TypeScript 编写的，并包含全面的类型定义。
+
+```typescript
+import { DodoPayments, CheckoutEvent } from "dodopayments-checkout";
+
+DodoPayments.Initialize({
+  mode: "test",
+  displayType: "inline",
+  onEvent: (event: CheckoutEvent) => {
+    // event is fully typed
+    console.log(event.event_type, event.data);
+  },
+});
+```
+
+## 错误处理
+
+SDK 通过事件系统提供详细的错误信息。始终在您的 `onEvent` 回调中实现适当的错误处理：
+
+```typescript
+DodoPayments.Initialize({
+  mode: "test",
+  displayType: "inline",
+  onEvent: (event: CheckoutEvent) => {
+    if (event.event_type === "checkout.error") {
+      console.error("Checkout error:", event.data?.message);
+      // Handle error appropriately
+    }
+  }
+});
+```
+
+<Warning>
+始终处理 `checkout.error` 事件，以在出现问题时提供良好的用户体验。
+</Warning>
+
+## 最佳实践
+
+1. **响应式设计**：确保您的容器元素具有足够的宽度和高度。iframe 通常会扩展以填充其容器。
+2. **同步**：使用 `checkout.breakdown` 事件保持您的自定义订单摘要或定价表与用户在结账框架中看到的内容同步。
+3. **骨架状态**：在 `checkout.opened` 事件触发之前，在您的容器中显示加载指示器。
+4. **清理**：当您的组件卸载时调用 `DodoPayments.Checkout.close()` 以清理 iframe 和事件监听器。
+
+## 故障排除
+
+<AccordionGroup>
+<Accordion title="结账框架未出现">
+- 验证 `elementId` 是否与实际存在于 DOM 中的 `id` 的 `div` 匹配。
+- 确保 `displayType: 'inline'` 被传递给 `Initialize`。
+- 检查 `checkoutUrl` 是否有效。
+</Accordion>
+
+<Accordion title="税费未在我的 UI 中更新">
+- 确保您正在监听 `checkout.breakdown` 事件。
+- 只有在用户在结账框架中输入有效的国家和邮政编码后，税费才会被计算。
+</Accordion>
+</AccordionGroup>
+
+## 浏览器支持
+
+Dodo Payments 结账 SDK 支持以下浏览器：
+
+- Chrome（最新）
+- Firefox（最新）
+- Safari（最新）
+- Edge（最新）
+- IE11+
+
+<Note>
+Apple Pay 目前不支持内联结账体验。我们计划在未来的版本中添加对 Apple Pay 的支持。
+</Note>
+
+## 内联与覆盖结账
+
+为您的用例选择合适的结账类型：
+
+| 特性 | 内联结账 | 覆盖结账 |
 |---------|-----------------|------------------|
 | 集成深度 | 完全嵌入页面 | 模态在页面上方 |
 | 布局控制 | 完全控制 | 有限 |
 | 品牌 | 无缝 | 与页面分开 |
-| 实施工作量 | 较高 | 较低 |
+| 实现工作量 | 较高 | 较低 |
 | 最适合 | 自定义结账页面，高转化流程 | 快速集成，现有页面 |
 
 <Tip>
-当您希望对结账体验和无缝品牌有最大控制时，请使用 **内嵌结账**。对于快速集成且对现有页面的更改最小，请使用 **覆盖结账**。
+当您希望最大程度地控制结账体验和无缝品牌时，请使用 **内联结账**。对于快速集成且对现有页面的更改最小，请使用 **覆盖结账**。
 </Tip>
 
 ## 相关资源
 
 <CardGroup cols={2}>
 <Card title="覆盖结账" icon="layer-group" href="/developer-resources/overlay-checkout">
-    使用覆盖结账进行快速模态集成。
+    使用覆盖结账进行快速基于模态的集成。
 </Card>
 
 <Card title="结账会话 API" icon="code" href="/api-reference/checkout-sessions/create">

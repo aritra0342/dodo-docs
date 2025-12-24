@@ -1,0 +1,315 @@
+---
+title: v1.70.0 (24 tháng 12, 2025)
+description: Hỗ trợ thanh toán trực tiếp, sử dụng các phương thức thanh toán
+  hiện có cho các giao dịch ngay lập tức, quản lý các kế hoạch đăng ký từ bảng
+  điều khiển, tạo liên kết thanh toán ngắn, bỏ qua các trang thành công với
+  chuyển hướng ngay lập tức, và kích hoạt các đăng ký theo yêu cầu cho tất cả
+  các doanh nghiệp
+icon: arrows-turn-right
+---
+
+## Tính Năng Mới 🚀
+
+1. **Thanh Toán Trực Tiếp - Trải Nghiệm Thanh Toán Hoàn Toàn Nhúng (BETA)**  
+
+   Nhúng thanh toán Dodo Payments trực tiếp vào trang web của bạn để có trải nghiệm thanh toán liền mạch và thương hiệu. Khác với thanh toán chồng lên, mở ra như một modal, thanh toán trực tiếp nhúng biểu mẫu thanh toán trực tiếp vào bố cục trang của bạn.
+
+   <Frame>
+   <img src="/images/inline-checkout/cover.png" alt="Hình Ảnh Bìa Thanh Toán Trực Tiếp" />
+   </Frame>
+
+   ### Lợi Ích
+
+   - **Hoàn toàn tích hợp**: Tạo trải nghiệm thanh toán hòa quyện hoàn hảo với trang web của bạn
+   - **Tóm tắt đơn hàng tùy chỉnh**: Xây dựng giao diện người dùng tùy chỉnh đồng bộ với thanh toán theo thời gian thực
+   - **Kiểm soát tối đa**: Kiểm soát hoàn toàn bố cục và thiết kế thanh toán
+   - **Tuân thủ PCI**: Dodo Payments xử lý an toàn tất cả thông tin thanh toán nhạy cảm
+   - **Đồng bộ theo thời gian thực**: Sử dụng sự kiện SDK để giữ cho giao diện người dùng của bạn đồng bộ với trạng thái thanh toán
+
+   ### Cách Hoạt Động
+
+   Khởi tạo SDK với `displayType: 'inline'` và nhúng thanh toán vào một phần tử chứa:
+
+   ```typescript
+   import { DodoPayments } from "dodopayments-checkout";
+
+   // Initialize the SDK for inline mode
+   DodoPayments.Initialize({
+     mode: "test",
+     displayType: "inline",
+     onEvent: (event) => {
+       if (event.event_type === "checkout.breakdown") {
+         // Update your UI with real-time tax and total calculations
+         const breakdown = event.data?.message;
+       }
+     },
+   });
+
+   // Open checkout in a specific container
+   DodoPayments.Checkout.open({
+     checkoutUrl: "https://test.dodopayments.com/session/cks_123",
+     elementId: "dodo-inline-checkout" // ID of the container element
+   });
+   ```
+
+   ### Tính Năng Chính
+
+   - **Sự kiện phân tích theo thời gian thực**: Nhận `checkout.breakdown` khi khách hàng nhập thông tin của họ
+   - **Tóm tắt đơn hàng tùy chỉnh**: Xây dựng hiển thị giá của riêng bạn cập nhật theo thời gian thực
+   - **Tích hợp liền mạch**: Khung thanh toán xử lý việc thu thập thanh toán trong khi bạn kiểm soát bố cục
+   - **Phương thức SDK**: Sử dụng `open()`, `close()`, và `isOpen()` để kiểm soát thanh toán một cách lập trình
+
+   <Check>
+   Kết quả: Trải nghiệm thanh toán hoàn toàn tích hợp phù hợp với thương hiệu của bạn và cung cấp kiểm soát tối đa đối với quy trình thanh toán.
+   </Check>
+
+   <Tip>
+   Sử dụng thanh toán trực tiếp khi bạn muốn kiểm soát tối đa đối với thiết kế thanh toán. Sử dụng [thanh toán chồng lên](/developer-resources/overlay-checkout) để tích hợp nhanh hơn với thay đổi tối thiểu trên các trang hiện có.
+   </Tip>
+
+   Tìm hiểu thêm: [Hướng Dẫn Thanh Toán Trực Tiếp](/developer-resources/inline-checkout)
+
+2. **Tạo Thanh Toán, Đăng Ký và Thanh Toán Sử Dụng Các Phương Thức Thanh Toán Hiện Có**  
+    Tinh giản quy trình thanh toán bằng cách sử dụng các phương thức thanh toán đã lưu từ khách hàng hiện có. Tham số mới `payment_method_id` cho phép bạn tạo thanh toán, đăng ký hoặc phiên thanh toán bằng cách sử dụng phương thức thanh toán đã lưu trước đó của khách hàng.
+
+   ### Lợi Ích
+
+   - **Thanh toán nhanh hơn**: Bỏ qua việc thu thập phương thức thanh toán cho khách hàng quay lại
+   - **Mua hàng một lần**: Kích hoạt mua hàng ngay lập tức với các phương thức thanh toán đã lưu
+   - **Quản lý đăng ký**: Dễ dàng tạo đăng ký bằng cách sử dụng các phương thức thanh toán hiện có
+   - **Cải thiện tỷ lệ chuyển đổi**: Giảm ma sát thanh toán cho khách hàng lặp lại
+
+   ### Cách Hoạt Động
+
+   Sử dụng `payment_method_id` khi tạo phiên thanh toán, thanh toán hoặc đăng ký:
+
+   <Tabs>
+   <Tab title="Phiên Thanh Toán">
+
+   ```javascript
+   const session = await client.checkoutSessions.create({
+     product_cart: [{ product_id: 'prod_123', quantity: 1 }],
+     customer: {
+       customer_id: 'cus_123'
+     },
+     payment_method_id: 'pm_abc123',
+     confirm: true
+   });
+   ```
+
+   </Tab>
+
+   <Tab title="Thanh Toán Một Lần">
+
+   ```javascript
+   const payment = await client.payments.create({
+     product_cart: [{ product_id: 'prod_123', quantity: 1 }],
+     customer_id: 'cus_123',
+     payment_method_id: 'pm_abc123'
+   });
+   ```
+
+   </Tab>
+
+   <Tab title="Đăng Ký">
+
+   ```javascript
+   const subscription = await client.subscriptions.create({
+     customer_id: 'cus_123',
+     product_id: 'prod_subscription',
+     payment_method_id: 'pm_abc123'
+   });
+   ```
+
+   </Tab>
+   </Tabs>
+
+   <Warning>
+   Khi sử dụng `payment_method_id` trong các phiên thanh toán, `confirm` phải được đặt thành `true`, và một `customer_id` hiện có phải được cung cấp. Phương thức thanh toán sẽ được xác thực để kiểm tra tính đủ điều kiện với loại tiền tệ của thanh toán.
+   </Warning>
+
+   <Info>
+   Phương thức thanh toán phải thuộc về khách hàng và tương thích với loại tiền tệ thanh toán. Nếu xác thực thất bại, yêu cầu sẽ trả về lỗi.
+   </Info>
+
+3. **Thay Đổi Kế Hoạch Đăng Ký Trong Bảng Điều Khiển Với Cập Nhật Ngày Thanh Toán Tiếp Theo**  
+    
+    Quản lý các kế hoạch đăng ký trực tiếp từ bảng điều khiển với kiểm soát nâng cao. Bạn giờ đây có thể thay đổi các kế hoạch đăng ký và cập nhật ngày thanh toán tiếp theo trong một hành động duy nhất, mang lại cho bạn sự linh hoạt hoàn toàn trong việc quản lý đăng ký.  
+
+    <Frame>
+    <img src="/images/changelog/subscription-plan-changes.png" alt="Thay đổi kế hoạch đăng ký trong bảng điều khiển" />
+    </Frame>
+
+   ### Tính Năng Bảng Điều Khiển
+
+   - **Thay đổi kế hoạch**: Nâng cấp hoặc hạ cấp đăng ký chỉ với một cú nhấp chuột
+   - **Kiểm soát ngày thanh toán**: Cập nhật ngày thanh toán tiếp theo khi thay đổi kế hoạch
+   - **Tùy chọn phân chia**: Chọn cách xử lý phân chia khi thay đổi kế hoạch
+   - **Xem trước trực quan**: Xem chính xác cách thay đổi kế hoạch ảnh hưởng đến thanh toán trước khi xác nhận
+
+   ### Trường Hợp Sử Dụng
+
+   - **Hỗ trợ khách hàng**: Nhanh chóng điều chỉnh kế hoạch đăng ký theo yêu cầu của khách hàng
+   - **Nâng cấp khuyến mãi**: Tạm thời nâng cấp khách hàng với các ngày thanh toán cụ thể
+   - **Di chuyển kế hoạch**: Chuyển tiếp mượt mà khách hàng giữa các cấp đăng ký
+   - **Căn chỉnh thanh toán**: Căn chỉnh ngày thanh toán giữa nhiều đăng ký
+
+   <Check>
+   Kết quả: Kiểm soát hoàn toàn việc quản lý đăng ký từ bảng điều khiển, giảm thiểu nhu cầu gọi API cho các điều chỉnh đăng ký thông thường.
+   </Check>
+
+   <Tip>
+   Sử dụng bảng điều khiển để thay đổi kế hoạch đăng ký nhanh chóng, và API để quản lý đăng ký một cách lập trình trong ứng dụng của bạn.
+   </Tip>
+
+4. **Liên Kết Ngắn Cho URL Thanh Toán**  
+   Tạo các liên kết thanh toán ngắn gọn, dễ chia sẻ hơn với tính năng liên kết ngắn mới của chúng tôi. Các liên kết ngắn cung cấp URL thanh toán rút gọn với các slug tùy chỉnh, giúp dễ dàng chia sẻ với khách hàng hoặc nhúng vào trang web của bạn.
+
+   <Frame>
+   <img src="/images/changelog/short-links.png" alt="Tính năng liên kết ngắn cho URL thanh toán" />
+   </Frame>
+
+   ### Lợi Ích
+
+   - **URL sạch hơn**: Thay thế các URL thanh toán dài bằng các liên kết ngắn, có thương hiệu
+   - **Tăng cường niềm tin**: Các liên kết trông chuyên nghiệp giúp xây dựng sự tự tin của khách hàng
+   - **Chia sẻ dễ dàng hơn**: URL đơn giản hoàn hảo cho SMS, email hoặc mạng xã hội
+   - **Slug tùy chỉnh**: Tạo các liên kết ngắn dễ nhớ, có thương hiệu cho sản phẩm của bạn
+
+   ### Cách Hoạt Động
+
+   Kích hoạt liên kết ngắn khi tạo phiên thanh toán hoặc liên kết thanh toán:
+
+   <Tabs>
+   <Tab title="Phiên Thanh Toán">
+
+   ```javascript
+   const session = await client.checkoutSessions.create({
+     product_cart: [{ product_id: 'prod_123', quantity: 1 }],
+     short_link: true,
+     return_url: 'https://yourapp.com/success'
+   });
+   ```
+
+   </Tab>
+
+   <Tab title="Liên Kết Thanh Toán">
+
+   ```javascript
+   const payment = await client.payments.create({
+     product_cart: [{ product_id: 'prod_123', quantity: 1 }],
+     short_link: true,
+     return_url: 'https://yourapp.com/success'
+   });
+   ```
+
+   </Tab>
+   </Tabs>
+
+   <Check>
+   Kết quả: Một liên kết thanh toán rút gọn dễ chia sẻ và trông chuyên nghiệp hơn, cải thiện tỷ lệ chuyển đổi và sự tin tưởng của khách hàng.
+   </Check>
+
+   <Info>
+   Các liên kết ngắn được quản lý trong bảng điều khiển của bạn và có thể được xem qua [API Danh Sách Liên Kết Ngắn](/api-reference/products/get-products-short-links).
+   </Info>
+
+5. **`redirect_immediately` Cờ - Bỏ Qua Trang Thành Công Thanh Toán**  
+   Kiểm soát quy trình thanh toán với cờ mới `redirect_immediately`. Khi được kích hoạt, khách hàng sẽ được chuyển hướng ngay lập tức sau khi hoàn tất thanh toán, bỏ qua trang thành công mặc định để có trải nghiệm nhanh hơn, liền mạch hơn.
+
+   ### Trường Hợp Sử Dụng
+
+   - **Quy trình thanh toán nhanh hơn**: Giảm ma sát bằng cách bỏ qua các trang trung gian
+   - **Trang thành công tùy chỉnh**: Chuyển hướng trực tiếp đến trang thành công có thương hiệu của bạn
+   - **Tối ưu hóa di động**: Cải thiện trải nghiệm thanh toán trên di động với các chuyển hướng ngay lập tức
+   - **Thanh toán nhúng**: Tích hợp liền mạch với các quy trình thanh toán chồng lên hoặc nhúng
+
+   ### Cách Hoạt Động
+
+   Kích hoạt chuyển hướng ngay lập tức trong các phiên thanh toán, thanh toán hoặc đăng ký:
+
+   <Tabs>
+   <Tab title="Phiên Thanh Toán">
+
+   ```javascript
+   const session = await client.checkoutSessions.create({
+     product_cart: [{ product_id: 'prod_123', quantity: 1 }],
+     redirect_immediately: true,
+     return_url: 'https://yourapp.com/success'
+   });
+   ```
+
+   </Tab>
+
+   <Tab title="Thanh Toán Một Lần">
+
+   ```javascript
+   const payment = await client.payments.create({
+     product_cart: [{ product_id: 'prod_123', quantity: 1 }],
+     redirect_immediately: true,
+     return_url: 'https://yourapp.com/success'
+   });
+   ```
+
+   </Tab>
+
+   <Tab title="Đăng Ký">
+
+   ```javascript
+   const subscription = await client.subscriptions.create({
+     customer_id: 'cus_123',
+     product_id: 'prod_subscription',
+     redirect_immediately: true,
+     return_url: 'https://yourapp.com/success'
+   });
+   ```
+
+   </Tab>
+   </Tabs>
+
+   <Tip>
+   Sử dụng `redirect_immediately: true` khi bạn có một trang thành công tùy chỉnh cung cấp trải nghiệm người dùng tốt hơn so với trang thành công thanh toán mặc định.
+   </Tip>
+
+   <Note>
+   Khi `redirect_immediately` được kích hoạt, khách hàng sẽ được chuyển hướng đến `return_url` của bạn ngay lập tức sau khi hoàn tất thanh toán, bỏ qua hoàn toàn trang thành công mặc định.
+   </Note>
+
+6. **Đăng Ký Theo Yêu Cầu - Có Sẵn Cho Tất Cả Doanh Nghiệp**  
+   Đăng ký theo yêu cầu hiện đã được kích hoạt cho tất cả các doanh nghiệp, mang lại cho bạn kiểm soát thanh toán linh hoạt cho các dịch vụ dựa trên sử dụng và đo lường.
+
+   ### Điều Này Cho Phép
+
+   - **Thanh toán dựa trên sử dụng**: Tạo đăng ký và tính phí khách hàng dựa trên mức sử dụng thực tế
+   - **Chu kỳ thanh toán linh hoạt**: Tính phí khách hàng theo yêu cầu thay vì theo khoảng thời gian cố định
+   - **Dịch vụ đo lường**: Hoàn hảo cho việc sử dụng API, lưu trữ, thời gian tính toán và các tài nguyên đo lường khác
+   - **Kiểm soát tính phí thủ công**: Tạo các khoản phí thủ công khi cần, mang lại cho bạn toàn quyền kiểm soát thời gian thanh toán
+
+   ### Cách Hoạt Động
+
+   Tạo một đăng ký theo yêu cầu và tính phí khách hàng khi cần:
+
+   ```javascript
+   // Create an on-demand subscription
+   const subscription = await client.subscriptions.create({
+     customer_id: 'cus_123',
+     product_id: 'prod_api_access',
+     on_demand: true
+   });
+
+   // Charge the customer when usage occurs
+   await client.subscriptions.createCharge(subscription.id, {
+     amount: 4900,
+     currency: 'USD',
+     description: 'API usage for September: 1,000 requests'
+   });
+   ```
+
+   <Check>
+   Kết quả: Kiểm soát hoàn toàn khi nào và bao nhiêu để tính phí khách hàng, hoàn hảo cho các mô hình kinh doanh dựa trên sử dụng.
+   </Check>
+
+   Tìm hiểu thêm: [Đăng Ký Theo Yêu Cầu](/developer-resources/ondemand-subscriptions)
+
+7. **Sửa Lỗi Chung và Cải Tiến**  
+   Phiên bản này bao gồm các cải tiến hiệu suất, làm bóng giao diện người dùng và giải quyết các lỗi nhỏ để có trải nghiệm đáng tin cậy và liền mạch hơn.

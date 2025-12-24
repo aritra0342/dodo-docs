@@ -293,6 +293,9 @@ window.location.href = session.checkout_url;
 window.open(session.checkout_url, '_blank');
 ```
 
+<Tip>
+**वैकल्पिक एकीकरण विकल्प**: पुनर्निर्देशन के बजाय, आप [ओवरले चेकआउट](/developer-resources/overlay-checkout) (मोडल ओवरले) या [इनलाइन चेकआउट](/developer-resources/inline-checkout) (पूर्ण रूप से एम्बेडेड) का उपयोग करके चेकआउट को सीधे अपने पृष्ठ में एम्बेड कर सकते हैं। दोनों विकल्प समान चेकआउट सत्र URL का उपयोग करते हैं।
+</Tip>
 </Step>
 
 <Step title="वापसी को संभालें">
@@ -975,12 +978,98 @@ const session = await client.checkoutSessions.create({
 });
 ```
 
-## गतिशील लिंक से चेकआउट सत्रों में जाना
+### 11. तात्कालिक चेकआउट के लिए मौजूदा भुगतान विधियों का उपयोग करना
+
+एक ग्राहक की सहेजी गई भुगतान विधि का उपयोग करके एक चेकआउट सत्र बनाएं जो तुरंत संसाधित होता है, भुगतान विधि संग्रह को छोड़ते हुए:
+
+```javascript expandable
+const session = await client.checkoutSessions.create({
+  product_cart: [
+    {
+      product_id: 'prod_premium_plan',
+      quantity: 1
+    }
+  ],
+  customer: {
+    customer_id: 'cus_123'  // Required when using payment_method_id
+  },
+  payment_method_id: 'pm_abc123',  // Use customer's saved payment method
+  confirm: true,  // Required when using payment_method_id
+  return_url: 'https://yourapp.com/success'
+});
+```
+
+<Warning>
+जब `payment_method_id` का उपयोग किया जाता है, तो `confirm` को `true` पर सेट किया जाना चाहिए और एक मौजूदा `customer_id` प्रदान किया जाना चाहिए। भुगतान विधि की वैधता भुगतान की मुद्रा के साथ जांची जाएगी।
+</Warning>
+
+<Info>
+भुगतान विधि ग्राहक की होनी चाहिए और भुगतान मुद्रा के साथ संगत होनी चाहिए। यह लौटने वाले ग्राहकों के लिए एक-क्लिक खरीदारी को सक्षम करता है।
+</Info>
+
+### 12. साफ भुगतान URL के लिए शॉर्ट लिंक
+
+कस्टम स्लग के साथ संक्षिप्त, साझा करने योग्य भुगतान लिंक उत्पन्न करें:
+
+```javascript expandable
+const session = await client.checkoutSessions.create({
+  product_cart: [
+    {
+      product_id: 'prod_monthly_subscription',
+      quantity: 1
+    }
+  ],
+  short_link: true,  // Generate a shortened payment link
+  return_url: 'https://yourapp.com/success',
+  customer: {
+    email: 'customer@example.com',
+    name: 'John Doe'
+  }
+});
+
+// The checkout_url will be a shortened, cleaner link
+console.log(session.checkout_url);  // e.g., https://checkout.dodopayments.com/buy/abc123
+```
+
+<Tip>
+शॉर्ट लिंक SMS, ईमेल, या सोशल मीडिया साझा करने के लिए आदर्श हैं। ये याद रखने में आसान होते हैं और लंबे URL की तुलना में अधिक ग्राहक विश्वास बनाते हैं।
+</Tip>
+
+### 13. तात्कालिक पुनर्निर्देशन के साथ भुगतान सफलता पृष्ठ छोड़ें
+
+भुगतान पूर्ण होने के तुरंत बाद ग्राहकों को पुनर्निर्देशित करें, डिफ़ॉल्ट सफलता पृष्ठ को बायपास करते हुए:
+
+```javascript expandable
+const session = await client.checkoutSessions.create({
+  product_cart: [
+    {
+      product_id: 'prod_digital_product',
+      quantity: 1
+    }
+  ],
+  redirect_immediately: true,  // Skip success page, redirect immediately
+  return_url: 'https://yourapp.com/success',
+  customer: {
+    email: 'customer@example.com',
+    name: 'Jane Smith'
+  }
+});
+```
+
+<Tip>
+जब आपके पास एक कस्टम सफलता पृष्ठ हो जो डिफ़ॉल्ट भुगतान सफलता पृष्ठ की तुलना में बेहतर उपयोगकर्ता अनुभव प्रदान करता है, तो `redirect_immediately: true` का उपयोग करें। यह मोबाइल ऐप और एम्बेडेड चेकआउट प्रवाह के लिए विशेष रूप से उपयोगी है।
+</Tip>
+
+<Note>
+जब `redirect_immediately` सक्षम होता है, तो ग्राहकों को भुगतान पूर्ण होने के तुरंत बाद आपके `return_url` पर पुनर्निर्देशित किया जाता है, पूरी तरह से डिफ़ॉल्ट सफलता पृष्ठ को छोड़ते हुए।
+</Note>
+
+## डायनामिक लिंक से चेकआउट सत्र में जाना
 
 ### मुख्य अंतर
-पहले, जब आप गतिशील लिंक के साथ भुगतान लिंक बनाते थे, तो आपको ग्राहक का पूरा बिलिंग पता प्रदान करना आवश्यक था।
+पहले, जब आप डायनामिक लिंक के साथ भुगतान लिंक बनाते थे, तो आपको ग्राहक का पूरा बिलिंग पता प्रदान करना आवश्यक था।
 
-चेकआउट सत्रों के साथ, यह अब आवश्यक नहीं है। आप बस जो भी जानकारी आपके पास है, उसे पास कर सकते हैं, और हम बाकी का ध्यान रखेंगे। उदाहरण के लिए:
+चेकआउट सत्र के साथ, यह अब आवश्यक नहीं है। आप बस जो भी जानकारी आपके पास है, उसे पास कर सकते हैं, और हम बाकी का ध्यान रखेंगे। उदाहरण के लिए:
 
 - यदि आप केवल ग्राहक के बिलिंग देश को जानते हैं, तो बस वही प्रदान करें।
 - चेकआउट प्रवाह स्वचालित रूप से भुगतान पृष्ठ पर जाने से पहले गायब विवरण एकत्र करेगा।
@@ -988,7 +1077,7 @@ const session = await client.checkoutSessions.create({
 
 ### माइग्रेशन प्रक्रिया
 
-गतिशील लिंक से चेकआउट सत्रों में माइग्रेट करना सीधा है:
+डायनामिक लिंक से चेकआउट सत्र में माइग्रेट करना सीधा है:
 
 <Steps>
 <Step title="अपने एकीकरण को अपडेट करें">
@@ -1000,6 +1089,6 @@ const session = await client.checkoutSessions.create({
 </Step>
 
 <Step title="बस इतना ही!">
-हाँ। आपकी ओर से कोई अतिरिक्त हैंडलिंग या विशेष माइग्रेशन चरणों की आवश्यकता नहीं है।
+हाँ। आपकी ओर से कोई अतिरिक्त प्रबंधन या विशेष माइग्रेशन चरणों की आवश्यकता नहीं है।
 </Step>
 </Steps>

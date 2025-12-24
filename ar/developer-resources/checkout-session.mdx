@@ -292,6 +292,9 @@ window.location.href = session.checkout_url;
 window.open(session.checkout_url, '_blank');
 ```
 
+<Tip>
+**خيارات التكامل البديلة**: بدلاً من إعادة التوجيه، يمكنك تضمين عملية الدفع مباشرة في صفحتك باستخدام [Overlay Checkout](/developer-resources/overlay-checkout) (تراكب نافذة منبثقة) أو [Inline Checkout](/developer-resources/inline-checkout) (مضمن بالكامل). كلا الخيارين يستخدمان نفس عنوان URL لجلسة الدفع.
+</Tip>
 </Step>
 
 <Step title="التعامل مع العودة">
@@ -974,24 +977,110 @@ const session = await client.checkoutSessions.create({
 });
 ```
 
+### 11. استخدام طرق الدفع الحالية للدفع الفوري
+
+استخدم طريقة الدفع المحفوظة للعميل لإنشاء جلسة دفع تتم معالجتها على الفور، متجاوزًا جمع طريقة الدفع:
+
+```javascript expandable
+const session = await client.checkoutSessions.create({
+  product_cart: [
+    {
+      product_id: 'prod_premium_plan',
+      quantity: 1
+    }
+  ],
+  customer: {
+    customer_id: 'cus_123'  // Required when using payment_method_id
+  },
+  payment_method_id: 'pm_abc123',  // Use customer's saved payment method
+  confirm: true,  // Required when using payment_method_id
+  return_url: 'https://yourapp.com/success'
+});
+```
+
+<Warning>
+عند استخدام `payment_method_id`، يجب تعيين `confirm` إلى `true` ويجب تقديم `customer_id` موجود. سيتم التحقق من أهلية طريقة الدفع مع عملة الدفع.
+</Warning>
+
+<Info>
+يجب أن تنتمي طريقة الدفع إلى العميل وأن تكون متوافقة مع عملة الدفع. هذا يمكّن عمليات الشراء بنقرة واحدة للعملاء العائدين.
+</Info>
+
+### 12. روابط قصيرة لروابط دفع أنظف
+
+قم بإنشاء روابط دفع مختصرة وقابلة للمشاركة مع شفرات مخصصة:
+
+```javascript expandable
+const session = await client.checkoutSessions.create({
+  product_cart: [
+    {
+      product_id: 'prod_monthly_subscription',
+      quantity: 1
+    }
+  ],
+  short_link: true,  // Generate a shortened payment link
+  return_url: 'https://yourapp.com/success',
+  customer: {
+    email: 'customer@example.com',
+    name: 'John Doe'
+  }
+});
+
+// The checkout_url will be a shortened, cleaner link
+console.log(session.checkout_url);  // e.g., https://checkout.dodopayments.com/buy/abc123
+```
+
+<Tip>
+الروابط القصيرة مثالية لمشاركة عبر الرسائل القصيرة أو البريد الإلكتروني أو وسائل التواصل الاجتماعي. من الأسهل تذكرها وتبني ثقة أكبر لدى العملاء مقارنةً بالروابط الطويلة.
+</Tip>
+
+### 13. تخطي صفحة نجاح الدفع مع إعادة توجيه فورية
+
+قم بإعادة توجيه العملاء مباشرة بعد إتمام الدفع، متجاوزًا صفحة النجاح الافتراضية:
+
+```javascript expandable
+const session = await client.checkoutSessions.create({
+  product_cart: [
+    {
+      product_id: 'prod_digital_product',
+      quantity: 1
+    }
+  ],
+  redirect_immediately: true,  // Skip success page, redirect immediately
+  return_url: 'https://yourapp.com/success',
+  customer: {
+    email: 'customer@example.com',
+    name: 'Jane Smith'
+  }
+});
+```
+
+<Tip>
+استخدم `redirect_immediately: true` عندما يكون لديك صفحة نجاح مخصصة توفر تجربة مستخدم أفضل من صفحة نجاح الدفع الافتراضية. هذا مفيد بشكل خاص لتطبيقات الهاتف المحمول وتدفقات الدفع المضمنة.
+</Tip>
+
+<Note>
+عندما يتم تمكين `redirect_immediately`، يتم إعادة توجيه العملاء إلى `return_url` مباشرة بعد إتمام الدفع، متجاوزين صفحة النجاح الافتراضية تمامًا.
+</Note>
+
 ## الانتقال من الروابط الديناميكية إلى جلسات الدفع
 
 ### الاختلافات الرئيسية
-سابقًا، عند إنشاء رابط دفع باستخدام الروابط الديناميكية، كان يتعين عليك تقديم عنوان الفواتير الكامل للعميل.
+سابقًا، عند إنشاء رابط دفع باستخدام الروابط الديناميكية، كان يتعين عليك تقديم عنوان الفوترة الكامل للعميل.
 
 مع جلسات الدفع، لم يعد هذا ضروريًا. يمكنك ببساطة تمرير أي معلومات لديك، وسنتولى الباقي. على سبيل المثال:
 
-- إذا كنت تعرف فقط بلد الفواتير للعميل، فقط قدم ذلك.
-- ستجمع عملية الدفع تلقائيًا التفاصيل المفقودة قبل نقل العميل إلى صفحة الدفع.
-- من ناحية أخرى، إذا كان لديك بالفعل جميع المعلومات المطلوبة وترغب في تخطي مباشرة إلى صفحة الدفع، يمكنك تمرير مجموعة البيانات الكاملة وتضمين `confirm=true` في جسم طلبك.
+- إذا كنت تعرف فقط بلد الفوترة للعميل، فقط قدم ذلك.
+- ستقوم عملية الدفع تلقائيًا بجمع التفاصيل المفقودة قبل نقل العميل إلى صفحة الدفع.
+- من ناحية أخرى، إذا كان لديك بالفعل جميع المعلومات المطلوبة وترغب في الانتقال مباشرة إلى صفحة الدفع، يمكنك تمرير مجموعة البيانات الكاملة وتضمين `confirm=true` في جسم طلبك.
 
 ### عملية الترحيل
 
-الترحيل من الروابط الديناميكية إلى جلسات الدفع هو أمر بسيط:
+الترحيل من الروابط الديناميكية إلى جلسات الدفع سهل:
 
 <Steps>
-<Step title="تحديث تكامل الخاص بك">
-قم بتحديث تكامل الخاص بك لاستخدام طريقة API أو SDK الجديدة.
+<Step title="تحديث تكاملتك">
+قم بتحديث تكاملتك لاستخدام واجهة برمجة التطبيقات الجديدة أو طريقة SDK.
 </Step>
 
 <Step title="تعديل حمولة الطلب">

@@ -10,6 +10,10 @@ icon: bolt
 
 As assinaturas sob demanda permitem que você autorize um método de pagamento de um cliente uma vez e, em seguida, cobre valores variáveis sempre que precisar, em vez de em um cronograma fixo.
 
+<Info>
+As assinaturas sob demanda agora estão disponíveis para todas as empresas. Este recurso permite controle de cobrança flexível para serviços baseados em uso e medidos.
+</Info>
+
 Use este guia para:
 - Criar uma assinatura sob demanda (autorizar um mandato com preço inicial opcional)
 - Acionar cobranças subsequentes com valores personalizados
@@ -37,7 +41,7 @@ Se você quiser que o cliente aprove o mandato via checkout hospedado, defina `p
 
 Endpoint: [POST /subscriptions](/api-reference/subscriptions/post-subscriptions)
 
-Principais campos de solicitação (corpo):
+Campos principais da solicitação (corpo):
 
 <AccordionGroup>
 <Accordion title="Parâmetros do Corpo da Solicitação">
@@ -54,7 +58,7 @@ Principais campos de solicitação (corpo):
   </ParamField>
 
   <ParamField body="customer" type="object" required>
-    Anexe um cliente existente ou forneça os detalhes do cliente.
+    Anexar um cliente existente ou fornecer detalhes do cliente.
   </ParamField>
 
   <ParamField body="payment_link" type="boolean" default="false">
@@ -62,7 +66,7 @@ Principais campos de solicitação (corpo):
   </ParamField>
 
   <ParamField body="return_url" type="string">
-    Para onde redirecionar o cliente após concluir o checkout hospedado.
+    Para onde redirecionar o cliente após completar o checkout hospedado.
   </ParamField>
 
   <ParamField body="on_demand.mandate_only" type="boolean" required>
@@ -82,7 +86,7 @@ Principais campos de solicitação (corpo):
   </ParamField>
 
   <ParamField body="on_demand.adaptive_currency_fees_inclusive" type="boolean">
-    Se verdadeiro, inclui taxas de moeda adaptativa dentro de <code>product_price</code>. Se falso, as taxas são adicionadas em cima. Ignorado quando a precificação adaptativa está desativada.
+    Se verdadeiro, inclui taxas de moeda adaptativa dentro de <code>product_price</code>. Se falso, as taxas são adicionadas por cima. Ignorado quando a precificação adaptativa está desativada.
   </ParamField>
 </Accordion>
 </AccordionGroup>
@@ -230,7 +234,7 @@ curl -X POST "$DODO_API/subscriptions" \
 </Tabs>
 
 <Check>
-Defina `payment_link: true`, redirecione o cliente para `payment_link` para concluir a autorização do mandato.
+Defina `payment_link: true`, redirecione o cliente para `payment_link` para completar a autorização do mandato.
 </Check>
 
 ```json Success
@@ -246,11 +250,11 @@ Defina `payment_link: true`, redirecione o cliente para `payment_link` para conc
 
 ## Cobrar uma assinatura sob demanda
 
-Após o mandato ser autorizado, crie cobranças conforme necessário.
+Após a autorização do mandato, crie cobranças conforme necessário.
 
 Endpoint: [POST /subscriptions/\{subscription_id\}/charge](/api-reference/subscriptions/create-charge)
 
-Principais campos de solicitação (corpo):
+Campos principais da solicitação (corpo):
 
 <AccordionGroup>
   <Accordion title="Parâmetros do corpo da solicitação de cobrança">
@@ -267,7 +271,7 @@ Principais campos de solicitação (corpo):
     </ParamField>
 
     <ParamField body="adaptive_currency_fees_inclusive" type="boolean">
-      Se verdadeiro, inclui taxas de moeda adaptativa dentro de <code>product_price</code>. Se falso, as taxas são adicionadas em cima.
+      Se verdadeiro, inclui taxas de moeda adaptativa dentro de <code>product_price</code>. Se falso, as taxas são adicionadas por cima.
     </ParamField>
 
     <ParamField body="metadata" type="object">
@@ -367,13 +371,13 @@ Cobrar uma assinatura que não é sob demanda pode falhar. Certifique-se de que 
 Nosso sistema de detecção de fraudes pode bloquear padrões de tentativas agressivas (e pode sinalizá-los como testes de cartão potenciais). Siga uma política de tentativas segura.
 
 <Warning>
-Padrões de tentativas em massa podem ser sinalizados como fraudulentos ou suspeitos de teste de cartão por nossos sistemas de risco e processadores. Evite tentativas agrupadas; siga o cronograma de recuo e as orientações de alinhamento de tempo abaixo.
+Padrões de tentativas em massa podem ser sinalizados como fraudulentos ou suspeitos de teste de cartão pelos nossos sistemas de risco e processadores. Evite tentativas agrupadas; siga o cronograma de recuo e as orientações de alinhamento de tempo abaixo.
 </Warning>
 
 ### Princípios para políticas de tentativas seguras
 
 - **Mecanismo de recuo**: Use recuo exponencial entre as tentativas.
-- **Limites de tentativas**: Limite o total de tentativas (3–4 tentativas no máximo).
+- **Limites de tentativas**: Limite o total de tentativas (máximo de 3 a 4 tentativas).
 - **Filtragem inteligente**: Tente novamente apenas em falhas recuperáveis (por exemplo, erros de rede/emissor, fundos insuficientes); nunca tente novamente em recusas definitivas.
 - **Prevenção de testes de cartão**: Não tente novamente falhas como `DO_NOT_HONOR`, `STOLEN_CARD`, `LOST_CARD`, `PICKUP_CARD`, `FRAUDULENT`, `AUTHENTICATION_FAILURE`.
 - **Variar metadados (opcional)**: Se você mantiver seu próprio sistema de tentativas, diferencie as tentativas por meio de metadados (por exemplo, `retry_attempt`).
@@ -389,9 +393,9 @@ Passo final: se ainda não pago, marque a assinatura como não paga ou cancele-a
 
 ### Evite tentativas em massa; alinhe-se ao horário de autorização
 
-- Ancore as tentativas ao timestamp de autorização original para evitar comportamento de “explosão” em seu portfólio.
+- Ancore as tentativas ao timestamp de autorização original para evitar comportamento de "explosão" em seu portfólio.
 - Exemplo: Se o cliente iniciar um teste ou mandato às 13h10 de hoje, agende tentativas de acompanhamento às 13h10 nos dias subsequentes conforme seu recuo (por exemplo, +3 dias → 13h10, +7 dias → 13h10).
-- Alternativamente, se você armazenar o horário do último pagamento bem-sucedido `T`, agende a próxima tentativa em `T + X days` para preservar o alinhamento do horário do dia.
+- Alternativamente, se você armazenar o último horário de pagamento bem-sucedido `T`, agende a próxima tentativa em `T + X days` para preservar o alinhamento do horário do dia.
 
 <Note>
 Fuso horário e DST: use um padrão de tempo consistente para agendamento e converta apenas para exibição para manter os intervalos.
@@ -412,17 +416,17 @@ Para uma lista abrangente de razões de recusa e se são corrigíveis pelo usuá
 </Note>
 
 <Tip>
-Tente novamente apenas em problemas suaves/temporários (por exemplo, `insufficient_funds`, `issuer_unavailable`, `processing_error`, timeouts de rede). Se a mesma recusa se repetir, pause novas tentativas.
+Tente novamente apenas em problemas temporários/suaves (por exemplo, `insufficient_funds`, `issuer_unavailable`, `processing_error`, timeouts de rede). Se a mesma recusa se repetir, pause novas tentativas.
 </Tip>
 
 ### Diretrizes de implementação (sem código)
 
 - Use um agendador/fila que persista timestamps precisos; calcule a próxima tentativa no exato deslocamento de horário (por exemplo, `T + 3 days` no mesmo HH:MM).
-- Mantenha e faça referência ao timestamp do último pagamento bem-sucedido `T` para calcular a próxima tentativa; não agrupe várias assinaturas no mesmo instante.
+- Mantenha e faça referência ao último timestamp de pagamento bem-sucedido `T` para calcular a próxima tentativa; não agrupe várias assinaturas no mesmo instante.
 - Sempre avalie a última razão de recusa; pare as tentativas para recusas definitivas na lista de exclusão acima.
 - Limite tentativas simultâneas por cliente e por conta para evitar picos acidentais.
 - Comunique-se proativamente: envie e-mail/SMS ao cliente para atualizar seu método de pagamento antes da próxima tentativa agendada.
-- Use metadados apenas para observabilidade (por exemplo, `retry_attempt`); nunca tente “evadir” sistemas de fraude/risco rotacionando campos irrelevantes.
+- Use metadados apenas para observabilidade (por exemplo, `retry_attempt`); nunca tente "evadir" sistemas de fraude/risco rotacionando campos irrelevantes.
 
 ## Rastrear resultados com webhooks
 
@@ -442,7 +446,7 @@ Para fluxos sob demanda, concentre-se em `payment.succeeded` e `payment.failed` 
 
 <Steps>
 <Step title="Criar em modo de teste">
-Use sua chave de API de teste para criar a assinatura com `payment_link: true`, depois abra o link e conclua o mandato.
+Use sua chave de API de teste para criar a assinatura com `payment_link: true`, depois abra o link e complete o mandato.
 </Step>
 <Step title="Acionar uma cobrança">
 Chame o endpoint de cobrança com um pequeno `product_price` (por exemplo, `100`) e verifique se você recebe `payment.succeeded`.
@@ -452,8 +456,8 @@ Mude para sua chave de API ao vivo assim que você tiver validado eventos e atua
 </Step>
 </Steps>
 
-## Solução de problemas
+## Resolução de problemas
 
 - **422 Solicitação Inválida**: Certifique-se de que `on_demand.mandate_only` seja fornecido na criação e `product_price` seja fornecido para cobranças.
 - **Erros de moeda**: Se você substituir `product_currency`, confirme se é suportado para sua conta e cliente.
-- **Nenhum webhook recebido**: Verifique sua URL de webhook e configuração de segredo de assinatura.
+- **Nenhum webhook recebido**: Verifique sua URL de webhook e configuração do segredo.

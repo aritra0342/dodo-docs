@@ -293,6 +293,9 @@ window.location.href = session.checkout_url;
 window.open(session.checkout_url, '_blank');
 ```
 
+<Tip>
+**Options d'intégration alternatives** : Au lieu de rediriger, vous pouvez intégrer le paiement directement dans votre page en utilisant [Overlay Checkout](/developer-resources/overlay-checkout) (superposition modale) ou [Inline Checkout](/developer-resources/inline-checkout) (entièrement intégré). Les deux options utilisent la même URL de session de paiement.
+</Tip>
 </Step>
 
 <Step title="Gérez le retour">
@@ -975,6 +978,92 @@ const session = await client.checkoutSessions.create({
 });
 ```
 
+### 11. Utilisation des méthodes de paiement existantes pour un paiement instantané
+
+Utilisez la méthode de paiement enregistrée d'un client pour créer une session de paiement qui se traite immédiatement, en sautant la collecte de la méthode de paiement :
+
+```javascript expandable
+const session = await client.checkoutSessions.create({
+  product_cart: [
+    {
+      product_id: 'prod_premium_plan',
+      quantity: 1
+    }
+  ],
+  customer: {
+    customer_id: 'cus_123'  // Required when using payment_method_id
+  },
+  payment_method_id: 'pm_abc123',  // Use customer's saved payment method
+  confirm: true,  // Required when using payment_method_id
+  return_url: 'https://yourapp.com/success'
+});
+```
+
+<Warning>
+Lors de l'utilisation de `payment_method_id`, `confirm` doit être défini sur `true` et une `customer_id` existante doit être fournie. La méthode de paiement sera validée pour son éligibilité avec la devise du paiement.
+</Warning>
+
+<Info>
+La méthode de paiement doit appartenir au client et être compatible avec la devise du paiement. Cela permet des achats en un clic pour les clients récurrents.
+</Info>
+
+### 12. Liens courts pour des URL de paiement plus propres
+
+Générez des liens de paiement raccourcis et partageables avec des slugs personnalisés :
+
+```javascript expandable
+const session = await client.checkoutSessions.create({
+  product_cart: [
+    {
+      product_id: 'prod_monthly_subscription',
+      quantity: 1
+    }
+  ],
+  short_link: true,  // Generate a shortened payment link
+  return_url: 'https://yourapp.com/success',
+  customer: {
+    email: 'customer@example.com',
+    name: 'John Doe'
+  }
+});
+
+// The checkout_url will be a shortened, cleaner link
+console.log(session.checkout_url);  // e.g., https://checkout.dodopayments.com/buy/abc123
+```
+
+<Tip>
+Les liens courts sont parfaits pour le partage par SMS, email ou sur les réseaux sociaux. Ils sont plus faciles à retenir et instaurent plus de confiance chez les clients que les longues URL.
+</Tip>
+
+### 13. Sauter la page de succès de paiement avec redirection immédiate
+
+Redirigez les clients immédiatement après la finalisation du paiement, en contournant la page de succès par défaut :
+
+```javascript expandable
+const session = await client.checkoutSessions.create({
+  product_cart: [
+    {
+      product_id: 'prod_digital_product',
+      quantity: 1
+    }
+  ],
+  redirect_immediately: true,  // Skip success page, redirect immediately
+  return_url: 'https://yourapp.com/success',
+  customer: {
+    email: 'customer@example.com',
+    name: 'Jane Smith'
+  }
+});
+```
+
+<Tip>
+Utilisez `redirect_immediately: true` lorsque vous avez une page de succès personnalisée qui offre une meilleure expérience utilisateur que la page de succès de paiement par défaut. Cela est particulièrement utile pour les applications mobiles et les flux de paiement intégrés.
+</Tip>
+
+<Note>
+Lorsque `redirect_immediately` est activé, les clients sont redirigés vers votre `return_url` immédiatement après la finalisation du paiement, contournant complètement la page de succès par défaut.
+</Note>
+
 ## Passer des liens dynamiques aux sessions de paiement
 
 ### Différences clés
@@ -988,7 +1077,7 @@ Avec les sessions de paiement, cela n'est plus nécessaire. Vous pouvez simpleme
 
 ### Processus de migration
 
-Migrer des liens dynamiques vers des sessions de paiement est simple :
+La migration des liens dynamiques vers les sessions de paiement est simple :
 
 <Steps>
 <Step title="Mettez à jour votre intégration">

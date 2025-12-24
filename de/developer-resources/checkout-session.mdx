@@ -293,6 +293,9 @@ window.location.href = session.checkout_url;
 window.open(session.checkout_url, '_blank');
 ```
 
+<Tip>
+**Alternative Integrationsoptionen**: Anstatt umzuleiten, können Sie den Checkout direkt in Ihre Seite einbetten, indem Sie [Overlay Checkout](/developer-resources/overlay-checkout) (modal overlay) oder [Inline Checkout](/developer-resources/inline-checkout) (vollständig eingebettet) verwenden. Beide Optionen verwenden dieselbe Checkout-Sitzungs-URL.
+</Tip>
 </Step>
 
 <Step title="Behandeln Sie die Rückkehr">
@@ -975,15 +978,101 @@ const session = await client.checkoutSessions.create({
 });
 ```
 
-## Umstieg von dynamischen Links auf Checkout-Sitzungen
+### 11. Verwendung vorhandener Zahlungsmethoden für den Sofort-Checkout
+
+Verwenden Sie die gespeicherte Zahlungsmethode eines Kunden, um eine Checkout-Sitzung zu erstellen, die sofort verarbeitet wird, ohne die Erfassung der Zahlungsmethode:
+
+```javascript expandable
+const session = await client.checkoutSessions.create({
+  product_cart: [
+    {
+      product_id: 'prod_premium_plan',
+      quantity: 1
+    }
+  ],
+  customer: {
+    customer_id: 'cus_123'  // Required when using payment_method_id
+  },
+  payment_method_id: 'pm_abc123',  // Use customer's saved payment method
+  confirm: true,  // Required when using payment_method_id
+  return_url: 'https://yourapp.com/success'
+});
+```
+
+<Warning>
+Bei der Verwendung von `payment_method_id` muss `confirm` auf `true` gesetzt werden, und eine vorhandene `customer_id` muss bereitgestellt werden. Die Zahlungsmethode wird auf ihre Berechtigung in Bezug auf die Währung der Zahlung validiert.
+</Warning>
+
+<Info>
+Die Zahlungsmethode muss dem Kunden gehören und mit der Zahlungswährung kompatibel sein. Dies ermöglicht One-Click-Käufe für wiederkehrende Kunden.
+</Info>
+
+### 12. Kurze Links für sauberere Zahlungs-URLs
+
+Generieren Sie verkürzte, teilbare Zahlungslinks mit benutzerdefinierten Slugs:
+
+```javascript expandable
+const session = await client.checkoutSessions.create({
+  product_cart: [
+    {
+      product_id: 'prod_monthly_subscription',
+      quantity: 1
+    }
+  ],
+  short_link: true,  // Generate a shortened payment link
+  return_url: 'https://yourapp.com/success',
+  customer: {
+    email: 'customer@example.com',
+    name: 'John Doe'
+  }
+});
+
+// The checkout_url will be a shortened, cleaner link
+console.log(session.checkout_url);  // e.g., https://checkout.dodopayments.com/buy/abc123
+```
+
+<Tip>
+Kurze Links sind perfekt für SMS, E-Mail oder das Teilen in sozialen Medien. Sie sind leichter zu merken und schaffen mehr Vertrauen bei den Kunden als lange URLs.
+</Tip>
+
+### 13. Zahlungserfolgsseite mit sofortiger Weiterleitung überspringen
+
+Leiten Sie Kunden sofort nach Abschluss der Zahlung weiter und umgehen Sie die standardmäßige Erfolgsseite:
+
+```javascript expandable
+const session = await client.checkoutSessions.create({
+  product_cart: [
+    {
+      product_id: 'prod_digital_product',
+      quantity: 1
+    }
+  ],
+  redirect_immediately: true,  // Skip success page, redirect immediately
+  return_url: 'https://yourapp.com/success',
+  customer: {
+    email: 'customer@example.com',
+    name: 'Jane Smith'
+  }
+});
+```
+
+<Tip>
+Verwenden Sie `redirect_immediately: true`, wenn Sie eine benutzerdefinierte Erfolgsseite haben, die eine bessere Benutzererfahrung bietet als die standardmäßige Zahlungserfolgsseite. Dies ist besonders nützlich für mobile Apps und eingebettete Checkout-Flows.
+</Tip>
+
+<Note>
+Wenn `redirect_immediately` aktiviert ist, werden die Kunden sofort nach Abschluss der Zahlung zu Ihrer `return_url` weitergeleitet, wobei die standardmäßige Erfolgsseite vollständig übersprungen wird.
+</Note>
+
+## Umstieg von dynamischen Links zu Checkout-Sitzungen
 
 ### Wichtige Unterschiede
 Früher mussten Sie beim Erstellen eines Zahlungslinks mit dynamischen Links die vollständige Rechnungsadresse des Kunden angeben.
 
-Mit Checkout-Sitzungen ist dies nicht mehr erforderlich. Sie können einfach die Informationen übergeben, die Sie haben, und wir kümmern uns um den Rest. Zum Beispiel:
+Mit Checkout-Sitzungen ist dies nicht mehr erforderlich. Sie können einfach die Informationen weitergeben, die Sie haben, und wir kümmern uns um den Rest. Zum Beispiel:
 
 - Wenn Sie nur das Rechnungsland des Kunden kennen, geben Sie nur das an.
-- Der Checkout-Prozess sammelt automatisch die fehlenden Details, bevor der Kunde zur Zahlungsseite weitergeleitet wird.
+- Der Checkout-Prozess wird automatisch die fehlenden Details sammeln, bevor der Kunde zur Zahlungsseite weitergeleitet wird.
 - Wenn Sie hingegen bereits alle erforderlichen Informationen haben und direkt zur Zahlungsseite springen möchten, können Sie den vollständigen Datensatz übergeben und `confirm=true` in Ihrem Anfragekörper einfügen.
 
 ### Migrationsprozess
@@ -995,7 +1084,7 @@ Die Migration von dynamischen Links zu Checkout-Sitzungen ist unkompliziert:
 Aktualisieren Sie Ihre Integration, um die neue API- oder SDK-Methode zu verwenden.
 </Step>
 
-<Step title="Anpassung der Anfrage-Nutzlast">
+<Step title="Anpassen der Anfrage-Nutzlast">
 Passen Sie die Anfrage-Nutzlast gemäß dem Format der Checkout-Sitzungen an.
 </Step>
 
