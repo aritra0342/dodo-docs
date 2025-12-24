@@ -244,13 +244,7 @@ import { useEffect, useState } from 'react';
 import { DodoPayments, CheckoutBreakdownData } from 'dodopayments-checkout';
 
 export default function CheckoutPage() {
-  const [subTotal, setSubTotal] = useState<number | null>(null);
-  const [discount, setDiscount] = useState<number | null>(null);
-  const [total, setTotal] = useState<number | null>(null);
-  const [tax, setTax] = useState<number | null>(null);
-  const [currency, setCurrency] = useState<string | null>(null);
-  const [finalTotal, setFinalTotal] = useState<number | null>(null);
-  const [finalTotalCurrency, setFinalTotalCurrency] = useState<string | null>(null);
+  const [breakdown, setBreakdown] = useState<Partial<CheckoutBreakdownData>>({});
 
   useEffect(() => {
     // 1. Initialize the SDK
@@ -259,18 +253,9 @@ export default function CheckoutPage() {
       displayType: 'inline',
       onEvent: (event) => {
         // 2. Listen for the 'checkout.breakdown' event
-        // This fires whenever the user changes their location or triggers a tax calculation.
         if (event.event_type === "checkout.breakdown") {
           const message = event.data?.message as CheckoutBreakdownData;
-          if (message) {
-            setSubTotal(message?.subTotal ?? null);
-            setDiscount(message?.discount ?? null);
-            setTotal(message?.total ?? null);
-            setTax(message?.tax ?? null);
-            setCurrency(message?.currency ?? null);
-            setFinalTotal(message.finalTotal ?? null);
-            setFinalTotalCurrency(message.finalTotalCurrency ?? null);
-          }
+          if (message) setBreakdown(message);
         }
       }
     });
@@ -281,17 +266,13 @@ export default function CheckoutPage() {
       elementId: 'dodo-inline-checkout'
     });
 
-    return () => {
-      DodoPayments.Checkout.close();
-    };
+    return () => DodoPayments.Checkout.close();
   }, []);
 
-  const formattedAmt = (amt: number | null, currency: string | null) => {
-    if (amt == null || currency == null) {
-      return '0.00';
-    }
-    return `${currency} ${amt?.toFixed(2) ?? '0.00'}`;
-  }
+  const format = (amt: number | null | undefined, curr: string | null | undefined) => 
+    amt != null && curr ? `${curr} ${amt.toFixed(2)}` : '0.00';
+
+  const currency = breakdown.currency ?? breakdown.finalTotalCurrency ?? '';
 
   return (
     <div className="flex flex-col md:flex-row min-h-screen">
@@ -304,36 +285,37 @@ export default function CheckoutPage() {
       <div className="w-full md:w-1/2 p-8 bg-gray-50">
         <h2 className="text-2xl font-bold mb-4">Order Summary</h2>
         <div className="space-y-2">
-          {subTotal && (
+          {breakdown.subTotal && (
             <div className="flex justify-between">
               <span>Subtotal</span>
-              <span>{formattedAmt(subTotal, currency ?? '')}</span>
+              <span>{format(breakdown.subTotal, currency)}</span>
             </div>
           )}
-          {discount && (
+          {breakdown.discount && (
             <div className="flex justify-between">
               <span>Discount</span>
-              <span>{formattedAmt(discount, currency ?? '')}</span>
+              <span>{format(breakdown.discount, currency)}</span>
             </div>
           )}
-          {tax != null && (
+          {breakdown.tax != null && (
             <div className="flex justify-between">
               <span>Tax</span>
-              <span>{formattedAmt(tax, currency ?? '')}</span>
+              <span>{format(breakdown.tax, currency)}</span>
             </div>
           )}
           <hr />
-          {(total || finalTotal) && (
+          {(breakdown.finalTotal ?? breakdown.total) && (
             <div className="flex justify-between font-bold text-xl">
               <span>Total</span>
-              <span>{formattedAmt(finalTotal ?? total ?? 0, finalTotalCurrency ?? currency ?? '')}</span>
+              <span>{format(breakdown.finalTotal ?? breakdown.total, breakdown.finalTotalCurrency ?? currency)}</span>
             </div>
           )}
         </div>
       </div>
     </div>
   );
-};
+}
+
 ```
 
 ## API Reference
@@ -369,6 +351,36 @@ interface CheckoutOptions {
 |--------|------|----------|-------------|
 | `checkoutUrl` | `string` | Yes | Checkout session URL. |
 | `elementId` | `string` | Yes | The `id` of the DOM element where the checkout should be rendered. |
+
+### Methods
+
+#### Open Checkout
+
+Opens the checkout frame in the specified container.
+
+```typescript
+DodoPayments.Checkout.open({
+  checkoutUrl: "https://test.dodopayments.com/session/cks_123",
+  elementId: "dodo-inline-checkout"
+});
+```
+
+#### Close Checkout
+
+Programmatically removes the checkout frame and cleans up event listeners.
+
+```typescript
+DodoPayments.Checkout.close();
+```
+
+#### Check Status
+
+Returns whether the checkout frame is currently injected.
+
+```typescript
+const isOpen = DodoPayments.Checkout.isOpen();
+// Returns: boolean
+```
 
 ### Events
 
@@ -425,6 +437,89 @@ The `checkout.breakdown` event is the primary way to keep your application's UI 
 3.  **The "Final Total" vs "Total"**: While `total` gives you the standard price calculation, `finalTotal` is the source of truth for the transaction. If `finalTotal` is present, it reflects exactly what will be charged to the customer's card, including any dynamic adjustments.
 4.  **Real-time Feedback**: Use the `tax` field to show users that taxes are being calculated in real-time. This provides a "live" feel to your checkout page and reduces friction during the address entry step.
 
+## Implementation Options
+
+### Package Manager Installation
+
+Install via npm, yarn, or pnpm as shown in the [Step-by-Step Integration Guide](#step-by-step-integration-guide).
+
+### CDN Implementation
+
+For quick integration without a build step, you can use our CDN:
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dodo Payments Inline Checkout</title>
+    
+    <!-- Load DodoPayments -->
+    <script src="https://cdn.jsdelivr.net/npm/dodopayments-checkout@latest/dist/index.js"></script>
+    <script>
+        // Initialize the SDK
+        DodoPaymentsCheckout.DodoPayments.Initialize({
+            mode: "test",
+            displayType: "inline",
+            onEvent: (event) => {
+                console.log('Checkout event:', event);
+            }
+        });
+    </script>
+</head>
+<body>
+    <div id="dodo-inline-checkout"></div>
+
+    <script>
+        // Open the checkout
+        DodoPaymentsCheckout.DodoPayments.Checkout.open({
+            checkoutUrl: "https://test.dodopayments.com/session/cks_123",
+            elementId: "dodo-inline-checkout"
+        });
+    </script>
+</body>
+</html>
+```
+
+## TypeScript Support
+
+The SDK is written in TypeScript and includes comprehensive type definitions.
+
+```typescript
+import { DodoPayments, CheckoutEvent } from "dodopayments-checkout";
+
+DodoPayments.Initialize({
+  mode: "test",
+  displayType: "inline",
+  onEvent: (event: CheckoutEvent) => {
+    // event is fully typed
+    console.log(event.event_type, event.data);
+  },
+});
+```
+
+## Error Handling
+
+The SDK provides detailed error information through the event system. Always implement proper error handling in your `onEvent` callback:
+
+```typescript
+DodoPayments.Initialize({
+  mode: "test",
+  displayType: "inline",
+  onEvent: (event: CheckoutEvent) => {
+    if (event.event_type === "checkout.error") {
+      console.error("Checkout error:", event.data?.message);
+      // Handle error appropriately
+    }
+  }
+});
+```
+
+<Warning>
+Always handle the `checkout.error` event to provide a good user experience when issues occur.
+</Warning>
+
 ## Best Practices
 
 1. **Responsive Design**: Ensure your container element has enough width and height. The iframe will typically expand to fill its container.
@@ -446,6 +541,20 @@ The `checkout.breakdown` event is the primary way to keep your application's UI 
 - Taxes are only calculated after the user enters a valid country and postal code in the checkout frame.
 </Accordion>
 </AccordionGroup>
+
+## Browser Support
+
+The Dodo Payments Checkout SDK supports the following browsers:
+
+- Chrome (latest)
+- Firefox (latest)
+- Safari (latest)
+- Edge (latest)
+- IE11+
+
+<Note>
+Apple Pay is not currently supported in the inline checkout experience. We plan to add support for Apple Pay in a future release.
+</Note>
 
 ## Inline vs Overlay Checkout
 
