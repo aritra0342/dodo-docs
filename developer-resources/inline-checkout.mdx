@@ -249,6 +249,8 @@ export default function CheckoutPage() {
   const [total, setTotal] = useState<number | null>(null);
   const [tax, setTax] = useState<number | null>(null);
   const [currency, setCurrency] = useState<string | null>(null);
+  const [finalTotal, setFinalTotal] = useState<number | null>(null);
+  const [finalTotalCurrency, setFinalTotalCurrency] = useState<string | null>(null);
 
   useEffect(() => {
     // 1. Initialize the SDK
@@ -262,10 +264,12 @@ export default function CheckoutPage() {
           const message = event.data?.message as CheckoutBreakdownData;
           if (message) {
             setSubTotal(message?.subTotal ?? null);
-            setDiscount(message.discount);
+            setDiscount(message?.discount ?? null);
             setTotal(message?.total ?? null);
             setTax(message?.tax ?? null);
             setCurrency(message?.currency ?? null);
+            setFinalTotal(message.finalTotal ?? null);
+            setFinalTotalCurrency(message.finalTotalCurrency ?? null);
           }
         }
       }
@@ -282,15 +286,18 @@ export default function CheckoutPage() {
     };
   }, []);
 
-  const formattedAmt = (amt: number) => {
-    return `${currency} ${amt.toFixed(2)}`;
+  const formattedAmt = (amt: number | null, currency: string | null) => {
+    if (amt == null || currency == null) {
+      return '0.00';
+    }
+    return `${currency} ${amt?.toFixed(2) ?? '0.00'}`;
   }
 
   return (
     <div className="flex flex-col md:flex-row min-h-screen">
       {/* Left Side - Checkout Form */}
-      <div className="w-full md:w-1/2">
-        <div id="dodo-inline-checkout" />
+      <div className="w-full md:w-1/2 flex items-center">
+        <div id="dodo-inline-checkout" className='w-full' />
       </div>
 
       {/* Right Side - Custom Order Summary */}
@@ -300,26 +307,28 @@ export default function CheckoutPage() {
           {subTotal && (
             <div className="flex justify-between">
               <span>Subtotal</span>
-              <span>{formattedAmt(subTotal)}</span>
+              <span>{formattedAmt(subTotal, currency ?? '')}</span>
             </div>
           )}
           {discount && (
             <div className="flex justify-between">
               <span>Discount</span>
-              <span>-{formattedAmt(discount)}</span>
+              <span>{formattedAmt(discount, currency ?? '')}</span>
             </div>
           )}
-          {tax && (
+          {tax != null && (
             <div className="flex justify-between">
               <span>Tax</span>
-              <span>{formattedAmt(tax)}</span>
+              <span>{formattedAmt(tax, currency ?? '')}</span>
             </div>
           )}
           <hr />
-          <div className="flex justify-between font-bold text-xl">
-            <span>Total</span>
-            <span>{formattedAmt(total ?? 0)}</span>
-          </div>
+          {(total || finalTotal) && (
+            <div className="flex justify-between font-bold text-xl">
+              <span>Total</span>
+              <span>{formattedAmt(finalTotal ?? total ?? 0, finalTotalCurrency ?? currency ?? '')}</span>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -344,7 +353,7 @@ interface InitializeOptions {
 | Option | Type | Required | Description |
 |--------|------|----------|-------------|
 | `mode` | `"test" \| "live"` | Yes | Environment mode. |
-| `displayType` | `"inline"` | Yes | Must be set to `"inline"` to embed the checkout. |
+| `displayType` | `"inline" \| "overlay"` | Yes | Must be set to `"inline"` to embed the checkout. |
 | `onEvent` | `function` | Yes | Callback function for handling checkout events. |
 
 #### Checkout Options
@@ -379,13 +388,42 @@ The `checkout.breakdown` event provides the following data:
 
 ```typescript
 interface CheckoutBreakdownData {
-  subTotal?: number;  // Amount in cents
-  discount?: number;  // Amount in cents
-  tax?: number;       // Amount in cents
-  total?: number;     // Amount in cents
-  currency?: string;  // e.g., "USD"
+  subTotal?: number;          // Amount in cents
+  discount?: number;         // Amount in cents
+  tax?: number;              // Amount in cents
+  total?: number;            // Amount in cents
+  currency?: string;         // e.g., "USD"
+  finalTotal?: number;       // Final amount including adjustments
+  finalTotalCurrency?: string; // Currency for the final total
 }
 ```
+
+#### Understanding the Breakdown Event
+
+The `checkout.breakdown` event is the primary way to keep your application's UI in sync with the Dodo Payments checkout state.
+
+**When it fires:**
+- **On initialization**: Immediately after the checkout frame is loaded and ready.
+- **On address change**: Whenever the customer selects a country or enters a postal code that results in a tax recalculation.
+
+**Field Details:**
+
+| Field | Description |
+|-------|-------------|
+| `subTotal` | The sum of all line items in the session before any discounts or taxes are applied. |
+| `discount` | The total value of all applied discounts. |
+| `tax` | The calculated tax amount. In `inline` mode, this updates dynamically as the user interacts with the address fields. |
+| `total` | The mathematical result of `subTotal - discount + tax` in the session's base currency. |
+| `currency` | The ISO currency code (e.g., `"USD"`) for the standard subtotal, discount, and tax values. |
+| `finalTotal` | The actual amount the customer is charged. This may include additional foreign exchange adjustments or local payment method fees that aren't part of the basic price breakdown. |
+| `finalTotalCurrency` | The currency in which the customer is actually paying. This can differ from `currency` if purchasing power parity or local currency conversion is active. |
+
+**Key Integration Tips:**
+
+1.  **Currency Formatting**: Prices are always returned as integers in the smallest currency unit (e.g., cents for USD, yen for JPY). To display them, divide by 100 (or the appropriate power of 10) or use a formatting library like `Intl.NumberFormat`.
+2.  **Handling Initial States**: When the checkout first loads, `tax` and `discount` may be `0` or `null` until the user provides their billing information or applies a code. Your UI should handle these states gracefully (e.g., showing a dash `—` or hiding the row).
+3.  **The "Final Total" vs "Total"**: While `total` gives you the standard price calculation, `finalTotal` is the source of truth for the transaction. If `finalTotal` is present, it reflects exactly what will be charged to the customer's card, including any dynamic adjustments.
+4.  **Real-time Feedback**: Use the `tax` field to show users that taxes are being calculated in real-time. This provides a "live" feel to your checkout page and reduces friction during the address entry step.
 
 ## Best Practices
 
