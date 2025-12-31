@@ -29,6 +29,7 @@ import { DodoPayments } from "dodopayments-checkout";
 // Initialize the SDK
 DodoPayments.Initialize({
   mode: "test", // 'test' or 'live'
+  displayType: "overlay", // Optional: defaults to 'overlay' for overlay checkout
   onEvent: (event) => {
     console.log("Checkout event:", event);
   },
@@ -78,6 +79,7 @@ import { DodoPayments } from "dodopayments-checkout";
 
 DodoPayments.Initialize({
   mode: "test", // Change to 'live' for production
+  displayType: "overlay", // Optional: defaults to 'overlay' for overlay checkout
   onEvent: (event) => {
     console.log("Checkout event:", event);
     
@@ -123,6 +125,7 @@ export function CheckoutButton() {
     // Initialize the SDK
     DodoPayments.Initialize({
       mode: "test",
+      displayType: "overlay",
       onEvent: (event) => {
         switch (event.event_type) {
           case "checkout.opened":
@@ -239,6 +242,7 @@ När du är redo för produktion:
 ```typescript
 DodoPayments.Initialize({
   mode: "live",
+  displayType: "overlay",
   onEvent: (event) => {
     console.log("Checkout event:", event);
   }
@@ -261,26 +265,36 @@ DodoPayments.Initialize({
 ```typescript
 interface InitializeOptions {
   mode: "test" | "live";
+  displayType?: "overlay" | "inline";
   onEvent: (event: CheckoutEvent) => void;
 }
 ```
 
-| Alternativ | Typ | Obligatoriskt | Beskrivning |
+| Alternativ | Typ | Obligatorisk | Beskrivning |
 |--------|------|----------|-------------|
 | `mode` | `"test" \| "live"` | Ja | Miljöläge: `'test'` för utveckling, `'live'` för produktion |
-| `onEvent` | `function` | Ja | Återkopplingsfunktion för att hantera checkout-händelser |
+| `displayType` | `"overlay" \| "inline"` | Nej | Visningstyp: `'overlay'` för modal checkout (standard), `'inline'` för inbäddad checkout |
+| `onEvent` | `function` | Ja | Callback-funktion för att hantera checkout-händelser |
 
 #### Checkout-alternativ
 
 ```typescript
 interface CheckoutOptions {
   checkoutUrl: string;
+  options?: {
+    showTimer?: boolean;
+    showSecurityBadge?: boolean;
+    manualRedirect?: boolean;
+  };
 }
 ```
 
-| Alternativ | Typ | Obligatoriskt | Beskrivning |
+| Alternativ | Typ | Obligatorisk | Beskrivning |
 |--------|------|----------|-------------|
-| `checkoutUrl` | `string` | Ja | Checkout-session URL från [create checkout session API](/api-reference/checkout-sessions/create) |
+| `checkoutUrl` | `string` | Ja | Checkout-sessionens URL från [create checkout session API](/api-reference/checkout-sessions/create) |
+| `options.showTimer` | `boolean` | Nej | Visa eller dölja checkout-timern. Standard är `true`. När den är inaktiverad får du `checkout.link_expired`-händelsen när sessionen går ut. |
+| `options.showSecurityBadge` | `boolean` | Nej | Visa eller dölja säkerhetsmärket. Standard är `true`. |
+| `options.manualRedirect` | `boolean` | Nej | När den är aktiverad kommer checkout inte att omdirigera automatiskt efter slutförande. Istället får du `checkout.status` och `checkout.redirect_requested`-händelser för att hantera omdirigeringen själv. |
 
 ### Metoder
 
@@ -294,9 +308,45 @@ DodoPayments.Checkout.open({
 });
 ```
 
+Du kan också skicka ytterligare alternativ för att anpassa checkout-beteendet:
+
+```typescript
+DodoPayments.Checkout.open({
+  checkoutUrl: "https://checkout.dodopayments.com/session/cks_123",
+  options: {
+    showTimer: false,
+    showSecurityBadge: false,
+    manualRedirect: true,
+  },
+});
+```
+
+När du använder `manualRedirect`, hantera checkout-slutförandet i din `onEvent` callback:
+
+```typescript
+DodoPayments.Initialize({
+  mode: "test",
+  displayType: "overlay",
+  onEvent: (event) => {
+    if (event.event_type === "checkout.status") {
+      const status = event.data?.message?.status;
+      // Handle status: "succeeded", "failed", or "processing"
+    }
+    if (event.event_type === "checkout.redirect_requested") {
+      const redirectUrl = event.data?.message?.redirect_to;
+      // Redirect the customer manually
+      window.location.href = redirectUrl;
+    }
+    if (event.event_type === "checkout.link_expired") {
+      // Handle expired checkout session
+    }
+  },
+});
+```
+
 #### Stäng Checkout
 
-Stänger programmässigt checkout-overlayen.
+Stänger programatiskt checkout-overlay.
 
 ```typescript
 DodoPayments.Checkout.close();
@@ -304,7 +354,7 @@ DodoPayments.Checkout.close();
 
 #### Kontrollera Status
 
-Returnerar om checkout-overlayen för närvarande är öppen.
+Returnerar om checkout-overlay för närvarande är öppen.
 
 ```typescript
 const isOpen = DodoPayments.Checkout.isOpen();
@@ -313,7 +363,31 @@ const isOpen = DodoPayments.Checkout.isOpen();
 
 ### Händelser
 
-SDK:n tillhandahåller realtids-händelser som du kan lyssna på genom `onEvent` återkopplingsfunktionen:
+SDK:n tillhandahåller realtids-händelser som du kan lyssna på genom `onEvent` callback:
+
+#### Checkout Status Händelsedata
+
+När `manualRedirect` är aktiverad, får du `checkout.status`-händelsen med följande data:
+
+```typescript
+interface CheckoutStatusEventData {
+  message: {
+    status?: "succeeded" | "failed" | "processing";
+  };
+}
+```
+
+#### Checkout Omdirigering Begärd Händelsedata
+
+När `manualRedirect` är aktiverad, får du `checkout.redirect_requested`-händelsen med följande data:
+
+```typescript
+interface CheckoutRedirectRequestedEventData {
+  message: {
+    redirect_to?: string;
+  };
+}
+```
 
 ```typescript
 DodoPayments.Initialize({
@@ -338,6 +412,17 @@ DodoPayments.Initialize({
         // An error occurred
         console.error("Error:", event.data?.message);
         break;
+      case "checkout.link_expired":
+        // Checkout session has expired (only when showTimer is false)
+        break;
+      case "checkout.status":
+        // Checkout status update (only when manualRedirect is enabled)
+        const status = event.data?.message?.status;
+        break;
+      case "checkout.redirect_requested":
+        // Redirect requested (only when manualRedirect is enabled)
+        const redirectUrl = event.data?.message?.redirect_to;
+        break;
     }
   }
 });
@@ -345,18 +430,21 @@ DodoPayments.Initialize({
 
 | Händelsetyp | Beskrivning |
 |------------|-------------|
-| `checkout.opened` | Checkout-overlayen har öppnats |
+| `checkout.opened` | Checkout-overlay har öppnats |
 | `checkout.payment_page_opened` | Betalningssidan har visats |
 | `checkout.customer_details_submitted` | Kund- och faktureringsuppgifter har skickats |
-| `checkout.closed` | Checkout-overlayen har stängts |
+| `checkout.closed` | Checkout-overlay har stängts |
 | `checkout.redirect` | Checkout kommer att utföra en omdirigering |
 | `checkout.error` | Ett fel inträffade under checkout |
+| `checkout.link_expired` | Utlöses när checkout-sessionen går ut. Endast mottagen när `showTimer` är inställt på `false`. |
+| `checkout.status` | Utlöses när `manualRedirect` är aktiverad. Innehåller checkout-status (`succeeded`, `failed`, eller `processing`). |
+| `checkout.redirect_requested` | Utlöses när `manualRedirect` är aktiverad. Innehåller URL:en för att omdirigera kunden till. |
 
 ## Implementeringsalternativ
 
-### Paketförvaltare Installation
+### Paketmanagerinstallation
 
-Installera via npm, yarn eller pnpm som visas i [Steg-för-steg Integrationsguide](#step-by-step-integration-guide).
+Installera via npm, yarn eller pnpm som visas i [Steg-för-steg integrationsguiden](#step-by-step-integration-guide).
 
 ### CDN-implementering
 
@@ -376,6 +464,7 @@ För snabb integration utan byggsteg kan du använda vår CDN:
         // Initialize the SDK
         DodoPaymentsCheckout.DodoPayments.Initialize({
             mode: "test", // Change to 'live' for production
+            displayType: "overlay",
             onEvent: (event) => {
                 console.log('Checkout event:', event);
             }
@@ -405,6 +494,7 @@ import { DodoPayments, CheckoutEvent } from "dodopayments-checkout";
 
 DodoPayments.Initialize({
   mode: "test",
+  displayType: "overlay",
   onEvent: (event: CheckoutEvent) => {
     // event is fully typed
     console.log(event.event_type, event.data);
@@ -414,10 +504,12 @@ DodoPayments.Initialize({
 
 ## Felhantering
 
-SDK:n tillhandahåller detaljerad felinformation genom händelsystemet. Implementera alltid korrekt felhantering i din `onEvent` återkopplingsfunktion:
+SDK:n tillhandahåller detaljerad felinformation genom händelsystemet. Implementera alltid korrekt felhantering i din `onEvent` callback:
 
 ```typescript
 DodoPayments.Initialize({
+  mode: "test",
+  displayType: "overlay",
   onEvent: (event: CheckoutEvent) => {
     if (event.event_type === "checkout.error") {
       console.error("Checkout error:", event.data?.message);
@@ -425,23 +517,29 @@ DodoPayments.Initialize({
       // You may want to show a user-friendly error message
       // or retry the checkout process
     }
+    if (event.event_type === "checkout.link_expired") {
+      // Handle expired checkout session
+      console.warn("Checkout session has expired");
+    }
   }
 });
 ```
 
 <Warning>
-Hantera alltid `checkout.error` händelsen för att ge en bra användarupplevelse när fel inträffar.
+Hantera alltid `checkout.error`-händelsen för att ge en bra användarupplevelse när fel inträffar.
 </Warning>
 
 ## Bästa praxis
 
 1. **Initiera en gång**: Initiera SDK:n en gång när din applikation laddas, inte vid varje checkout-försök
-2. **Felhantering**: Implementera alltid korrekt felhantering i din händelseåterkoppling
+2. **Felhantering**: Implementera alltid korrekt felhantering i din händelsecallback
 3. **Testläge**: Använd `test` läge under utveckling och väx till `live` först när du är redo för produktion
 4. **Händelsehantering**: Hantera alla relevanta händelser för en komplett användarupplevelse
 5. **Giltiga URL:er**: Använd alltid giltiga checkout-URL:er från create checkout session API
 6. **TypeScript**: Använd TypeScript för bättre typ-säkerhet och utvecklarupplevelse
-7. **Laddningsstatus**: Visa laddningsstatus medan checkout öppnas för att förbättra UX
+7. **Laddningstillstånd**: Visa laddningstillstånd medan checkout öppnas för att förbättra UX
+8. **Manuella omdirigeringar**: Använd `manualRedirect` när du behöver anpassad kontroll över navigering efter checkout
+9. **Timerhantering**: Inaktivera timern (`showTimer: false`) om du vill hantera sessionens utgång manuellt
 
 ## Felsökning
 
@@ -457,7 +555,7 @@ Hantera alltid `checkout.error` händelsen för att ge en bra användarupplevels
 **Lösningar:**
 - Verifiera att SDK-initieringen sker innan checkout öppnas
 - Kontrollera konsolen för fel
-- Se till att checkout-URL:en är giltig och kommer från create checkout session API
+- Se till att checkout-URL:n är giltig och från create checkout session API
 - Verifiera nätverksanslutningen
 
 </Accordion>
@@ -485,13 +583,60 @@ Hantera alltid `checkout.error` händelsen för att ge en bra användarupplevels
 - Responsiv designproblem
 
 **Lösningar:**
-- Kontrollera CSS-konflikter i webbläsarens DevTools
+- Kontrollera efter CSS-konflikter i webbläsarens DevTools
 - Verifiera att temainställningarna är korrekta
 - Testa på olika skärmstorlekar
-- Se till att det inte finns några z-index-konflikter med overlayen
+- Se till att det inte finns några z-index-konflikter med overlay
 
 </Accordion>
 </AccordionGroup>
+
+## Aktivera Apple Pay
+
+Apple Pay gör det möjligt för kunder att slutföra betalningar snabbt och säkert med sina sparade betalningsmetoder. När det är aktiverat kan kunder starta Apple Pay-modalen direkt från checkout-overlay på stödda enheter.
+
+<Info>
+Apple Pay stöds på iOS 17+, iPadOS 17+ och Safari 17+ på macOS.
+</Info>
+
+För att aktivera Apple Pay för din domän i produktion, följ dessa steg:
+
+<Steps>
+<Step title="Ladda ner och ladda upp Apple Pay-domänens associationsfil">
+
+Ladda ner [Apple Pay-domänens associationsfil](http://checkout.dodopayments.com/.well-known/apple-developer-merchantid-domain-association).
+
+Ladda upp filen till din webbserver på `/.well-known/apple-developer-merchantid-domain-association`. Till exempel, om din webbplats är `example.com`, gör filen tillgänglig på `https://example.com/well-known/apple-developer-merchantid-domain-association`.
+
+</Step>
+
+<Step title="Begär Apple Pay-aktivering">
+
+E-posta **support@dodopayments.com** med följande information:
+
+- Din produktionsdomän-URL (t.ex. `https://example.com`)
+- Begäran om att aktivera Apple Pay för din domän
+
+<Check>
+Du kommer att få bekräftelse inom 1-2 arbetsdagar när Apple Pay har aktiverats för din domän.
+</Check>
+
+</Step>
+
+<Step title="Verifiera tillgänglighet för Apple Pay">
+
+Efter att ha fått bekräftelse, testa Apple Pay i din checkout:
+
+1. Öppna din checkout på en stödd enhet (iOS 17+, iPadOS 17+ eller Safari 17+ på macOS)
+2. Verifiera att Apple Pay-knappen visas som ett betalningsalternativ
+3. Testa hela betalningsflödet
+
+</Step>
+</Steps>
+
+<Warning>
+Apple Pay måste aktiveras för din domän innan det visas som ett betalningsalternativ i produktion. Kontakta supporten innan du går live om du planerar att erbjuda Apple Pay.
+</Warning>
 
 ## Webbläsarstöd
 
@@ -503,39 +648,35 @@ Dodo Payments Checkout SDK stöder följande webbläsare:
 - Edge (senaste)
 - IE11+
 
-<Note>
-Apple Pay stöds för närvarande inte i overlay checkout-upplevelsen. Vi planerar att lägga till stöd för Apple Pay i en framtida version.
-</Note>
-
 ## Overlay vs Inline Checkout
 
-Välj rätt typ av kassa för ditt användningsfall:
+Välj rätt checkout-typ för ditt användningsfall:
 
 | Funktion | Overlay Checkout | Inline Checkout |
 |---------|-----------------|-----------------|
-| Integrationsdjup | Modal ovanpå sidan | Fullständigt inbäddad i sidan |
+| Integrationsdjup | Modal ovanpå sidan | Helt inbäddad i sidan |
 | Layoutkontroll | Begränsad | Full kontroll |
 | Branding | Separat från sidan | Sömlös |
 | Implementeringsinsats | Lägre | Högre |
-| Bäst för | Snabb integration, befintliga sidor | Anpassade kassasidor, högkonverterande flöden |
+| Bäst för | Snabb integration, befintliga sidor | Anpassade checkout-sidor, högkonverterande flöden |
 
 <Tip>
-Använd **overlay checkout** för snabbare integration med minimala förändringar på dina befintliga sidor. Använd **inline checkout** när du vill ha maximal kontroll över kassaupplevelsen och sömlös branding.
+Använd **overlay checkout** för snabbare integration med minimala ändringar i dina befintliga sidor. Använd **inline checkout** när du vill ha maximal kontroll över checkout-upplevelsen och sömlös branding.
 </Tip>
 
 ## Relaterade resurser
 
 <CardGroup cols={2}>
 <Card title="Inline Checkout" icon="credit-card" href="/developer-resources/inline-checkout">
-    Bädda in kassan direkt på din sida för fullt integrerade upplevelser.
+    Bädda in checkout direkt i din sida för helt integrerade upplevelser.
 </Card>
 
 <Card title="Checkout Sessions API" icon="code" href="/api-reference/checkout-sessions/create">
-    Skapa kassa-sessioner för att driva dina kassaupplevelser.
+    Skapa checkout-sessioner för att driva dina checkout-upplevelser.
 </Card>
 
 <Card title="Webhooks" icon="webhook" href="/developer-resources/webhooks">
-    Hantera betalningsevenemang på serversidan med webhooks.
+    Hantera betalningsevenemang server-side med webhooks.
 </Card>
 
 <Card title="Integrationsguide" icon="book" href="/developer-resources/integration-guide">

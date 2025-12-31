@@ -349,13 +349,21 @@ interface InitializeOptions {
 interface CheckoutOptions {
   checkoutUrl: string;
   elementId: string; // Required for inline checkout
+  options?: {
+    showTimer?: boolean;
+    showSecurityBadge?: boolean;
+    manualRedirect?: boolean;
+  };
 }
 ```
 
 | Tùy chọn | Loại | Bắt buộc | Mô tả |
 |--------|------|----------|-------------|
-| `checkoutUrl` | `string` | Có | URL phiên thanh toán. |
-| `elementId` | `string` | Có | `id` của phần tử DOM nơi thanh toán nên được hiển thị. |
+| `checkoutUrl` | `string` | Có | URL phiên giao dịch thanh toán. |
+| `elementId` | `string` | Có | `id` của phần tử DOM nơi phiên thanh toán sẽ được hiển thị. |
+| `options.showTimer` | `boolean` | Không | Hiện hoặc ẩn bộ đếm thời gian thanh toán. Mặc định là `true`. Khi bị vô hiệu hóa, bạn sẽ nhận được sự kiện `checkout.link_expired` khi phiên hết hạn. |
+| `options.showSecurityBadge` | `boolean` | Không | Hiện hoặc ẩn huy hiệu bảo mật. Mặc định là `true`. |
+| `options.manualRedirect` | `boolean` | Không | Khi được kích hoạt, phiên thanh toán sẽ không tự động chuyển hướng sau khi hoàn tất. Thay vào đó, bạn sẽ nhận được các sự kiện `checkout.status` và `checkout.redirect_requested` để tự xử lý việc chuyển hướng. |
 
 ### Phương thức
 
@@ -370,7 +378,44 @@ DodoPayments.Checkout.open({
 });
 ```
 
-#### Đóng thanh toán
+Bạn cũng có thể truyền thêm tùy chọn để tùy chỉnh hành vi thanh toán:
+
+```typescript
+DodoPayments.Checkout.open({
+  checkoutUrl: "https://test.dodopayments.com/session/cks_123",
+  elementId: "dodo-inline-checkout",
+  options: {
+    showTimer: false,
+    showSecurityBadge: false,
+    manualRedirect: true,
+  },
+});
+```
+
+Khi sử dụng `manualRedirect`, hãy xử lý việc hoàn tất thanh toán trong callback `onEvent` của bạn:
+
+```typescript
+DodoPayments.Initialize({
+  mode: "test",
+  displayType: "inline",
+  onEvent: (event) => {
+    if (event.event_type === "checkout.status") {
+      const status = event.data?.message?.status;
+      // Handle status: "succeeded", "failed", or "processing"
+    }
+    if (event.event_type === "checkout.redirect_requested") {
+      const redirectUrl = event.data?.message?.redirect_to;
+      // Redirect the customer manually
+      window.location.href = redirectUrl;
+    }
+    if (event.event_type === "checkout.link_expired") {
+      // Handle expired checkout session
+    }
+  },
+});
+```
+
+#### Đóng Thanh Toán
 
 Loại bỏ khung thanh toán theo cách lập trình và dọn dẹp các trình lắng nghe sự kiện.
 
@@ -378,7 +423,7 @@ Loại bỏ khung thanh toán theo cách lập trình và dọn dẹp các trìn
 DodoPayments.Checkout.close();
 ```
 
-#### Kiểm tra trạng thái
+#### Kiểm Tra Trạng Thái
 
 Trả về liệu khung thanh toán hiện đang được chèn hay không.
 
@@ -387,19 +432,22 @@ const isOpen = DodoPayments.Checkout.isOpen();
 // Returns: boolean
 ```
 
-### Sự kiện
+### Sự Kiện
 
-SDK cung cấp các sự kiện thời gian thực thông qua hàm callback `onEvent`. Đối với thanh toán inline, `checkout.breakdown` đặc biệt hữu ích để đồng bộ hóa UI của bạn.
+SDK cung cấp các sự kiện thời gian thực thông qua callback `onEvent`. Đối với thanh toán inline, `checkout.breakdown` đặc biệt hữu ích để đồng bộ hóa UI của bạn.
 
-| Loại sự kiện | Mô tả |
+| Loại Sự Kiện | Mô Tả |
 |------------|-------------|
 | `checkout.opened` | Khung thanh toán đã được tải. |
 | `checkout.breakdown` | Bị kích hoạt khi giá, thuế hoặc giảm giá được cập nhật. |
-| `checkout.customer_details_submitted` | Chi tiết khách hàng đã được gửi. |
+| `checkout.customer_details_submitted` | Thông tin khách hàng đã được gửi. |
 | `checkout.redirect` | Thanh toán sẽ thực hiện một chuyển hướng (ví dụ: đến trang ngân hàng). |
 | `checkout.error` | Đã xảy ra lỗi trong quá trình thanh toán. |
+| `checkout.link_expired` | Bị kích hoạt khi phiên thanh toán hết hạn. Chỉ nhận được khi `showTimer` được đặt thành `false`. |
+| `checkout.status` | Bị kích hoạt khi `manualRedirect` được kích hoạt. Chứa trạng thái thanh toán (`succeeded`, `failed`, hoặc `processing`). |
+| `checkout.redirect_requested` | Bị kích hoạt khi `manualRedirect` được kích hoạt. Chứa URL để chuyển hướng khách hàng đến. |
 
-#### Dữ liệu phân tích thanh toán
+#### Dữ Liệu Phân Tích Thanh Toán
 
 Sự kiện `checkout.breakdown` cung cấp các dữ liệu sau:
 
@@ -415,40 +463,64 @@ interface CheckoutBreakdownData {
 }
 ```
 
-#### Hiểu sự kiện phân tích
+#### Dữ Liệu Sự Kiện Trạng Thái Thanh Toán
 
-Sự kiện `checkout.breakdown` là cách chính để giữ cho UI của ứng dụng bạn đồng bộ với trạng thái thanh toán Dodo Payments.
+Khi `manualRedirect` được kích hoạt, bạn nhận được sự kiện `checkout.status` với các dữ liệu sau:
 
-**Khi nó được kích hoạt:**
+```typescript
+interface CheckoutStatusEventData {
+  message: {
+    status?: "succeeded" | "failed" | "processing";
+  };
+}
+```
+
+#### Dữ Liệu Sự Kiện Yêu Cầu Chuyển Hướng Thanh Toán
+
+Khi `manualRedirect` được kích hoạt, bạn nhận được sự kiện `checkout.redirect_requested` với các dữ liệu sau:
+
+```typescript
+interface CheckoutRedirectRequestedEventData {
+  message: {
+    redirect_to?: string;
+  };
+}
+```
+
+#### Hiểu Sự Kiện Phân Tích
+
+Sự kiện `checkout.breakdown` là cách chính để giữ cho UI của ứng dụng bạn đồng bộ với trạng thái thanh toán của Dodo Payments.
+
+**Khi nó xảy ra:**
 - **Khi khởi tạo**: Ngay sau khi khung thanh toán được tải và sẵn sàng.
 - **Khi thay đổi địa chỉ**: Bất cứ khi nào khách hàng chọn một quốc gia hoặc nhập mã bưu chính dẫn đến việc tính toán thuế lại.
 
 **Chi tiết trường:**
 
-| Trường | Mô tả |
+| Trường | Mô Tả |
 |-------|-------------|
-| `subTotal` | Tổng số của tất cả các mặt hàng trong phiên trước khi bất kỳ giảm giá hoặc thuế nào được áp dụng. |
+| `subTotal` | Tổng số tiền của tất cả các mục trong phiên trước khi bất kỳ giảm giá hoặc thuế nào được áp dụng. |
 | `discount` | Tổng giá trị của tất cả các giảm giá đã áp dụng. |
-| `tax` | Số thuế đã tính. Trong chế độ `inline`, điều này cập nhật động khi người dùng tương tác với các trường địa chỉ. |
+| `tax` | Số tiền thuế đã tính. Trong chế độ `inline`, điều này được cập nhật động khi người dùng tương tác với các trường địa chỉ. |
 | `total` | Kết quả toán học của `subTotal - discount + tax` trong đơn vị tiền tệ cơ bản của phiên. |
 | `currency` | Mã tiền tệ ISO (ví dụ: `"USD"`) cho các giá trị tổng phụ, giảm giá và thuế tiêu chuẩn. |
 | `finalTotal` | Số tiền thực tế mà khách hàng phải trả. Điều này có thể bao gồm các điều chỉnh tỷ giá hối đoái bổ sung hoặc phí phương thức thanh toán địa phương không nằm trong phân tích giá cơ bản. |
-| `finalTotalCurrency` | Tiền tệ mà khách hàng thực sự đang thanh toán. Điều này có thể khác với `currency` nếu sức mua tương đương hoặc chuyển đổi tiền tệ địa phương đang hoạt động. |
+| `finalTotalCurrency` | Tiền tệ mà khách hàng thực sự thanh toán. Điều này có thể khác với `currency` nếu sức mua tương đương hoặc chuyển đổi tiền tệ địa phương đang hoạt động. |
 
 **Mẹo tích hợp chính:**
 
 1.  **Định dạng tiền tệ**: Giá luôn được trả về dưới dạng số nguyên trong đơn vị tiền tệ nhỏ nhất (ví dụ: xu cho USD, yên cho JPY). Để hiển thị chúng, chia cho 100 (hoặc lũy thừa thích hợp của 10) hoặc sử dụng thư viện định dạng như `Intl.NumberFormat`.
-2.  **Xử lý trạng thái ban đầu**: Khi thanh toán lần đầu được tải, `tax` và `discount` có thể là `0` hoặc `null` cho đến khi người dùng cung cấp thông tin thanh toán của họ hoặc áp dụng mã. UI của bạn nên xử lý các trạng thái này một cách hợp lý (ví dụ: hiển thị một dấu gạch ngang `—` hoặc ẩn hàng).
-3.  **"Tổng cuối cùng" so với "Tổng"**: Trong khi `total` cung cấp cho bạn tính toán giá tiêu chuẩn, `finalTotal` là nguồn thông tin chính xác cho giao dịch. Nếu `finalTotal` có mặt, nó phản ánh chính xác những gì sẽ được tính phí vào thẻ của khách hàng, bao gồm bất kỳ điều chỉnh động nào.
-4.  **Phản hồi thời gian thực**: Sử dụng trường `tax` để cho người dùng thấy rằng thuế đang được tính toán theo thời gian thực. Điều này cung cấp cảm giác "trực tiếp" cho trang thanh toán của bạn và giảm ma sát trong bước nhập địa chỉ.
+2.  **Xử lý trạng thái ban đầu**: Khi thanh toán lần đầu được tải, `tax` và `discount` có thể là `0` hoặc `null` cho đến khi người dùng cung cấp thông tin thanh toán của họ hoặc áp dụng mã. UI của bạn nên xử lý các trạng thái này một cách hợp lý (ví dụ: hiển thị dấu gạch ngang `—` hoặc ẩn hàng).
+3.  **"Tổng cuối" so với "Tổng"**: Trong khi `total` cung cấp cho bạn phép tính giá tiêu chuẩn, `finalTotal` là nguồn thông tin chính xác cho giao dịch. Nếu `finalTotal` có mặt, nó phản ánh chính xác những gì sẽ được tính phí vào thẻ của khách hàng, bao gồm bất kỳ điều chỉnh động nào.
+4.  **Phản hồi thời gian thực**: Sử dụng trường `tax` để cho người dùng thấy rằng thuế đang được tính toán theo thời gian thực. Điều này mang lại cảm giác "trực tiếp" cho trang thanh toán của bạn và giảm ma sát trong bước nhập địa chỉ.
 
-## Tùy chọn triển khai
+## Tùy Chọn Triển Khai
 
-### Cài đặt qua Trình quản lý gói
+### Cài Đặt Qua Trình Quản Lý Gói
 
-Cài đặt qua npm, yarn hoặc pnpm như được hiển thị trong [Hướng dẫn tích hợp từng bước](#step-by-step-integration-guide).
+Cài đặt qua npm, yarn hoặc pnpm như được hiển thị trong [Hướng Dẫn Tích Hợp Từng Bước](#step-by-step-integration-guide).
 
-### Triển khai CDN
+### Triển Khai CDN
 
 Để tích hợp nhanh mà không cần bước xây dựng, bạn có thể sử dụng CDN của chúng tôi:
 
@@ -487,7 +559,7 @@ Cài đặt qua npm, yarn hoặc pnpm như được hiển thị trong [Hướng
 </html>
 ```
 
-## Hỗ trợ TypeScript
+## Hỗ Trợ TypeScript
 
 SDK được viết bằng TypeScript và bao gồm các định nghĩa kiểu toàn diện.
 
@@ -504,7 +576,7 @@ DodoPayments.Initialize({
 });
 ```
 
-## Xử lý lỗi
+## Xử Lý Lỗi
 
 SDK cung cấp thông tin lỗi chi tiết thông qua hệ thống sự kiện. Luôn thực hiện xử lý lỗi đúng cách trong callback `onEvent` của bạn:
 
@@ -525,35 +597,82 @@ DodoPayments.Initialize({
 Luôn xử lý sự kiện `checkout.error` để cung cấp trải nghiệm người dùng tốt khi xảy ra sự cố.
 </Warning>
 
-## Các thực tiễn tốt nhất
+## Các Thực Hành Tốt Nhất
 
-1. **Thiết kế đáp ứng**: Đảm bảo phần tử chứa của bạn có đủ chiều rộng và chiều cao. Khung iframe sẽ thường mở rộng để lấp đầy phần tử chứa của nó.
-2. **Đồng bộ hóa**: Sử dụng sự kiện `checkout.breakdown` để giữ cho tóm tắt đơn hàng tùy chỉnh hoặc bảng giá của bạn đồng bộ với những gì người dùng thấy trong khung thanh toán.
-3. **Trạng thái khung**: Hiển thị một chỉ báo tải trong phần tử chứa của bạn cho đến khi sự kiện `checkout.opened` được kích hoạt.
-4. **Dọn dẹp**: Gọi `DodoPayments.Checkout.close()` khi thành phần của bạn bị gỡ bỏ để dọn dẹp iframe và các trình lắng nghe sự kiện.
+1. **Thiết Kế Phản Hồi**: Đảm bảo phần tử chứa của bạn có đủ chiều rộng và chiều cao. iframe thường sẽ mở rộng để lấp đầy phần tử chứa của nó.
+2. **Đồng Bộ Hóa**: Sử dụng sự kiện `checkout.breakdown` để giữ cho tóm tắt đơn hàng hoặc bảng giá tùy chỉnh của bạn đồng bộ với những gì người dùng thấy trong khung thanh toán.
+3. **Trạng Thái Skeleton**: Hiển thị chỉ báo tải trong phần tử chứa của bạn cho đến khi sự kiện `checkout.opened` xảy ra.
+4. **Dọn Dẹp**: Gọi `DodoPayments.Checkout.close()` khi thành phần của bạn bị gỡ bỏ để dọn dẹp iframe và các trình lắng nghe sự kiện.
 
 <Info>
 Đối với các triển khai chế độ tối, nên sử dụng `#0d0d0d` làm màu nền để tích hợp hình ảnh tốt nhất với khung thanh toán inline.
 </Info>
 
-## Khắc phục sự cố
+## Khắc Phục Sự Cố
 
 <AccordionGroup>
 <Accordion title="Khung thanh toán không xuất hiện">
 - Xác minh rằng `elementId` khớp với `id` của một `div` thực sự tồn tại trong DOM.
-- Đảm bảo rằng `displayType: 'inline'` đã được truyền vào `Initialize`.
+- Đảm bảo rằng `displayType: 'inline'` đã được truyền cho `Initialize`.
 - Kiểm tra rằng `checkoutUrl` là hợp lệ.
 </Accordion>
 
-<Accordion title="Thuế không cập nhật trong giao diện người dùng của tôi">
+<Accordion title="Thuế không được cập nhật trong UI của tôi">
 - Đảm bảo bạn đang lắng nghe sự kiện `checkout.breakdown`.
-- Thuế chỉ được tính toán sau khi người dùng nhập một quốc gia và mã bưu điện hợp lệ trong khung thanh toán.
+- Thuế chỉ được tính toán sau khi người dùng nhập một quốc gia và mã bưu chính hợp lệ trong khung thanh toán.
 </Accordion>
 </AccordionGroup>
 
-## Hỗ trợ trình duyệt
+## Kích Hoạt Apple Pay
 
-SDK Thanh toán Dodo hỗ trợ các trình duyệt sau:
+Apple Pay cho phép khách hàng hoàn tất thanh toán nhanh chóng và an toàn bằng cách sử dụng các phương thức thanh toán đã lưu của họ. Khi được kích hoạt, khách hàng có thể khởi động modal Apple Pay trực tiếp từ overlay thanh toán trên các thiết bị hỗ trợ.
+
+<Info>
+Apple Pay được hỗ trợ trên iOS 17+, iPadOS 17+, và Safari 17+ trên macOS.
+</Info>
+
+Để kích hoạt Apple Pay cho miền của bạn trong môi trường sản xuất, hãy làm theo các bước sau:
+
+<Steps>
+<Step title="Tải xuống và tải lên tệp liên kết miền Apple Pay">
+
+Tải xuống [tệp liên kết miền Apple Pay](http://checkout.dodopayments.com/.well-known/apple-developer-merchantid-domain-association).
+
+Tải tệp lên máy chủ web của bạn tại `/.well-known/apple-developer-merchantid-domain-association`. Ví dụ, nếu trang web của bạn là `example.com`, hãy làm cho tệp có sẵn tại `https://example.com/well-known/apple-developer-merchantid-domain-association`.
+
+</Step>
+
+<Step title="Yêu cầu kích hoạt Apple Pay">
+
+Gửi email **support@dodopayments.com** với các thông tin sau:
+
+- URL miền sản xuất của bạn (ví dụ: `https://example.com`)
+- Yêu cầu kích hoạt Apple Pay cho miền của bạn
+
+<Check>
+Bạn sẽ nhận được xác nhận trong vòng 1-2 ngày làm việc sau khi Apple Pay đã được kích hoạt cho miền của bạn.
+</Check>
+
+</Step>
+
+<Step title="Xác minh tính khả dụng của Apple Pay">
+
+Sau khi nhận được xác nhận, hãy kiểm tra Apple Pay trong thanh toán của bạn:
+
+1. Mở thanh toán của bạn trên một thiết bị hỗ trợ (iOS 17+, iPadOS 17+, hoặc Safari 17+ trên macOS)
+2. Xác minh rằng nút Apple Pay xuất hiện như một tùy chọn thanh toán
+3. Kiểm tra toàn bộ quy trình thanh toán
+
+</Step>
+</Steps>
+
+<Warning>
+Apple Pay phải được kích hoạt cho miền của bạn trước khi nó xuất hiện như một tùy chọn thanh toán trong môi trường sản xuất. Liên hệ với hỗ trợ trước khi ra mắt nếu bạn dự định cung cấp Apple Pay.
+</Warning>
+
+## Hỗ Trợ Trình Duyệt
+
+SDK Dodo Payments Checkout hỗ trợ các trình duyệt sau:
 
 - Chrome (mới nhất)
 - Firefox (mới nhất)
@@ -561,44 +680,40 @@ SDK Thanh toán Dodo hỗ trợ các trình duyệt sau:
 - Edge (mới nhất)
 - IE11+
 
-<Note>
-Apple Pay hiện không được hỗ trợ trong trải nghiệm thanh toán inline. Chúng tôi dự định thêm hỗ trợ cho Apple Pay trong một bản phát hành trong tương lai.
-</Note>
-
-## Thanh toán Inline vs Overlay
+## Thanh Toán Inline so với Overlay
 
 Chọn loại thanh toán phù hợp cho trường hợp sử dụng của bạn:
 
 | Tính năng | Thanh toán Inline | Thanh toán Overlay |
 |---------|-----------------|------------------|
 | Độ sâu tích hợp | Hoàn toàn nhúng trong trang | Modal trên trang |
-| Kiểm soát bố cục | Kiểm soát hoàn toàn | Hạn chế |
+| Kiểm soát bố cục | Kiểm soát đầy đủ | Hạn chế |
 | Thương hiệu | Liền mạch | Tách biệt khỏi trang |
 | Nỗ lực triển khai | Cao hơn | Thấp hơn |
 | Tốt nhất cho | Các trang thanh toán tùy chỉnh, quy trình chuyển đổi cao | Tích hợp nhanh, các trang hiện có |
 
 <Tip>
-Sử dụng **thanh toán inline** khi bạn muốn kiểm soát tối đa trải nghiệm thanh toán và thương hiệu liền mạch. Sử dụng **thanh toán overlay** để tích hợp nhanh hơn với thay đổi tối thiểu cho các trang hiện có của bạn.
+Sử dụng **thanh toán inline** khi bạn muốn kiểm soát tối đa trải nghiệm thanh toán và thương hiệu liền mạch. Sử dụng **thanh toán overlay** cho tích hợp nhanh hơn với thay đổi tối thiểu cho các trang hiện có của bạn.
 </Tip>
 
-## Tài nguyên liên quan
+## Tài Nguyên Liên Quan
 
 <CardGroup cols={2}>
-<Card title="Thanh toán Overlay" icon="layer-group" href="/developer-resources/overlay-checkout">
+<Card title="Thanh Toán Overlay" icon="layer-group" href="/developer-resources/overlay-checkout">
     Sử dụng thanh toán overlay cho tích hợp modal nhanh chóng.
 </Card>
 
-<Card title="API Phiên thanh toán" icon="code" href="/api-reference/checkout-sessions/create">
+<Card title="API Phiên Thanh Toán" icon="code" href="/api-reference/checkout-sessions/create">
     Tạo các phiên thanh toán để cung cấp trải nghiệm thanh toán của bạn.
 </Card>
 
 <Card title="Webhooks" icon="webhook" href="/developer-resources/webhooks">
-    Xử lý các sự kiện thanh toán ở phía máy chủ với webhooks.
+    Xử lý các sự kiện thanh toán phía máy chủ với webhooks.
 </Card>
 
-<Card title="Hướng dẫn tích hợp" icon="book" href="/developer-resources/integration-guide">
-    Hướng dẫn đầy đủ để tích hợp Dodo Payments.
+<Card title="Hướng Dẫn Tích Hợp" icon="book" href="/developer-resources/integration-guide">
+    Hướng dẫn hoàn chỉnh để tích hợp Dodo Payments.
 </Card>
 </CardGroup>
 
-Để được hỗ trợ thêm, hãy truy cập [cộng đồng Discord của chúng tôi](https://discord.gg/bYqAp4ayYh) hoặc liên hệ với đội ngũ hỗ trợ phát triển của chúng tôi.
+Để biết thêm trợ giúp, hãy truy cập [cộng đồng Discord của chúng tôi](https://discord.gg/bYqAp4ayYh) hoặc liên hệ với đội ngũ hỗ trợ phát triển của chúng tôi.

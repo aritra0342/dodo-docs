@@ -29,6 +29,7 @@ import { DodoPayments } from "dodopayments-checkout";
 // Initialize the SDK
 DodoPayments.Initialize({
   mode: "test", // 'test' or 'live'
+  displayType: "overlay", // Optional: defaults to 'overlay' for overlay checkout
   onEvent: (event) => {
     console.log("Checkout event:", event);
   },
@@ -78,6 +79,7 @@ import { DodoPayments } from "dodopayments-checkout";
 
 DodoPayments.Initialize({
   mode: "test", // Change to 'live' for production
+  displayType: "overlay", // Optional: defaults to 'overlay' for overlay checkout
   onEvent: (event) => {
     console.log("Checkout event:", event);
     
@@ -123,6 +125,7 @@ export function CheckoutButton() {
     // Initialize the SDK
     DodoPayments.Initialize({
       mode: "test",
+      displayType: "overlay",
       onEvent: (event) => {
         switch (event.event_type) {
           case "checkout.opened":
@@ -239,6 +242,7 @@ Wenn Sie bereit für die Produktion sind:
 ```typescript
 DodoPayments.Initialize({
   mode: "live",
+  displayType: "overlay",
   onEvent: (event) => {
     console.log("Checkout event:", event);
   }
@@ -261,6 +265,7 @@ DodoPayments.Initialize({
 ```typescript
 interface InitializeOptions {
   mode: "test" | "live";
+  displayType?: "overlay" | "inline";
   onEvent: (event: CheckoutEvent) => void;
 }
 ```
@@ -268,19 +273,28 @@ interface InitializeOptions {
 | Option | Typ | Erforderlich | Beschreibung |
 |--------|------|----------|-------------|
 | `mode` | `"test" \| "live"` | Ja | Umgebungsmodus: `'test'` für die Entwicklung, `'live'` für die Produktion |
-| `onEvent` | `function` | Ja | Rückruffunktion zur Verarbeitung von Checkout-Ereignissen |
+| `displayType` | `"overlay" \| "inline"` | Nein | Anzeigetyp: `'overlay'` für modale Kasse (Standard), `'inline'` für eingebettete Kasse |
+| `onEvent` | `function` | Ja | Callback-Funktion zur Verarbeitung von Kassenereignissen |
 
 #### Checkout-Optionen
 
 ```typescript
 interface CheckoutOptions {
   checkoutUrl: string;
+  options?: {
+    showTimer?: boolean;
+    showSecurityBadge?: boolean;
+    manualRedirect?: boolean;
+  };
 }
 ```
 
 | Option | Typ | Erforderlich | Beschreibung |
 |--------|------|----------|-------------|
-| `checkoutUrl` | `string` | Ja | Checkout-Sitzungs-URL von der [create checkout session API](/api-reference/checkout-sessions/create) |
+| `checkoutUrl` | `string` | Ja | URL der Checkout-Sitzung von der [API zur Erstellung von Checkout-Sitzungen](/api-reference/checkout-sessions/create) |
+| `options.showTimer` | `boolean` | Nein | Zeigen oder verbergen Sie den Checkout-Timer. Standardmäßig auf `true`. Wenn deaktiviert, erhalten Sie das `checkout.link_expired` Ereignis, wenn die Sitzung abläuft. |
+| `options.showSecurityBadge` | `boolean` | Nein | Zeigen oder verbergen Sie das Sicherheitsabzeichen. Standardmäßig auf `true`. |
+| `options.manualRedirect` | `boolean` | Nein | Wenn aktiviert, wird die Kasse nach Abschluss nicht automatisch umgeleitet. Stattdessen erhalten Sie `checkout.status` und `checkout.redirect_requested` Ereignisse, um die Umleitung selbst zu steuern. |
 
 ### Methoden
 
@@ -294,9 +308,45 @@ DodoPayments.Checkout.open({
 });
 ```
 
-#### Checkout schließen
+Sie können auch zusätzliche Optionen übergeben, um das Checkout-Verhalten anzupassen:
 
-Schließt das Checkout-Overlay programmgesteuert.
+```typescript
+DodoPayments.Checkout.open({
+  checkoutUrl: "https://checkout.dodopayments.com/session/cks_123",
+  options: {
+    showTimer: false,
+    showSecurityBadge: false,
+    manualRedirect: true,
+  },
+});
+```
+
+Wenn Sie `manualRedirect` verwenden, verarbeiten Sie den Abschluss der Kasse in Ihrem `onEvent` Callback:
+
+```typescript
+DodoPayments.Initialize({
+  mode: "test",
+  displayType: "overlay",
+  onEvent: (event) => {
+    if (event.event_type === "checkout.status") {
+      const status = event.data?.message?.status;
+      // Handle status: "succeeded", "failed", or "processing"
+    }
+    if (event.event_type === "checkout.redirect_requested") {
+      const redirectUrl = event.data?.message?.redirect_to;
+      // Redirect the customer manually
+      window.location.href = redirectUrl;
+    }
+    if (event.event_type === "checkout.link_expired") {
+      // Handle expired checkout session
+    }
+  },
+});
+```
+
+#### Kasse schließen
+
+Schließt das Kassenoverlay programmgesteuert.
 
 ```typescript
 DodoPayments.Checkout.close();
@@ -304,7 +354,7 @@ DodoPayments.Checkout.close();
 
 #### Status überprüfen
 
-Gibt an, ob das Checkout-Overlay derzeit geöffnet ist.
+Gibt an, ob das Kassenoverlay derzeit geöffnet ist.
 
 ```typescript
 const isOpen = DodoPayments.Checkout.isOpen();
@@ -313,7 +363,31 @@ const isOpen = DodoPayments.Checkout.isOpen();
 
 ### Ereignisse
 
-Das SDK bietet Echtzeitereignisse, auf die Sie über den `onEvent` Rückruf hören können:
+Das SDK bietet Echtzeitevents, auf die Sie über den `onEvent` Callback hören können:
+
+#### Daten zum Kassenstatus-Ereignis
+
+Wenn `manualRedirect` aktiviert ist, erhalten Sie das `checkout.status` Ereignis mit den folgenden Daten:
+
+```typescript
+interface CheckoutStatusEventData {
+  message: {
+    status?: "succeeded" | "failed" | "processing";
+  };
+}
+```
+
+#### Daten zum angeforderten Kassenumleitungsereignis
+
+Wenn `manualRedirect` aktiviert ist, erhalten Sie das `checkout.redirect_requested` Ereignis mit den folgenden Daten:
+
+```typescript
+interface CheckoutRedirectRequestedEventData {
+  message: {
+    redirect_to?: string;
+  };
+}
+```
 
 ```typescript
 DodoPayments.Initialize({
@@ -338,6 +412,17 @@ DodoPayments.Initialize({
         // An error occurred
         console.error("Error:", event.data?.message);
         break;
+      case "checkout.link_expired":
+        // Checkout session has expired (only when showTimer is false)
+        break;
+      case "checkout.status":
+        // Checkout status update (only when manualRedirect is enabled)
+        const status = event.data?.message?.status;
+        break;
+      case "checkout.redirect_requested":
+        // Redirect requested (only when manualRedirect is enabled)
+        const redirectUrl = event.data?.message?.redirect_to;
+        break;
     }
   }
 });
@@ -345,18 +430,21 @@ DodoPayments.Initialize({
 
 | Ereignistyp | Beschreibung |
 |------------|-------------|
-| `checkout.opened` | Checkout-Overlay wurde geöffnet |
+| `checkout.opened` | Kassenoverlay wurde geöffnet |
 | `checkout.payment_page_opened` | Zahlungsseite wurde angezeigt |
 | `checkout.customer_details_submitted` | Kunden- und Rechnungsdetails wurden übermittelt |
-| `checkout.closed` | Checkout-Overlay wurde geschlossen |
-| `checkout.redirect` | Checkout wird eine Weiterleitung durchführen |
-| `checkout.error` | Ein Fehler ist während des Checkouts aufgetreten |
+| `checkout.closed` | Kassenoverlay wurde geschlossen |
+| `checkout.redirect` | Kasse wird eine Umleitung durchführen |
+| `checkout.error` | Ein Fehler ist während der Kasse aufgetreten |
+| `checkout.link_expired` | Wird ausgelöst, wenn die Kassen-Sitzung abläuft. Nur erhalten, wenn `showTimer` auf `false` gesetzt ist. |
+| `checkout.status` | Wird ausgelöst, wenn `manualRedirect` aktiviert ist. Enthält den Kassenstatus (`succeeded`, `failed` oder `processing`). |
+| `checkout.redirect_requested` | Wird ausgelöst, wenn `manualRedirect` aktiviert ist. Enthält die URL, zu der der Kunde umgeleitet werden soll. |
 
 ## Implementierungsoptionen
 
-### Paketmanager-Installation
+### Installation über Paketmanager
 
-Installieren Sie über npm, yarn oder pnpm, wie in der [Schritt-für-Schritt-Integrationsanleitung](#step-by-step-integration-guide) gezeigt.
+Installieren Sie über npm, yarn oder pnpm, wie im [Schritt-für-Schritt-Integrationsleitfaden](#step-by-step-integration-guide) gezeigt.
 
 ### CDN-Implementierung
 
@@ -376,6 +464,7 @@ Für eine schnelle Integration ohne Build-Schritt können Sie unser CDN verwende
         // Initialize the SDK
         DodoPaymentsCheckout.DodoPayments.Initialize({
             mode: "test", // Change to 'live' for production
+            displayType: "overlay",
             onEvent: (event) => {
                 console.log('Checkout event:', event);
             }
@@ -405,6 +494,7 @@ import { DodoPayments, CheckoutEvent } from "dodopayments-checkout";
 
 DodoPayments.Initialize({
   mode: "test",
+  displayType: "overlay",
   onEvent: (event: CheckoutEvent) => {
     // event is fully typed
     console.log(event.event_type, event.data);
@@ -414,16 +504,22 @@ DodoPayments.Initialize({
 
 ## Fehlerbehandlung
 
-Das SDK bietet detaillierte Fehlermeldungen über das Ereignissystem. Implementieren Sie immer eine ordnungsgemäße Fehlerbehandlung in Ihrem `onEvent` Rückruf:
+Das SDK bietet detaillierte Fehlermeldungen über das Ereignissystem. Implementieren Sie immer eine ordnungsgemäße Fehlerbehandlung in Ihrem `onEvent` Callback:
 
 ```typescript
 DodoPayments.Initialize({
+  mode: "test",
+  displayType: "overlay",
   onEvent: (event: CheckoutEvent) => {
     if (event.event_type === "checkout.error") {
       console.error("Checkout error:", event.data?.message);
       // Handle error appropriately
       // You may want to show a user-friendly error message
       // or retry the checkout process
+    }
+    if (event.event_type === "checkout.link_expired") {
+      // Handle expired checkout session
+      console.warn("Checkout session has expired");
     }
   }
 });
@@ -435,99 +531,144 @@ Behandeln Sie immer das `checkout.error` Ereignis, um eine gute Benutzererfahrun
 
 ## Best Practices
 
-1. **Einmal initialisieren**: Initialisieren Sie das SDK einmal, wenn Ihre Anwendung geladen wird, nicht bei jedem Checkout-Versuch
-2. **Fehlerbehandlung**: Implementieren Sie immer eine ordnungsgemäße Fehlerbehandlung in Ihrem Ereignisrückruf
-3. **Testmodus**: Verwenden Sie `test` Modus während der Entwicklung und wechseln Sie erst bei Produktionsbereitschaft zu `live`
-4. **Ereignisbehandlung**: Behandeln Sie alle relevanten Ereignisse für eine vollständige Benutzererfahrung
-5. **Gültige URLs**: Verwenden Sie immer gültige Checkout-URLs von der create checkout session API
-6. **TypeScript**: Verwenden Sie TypeScript für bessere Typensicherheit und Entwicklererfahrung
-7. **Ladezustände**: Zeigen Sie Ladezustände an, während der Checkout geöffnet wird, um die Benutzererfahrung zu verbessern
+1. **Einmal initialisieren**: Initialisieren Sie das SDK einmal, wenn Ihre Anwendung geladen wird, nicht bei jedem Kassenversuch.
+2. **Fehlerbehandlung**: Implementieren Sie immer eine ordnungsgemäße Fehlerbehandlung in Ihrem Ereignis-Callback.
+3. **Testmodus**: Verwenden Sie den `test` Modus während der Entwicklung und wechseln Sie erst in den `live` Modus, wenn Sie bereit für die Produktion sind.
+4. **Ereignisbehandlung**: Behandeln Sie alle relevanten Ereignisse für eine vollständige Benutzererfahrung.
+5. **Gültige URLs**: Verwenden Sie immer gültige Checkout-URLs von der API zur Erstellung von Checkout-Sitzungen.
+6. **TypeScript**: Verwenden Sie TypeScript für bessere Typensicherheit und Entwicklererfahrung.
+7. **Ladezustände**: Zeigen Sie Ladezustände an, während die Kasse geöffnet wird, um die Benutzererfahrung zu verbessern.
+8. **Manuelle Umleitungen**: Verwenden Sie `manualRedirect`, wenn Sie eine benutzerdefinierte Kontrolle über die Navigation nach der Kasse benötigen.
+9. **Timer-Management**: Deaktivieren Sie den Timer (`showTimer: false`), wenn Sie die Sitzungsablauf manuell verwalten möchten.
 
 ## Fehlersuche
 
 <AccordionGroup>
-<Accordion title="Checkout öffnet sich nicht">
+<Accordion title="Kasse öffnet sich nicht">
 
 **Mögliche Ursachen:**
-- SDK nicht initialisiert, bevor `open()` aufgerufen wird
-- Ungültige Checkout-URL
-- JavaScript-Fehler in der Konsole
-- Netzwerkverbindungsprobleme
+- SDK nicht initialisiert, bevor `open()` aufgerufen wird.
+- Ungültige Checkout-URL.
+- JavaScript-Fehler in der Konsole.
+- Netzwerkverbindungsprobleme.
 
 **Lösungen:**
-- Überprüfen Sie, ob die SDK-Initialisierung vor dem Öffnen des Checkouts erfolgt
-- Überprüfen Sie auf Konsolenfehler
-- Stellen Sie sicher, dass die Checkout-URL gültig und von der create checkout session API stammt
-- Überprüfen Sie die Netzwerkverbindung
+- Überprüfen Sie, ob die SDK-Initialisierung vor dem Öffnen der Kasse erfolgt.
+- Überprüfen Sie auf Konsolenfehler.
+- Stellen Sie sicher, dass die Checkout-URL gültig und von der API zur Erstellung von Checkout-Sitzungen stammt.
+- Überprüfen Sie die Netzwerkverbindung.
 
 </Accordion>
 
 <Accordion title="Ereignisse werden nicht ausgelöst">
 
 **Mögliche Ursachen:**
-- Ereignishandler nicht richtig eingerichtet
-- JavaScript-Fehler verhindern die Ereignisweiterleitung
-- SDK nicht korrekt initialisiert
+- Ereignishandler nicht richtig eingerichtet.
+- JavaScript-Fehler verhindern die Ereignisweiterleitung.
+- SDK nicht korrekt initialisiert.
 
 **Lösungen:**
-- Bestätigen Sie, dass der Ereignishandler in `Initialize()` richtig konfiguriert ist
-- Überprüfen Sie die Browserkonsole auf JavaScript-Fehler
-- Stellen Sie sicher, dass die SDK-Initialisierung erfolgreich abgeschlossen wurde
-- Testen Sie zunächst mit einem einfachen Ereignishandler
+- Bestätigen Sie, dass der Ereignishandler in `Initialize()` richtig konfiguriert ist.
+- Überprüfen Sie die Browserkonsole auf JavaScript-Fehler.
+- Stellen Sie sicher, dass die SDK-Initialisierung erfolgreich abgeschlossen wurde.
+- Testen Sie zunächst mit einem einfachen Ereignishandler.
 
 </Accordion>
 
 <Accordion title="Styling-Probleme">
 
 **Mögliche Ursachen:**
-- CSS-Konflikte mit Ihren Anwendungsstilen
-- Theme-Einstellungen wurden nicht korrekt angewendet
-- Probleme mit responsive Design
+- CSS-Konflikte mit Ihren Anwendungsstilen.
+- Theme-Einstellungen wurden nicht korrekt angewendet.
+- Probleme mit dem responsiven Design.
 
 **Lösungen:**
-- Überprüfen Sie auf CSS-Konflikte in den DevTools des Browsers
-- Stellen Sie sicher, dass die Theme-Einstellungen korrekt sind
-- Testen Sie auf verschiedenen Bildschirmgrößen
-- Stellen Sie sicher, dass keine z-index-Konflikte mit dem Overlay bestehen
+- Überprüfen Sie auf CSS-Konflikte in den DevTools des Browsers.
+- Stellen Sie sicher, dass die Theme-Einstellungen korrekt sind.
+- Testen Sie auf verschiedenen Bildschirmgrößen.
+- Stellen Sie sicher, dass es keine z-index-Konflikte mit dem Overlay gibt.
 
 </Accordion>
 </AccordionGroup>
+
+## Apple Pay aktivieren
+
+Apple Pay ermöglicht es Kunden, Zahlungen schnell und sicher mit ihren gespeicherten Zahlungsmethoden abzuschließen. Wenn aktiviert, können Kunden das Apple Pay-Modul direkt aus dem Kassenoverlay auf unterstützten Geräten starten.
+
+<Info>
+Apple Pay wird auf iOS 17+, iPadOS 17+ und Safari 17+ auf macOS unterstützt.
+</Info>
+
+Um Apple Pay für Ihre Domain in der Produktion zu aktivieren, befolgen Sie diese Schritte:
+
+<Steps>
+<Step title="Laden Sie die Apple Pay-Domain-Zuordnungsdatei herunter und laden Sie sie hoch">
+
+Laden Sie die [Apple Pay-Domain-Zuordnungsdatei](http://checkout.dodopayments.com/.well-known/apple-developer-merchantid-domain-association) herunter.
+
+Laden Sie die Datei auf Ihren Webserver unter `/.well-known/apple-developer-merchantid-domain-association` hoch. Wenn Ihre Website beispielsweise `example.com` ist, stellen Sie die Datei unter `https://example.com/well-known/apple-developer-merchantid-domain-association` zur Verfügung.
+
+</Step>
+
+<Step title="Fordern Sie die Aktivierung von Apple Pay an">
+
+E-Mail **support@dodopayments.com** mit den folgenden Informationen:
+
+- Ihre Produktionsdomain-URL (z. B. `https://example.com`)
+- Anfrage zur Aktivierung von Apple Pay für Ihre Domain
+
+<Check>
+Sie erhalten innerhalb von 1-2 Werktagen eine Bestätigung, sobald Apple Pay für Ihre Domain aktiviert wurde.
+</Check>
+
+</Step>
+
+<Step title="Überprüfen Sie die Verfügbarkeit von Apple Pay">
+
+Nach Erhalt der Bestätigung testen Sie Apple Pay in Ihrer Kasse:
+
+1. Öffnen Sie Ihre Kasse auf einem unterstützten Gerät (iOS 17+, iPadOS 17+ oder Safari 17+ auf macOS)
+2. Überprüfen Sie, ob die Apple Pay-Schaltfläche als Zahlungsoption angezeigt wird
+3. Testen Sie den vollständigen Zahlungsablauf
+
+</Step>
+</Steps>
+
+<Warning>
+Apple Pay muss für Ihre Domain aktiviert sein, bevor es als Zahlungsoption in der Produktion angezeigt wird. Kontaktieren Sie den Support, bevor Sie live gehen, wenn Sie Apple Pay anbieten möchten.
+</Warning>
 
 ## Browserunterstützung
 
 Das Dodo Payments Checkout SDK unterstützt die folgenden Browser:
 
-- Chrome (neueste)
-- Firefox (neueste)
-- Safari (neueste)
-- Edge (neueste)
+- Chrome (neueste Version)
+- Firefox (neueste Version)
+- Safari (neueste Version)
+- Edge (neueste Version)
 - IE11+
-
-<Note>
-Apple Pay wird derzeit nicht im Overlay-Checkout-Erlebnis unterstützt. Wir planen, die Unterstützung für Apple Pay in einer zukünftigen Version hinzuzufügen.
-</Note>
 
 ## Overlay vs Inline Checkout
 
-Wählen Sie den richtigen Checkout-Typ für Ihren Anwendungsfall:
+Wählen Sie den richtigen Kassetyp für Ihren Anwendungsfall:
 
-| Funktion | Overlay Checkout | Inline Checkout |
+| Funktion | Overlay-Checkout | Inline-Checkout |
 |---------|-----------------|-----------------|
 | Integrationsgrad | Modal über der Seite | Vollständig in die Seite eingebettet |
-| Layout-Kontrolle | Eingeschränkt | Volle Kontrolle |
+| Layoutkontrolle | Eingeschränkt | Volle Kontrolle |
 | Branding | Getrennt von der Seite | Nahtlos |
-| Implementierungsaufwand | Geringer | Höher |
+| Implementierungsaufwand | Niedriger | Höher |
 | Am besten geeignet für | Schnelle Integration, bestehende Seiten | Benutzerdefinierte Checkout-Seiten, hochkonvertierende Abläufe |
 
 <Tip>
-Verwenden Sie **Overlay Checkout** für eine schnellere Integration mit minimalen Änderungen an Ihren bestehenden Seiten. Verwenden Sie **Inline Checkout**, wenn Sie maximale Kontrolle über das Checkout-Erlebnis und nahtloses Branding wünschen.
+Verwenden Sie **Overlay-Checkout** für eine schnellere Integration mit minimalen Änderungen an Ihren bestehenden Seiten. Verwenden Sie **Inline-Checkout**, wenn Sie maximale Kontrolle über das Checkout-Erlebnis und nahtloses Branding wünschen.
 </Tip>
 
 ## Verwandte Ressourcen
 
 <CardGroup cols={2}>
 <Card title="Inline Checkout" icon="credit-card" href="/developer-resources/inline-checkout">
-    Betten Sie den Checkout direkt in Ihre Seite ein, um vollständig integrierte Erlebnisse zu schaffen.
+    Betten Sie die Kasse direkt in Ihre Seite ein, um vollständig integrierte Erlebnisse zu schaffen.
 </Card>
 
 <Card title="Checkout Sessions API" icon="code" href="/api-reference/checkout-sessions/create">

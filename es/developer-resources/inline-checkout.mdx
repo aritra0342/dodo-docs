@@ -349,13 +349,21 @@ interface InitializeOptions {
 interface CheckoutOptions {
   checkoutUrl: string;
   elementId: string; // Required for inline checkout
+  options?: {
+    showTimer?: boolean;
+    showSecurityBadge?: boolean;
+    manualRedirect?: boolean;
+  };
 }
 ```
 
 | Opción | Tipo | Requerido | Descripción |
 |--------|------|----------|-------------|
-| `checkoutUrl` | `string` | Sí | URL de sesión de pago. |
+| `checkoutUrl` | `string` | Sí | URL de la sesión de pago. |
 | `elementId` | `string` | Sí | El `id` del elemento DOM donde se debe renderizar el pago. |
+| `options.showTimer` | `boolean` | No | Mostrar u ocultar el temporizador de pago. Por defecto es `true`. Cuando está deshabilitado, recibirás el evento `checkout.link_expired` cuando la sesión expire. |
+| `options.showSecurityBadge` | `boolean` | No | Mostrar u ocultar la insignia de seguridad. Por defecto es `true`. |
+| `options.manualRedirect` | `boolean` | No | Cuando está habilitado, el pago no redirigirá automáticamente después de la finalización. En su lugar, recibirás los eventos `checkout.status` y `checkout.redirect_requested` para manejar la redirección tú mismo. |
 
 ### Métodos
 
@@ -370,9 +378,46 @@ DodoPayments.Checkout.open({
 });
 ```
 
+También puedes pasar opciones adicionales para personalizar el comportamiento del pago:
+
+```typescript
+DodoPayments.Checkout.open({
+  checkoutUrl: "https://test.dodopayments.com/session/cks_123",
+  elementId: "dodo-inline-checkout",
+  options: {
+    showTimer: false,
+    showSecurityBadge: false,
+    manualRedirect: true,
+  },
+});
+```
+
+Al usar `manualRedirect`, maneja la finalización del pago en tu callback `onEvent`:
+
+```typescript
+DodoPayments.Initialize({
+  mode: "test",
+  displayType: "inline",
+  onEvent: (event) => {
+    if (event.event_type === "checkout.status") {
+      const status = event.data?.message?.status;
+      // Handle status: "succeeded", "failed", or "processing"
+    }
+    if (event.event_type === "checkout.redirect_requested") {
+      const redirectUrl = event.data?.message?.redirect_to;
+      // Redirect the customer manually
+      window.location.href = redirectUrl;
+    }
+    if (event.event_type === "checkout.link_expired") {
+      // Handle expired checkout session
+    }
+  },
+});
+```
+
 #### Cerrar Pago
 
-Elimina programáticamente el marco de pago y limpia los listeners de eventos.
+Elimina programáticamente el marco de pago y limpia los oyentes de eventos.
 
 ```typescript
 DodoPayments.Checkout.close();
@@ -398,6 +443,9 @@ El SDK proporciona eventos en tiempo real a través del callback `onEvent`. Para
 | `checkout.customer_details_submitted` | Los detalles del cliente han sido enviados. |
 | `checkout.redirect` | El pago realizará una redirección (por ejemplo, a una página bancaria). |
 | `checkout.error` | Ocurrió un error durante el pago. |
+| `checkout.link_expired` | Se activa cuando la sesión de pago expira. Solo se recibe cuando `showTimer` está configurado en `false`. |
+| `checkout.status` | Se activa cuando `manualRedirect` está habilitado. Contiene el estado del pago (`succeeded`, `failed`, o `processing`). |
+| `checkout.redirect_requested` | Se activa cuando `manualRedirect` está habilitado. Contiene la URL a la que redirigir al cliente. |
 
 #### Datos de Desglose del Pago
 
@@ -415,6 +463,30 @@ interface CheckoutBreakdownData {
 }
 ```
 
+#### Datos del Evento de Estado del Pago
+
+Cuando `manualRedirect` está habilitado, recibes el evento `checkout.status` con los siguientes datos:
+
+```typescript
+interface CheckoutStatusEventData {
+  message: {
+    status?: "succeeded" | "failed" | "processing";
+  };
+}
+```
+
+#### Datos del Evento de Redirección del Pago Solicitada
+
+Cuando `manualRedirect` está habilitado, recibes el evento `checkout.redirect_requested` con los siguientes datos:
+
+```typescript
+interface CheckoutRedirectRequestedEventData {
+  message: {
+    redirect_to?: string;
+  };
+}
+```
+
 #### Entendiendo el Evento de Desglose
 
 El evento `checkout.breakdown` es la forma principal de mantener la UI de tu aplicación sincronizada con el estado del pago de Dodo Payments.
@@ -423,16 +495,16 @@ El evento `checkout.breakdown` es la forma principal de mantener la UI de tu apl
 - **En la inicialización**: Inmediatamente después de que el marco de pago se carga y está listo.
 - **En el cambio de dirección**: Cada vez que el cliente selecciona un país o ingresa un código postal que resulta en un recálculo de impuestos.
 
-**Detalles de los Campos:**
+**Detalles del Campo:**
 
 | Campo | Descripción |
 |-------|-------------|
 | `subTotal` | La suma de todos los artículos en la sesión antes de que se apliquen descuentos o impuestos. |
 | `discount` | El valor total de todos los descuentos aplicados. |
-| `tax` | El monto del impuesto calculado. En `inline`, esto se actualiza dinámicamente a medida que el usuario interactúa con los campos de dirección. |
+| `tax` | El monto del impuesto calculado. En modo `inline`, esto se actualiza dinámicamente a medida que el usuario interactúa con los campos de dirección. |
 | `total` | El resultado matemático de `subTotal - discount + tax` en la moneda base de la sesión. |
 | `currency` | El código de moneda ISO (por ejemplo, `"USD"`) para los valores estándar de subtotal, descuento e impuesto. |
-| `finalTotal` | La cantidad real que se le cobra al cliente. Esto puede incluir ajustes adicionales de cambio de divisas o tarifas de métodos de pago locales que no son parte del desglose de precios básico. |
+| `finalTotal` | La cantidad real que se le cobra al cliente. Esto puede incluir ajustes de cambio de divisas adicionales o tarifas de métodos de pago locales que no son parte del desglose de precios básico. |
 | `finalTotalCurrency` | La moneda en la que el cliente está pagando realmente. Esto puede diferir de `currency` si la paridad del poder adquisitivo o la conversión de moneda local están activas. |
 
 **Consejos Clave de Integración:**
@@ -444,13 +516,13 @@ El evento `checkout.breakdown` es la forma principal de mantener la UI de tu apl
 
 ## Opciones de Implementación
 
-### Instalación a través de Gestor de Paquetes
+### Instalación a través de Gestores de Paquetes
 
 Instala a través de npm, yarn o pnpm como se muestra en la [Guía de Integración Paso a Paso](#step-by-step-integration-guide).
 
 ### Implementación CDN
 
-Para una integración rápida sin un paso de construcción, puedes usar nuestra CDN:
+Para una integración rápida sin un paso de construcción, puedes usar nuestro CDN:
 
 ```html
 <!DOCTYPE html>
@@ -527,31 +599,78 @@ Siempre maneja el evento `checkout.error` para proporcionar una buena experienci
 
 ## Mejores Prácticas
 
-1. **Diseño Responsivo**: Asegúrate de que tu elemento contenedor tenga suficiente ancho y alto. El iframe generalmente se expandirá para llenar su contenedor.
+1. **Diseño Responsivo**: Asegúrate de que tu elemento contenedor tenga suficiente ancho y alto. El iframe típicamente se expandirá para llenar su contenedor.
 2. **Sincronización**: Usa el evento `checkout.breakdown` para mantener tu resumen de pedido personalizado o tablas de precios sincronizadas con lo que el usuario ve en el marco de pago.
 3. **Estados de Carga**: Muestra un indicador de carga en tu contenedor hasta que se active el evento `checkout.opened`.
-4. **Limpieza**: Llama a `DodoPayments.Checkout.close()` cuando tu componente se desmonte para limpiar el iframe y los listeners de eventos.
+4. **Limpieza**: Llama a `DodoPayments.Checkout.close()` cuando tu componente se desmonte para limpiar el iframe y los oyentes de eventos.
 
 <Info>
-Para implementaciones en modo oscuro, se recomienda usar `#0d0d0d` como el color de fondo para una integración visual óptima con el marco de pago en línea.
+Para implementaciones en modo oscuro, se recomienda usar `#0d0d0d` como color de fondo para una integración visual óptima con el marco de pago en línea.
 </Info>
 
-## Solución de problemas
+## Solución de Problemas
 
 <AccordionGroup>
 <Accordion title="El marco de pago no aparece">
 - Verifica que `elementId` coincida con el `id` de un `div` que realmente existe en el DOM.
-- Asegúrate de que `displayType: 'inline'` se haya pasado a `Initialize`.
+- Asegúrate de que `displayType: 'inline'` fue pasado a `Initialize`.
 - Verifica que el `checkoutUrl` sea válido.
 </Accordion>
 
-<Accordion title="Los impuestos no se actualizan en mi interfaz">
+<Accordion title="Los impuestos no se actualizan en mi UI">
 - Asegúrate de que estás escuchando el evento `checkout.breakdown`.
 - Los impuestos solo se calculan después de que el usuario ingresa un país y un código postal válidos en el marco de pago.
 </Accordion>
 </AccordionGroup>
 
-## Soporte de navegadores
+## Habilitando Apple Pay
+
+Apple Pay permite a los clientes completar pagos de manera rápida y segura utilizando sus métodos de pago guardados. Cuando está habilitado, los clientes pueden lanzar el modal de Apple Pay directamente desde la superposición de pago en dispositivos compatibles.
+
+<Info>
+Apple Pay es compatible con iOS 17+, iPadOS 17+ y Safari 17+ en macOS.
+</Info>
+
+Para habilitar Apple Pay para tu dominio en producción, sigue estos pasos:
+
+<Steps>
+<Step title="Descargar y subir el archivo de asociación de dominio de Apple Pay">
+
+Descarga el [archivo de asociación de dominio de Apple Pay](http://checkout.dodopayments.com/.well-known/apple-developer-merchantid-domain-association).
+
+Sube el archivo a tu servidor web en `/.well-known/apple-developer-merchantid-domain-association`. Por ejemplo, si tu sitio web es `example.com`, haz que el archivo esté disponible en `https://example.com/well-known/apple-developer-merchantid-domain-association`.
+
+</Step>
+
+<Step title="Solicitar activación de Apple Pay">
+
+Envía un correo electrónico a **support@dodopayments.com** con la siguiente información:
+
+- La URL de tu dominio de producción (por ejemplo, `https://example.com`)
+- Solicitud para habilitar Apple Pay para tu dominio
+
+<Check>
+Recibirás confirmación dentro de 1-2 días hábiles una vez que Apple Pay haya sido habilitado para tu dominio.
+</Check>
+
+</Step>
+
+<Step title="Verificar disponibilidad de Apple Pay">
+
+Después de recibir la confirmación, prueba Apple Pay en tu pago:
+
+1. Abre tu pago en un dispositivo compatible (iOS 17+, iPadOS 17+ o Safari 17+ en macOS)
+2. Verifica que el botón de Apple Pay aparezca como una opción de pago
+3. Prueba el flujo completo de pago
+
+</Step>
+</Steps>
+
+<Warning>
+Apple Pay debe estar habilitado para tu dominio antes de que aparezca como una opción de pago en producción. Contacta al soporte antes de salir en vivo si planeas ofrecer Apple Pay.
+</Warning>
+
+## Soporte de Navegadores
 
 El SDK de Dodo Payments Checkout es compatible con los siguientes navegadores:
 
@@ -561,34 +680,30 @@ El SDK de Dodo Payments Checkout es compatible con los siguientes navegadores:
 - Edge (última versión)
 - IE11+
 
-<Note>
-Apple Pay no es compatible actualmente en la experiencia de pago en línea. Planeamos agregar soporte para Apple Pay en una futura versión.
-</Note>
-
-## Pago en línea vs Pago en superposición
+## Pago en Línea vs Superposición de Pago
 
 Elige el tipo de pago adecuado para tu caso de uso:
 
-| Característica | Pago en línea | Pago en superposición |
-|----------------|-----------------|------------------|
-| Profundidad de integración | Totalmente integrado en la página | Modal sobre la página |
+| Característica | Pago en Línea | Pago en Superposición |
+|---------|-----------------|------------------|
+| Profundidad de integración | Totalmente embebido en la página | Modal sobre la página |
 | Control de diseño | Control total | Limitado |
-| Marca | Sin fisuras | Separado de la página |
+| Marca | Sin costuras | Separado de la página |
 | Esfuerzo de implementación | Mayor | Menor |
 | Mejor para | Páginas de pago personalizadas, flujos de alta conversión | Integración rápida, páginas existentes |
 
 <Tip>
-Usa **pago en línea** cuando desees el máximo control sobre la experiencia de pago y una marca sin fisuras. Usa **pago en superposición** para una integración más rápida con cambios mínimos en tus páginas existentes.
+Usa **pago en línea** cuando desees el máximo control sobre la experiencia de pago y una marca sin costuras. Usa **pago en superposición** para una integración más rápida con cambios mínimos en tus páginas existentes.
 </Tip>
 
-## Recursos relacionados
+## Recursos Relacionados
 
 <CardGroup cols={2}>
-<Card title="Pago en superposición" icon="layer-group" href="/developer-resources/overlay-checkout">
-    Usa el pago en superposición para una integración modal rápida.
+<Card title="Pago en Superposición" icon="layer-group" href="/developer-resources/overlay-checkout">
+    Usa el pago en superposición para una integración rápida basada en modal.
 </Card>
 
-<Card title="API de sesiones de pago" icon="code" href="/api-reference/checkout-sessions/create">
+<Card title="API de Sesiones de Pago" icon="code" href="/api-reference/checkout-sessions/create">
     Crea sesiones de pago para potenciar tus experiencias de pago.
 </Card>
 
@@ -596,7 +711,7 @@ Usa **pago en línea** cuando desees el máximo control sobre la experiencia de 
     Maneja eventos de pago del lado del servidor con webhooks.
 </Card>
 
-<Card title="Guía de integración" icon="book" href="/developer-resources/integration-guide">
+<Card title="Guía de Integración" icon="book" href="/developer-resources/integration-guide">
     Guía completa para integrar Dodo Payments.
 </Card>
 </CardGroup>

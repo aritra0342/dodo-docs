@@ -29,6 +29,7 @@ import { DodoPayments } from "dodopayments-checkout";
 // Initialize the SDK
 DodoPayments.Initialize({
   mode: "test", // 'test' or 'live'
+  displayType: "overlay", // Optional: defaults to 'overlay' for overlay checkout
   onEvent: (event) => {
     console.log("Checkout event:", event);
   },
@@ -78,6 +79,7 @@ import { DodoPayments } from "dodopayments-checkout";
 
 DodoPayments.Initialize({
   mode: "test", // Change to 'live' for production
+  displayType: "overlay", // Optional: defaults to 'overlay' for overlay checkout
   onEvent: (event) => {
     console.log("Checkout event:", event);
     
@@ -123,6 +125,7 @@ export function CheckoutButton() {
     // Initialize the SDK
     DodoPayments.Initialize({
       mode: "test",
+      displayType: "overlay",
       onEvent: (event) => {
         switch (event.event_type) {
           case "checkout.opened":
@@ -239,6 +242,7 @@ Saat Anda siap untuk produksi:
 ```typescript
 DodoPayments.Initialize({
   mode: "live",
+  displayType: "overlay",
   onEvent: (event) => {
     console.log("Checkout event:", event);
   }
@@ -261,6 +265,7 @@ DodoPayments.Initialize({
 ```typescript
 interface InitializeOptions {
   mode: "test" | "live";
+  displayType?: "overlay" | "inline";
   onEvent: (event: CheckoutEvent) => void;
 }
 ```
@@ -268,6 +273,7 @@ interface InitializeOptions {
 | Opsi | Tipe | Diperlukan | Deskripsi |
 |--------|------|----------|-------------|
 | `mode` | `"test" \| "live"` | Ya | Mode lingkungan: `'test'` untuk pengembangan, `'live'` untuk produksi |
+| `displayType` | `"overlay" \| "inline"` | Tidak | Tipe tampilan: `'overlay'` untuk checkout modal (default), `'inline'` untuk checkout tersemat |
 | `onEvent` | `function` | Ya | Fungsi callback untuk menangani peristiwa checkout |
 
 #### Opsi Checkout
@@ -275,12 +281,20 @@ interface InitializeOptions {
 ```typescript
 interface CheckoutOptions {
   checkoutUrl: string;
+  options?: {
+    showTimer?: boolean;
+    showSecurityBadge?: boolean;
+    manualRedirect?: boolean;
+  };
 }
 ```
 
 | Opsi | Tipe | Diperlukan | Deskripsi |
 |--------|------|----------|-------------|
 | `checkoutUrl` | `string` | Ya | URL sesi checkout dari [API buat sesi checkout](/api-reference/checkout-sessions/create) |
+| `options.showTimer` | `boolean` | Tidak | Tampilkan atau sembunyikan timer checkout. Defaultnya adalah `true`. Ketika dinonaktifkan, Anda akan menerima peristiwa `checkout.link_expired` ketika sesi berakhir. |
+| `options.showSecurityBadge` | `boolean` | Tidak | Tampilkan atau sembunyikan lencana keamanan. Defaultnya adalah `true`. |
+| `options.manualRedirect` | `boolean` | Tidak | Ketika diaktifkan, checkout tidak akan secara otomatis mengalihkan setelah selesai. Sebagai gantinya, Anda akan menerima peristiwa `checkout.status` dan `checkout.redirect_requested` untuk menangani pengalihan sendiri. |
 
 ### Metode
 
@@ -291,6 +305,42 @@ Membuka overlay checkout dengan URL sesi checkout yang ditentukan.
 ```typescript
 DodoPayments.Checkout.open({
   checkoutUrl: "https://checkout.dodopayments.com/session/cks_123"
+});
+```
+
+Anda juga dapat memberikan opsi tambahan untuk menyesuaikan perilaku checkout:
+
+```typescript
+DodoPayments.Checkout.open({
+  checkoutUrl: "https://checkout.dodopayments.com/session/cks_123",
+  options: {
+    showTimer: false,
+    showSecurityBadge: false,
+    manualRedirect: true,
+  },
+});
+```
+
+Saat menggunakan `manualRedirect`, tangani penyelesaian checkout di callback `onEvent` Anda:
+
+```typescript
+DodoPayments.Initialize({
+  mode: "test",
+  displayType: "overlay",
+  onEvent: (event) => {
+    if (event.event_type === "checkout.status") {
+      const status = event.data?.message?.status;
+      // Handle status: "succeeded", "failed", or "processing"
+    }
+    if (event.event_type === "checkout.redirect_requested") {
+      const redirectUrl = event.data?.message?.redirect_to;
+      // Redirect the customer manually
+      window.location.href = redirectUrl;
+    }
+    if (event.event_type === "checkout.link_expired") {
+      // Handle expired checkout session
+    }
+  },
 });
 ```
 
@@ -313,7 +363,31 @@ const isOpen = DodoPayments.Checkout.isOpen();
 
 ### Peristiwa
 
-SDK menyediakan peristiwa real-time yang dapat Anda dengarkan melalui callback `onEvent`:
+SDK menyediakan peristiwa waktu nyata yang dapat Anda dengarkan melalui callback `onEvent`:
+
+#### Data Peristiwa Status Checkout
+
+Ketika `manualRedirect` diaktifkan, Anda menerima peristiwa `checkout.status` dengan data berikut:
+
+```typescript
+interface CheckoutStatusEventData {
+  message: {
+    status?: "succeeded" | "failed" | "processing";
+  };
+}
+```
+
+#### Data Peristiwa Pengalihan Checkout Diminta
+
+Ketika `manualRedirect` diaktifkan, Anda menerima peristiwa `checkout.redirect_requested` dengan data berikut:
+
+```typescript
+interface CheckoutRedirectRequestedEventData {
+  message: {
+    redirect_to?: string;
+  };
+}
+```
 
 ```typescript
 DodoPayments.Initialize({
@@ -338,6 +412,17 @@ DodoPayments.Initialize({
         // An error occurred
         console.error("Error:", event.data?.message);
         break;
+      case "checkout.link_expired":
+        // Checkout session has expired (only when showTimer is false)
+        break;
+      case "checkout.status":
+        // Checkout status update (only when manualRedirect is enabled)
+        const status = event.data?.message?.status;
+        break;
+      case "checkout.redirect_requested":
+        // Redirect requested (only when manualRedirect is enabled)
+        const redirectUrl = event.data?.message?.redirect_to;
+        break;
     }
   }
 });
@@ -351,10 +436,13 @@ DodoPayments.Initialize({
 | `checkout.closed` | Overlay checkout telah ditutup |
 | `checkout.redirect` | Checkout akan melakukan pengalihan |
 | `checkout.error` | Terjadi kesalahan selama checkout |
+| `checkout.link_expired` | Ditembak ketika sesi checkout berakhir. Hanya diterima ketika `showTimer` diatur ke `false`. |
+| `checkout.status` | Ditembak ketika `manualRedirect` diaktifkan. Berisi status checkout (`succeeded`, `failed`, atau `processing`). |
+| `checkout.redirect_requested` | Ditembak ketika `manualRedirect` diaktifkan. Berisi URL untuk mengalihkan pelanggan. |
 
 ## Opsi Implementasi
 
-### Instalasi Manajer Paket
+### Instalasi Package Manager
 
 Instal melalui npm, yarn, atau pnpm seperti yang ditunjukkan dalam [Panduan Integrasi Langkah-demi-Langkah](#step-by-step-integration-guide).
 
@@ -376,6 +464,7 @@ Untuk integrasi cepat tanpa langkah build, Anda dapat menggunakan CDN kami:
         // Initialize the SDK
         DodoPaymentsCheckout.DodoPayments.Initialize({
             mode: "test", // Change to 'live' for production
+            displayType: "overlay",
             onEvent: (event) => {
                 console.log('Checkout event:', event);
             }
@@ -405,6 +494,7 @@ import { DodoPayments, CheckoutEvent } from "dodopayments-checkout";
 
 DodoPayments.Initialize({
   mode: "test",
+  displayType: "overlay",
   onEvent: (event: CheckoutEvent) => {
     // event is fully typed
     console.log(event.event_type, event.data);
@@ -414,10 +504,12 @@ DodoPayments.Initialize({
 
 ## Penanganan Kesalahan
 
-SDK menyediakan informasi kesalahan yang rinci melalui sistem peristiwa. Selalu terapkan penanganan kesalahan yang tepat dalam callback `onEvent`:
+SDK menyediakan informasi kesalahan yang rinci melalui sistem peristiwa. Selalu terapkan penanganan kesalahan yang tepat di callback `onEvent` Anda:
 
 ```typescript
 DodoPayments.Initialize({
+  mode: "test",
+  displayType: "overlay",
   onEvent: (event: CheckoutEvent) => {
     if (event.event_type === "checkout.error") {
       console.error("Checkout error:", event.data?.message);
@@ -425,23 +517,29 @@ DodoPayments.Initialize({
       // You may want to show a user-friendly error message
       // or retry the checkout process
     }
+    if (event.event_type === "checkout.link_expired") {
+      // Handle expired checkout session
+      console.warn("Checkout session has expired");
+    }
   }
 });
 ```
 
 <Warning>
-Selalu tangani peristiwa `checkout.error` untuk memberikan pengalaman pengguna yang baik saat kesalahan terjadi.
+Selalu tangani peristiwa `checkout.error` untuk memberikan pengalaman pengguna yang baik ketika kesalahan terjadi.
 </Warning>
 
 ## Praktik Terbaik
 
 1. **Inisialisasi sekali**: Inisialisasi SDK sekali saat aplikasi Anda dimuat, tidak pada setiap upaya checkout
-2. **Penanganan kesalahan**: Selalu terapkan penanganan kesalahan yang tepat dalam callback peristiwa Anda
-3. **Mode uji**: Gunakan `test` mode selama pengembangan dan beralih ke `live` hanya saat siap untuk produksi
+2. **Penanganan kesalahan**: Selalu terapkan penanganan kesalahan yang tepat di callback peristiwa Anda
+3. **Mode pengujian**: Gunakan mode `test` selama pengembangan dan beralih ke `live` hanya ketika siap untuk produksi
 4. **Penanganan peristiwa**: Tangani semua peristiwa yang relevan untuk pengalaman pengguna yang lengkap
 5. **URL yang valid**: Selalu gunakan URL checkout yang valid dari API buat sesi checkout
 6. **TypeScript**: Gunakan TypeScript untuk keamanan tipe yang lebih baik dan pengalaman pengembang
 7. **Status pemuatan**: Tampilkan status pemuatan saat checkout dibuka untuk meningkatkan UX
+8. **Pengalihan manual**: Gunakan `manualRedirect` ketika Anda memerlukan kontrol kustom atas navigasi pasca-checkout
+9. **Manajemen timer**: Nonaktifkan timer (`showTimer: false`) jika Anda ingin menangani kedaluwarsa sesi secara manual
 
 ## Pemecahan Masalah
 
@@ -466,7 +564,7 @@ Selalu tangani peristiwa `checkout.error` untuk memberikan pengalaman pengguna y
 
 **Kemungkinan penyebab:**
 - Penangan peristiwa tidak diatur dengan benar
-- Kesalahan JavaScript mencegah propagasi peristiwa
+- Kesalahan JavaScript yang mencegah propagasi peristiwa
 - SDK tidak diinisialisasi dengan benar
 
 **Solusi:**
@@ -486,16 +584,63 @@ Selalu tangani peristiwa `checkout.error` untuk memberikan pengalaman pengguna y
 
 **Solusi:**
 - Periksa konflik CSS di DevTools browser
-- Verifikasi pengaturan tema benar
-- Uji di berbagai ukuran layar
+- Verifikasi pengaturan tema sudah benar
+- Uji pada berbagai ukuran layar
 - Pastikan tidak ada konflik z-index dengan overlay
 
 </Accordion>
 </AccordionGroup>
 
+## Mengaktifkan Apple Pay
+
+Apple Pay memungkinkan pelanggan untuk menyelesaikan pembayaran dengan cepat dan aman menggunakan metode pembayaran yang disimpan. Ketika diaktifkan, pelanggan dapat meluncurkan modal Apple Pay langsung dari overlay checkout di perangkat yang didukung.
+
+<Info>
+Apple Pay didukung di iOS 17+, iPadOS 17+, dan Safari 17+ di macOS.
+</Info>
+
+Untuk mengaktifkan Apple Pay untuk domain Anda di produksi, ikuti langkah-langkah berikut:
+
+<Steps>
+<Step title="Unduh dan unggah file asosiasi domain Apple Pay">
+
+Unduh [file asosiasi domain Apple Pay](http://checkout.dodopayments.com/.well-known/apple-developer-merchantid-domain-association).
+
+Unggah file ke server web Anda di `/.well-known/apple-developer-merchantid-domain-association`. Misalnya, jika situs web Anda adalah `example.com`, buat file tersedia di `https://example.com/well-known/apple-developer-merchantid-domain-association`.
+
+</Step>
+
+<Step title="Minta aktivasi Apple Pay">
+
+Kirim email ke **support@dodopayments.com** dengan informasi berikut:
+
+- URL domain produksi Anda (misalnya, `https://example.com`)
+- Permintaan untuk mengaktifkan Apple Pay untuk domain Anda
+
+<Check>
+Anda akan menerima konfirmasi dalam 1-2 hari kerja setelah Apple Pay diaktifkan untuk domain Anda.
+</Check>
+
+</Step>
+
+<Step title="Verifikasi ketersediaan Apple Pay">
+
+Setelah menerima konfirmasi, uji Apple Pay di checkout Anda:
+
+1. Buka checkout Anda di perangkat yang didukung (iOS 17+, iPadOS 17+, atau Safari 17+ di macOS)
+2. Verifikasi bahwa tombol Apple Pay muncul sebagai opsi pembayaran
+3. Uji alur pembayaran lengkap
+
+</Step>
+</Steps>
+
+<Warning>
+Apple Pay harus diaktifkan untuk domain Anda sebelum muncul sebagai opsi pembayaran di produksi. Hubungi dukungan sebelum go live jika Anda berencana untuk menawarkan Apple Pay.
+</Warning>
+
 ## Dukungan Browser
 
-SDK Checkout Dodo Payments mendukung browser berikut:
+SDK Dodo Payments Checkout mendukung browser berikut:
 
 - Chrome (terbaru)
 - Firefox (terbaru)
@@ -503,24 +648,20 @@ SDK Checkout Dodo Payments mendukung browser berikut:
 - Edge (terbaru)
 - IE11+
 
-<Note>
-Apple Pay saat ini tidak didukung dalam pengalaman checkout overlay. Kami berencana untuk menambahkan dukungan untuk Apple Pay di rilis mendatang.
-</Note>
-
-## Checkout Overlay vs Inline
+## Overlay vs Inline Checkout
 
 Pilih jenis checkout yang tepat untuk kasus penggunaan Anda:
 
 | Fitur | Checkout Overlay | Checkout Inline |
 |---------|-----------------|-----------------|
-| Kedalaman integrasi | Modal di atas halaman | Sepenuhnya terintegrasi di halaman |
+| Kedalaman integrasi | Modal di atas halaman | Sepenuhnya tersemat di halaman |
 | Kontrol tata letak | Terbatas | Kontrol penuh |
-| Branding | Terpisah dari halaman | Tanpa hambatan |
+| Branding | Terpisah dari halaman | Tanpa batas |
 | Upaya implementasi | Lebih rendah | Lebih tinggi |
 | Terbaik untuk | Integrasi cepat, halaman yang ada | Halaman checkout kustom, alur konversi tinggi |
 
 <Tip>
-Gunakan **checkout overlay** untuk integrasi yang lebih cepat dengan perubahan minimal pada halaman yang ada. Gunakan **checkout inline** ketika Anda menginginkan kontrol maksimum atas pengalaman checkout dan branding yang mulus.
+Gunakan **checkout overlay** untuk integrasi lebih cepat dengan perubahan minimal pada halaman yang ada. Gunakan **checkout inline** ketika Anda menginginkan kontrol maksimum atas pengalaman checkout dan branding yang mulus.
 </Tip>
 
 ## Sumber Daya Terkait

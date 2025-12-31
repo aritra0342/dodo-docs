@@ -349,13 +349,21 @@ interface InitializeOptions {
 interface CheckoutOptions {
   checkoutUrl: string;
   elementId: string; // Required for inline checkout
+  options?: {
+    showTimer?: boolean;
+    showSecurityBadge?: boolean;
+    manualRedirect?: boolean;
+  };
 }
 ```
 
 | Opsi | Tipe | Diperlukan | Deskripsi |
 |--------|------|----------|-------------|
 | `checkoutUrl` | `string` | Ya | URL sesi checkout. |
-| `elementId` | `string` | Ya | `id` dari elemen DOM di mana checkout harus dirender. |
+| `elementId` | `string` | Ya | `id` dari elemen DOM tempat checkout harus dirender. |
+| `options.showTimer` | `boolean` | Tidak | Tampilkan atau sembunyikan timer checkout. Secara default adalah `true`. Ketika dinonaktifkan, Anda akan menerima event `checkout.link_expired` ketika sesi berakhir. |
+| `options.showSecurityBadge` | `boolean` | Tidak | Tampilkan atau sembunyikan badge keamanan. Secara default adalah `true`. |
+| `options.manualRedirect` | `boolean` | Tidak | Ketika diaktifkan, checkout tidak akan secara otomatis mengalihkan setelah selesai. Sebagai gantinya, Anda akan menerima event `checkout.status` dan `checkout.redirect_requested` untuk menangani pengalihan sendiri. |
 
 ### Metode
 
@@ -370,9 +378,46 @@ DodoPayments.Checkout.open({
 });
 ```
 
+Anda juga dapat memberikan opsi tambahan untuk menyesuaikan perilaku checkout:
+
+```typescript
+DodoPayments.Checkout.open({
+  checkoutUrl: "https://test.dodopayments.com/session/cks_123",
+  elementId: "dodo-inline-checkout",
+  options: {
+    showTimer: false,
+    showSecurityBadge: false,
+    manualRedirect: true,
+  },
+});
+```
+
+Saat menggunakan `manualRedirect`, tangani penyelesaian checkout di callback `onEvent` Anda:
+
+```typescript
+DodoPayments.Initialize({
+  mode: "test",
+  displayType: "inline",
+  onEvent: (event) => {
+    if (event.event_type === "checkout.status") {
+      const status = event.data?.message?.status;
+      // Handle status: "succeeded", "failed", or "processing"
+    }
+    if (event.event_type === "checkout.redirect_requested") {
+      const redirectUrl = event.data?.message?.redirect_to;
+      // Redirect the customer manually
+      window.location.href = redirectUrl;
+    }
+    if (event.event_type === "checkout.link_expired") {
+      // Handle expired checkout session
+    }
+  },
+});
+```
+
 #### Tutup Checkout
 
-Secara programatis menghapus bingkai checkout dan membersihkan pendengar event.
+Secara programatik menghapus bingkai checkout dan membersihkan pendengar event.
 
 ```typescript
 DodoPayments.Checkout.close();
@@ -389,15 +434,18 @@ const isOpen = DodoPayments.Checkout.isOpen();
 
 ### Event
 
-SDK menyediakan event real-time melalui callback `onEvent`. Untuk checkout inline, `checkout.breakdown` sangat berguna untuk menyinkronkan UI Anda.
+SDK menyediakan event waktu nyata melalui callback `onEvent`. Untuk checkout inline, `checkout.breakdown` sangat berguna untuk menyinkronkan UI Anda.
 
 | Tipe Event | Deskripsi |
 |------------|-------------|
 | `checkout.opened` | Bingkai checkout telah dimuat. |
-| `checkout.breakdown` | Ditembak ketika harga, pajak, atau diskon diperbarui. |
+| `checkout.breakdown` | Ditembak saat harga, pajak, atau diskon diperbarui. |
 | `checkout.customer_details_submitted` | Detail pelanggan telah diserahkan. |
 | `checkout.redirect` | Checkout akan melakukan pengalihan (misalnya, ke halaman bank). |
 | `checkout.error` | Terjadi kesalahan selama checkout. |
+| `checkout.link_expired` | Ditembak saat sesi checkout berakhir. Hanya diterima ketika `showTimer` diatur ke `false`. |
+| `checkout.status` | Ditembak saat `manualRedirect` diaktifkan. Berisi status checkout (`succeeded`, `failed`, atau `processing`). |
+| `checkout.redirect_requested` | Ditembak saat `manualRedirect` diaktifkan. Berisi URL untuk mengalihkan pelanggan. |
 
 #### Data Rincian Checkout
 
@@ -415,38 +463,62 @@ interface CheckoutBreakdownData {
 }
 ```
 
+#### Data Event Status Checkout
+
+Ketika `manualRedirect` diaktifkan, Anda menerima event `checkout.status` dengan data berikut:
+
+```typescript
+interface CheckoutStatusEventData {
+  message: {
+    status?: "succeeded" | "failed" | "processing";
+  };
+}
+```
+
+#### Data Event Pengalihan Checkout Diminta
+
+Ketika `manualRedirect` diaktifkan, Anda menerima event `checkout.redirect_requested` dengan data berikut:
+
+```typescript
+interface CheckoutRedirectRequestedEventData {
+  message: {
+    redirect_to?: string;
+  };
+}
+```
+
 #### Memahami Event Rincian
 
 Event `checkout.breakdown` adalah cara utama untuk menjaga UI aplikasi Anda tetap sinkron dengan status checkout Dodo Payments.
 
-**Kapan itu terjadi:**
+**Saat ini terjadi:**
 - **Saat inisialisasi**: Segera setelah bingkai checkout dimuat dan siap.
-- **Saat perubahan alamat**: Setiap kali pelanggan memilih negara atau memasukkan kode pos yang mengakibatkan perhitungan pajak ulang.
+- **Saat perubahan alamat**: Setiap kali pelanggan memilih negara atau memasukkan kode pos yang mengakibatkan perhitungan ulang pajak.
 
 **Detail Field:**
 
 | Field | Deskripsi |
 |-------|-------------|
 | `subTotal` | Jumlah semua item dalam sesi sebelum diskon atau pajak diterapkan. |
-| `discount` | Nilai total dari semua diskon yang diterapkan. |
+| `discount` | Nilai total semua diskon yang diterapkan. |
 | `tax` | Jumlah pajak yang dihitung. Dalam mode `inline`, ini diperbarui secara dinamis saat pengguna berinteraksi dengan field alamat. |
 | `total` | Hasil matematis dari `subTotal - discount + tax` dalam mata uang dasar sesi. |
-| `currency` | Kode mata uang ISO (misalnya, `"USD"`) untuk subtotal standar, diskon, dan nilai pajak. |
-| `finalTotal` | Jumlah yang sebenarnya dibebankan kepada pelanggan. Ini mungkin termasuk penyesuaian nilai tukar asing tambahan atau biaya metode pembayaran lokal yang bukan bagian dari rincian harga dasar. |
+| `currency` | Kode mata uang ISO (misalnya, `"USD"`) untuk subtotal standar, nilai diskon, dan pajak. |
+| `finalTotal` | Jumlah sebenarnya yang dibebankan kepada pelanggan. Ini mungkin termasuk penyesuaian nilai tukar asing tambahan atau biaya metode pembayaran lokal yang bukan bagian dari rincian harga dasar. |
 | `finalTotalCurrency` | Mata uang di mana pelanggan sebenarnya membayar. Ini dapat berbeda dari `currency` jika paritas daya beli atau konversi mata uang lokal aktif. |
 
 **Tips Integrasi Utama:**
 
-1.  **Format Mata Uang**: Harga selalu dikembalikan sebagai bilangan bulat dalam unit mata uang terkecil (misalnya, sen untuk USD, yen untuk JPY). Untuk menampilkannya, bagi dengan 100 (atau pangkat 10 yang sesuai) atau gunakan pustaka format seperti `Intl.NumberFormat`.
-2.  **Menangani Status Awal**: Ketika checkout pertama kali dimuat, `tax` dan `discount` mungkin `0` atau `null` sampai pengguna memberikan informasi penagihan mereka atau menerapkan kode. UI Anda harus menangani status ini dengan baik (misalnya, menampilkan dash `—` atau menyembunyikan baris).
+1.  **Format Mata Uang**: Harga selalu dikembalikan sebagai bilangan bulat dalam unit mata uang terkecil (misalnya, sen untuk USD, yen untuk JPY). Untuk menampilkannya, bagi dengan 100 (atau kekuatan 10 yang sesuai) atau gunakan pustaka format seperti `Intl.NumberFormat`.
+2.  **Menangani Status Awal**: Saat checkout pertama kali dimuat, `tax` dan `discount` mungkin `0` atau `null` sampai pengguna memberikan informasi penagihan mereka atau menerapkan kode. UI Anda harus menangani status ini dengan baik (misalnya, menampilkan dash `—` atau menyembunyikan baris).
 3.  **"Total Akhir" vs "Total"**: Sementara `total` memberi Anda perhitungan harga standar, `finalTotal` adalah sumber kebenaran untuk transaksi. Jika `finalTotal` ada, itu mencerminkan persis apa yang akan dibebankan ke kartu pelanggan, termasuk penyesuaian dinamis apa pun.
-4.  **Umpan Balik Real-time**: Gunakan field `tax` untuk menunjukkan kepada pengguna bahwa pajak sedang dihitung secara real-time. Ini memberikan nuansa "langsung" pada halaman checkout Anda dan mengurangi gesekan selama langkah entri alamat.
+4.  **Umpan Balik Waktu Nyata**: Gunakan field `tax` untuk menunjukkan kepada pengguna bahwa pajak sedang dihitung secara waktu nyata. Ini memberikan nuansa "langsung" pada halaman checkout Anda dan mengurangi gesekan selama langkah entri alamat.
 
 ## Opsi Implementasi
 
 ### Instalasi Manajer Paket
 
-Instal melalui npm, yarn, atau pnpm seperti yang ditunjukkan dalam [Panduan Integrasi Langkah-demi-Langkah](#panduan-integrasi-langkah-demi-langkah).
+Instal melalui npm, yarn, atau pnpm seperti yang ditunjukkan dalam [Panduan Integrasi Langkah-demi-Langkah](#step-by-step-integration-guide).
 
 ### Implementasi CDN
 
@@ -506,7 +578,7 @@ DodoPayments.Initialize({
 
 ## Penanganan Kesalahan
 
-SDK menyediakan informasi kesalahan yang detail melalui sistem event. Selalu terapkan penanganan kesalahan yang tepat dalam callback `onEvent` Anda:
+SDK menyediakan informasi kesalahan yang terperinci melalui sistem event. Selalu terapkan penanganan kesalahan yang tepat di callback `onEvent` Anda:
 
 ```typescript
 DodoPayments.Initialize({
@@ -522,13 +594,13 @@ DodoPayments.Initialize({
 ```
 
 <Warning>
-Selalu tangani event `checkout.error` untuk memberikan pengalaman pengguna yang baik ketika masalah terjadi.
+Selalu tangani event `checkout.error` untuk memberikan pengalaman pengguna yang baik saat masalah terjadi.
 </Warning>
 
 ## Praktik Terbaik
 
 1. **Desain Responsif**: Pastikan elemen kontainer Anda memiliki lebar dan tinggi yang cukup. Iframe biasanya akan berkembang untuk mengisi kontainernya.
-2. **Sinkronisasi**: Gunakan event `checkout.breakdown` untuk menjaga ringkasan pesanan kustom atau tabel harga Anda tetap sinkron dengan apa yang dilihat pengguna di bingkai checkout.
+2. **Sinkronisasi**: Gunakan event `checkout.breakdown` untuk menjaga ringkasan pesanan atau tabel harga kustom Anda tetap sinkron dengan apa yang dilihat pengguna di bingkai checkout.
 3. **Status Skeleton**: Tampilkan indikator pemuatan di kontainer Anda sampai event `checkout.opened` terjadi.
 4. **Pembersihan**: Panggil `DodoPayments.Checkout.close()` saat komponen Anda dibongkar untuk membersihkan iframe dan pendengar event.
 
@@ -546,14 +618,61 @@ Untuk implementasi mode gelap, disarankan untuk menggunakan `#0d0d0d` sebagai wa
 </Accordion>
 
 <Accordion title="Pajak tidak diperbarui di UI saya">
-- Pastikan Anda mendengarkan untuk event `checkout.breakdown`.
+- Pastikan Anda mendengarkan event `checkout.breakdown`.
 - Pajak hanya dihitung setelah pengguna memasukkan negara dan kode pos yang valid di bingkai checkout.
 </Accordion>
 </AccordionGroup>
 
+## Mengaktifkan Apple Pay
+
+Apple Pay memungkinkan pelanggan untuk menyelesaikan pembayaran dengan cepat dan aman menggunakan metode pembayaran yang disimpan. Ketika diaktifkan, pelanggan dapat meluncurkan modal Apple Pay langsung dari overlay checkout di perangkat yang didukung.
+
+<Info>
+Apple Pay didukung di iOS 17+, iPadOS 17+, dan Safari 17+ di macOS.
+</Info>
+
+Untuk mengaktifkan Apple Pay untuk domain Anda di produksi, ikuti langkah-langkah berikut:
+
+<Steps>
+<Step title="Unduh dan unggah file asosiasi domain Apple Pay">
+
+Unduh [file asosiasi domain Apple Pay](http://checkout.dodopayments.com/.well-known/apple-developer-merchantid-domain-association).
+
+Unggah file ke server web Anda di `/.well-known/apple-developer-merchantid-domain-association`. Misalnya, jika situs web Anda adalah `example.com`, buat file tersedia di `https://example.com/well-known/apple-developer-merchantid-domain-association`.
+
+</Step>
+
+<Step title="Minta aktivasi Apple Pay">
+
+Kirim email ke **support@dodopayments.com** dengan informasi berikut:
+
+- URL domain produksi Anda (misalnya, `https://example.com`)
+- Permintaan untuk mengaktifkan Apple Pay untuk domain Anda
+
+<Check>
+Anda akan menerima konfirmasi dalam 1-2 hari kerja setelah Apple Pay diaktifkan untuk domain Anda.
+</Check>
+
+</Step>
+
+<Step title="Verifikasi ketersediaan Apple Pay">
+
+Setelah menerima konfirmasi, uji Apple Pay di checkout Anda:
+
+1. Buka checkout Anda di perangkat yang didukung (iOS 17+, iPadOS 17+, atau Safari 17+ di macOS)
+2. Verifikasi bahwa tombol Apple Pay muncul sebagai opsi pembayaran
+3. Uji alur pembayaran lengkap
+
+</Step>
+</Steps>
+
+<Warning>
+Apple Pay harus diaktifkan untuk domain Anda sebelum muncul sebagai opsi pembayaran di produksi. Hubungi dukungan sebelum go live jika Anda berencana untuk menawarkan Apple Pay.
+</Warning>
+
 ## Dukungan Browser
 
-SDK Checkout Dodo Payments mendukung browser berikut:
+SDK Dodo Payments Checkout mendukung browser berikut:
 
 - Chrome (terbaru)
 - Firefox (terbaru)
@@ -561,24 +680,20 @@ SDK Checkout Dodo Payments mendukung browser berikut:
 - Edge (terbaru)
 - IE11+
 
-<Note>
-Apple Pay saat ini tidak didukung dalam pengalaman checkout inline. Kami berencana untuk menambahkan dukungan untuk Apple Pay di rilis mendatang.
-</Note>
-
 ## Checkout Inline vs Overlay
 
 Pilih jenis checkout yang tepat untuk kasus penggunaan Anda:
 
 | Fitur | Checkout Inline | Checkout Overlay |
 |---------|-----------------|------------------|
-| Kedalaman integrasi | Sepenuhnya tertanam di halaman | Modal di atas halaman |
+| Kedalaman integrasi | Sepenuhnya terbenam di halaman | Modal di atas halaman |
 | Kontrol tata letak | Kontrol penuh | Terbatas |
 | Branding | Tanpa batas | Terpisah dari halaman |
 | Upaya implementasi | Lebih tinggi | Lebih rendah |
 | Terbaik untuk | Halaman checkout kustom, alur konversi tinggi | Integrasi cepat, halaman yang ada |
 
 <Tip>
-Gunakan **checkout inline** ketika Anda menginginkan kontrol maksimum atas pengalaman checkout dan branding yang mulus. Gunakan **checkout overlay** untuk integrasi yang lebih cepat dengan perubahan minimal pada halaman yang ada.
+Gunakan **checkout inline** ketika Anda menginginkan kontrol maksimum atas pengalaman checkout dan branding yang mulus. Gunakan **checkout overlay** untuk integrasi lebih cepat dengan perubahan minimal pada halaman yang ada.
 </Tip>
 
 ## Sumber Daya Terkait

@@ -29,6 +29,7 @@ import { DodoPayments } from "dodopayments-checkout";
 // Initialize the SDK
 DodoPayments.Initialize({
   mode: "test", // 'test' or 'live'
+  displayType: "overlay", // Optional: defaults to 'overlay' for overlay checkout
   onEvent: (event) => {
     console.log("Checkout event:", event);
   },
@@ -78,6 +79,7 @@ import { DodoPayments } from "dodopayments-checkout";
 
 DodoPayments.Initialize({
   mode: "test", // Change to 'live' for production
+  displayType: "overlay", // Optional: defaults to 'overlay' for overlay checkout
   onEvent: (event) => {
     console.log("Checkout event:", event);
     
@@ -123,6 +125,7 @@ export function CheckoutButton() {
     // Initialize the SDK
     DodoPayments.Initialize({
       mode: "test",
+      displayType: "overlay",
       onEvent: (event) => {
         switch (event.event_type) {
           case "checkout.opened":
@@ -239,6 +242,7 @@ npm run dev
 ```typescript
 DodoPayments.Initialize({
   mode: "live",
+  displayType: "overlay",
   onEvent: (event) => {
     console.log("Checkout event:", event);
   }
@@ -261,6 +265,7 @@ DodoPayments.Initialize({
 ```typescript
 interface InitializeOptions {
   mode: "test" | "live";
+  displayType?: "overlay" | "inline";
   onEvent: (event: CheckoutEvent) => void;
 }
 ```
@@ -268,6 +273,7 @@ interface InitializeOptions {
 | विकल्प | प्रकार | आवश्यक | विवरण |
 |--------|------|----------|-------------|
 | `mode` | `"test" \| "live"` | हाँ | पर्यावरण मोड: `'test'` विकास के लिए, `'live'` उत्पादन के लिए |
+| `displayType` | `"overlay" \| "inline"` | नहीं | प्रदर्शन प्रकार: `'overlay'` मोडल चेकआउट के लिए (डिफ़ॉल्ट), `'inline'` एम्बेडेड चेकआउट के लिए |
 | `onEvent` | `function` | हाँ | चेकआउट घटनाओं को संभालने के लिए कॉलबैक फ़ंक्शन |
 
 #### चेकआउट विकल्प
@@ -275,12 +281,20 @@ interface InitializeOptions {
 ```typescript
 interface CheckoutOptions {
   checkoutUrl: string;
+  options?: {
+    showTimer?: boolean;
+    showSecurityBadge?: boolean;
+    manualRedirect?: boolean;
+  };
 }
 ```
 
 | विकल्प | प्रकार | आवश्यक | विवरण |
 |--------|------|----------|-------------|
-| `checkoutUrl` | `string` | हाँ | [चेकआउट सत्र API](/api-reference/checkout-sessions/create) से चेकआउट सत्र URL |
+| `checkoutUrl` | `string` | हाँ | चेकआउट सत्र URL [create checkout session API](/api-reference/checkout-sessions/create) से |
+| `options.showTimer` | `boolean` | नहीं | चेकआउट टाइमर को दिखाना या छिपाना। डिफ़ॉल्ट `true` है। जब अक्षम किया जाता है, तो आपको `checkout.link_expired` घटना प्राप्त होगी जब सत्र समाप्त हो जाता है। |
+| `options.showSecurityBadge` | `boolean` | नहीं | सुरक्षा बैज को दिखाना या छिपाना। डिफ़ॉल्ट `true` है। |
+| `options.manualRedirect` | `boolean` | नहीं | जब सक्षम किया जाता है, तो चेकआउट पूरा होने के बाद स्वचालित रूप से पुनर्निर्देशित नहीं होगा। इसके बजाय, आपको `checkout.status` और `checkout.redirect_requested` घटनाएँ प्राप्त होंगी ताकि आप पुनर्निर्देशन को स्वयं संभाल सकें। |
 
 ### विधियाँ
 
@@ -291,6 +305,42 @@ interface CheckoutOptions {
 ```typescript
 DodoPayments.Checkout.open({
   checkoutUrl: "https://checkout.dodopayments.com/session/cks_123"
+});
+```
+
+आप चेकआउट व्यवहार को अनुकूलित करने के लिए अतिरिक्त विकल्प भी पास कर सकते हैं:
+
+```typescript
+DodoPayments.Checkout.open({
+  checkoutUrl: "https://checkout.dodopayments.com/session/cks_123",
+  options: {
+    showTimer: false,
+    showSecurityBadge: false,
+    manualRedirect: true,
+  },
+});
+```
+
+`manualRedirect` का उपयोग करते समय, अपने `onEvent` कॉलबैक में चेकआउट पूर्णता को संभालें:
+
+```typescript
+DodoPayments.Initialize({
+  mode: "test",
+  displayType: "overlay",
+  onEvent: (event) => {
+    if (event.event_type === "checkout.status") {
+      const status = event.data?.message?.status;
+      // Handle status: "succeeded", "failed", or "processing"
+    }
+    if (event.event_type === "checkout.redirect_requested") {
+      const redirectUrl = event.data?.message?.redirect_to;
+      // Redirect the customer manually
+      window.location.href = redirectUrl;
+    }
+    if (event.event_type === "checkout.link_expired") {
+      // Handle expired checkout session
+    }
+  },
 });
 ```
 
@@ -313,7 +363,31 @@ const isOpen = DodoPayments.Checkout.isOpen();
 
 ### घटनाएँ
 
-SDK रीयल-टाइम घटनाएँ प्रदान करता है जिन्हें आप `onEvent` कॉलबैक के माध्यम से सुन सकते हैं:
+SDK वास्तविक समय की घटनाएँ प्रदान करता है जिन पर आप `onEvent` कॉलबैक के माध्यम से सुन सकते हैं:
+
+#### चेकआउट स्थिति घटना डेटा
+
+जब `manualRedirect` सक्षम होता है, तो आपको निम्नलिखित डेटा के साथ `checkout.status` घटना प्राप्त होती है:
+
+```typescript
+interface CheckoutStatusEventData {
+  message: {
+    status?: "succeeded" | "failed" | "processing";
+  };
+}
+```
+
+#### चेकआउट पुनर्निर्देशन अनुरोधित घटना डेटा
+
+जब `manualRedirect` सक्षम होता है, तो आपको निम्नलिखित डेटा के साथ `checkout.redirect_requested` घटना प्राप्त होती है:
+
+```typescript
+interface CheckoutRedirectRequestedEventData {
+  message: {
+    redirect_to?: string;
+  };
+}
+```
 
 ```typescript
 DodoPayments.Initialize({
@@ -338,6 +412,17 @@ DodoPayments.Initialize({
         // An error occurred
         console.error("Error:", event.data?.message);
         break;
+      case "checkout.link_expired":
+        // Checkout session has expired (only when showTimer is false)
+        break;
+      case "checkout.status":
+        // Checkout status update (only when manualRedirect is enabled)
+        const status = event.data?.message?.status;
+        break;
+      case "checkout.redirect_requested":
+        // Redirect requested (only when manualRedirect is enabled)
+        const redirectUrl = event.data?.message?.redirect_to;
+        break;
     }
   }
 });
@@ -349,14 +434,17 @@ DodoPayments.Initialize({
 | `checkout.payment_page_opened` | भुगतान पृष्ठ प्रदर्शित किया गया |
 | `checkout.customer_details_submitted` | ग्राहक और बिलिंग विवरण प्रस्तुत किए गए |
 | `checkout.closed` | चेकआउट ओवरले बंद किया गया |
-| `checkout.redirect` | चेकआउट एक रीडायरेक्ट करेगा |
+| `checkout.redirect` | चेकआउट पुनर्निर्देशन करेगा |
 | `checkout.error` | चेकआउट के दौरान एक त्रुटि हुई |
+| `checkout.link_expired` | जब चेकआउट सत्र समाप्त होता है तो फायर किया जाता है। केवल तब प्राप्त होता है जब `showTimer` को `false` पर सेट किया गया हो। |
+| `checkout.status` | जब `manualRedirect` सक्षम होता है तो फायर किया जाता है। चेकआउट स्थिति (`succeeded`, `failed`, या `processing`) शामिल है। |
+| `checkout.redirect_requested` | जब `manualRedirect` सक्षम होता है तो फायर किया जाता है। ग्राहक को पुनर्निर्देशित करने के लिए URL शामिल है। |
 
 ## कार्यान्वयन विकल्प
 
 ### पैकेज प्रबंधक स्थापना
 
-[चरण-दर-चरण एकीकरण गाइड](#step-by-step-integration-guide) में दिखाए अनुसार npm, yarn, या pnpm के माध्यम से स्थापित करें।
+npm, yarn, या pnpm के माध्यम से स्थापना करें जैसा कि [चरण-दर-चरण एकीकरण गाइड](#step-by-step-integration-guide) में दिखाया गया है।
 
 ### CDN कार्यान्वयन
 
@@ -376,6 +464,7 @@ DodoPayments.Initialize({
         // Initialize the SDK
         DodoPaymentsCheckout.DodoPayments.Initialize({
             mode: "test", // Change to 'live' for production
+            displayType: "overlay",
             onEvent: (event) => {
                 console.log('Checkout event:', event);
             }
@@ -405,6 +494,7 @@ import { DodoPayments, CheckoutEvent } from "dodopayments-checkout";
 
 DodoPayments.Initialize({
   mode: "test",
+  displayType: "overlay",
   onEvent: (event: CheckoutEvent) => {
     // event is fully typed
     console.log(event.event_type, event.data);
@@ -412,12 +502,14 @@ DodoPayments.Initialize({
 });
 ```
 
-## त्रुटि हैंडलिंग
+## त्रुटि प्रबंधन
 
-SDK घटनाओं के माध्यम से विस्तृत त्रुटि जानकारी प्रदान करता है। हमेशा अपने `onEvent` कॉलबैक में उचित त्रुटि हैंडलिंग लागू करें:
+SDK घटना प्रणाली के माध्यम से विस्तृत त्रुटि जानकारी प्रदान करता है। हमेशा अपने `onEvent` कॉलबैक में उचित त्रुटि प्रबंधन लागू करें:
 
 ```typescript
 DodoPayments.Initialize({
+  mode: "test",
+  displayType: "overlay",
   onEvent: (event: CheckoutEvent) => {
     if (event.event_type === "checkout.error") {
       console.error("Checkout error:", event.data?.message);
@@ -425,23 +517,29 @@ DodoPayments.Initialize({
       // You may want to show a user-friendly error message
       // or retry the checkout process
     }
+    if (event.event_type === "checkout.link_expired") {
+      // Handle expired checkout session
+      console.warn("Checkout session has expired");
+    }
   }
 });
 ```
 
 <Warning>
-जब त्रुटियाँ होती हैं तो उपयोगकर्ता अनुभव प्रदान करने के लिए हमेशा `checkout.error` घटना को संभालें।
+हमेशा `checkout.error` घटना को संभालें ताकि त्रुटियाँ होने पर एक अच्छा उपयोगकर्ता अनुभव प्रदान किया जा सके।
 </Warning>
 
 ## सर्वोत्तम प्रथाएँ
 
 1. **एक बार प्रारंभ करें**: अपने एप्लिकेशन के लोड होने पर SDK को एक बार प्रारंभ करें, हर चेकआउट प्रयास पर नहीं
-2. **त्रुटि हैंडलिंग**: हमेशा अपने इवेंट कॉलबैक में उचित त्रुटि हैंडलिंग लागू करें
-3. **परीक्षण मोड**: विकास के दौरान `test` मोड का उपयोग करें और उत्पादन के लिए तैयार होने पर `live` में स्विच करें
-4. **इवेंट हैंडलिंग**: पूर्ण उपयोगकर्ता अनुभव के लिए सभी प्रासंगिक घटनाओं को संभालें
-5. **मान्य URLs**: हमेशा चेकआउट सत्र API से मान्य चेकआउट URLs का उपयोग करें
+2. **त्रुटि प्रबंधन**: हमेशा अपने घटना कॉलबैक में उचित त्रुटि प्रबंधन लागू करें
+3. **परीक्षण मोड**: विकास के दौरान `test` मोड का उपयोग करें और केवल तब `live` पर स्विच करें जब उत्पादन के लिए तैयार हों
+4. **घटना प्रबंधन**: पूर्ण उपयोगकर्ता अनुभव के लिए सभी प्रासंगिक घटनाओं को संभालें
+5. **मान्य URLs**: हमेशा create checkout session API से मान्य चेकआउट URLs का उपयोग करें
 6. **TypeScript**: बेहतर प्रकार की सुरक्षा और डेवलपर अनुभव के लिए TypeScript का उपयोग करें
-7. **लोडिंग स्थितियाँ**: चेकआउट खुलने के दौरान लोडिंग स्थितियाँ दिखाएँ ताकि UX में सुधार हो सके
+7. **लोडिंग स्थिति**: चेकआउट खुलने के दौरान लोडिंग स्थिति दिखाएँ ताकि UX में सुधार हो
+8. **मैनुअल पुनर्निर्देश**: जब आपको चेकआउट के बाद नेविगेशन पर कस्टम नियंत्रण की आवश्यकता हो तो `manualRedirect` का उपयोग करें
+9. **टाइमर प्रबंधन**: यदि आप सत्र समाप्ति को मैन्युअल रूप से संभालना चाहते हैं तो टाइमर (`showTimer: false`) को अक्षम करें
 
 ## समस्या निवारण
 
@@ -451,13 +549,13 @@ DodoPayments.Initialize({
 **संभावित कारण:**
 - SDK को `open()` को कॉल करने से पहले प्रारंभ नहीं किया गया
 - अमान्य चेकआउट URL
-- कंसोल में JavaScript त्रुटियाँ
+- कंसोल में जावास्क्रिप्ट त्रुटियाँ
 - नेटवर्क कनेक्टिविटी समस्याएँ
 
 **समाधान:**
-- सुनिश्चित करें कि चेकआउट खोलने से पहले SDK प्रारंभ होता है
+- सुनिश्चित करें कि चेकआउट खोलने से पहले SDK प्रारंभ किया गया है
 - कंसोल त्रुटियों की जांच करें
-- सुनिश्चित करें कि चेकआउट URL मान्य है और चेकआउट सत्र API से है
+- सुनिश्चित करें कि चेकआउट URL मान्य है और create checkout session API से है
 - नेटवर्क कनेक्टिविटी की पुष्टि करें
 
 </Accordion>
@@ -465,24 +563,24 @@ DodoPayments.Initialize({
 <Accordion title="घटनाएँ नहीं चल रही हैं">
 
 **संभावित कारण:**
-- इवेंट हैंडलर सही तरीके से सेट नहीं किया गया
-- JavaScript त्रुटियाँ इवेंट प्रसार को रोक रही हैं
+- घटना हैंडलर सही तरीके से सेट नहीं किया गया
+- जावास्क्रिप्ट त्रुटियाँ घटना प्रसार को रोक रही हैं
 - SDK सही तरीके से प्रारंभ नहीं किया गया
 
 **समाधान:**
-- पुष्टि करें कि इवेंट हैंडलर `Initialize()` में सही तरीके से कॉन्फ़िगर किया गया है
-- JavaScript त्रुटियों के लिए ब्राउज़र कंसोल की जांच करें
+- पुष्टि करें कि घटना हैंडलर `Initialize()` में सही तरीके से कॉन्फ़िगर किया गया है
+- जावास्क्रिप्ट त्रुटियों के लिए ब्राउज़र कंसोल की जांच करें
 - सुनिश्चित करें कि SDK प्रारंभ सफलतापूर्वक पूरा हुआ
-- पहले एक सरल इवेंट हैंडलर के साथ परीक्षण करें
+- पहले एक सरल घटना हैंडलर के साथ परीक्षण करें
 
 </Accordion>
 
-<Accordion title="स्टाइलिंग समस्याएँ">
+<Accordion title="शैली मुद्दे">
 
 **संभावित कारण:**
-- आपके एप्लिकेशन शैलियों के साथ CSS संघर्ष
+- आपकी एप्लिकेशन शैलियों के साथ CSS संघर्ष
 - थीम सेटिंग्स सही तरीके से लागू नहीं की गईं
-- उत्तरदायी डिज़ाइन समस्याएँ
+- उत्तरदायी डिज़ाइन मुद्दे
 
 **समाधान:**
 - ब्राउज़र DevTools में CSS संघर्षों की जांच करें
@@ -493,19 +591,62 @@ DodoPayments.Initialize({
 </Accordion>
 </AccordionGroup>
 
+## एप्पल पे सक्षम करना
+
+Apple Pay ग्राहकों को उनके सहेजे गए भुगतान विधियों का उपयोग करके तेजी से और सुरक्षित रूप से भुगतान पूरा करने की अनुमति देता है। जब सक्षम किया जाता है, तो ग्राहक समर्थित उपकरणों पर चेकआउट ओवरले से सीधे Apple Pay मोडल लॉन्च कर सकते हैं।
+
+<Info>
+Apple Pay iOS 17+, iPadOS 17+, और macOS पर Safari 17+ पर समर्थित है।
+</Info>
+
+अपने डोमेन के लिए उत्पादन में Apple Pay सक्षम करने के लिए, इन चरणों का पालन करें:
+
+<Steps>
+<Step title="Apple Pay डोमेन संघ फ़ाइल डाउनलोड और अपलोड करें">
+
+[Apple Pay डोमेन संघ फ़ाइल](http://checkout.dodopayments.com/.well-known/apple-developer-merchantid-domain-association) डाउनलोड करें।
+
+फ़ाइल को अपने वेब सर्वर पर `/.well-known/apple-developer-merchantid-domain-association` पर अपलोड करें। उदाहरण के लिए, यदि आपकी वेबसाइट `example.com` है, तो फ़ाइल को `https://example.com/well-known/apple-developer-merchantid-domain-association` पर उपलब्ध कराएँ।
+
+</Step>
+
+<Step title="Apple Pay सक्रियण का अनुरोध करें">
+
+ईमेल **support@dodopayments.com** निम्नलिखित जानकारी के साथ:
+
+- आपका उत्पादन डोमेन URL (जैसे, `https://example.com`)
+- अपने डोमेन के लिए Apple Pay सक्षम करने का अनुरोध
+
+<Check>
+आपको 1-2 कार्यदिवसों के भीतर पुष्टि प्राप्त होगी जब Apple Pay आपके डोमेन के लिए सक्षम किया गया हो।
+</Check>
+
+</Step>
+
+<Step title="Apple Pay उपलब्धता की पुष्टि करें">
+
+पुष्टि प्राप्त करने के बाद, अपने चेकआउट में Apple Pay का परीक्षण करें:
+
+1. समर्थित उपकरण (iOS 17+, iPadOS 17+, या macOS पर Safari 17+) पर अपने चेकआउट को खोलें
+2. सत्यापित करें कि Apple Pay बटन भुगतान विकल्प के रूप में दिखाई देता है
+3. पूर्ण भुगतान प्रवाह का परीक्षण करें
+
+</Step>
+</Steps>
+
+<Warning>
+Apple Pay को आपके डोमेन के लिए सक्षम किया जाना चाहिए इससे पहले कि यह उत्पादन में भुगतान विकल्प के रूप में दिखाई दे। यदि आप Apple Pay की पेशकश करने की योजना बना रहे हैं तो लाइव जाने से पहले समर्थन से संपर्क करें।
+</Warning>
+
 ## ब्राउज़र समर्थन
 
-Dodo Payments चेकआउट SDK निम्नलिखित ब्राउज़रों का समर्थन करता है:
+Dodo Payments Checkout SDK निम्नलिखित ब्राउज़रों का समर्थन करता है:
 
-- क्रोम (नवीनतम)
-- फ़ायरफ़ॉक्स (नवीनतम)
-- सफारी (नवीनतम)
-- एज (नवीनतम)
+- Chrome (नवीनतम)
+- Firefox (नवीनतम)
+- Safari (नवीनतम)
+- Edge (नवीनतम)
 - IE11+
-
-<Note>
-Apple Pay वर्तमान में ओवरले चेकआउट अनुभव में समर्थित नहीं है। हम भविष्य के रिलीज़ में Apple Pay के लिए समर्थन जोड़ने की योजना बना रहे हैं।
-</Note>
 
 ## ओवरले बनाम इनलाइन चेकआउट
 
@@ -513,34 +654,34 @@ Apple Pay वर्तमान में ओवरले चेकआउट अ
 
 | विशेषता | ओवरले चेकआउट | इनलाइन चेकआउट |
 |---------|-----------------|-----------------|
-| एकीकरण की गहराई | पृष्ठ के शीर्ष पर मोडल | पृष्ठ में पूरी तरह से एम्बेडेड |
+| एकीकरण गहराई | पृष्ठ के शीर्ष पर मोडल | पृष्ठ में पूरी तरह से एम्बेडेड |
 | लेआउट नियंत्रण | सीमित | पूर्ण नियंत्रण |
 | ब्रांडिंग | पृष्ठ से अलग | निर्बाध |
 | कार्यान्वयन प्रयास | कम | अधिक |
 | के लिए सबसे अच्छा | त्वरित एकीकरण, मौजूदा पृष्ठ | कस्टम चेकआउट पृष्ठ, उच्च-परिवर्तन प्रवाह |
 
 <Tip>
-**ओवरले चेकआउट** का उपयोग करें ताकि आपके मौजूदा पृष्ठों में न्यूनतम परिवर्तनों के साथ तेजी से एकीकरण हो सके। **इनलाइन चेकआउट** का उपयोग करें जब आप चेकआउट अनुभव और निर्बाध ब्रांडिंग पर अधिकतम नियंत्रण चाहते हैं।
+**ओवरले चेकआउट** का उपयोग करें त्वरित एकीकरण के लिए जो आपके मौजूदा पृष्ठों में न्यूनतम परिवर्तन करता है। **इनलाइन चेकआउट** का उपयोग करें जब आप चेकआउट अनुभव और निर्बाध ब्रांडिंग पर अधिकतम नियंत्रण चाहते हैं।
 </Tip>
 
 ## संबंधित संसाधन
 
 <CardGroup cols={2}>
 <Card title="इनलाइन चेकआउट" icon="credit-card" href="/developer-resources/inline-checkout">
-    अपने पृष्ठ में सीधे चेकआउट एम्बेड करें ताकि पूरी तरह से एकीकृत अनुभव हो सके।
+    अपने पृष्ठ में सीधे चेकआउट एम्बेड करें ताकि पूरी तरह से एकीकृत अनुभव प्राप्त हो सके।
 </Card>
 
 <Card title="चेकआउट सत्र API" icon="code" href="/api-reference/checkout-sessions/create">
-    अपने चेकआउट अनुभवों को संचालित करने के लिए चेकआउट सत्र बनाएं।
+    अपने चेकआउट अनुभवों को शक्ति देने के लिए चेकआउट सत्र बनाएं।
 </Card>
 
-<Card title="वेबहुक्स" icon="webhook" href="/developer-resources/webhooks">
-    वेबहुक्स के साथ सर्वर-साइड भुगतान घटनाओं को संभालें।
+<Card title="वेबहुक" icon="webhook" href="/developer-resources/webhooks">
+    वेबहुक के साथ सर्वर-साइड पर भुगतान घटनाओं को संभालें।
 </Card>
 
 <Card title="एकीकरण गाइड" icon="book" href="/developer-resources/integration-guide">
-    डोडो पेमेंट्स को एकीकृत करने के लिए पूर्ण गाइड।
+    Dodo Payments को एकीकृत करने के लिए पूर्ण गाइड।
 </Card>
 </CardGroup>
 
-अधिक सहायता के लिए, हमारे [डिस्कॉर्ड समुदाय](https://discord.gg/bYqAp4ayYh) पर जाएं या हमारी डेवलपर समर्थन टीम से संपर्क करें।
+अधिक सहायता के लिए, हमारी [Discord समुदाय](https://discord.gg/bYqAp4ayYh) पर जाएँ या हमारी डेवलपर समर्थन टीम से संपर्क करें.

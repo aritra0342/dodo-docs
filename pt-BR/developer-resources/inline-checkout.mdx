@@ -349,13 +349,21 @@ interface InitializeOptions {
 interface CheckoutOptions {
   checkoutUrl: string;
   elementId: string; // Required for inline checkout
+  options?: {
+    showTimer?: boolean;
+    showSecurityBadge?: boolean;
+    manualRedirect?: boolean;
+  };
 }
 ```
 
-| Opção | Tipo | Obrigatório | Descrição |
+| Opção | Tipo | Requerido | Descrição |
 |--------|------|----------|-------------|
 | `checkoutUrl` | `string` | Sim | URL da sessão de checkout. |
 | `elementId` | `string` | Sim | O `id` do elemento DOM onde o checkout deve ser renderizado. |
+| `options.showTimer` | `boolean` | Não | Mostrar ou ocultar o temporizador de checkout. O padrão é `true`. Quando desativado, você receberá o evento `checkout.link_expired` quando a sessão expirar. |
+| `options.showSecurityBadge` | `boolean` | Não | Mostrar ou ocultar o selo de segurança. O padrão é `true`. |
+| `options.manualRedirect` | `boolean` | Não | Quando ativado, o checkout não redirecionará automaticamente após a conclusão. Em vez disso, você receberá os eventos `checkout.status` e `checkout.redirect_requested` para gerenciar o redirecionamento você mesmo. |
 
 ### Métodos
 
@@ -367,6 +375,43 @@ Abre o quadro de checkout no contêiner especificado.
 DodoPayments.Checkout.open({
   checkoutUrl: "https://test.dodopayments.com/session/cks_123",
   elementId: "dodo-inline-checkout"
+});
+```
+
+Você também pode passar opções adicionais para personalizar o comportamento do checkout:
+
+```typescript
+DodoPayments.Checkout.open({
+  checkoutUrl: "https://test.dodopayments.com/session/cks_123",
+  elementId: "dodo-inline-checkout",
+  options: {
+    showTimer: false,
+    showSecurityBadge: false,
+    manualRedirect: true,
+  },
+});
+```
+
+Ao usar `manualRedirect`, trate a conclusão do checkout em seu callback `onEvent`:
+
+```typescript
+DodoPayments.Initialize({
+  mode: "test",
+  displayType: "inline",
+  onEvent: (event) => {
+    if (event.event_type === "checkout.status") {
+      const status = event.data?.message?.status;
+      // Handle status: "succeeded", "failed", or "processing"
+    }
+    if (event.event_type === "checkout.redirect_requested") {
+      const redirectUrl = event.data?.message?.redirect_to;
+      // Redirect the customer manually
+      window.location.href = redirectUrl;
+    }
+    if (event.event_type === "checkout.link_expired") {
+      // Handle expired checkout session
+    }
+  },
 });
 ```
 
@@ -389,15 +434,18 @@ const isOpen = DodoPayments.Checkout.isOpen();
 
 ### Eventos
 
-O SDK fornece eventos em tempo real através do callback `onEvent`. Para o checkout inline, `checkout.breakdown` é particularmente útil para sincronizar sua interface.
+O SDK fornece eventos em tempo real através do callback `onEvent`. Para checkout inline, `checkout.breakdown` é particularmente útil para sincronizar sua UI.
 
 | Tipo de Evento | Descrição |
 |------------|-------------|
 | `checkout.opened` | O quadro de checkout foi carregado. |
 | `checkout.breakdown` | Disparado quando preços, impostos ou descontos são atualizados. |
-| `checkout.customer_details_submitted` | Detalhes do cliente foram enviados. |
+| `checkout.customer_details_submitted` | Os detalhes do cliente foram enviados. |
 | `checkout.redirect` | O checkout realizará um redirecionamento (por exemplo, para uma página do banco). |
 | `checkout.error` | Ocorreu um erro durante o checkout. |
+| `checkout.link_expired` | Disparado quando a sessão de checkout expira. Recebido apenas quando `showTimer` está definido como `false`. |
+| `checkout.status` | Disparado quando `manualRedirect` está ativado. Contém o status do checkout (`succeeded`, `failed`, ou `processing`). |
+| `checkout.redirect_requested` | Disparado quando `manualRedirect` está ativado. Contém a URL para redirecionar o cliente. |
 
 #### Dados de Quebra do Checkout
 
@@ -415,15 +463,39 @@ interface CheckoutBreakdownData {
 }
 ```
 
-#### Compreendendo o Evento de Quebra
+#### Dados do Evento de Status do Checkout
 
-O evento `checkout.breakdown` é a principal maneira de manter a interface da sua aplicação sincronizada com o estado do checkout da Dodo Payments.
+Quando `manualRedirect` está ativado, você recebe o evento `checkout.status` com os seguintes dados:
+
+```typescript
+interface CheckoutStatusEventData {
+  message: {
+    status?: "succeeded" | "failed" | "processing";
+  };
+}
+```
+
+#### Dados do Evento de Redirecionamento do Checkout Solicitado
+
+Quando `manualRedirect` está ativado, você recebe o evento `checkout.redirect_requested` com os seguintes dados:
+
+```typescript
+interface CheckoutRedirectRequestedEventData {
+  message: {
+    redirect_to?: string;
+  };
+}
+```
+
+#### Entendendo o Evento de Quebra
+
+O evento `checkout.breakdown` é a principal forma de manter a UI da sua aplicação sincronizada com o estado do checkout do Dodo Payments.
 
 **Quando ele é disparado:**
 - **Na inicialização**: Imediatamente após o quadro de checkout ser carregado e estar pronto.
 - **Na mudança de endereço**: Sempre que o cliente seleciona um país ou insere um código postal que resulta em um recálculo de impostos.
 
-**Detalhes dos Campos:**
+**Detalhes do Campo:**
 
 | Campo | Descrição |
 |-------|-------------|
@@ -431,15 +503,15 @@ O evento `checkout.breakdown` é a principal maneira de manter a interface da su
 | `discount` | O valor total de todos os descontos aplicados. |
 | `tax` | O valor do imposto calculado. No modo `inline`, isso é atualizado dinamicamente à medida que o usuário interage com os campos de endereço. |
 | `total` | O resultado matemático de `subTotal - discount + tax` na moeda base da sessão. |
-| `currency` | O código da moeda ISO (por exemplo, `"USD"`) para os valores padrão de subtotal, desconto e imposto. |
-| `finalTotal` | O valor real que o cliente está sendo cobrado. Isso pode incluir ajustes adicionais de câmbio ou taxas de métodos de pagamento locais que não fazem parte da quebra de preço básica. |
+| `currency` | O código de moeda ISO (por exemplo, `"USD"`) para os valores padrão de subtotal, desconto e imposto. |
+| `finalTotal` | O valor real que o cliente é cobrado. Isso pode incluir ajustes adicionais de câmbio ou taxas de métodos de pagamento locais que não fazem parte da quebra de preço básica. |
 | `finalTotalCurrency` | A moeda na qual o cliente está realmente pagando. Isso pode diferir de `currency` se a paridade do poder de compra ou a conversão de moeda local estiver ativa. |
 
 **Dicas de Integração Importantes:**
 
 1.  **Formatação de Moeda**: Os preços são sempre retornados como inteiros na menor unidade monetária (por exemplo, centavos para USD, ienes para JPY). Para exibi-los, divida por 100 (ou a potência apropriada de 10) ou use uma biblioteca de formatação como `Intl.NumberFormat`.
-2.  **Tratamento de Estados Iniciais**: Quando o checkout é carregado pela primeira vez, `tax` e `discount` podem ser `0` ou `null` até que o usuário forneça suas informações de cobrança ou aplique um código. Sua interface deve lidar com esses estados de forma elegante (por exemplo, mostrando um traço `—` ou ocultando a linha).
-3.  **O "Total Final" vs "Total"**: Enquanto `total` fornece o cálculo de preço padrão, `finalTotal` é a fonte da verdade para a transação. Se `finalTotal` estiver presente, ele reflete exatamente o que será cobrado no cartão do cliente, incluindo quaisquer ajustes dinâmicos.
+2.  **Tratamento de Estados Iniciais**: Quando o checkout é carregado pela primeira vez, `tax` e `discount` podem ser `0` ou `null` até que o usuário forneça suas informações de cobrança ou aplique um código. Sua UI deve lidar com esses estados de forma adequada (por exemplo, mostrando um traço `—` ou ocultando a linha).
+3.  **O "Total Final" vs "Total"**: Enquanto `total` fornece o cálculo de preço padrão, `finalTotal` é a fonte de verdade para a transação. Se `finalTotal` estiver presente, ele reflete exatamente o que será cobrado no cartão do cliente, incluindo quaisquer ajustes dinâmicos.
 4.  **Feedback em Tempo Real**: Use o campo `tax` para mostrar aos usuários que os impostos estão sendo calculados em tempo real. Isso proporciona uma sensação de "ao vivo" na sua página de checkout e reduz a fricção durante a etapa de entrada de endereço.
 
 ## Opções de Implementação
@@ -450,7 +522,7 @@ Instale via npm, yarn ou pnpm conforme mostrado no [Guia de Integração Passo a
 
 ### Implementação CDN
 
-Para uma integração rápida sem uma etapa de build, você pode usar nossa CDN:
+Para uma integração rápida sem uma etapa de build, você pode usar nosso CDN:
 
 ```html
 <!DOCTYPE html>
@@ -527,8 +599,8 @@ Sempre trate o evento `checkout.error` para proporcionar uma boa experiência ao
 
 ## Melhores Práticas
 
-1. **Design Responsivo**: Certifique-se de que seu elemento contêiner tenha largura e altura suficientes. O iframe geralmente se expandirá para preencher seu contêiner.
-2. **Sincronização**: Use o evento `checkout.breakdown` para manter seu resumo de pedido personalizado ou tabelas de preços sincronizados com o que o usuário vê no quadro de checkout.
+1. **Design Responsivo**: Certifique-se de que seu elemento contêiner tenha largura e altura suficientes. O iframe geralmente se expande para preencher seu contêiner.
+2. **Sincronização**: Use o evento `checkout.breakdown` para manter seu resumo de pedido personalizado ou tabelas de preços sincronizadas com o que o usuário vê no quadro de checkout.
 3. **Estados de Carregamento**: Mostre um indicador de carregamento em seu contêiner até que o evento `checkout.opened` seja disparado.
 4. **Limpeza**: Chame `DodoPayments.Checkout.close()` quando seu componente for desmontado para limpar o iframe e os ouvintes de eventos.
 
@@ -545,11 +617,58 @@ Para implementações em modo escuro, é recomendado usar `#0d0d0d` como a cor d
 - Verifique se o `checkoutUrl` é válido.
 </Accordion>
 
-<Accordion title="Os impostos não estão atualizando na minha interface">
+<Accordion title="Os impostos não estão atualizando na minha UI">
 - Certifique-se de que você está ouvindo o evento `checkout.breakdown`.
 - Os impostos só são calculados após o usuário inserir um país e um código postal válidos no quadro de checkout.
 </Accordion>
 </AccordionGroup>
+
+## Habilitando o Apple Pay
+
+O Apple Pay permite que os clientes concluam pagamentos de forma rápida e segura usando seus métodos de pagamento salvos. Quando habilitado, os clientes podem abrir o modal do Apple Pay diretamente da sobreposição de checkout em dispositivos suportados.
+
+<Info>
+O Apple Pay é suportado no iOS 17+, iPadOS 17+ e Safari 17+ no macOS.
+</Info>
+
+Para habilitar o Apple Pay para seu domínio em produção, siga estas etapas:
+
+<Steps>
+<Step title="Baixar e fazer upload do arquivo de associação de domínio do Apple Pay">
+
+Baixe o [arquivo de associação de domínio do Apple Pay](http://checkout.dodopayments.com/.well-known/apple-developer-merchantid-domain-association).
+
+Faça o upload do arquivo para seu servidor web em `/.well-known/apple-developer-merchantid-domain-association`. Por exemplo, se seu site for `example.com`, disponibilize o arquivo em `https://example.com/well-known/apple-developer-merchantid-domain-association`.
+
+</Step>
+
+<Step title="Solicitar ativação do Apple Pay">
+
+Envie um e-mail para **support@dodopayments.com** com as seguintes informações:
+
+- Sua URL de domínio de produção (por exemplo, `https://example.com`)
+- Solicitação para habilitar o Apple Pay para seu domínio
+
+<Check>
+Você receberá confirmação dentro de 1-2 dias úteis assim que o Apple Pay for habilitado para seu domínio.
+</Check>
+
+</Step>
+
+<Step title="Verificar a disponibilidade do Apple Pay">
+
+Após receber a confirmação, teste o Apple Pay em seu checkout:
+
+1. Abra seu checkout em um dispositivo suportado (iOS 17+, iPadOS 17+ ou Safari 17+ no macOS)
+2. Verifique se o botão do Apple Pay aparece como uma opção de pagamento
+3. Teste todo o fluxo de pagamento
+
+</Step>
+</Steps>
+
+<Warning>
+O Apple Pay deve ser habilitado para seu domínio antes de aparecer como uma opção de pagamento em produção. Entre em contato com o suporte antes de ir ao vivo se você planeja oferecer o Apple Pay.
+</Warning>
 
 ## Suporte a Navegadores
 
@@ -561,13 +680,9 @@ O SDK de Checkout do Dodo Payments suporta os seguintes navegadores:
 - Edge (última versão)
 - IE11+
 
-<Note>
-O Apple Pay não é atualmente suportado na experiência de checkout inline. Planejamos adicionar suporte ao Apple Pay em uma versão futura.
-</Note>
-
 ## Checkout Inline vs Overlay
 
-Escolha o tipo de checkout certo para o seu caso de uso:
+Escolha o tipo de checkout certo para seu caso de uso:
 
 | Recurso | Checkout Inline | Checkout Overlay |
 |---------|-----------------|------------------|
@@ -578,14 +693,14 @@ Escolha o tipo de checkout certo para o seu caso de uso:
 | Melhor para | Páginas de checkout personalizadas, fluxos de alta conversão | Integração rápida, páginas existentes |
 
 <Tip>
-Use **checkout inline** quando você quiser controle máximo sobre a experiência de checkout e branding sem costura. Use **checkout overlay** para uma integração mais rápida com mudanças mínimas nas suas páginas existentes.
+Use **checkout inline** quando você quiser controle máximo sobre a experiência de checkout e branding sem costura. Use **checkout overlay** para uma integração mais rápida com mudanças mínimas em suas páginas existentes.
 </Tip>
 
 ## Recursos Relacionados
 
 <CardGroup cols={2}>
 <Card title="Checkout Overlay" icon="layer-group" href="/developer-resources/overlay-checkout">
-    Use o checkout overlay para uma integração modal rápida.
+    Use o checkout overlay para uma integração rápida baseada em modal.
 </Card>
 
 <Card title="API de Sessões de Checkout" icon="code" href="/api-reference/checkout-sessions/create">
