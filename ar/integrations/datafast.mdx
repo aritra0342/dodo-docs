@@ -158,8 +158,7 @@ function handler(webhook) {
     const payment = webhook.payload.data;
     
     // Only send to DataFast if visitor ID exists in metadata
-    if (payment.metadata?.datafast_visitor_id) {
-      webhook.url = "https://datafa.st/api/v1/payments";
+    if (payment.metadata && payment.metadata.datafast_visitor_id) {
       webhook.payload = {
         amount: payment.total_amount / 100, // Convert from cents to dollars
         currency: payment.currency,
@@ -167,8 +166,8 @@ function handler(webhook) {
         datafast_visitor_id: payment.metadata.datafast_visitor_id,
       };
     } else {
-      // Skip if no visitor ID (prevents unnecessary API calls)
-      return null;
+      // Cancel dispatch if no visitor ID (prevents unnecessary API calls)
+      webhook.cancel = true;
     }
   }
   return webhook;
@@ -184,12 +183,11 @@ function handler(webhook) {
   if (webhook.eventType === "payment.succeeded") {
     const payment = webhook.payload.data;
     
-    if (payment.metadata?.datafast_visitor_id) {
+    if (payment.metadata && payment.metadata.datafast_visitor_id) {
       // Zero decimal currencies: JPY, KRW, CLP, etc.
       const zeroDecimalCurrencies = ['JPY', 'KRW', 'CLP', 'VND', 'UGX', 'MGA'];
       const isZeroDecimal = zeroDecimalCurrencies.includes(payment.currency);
       
-      webhook.url = "https://datafa.st/api/v1/payments";
       webhook.payload = {
         amount: isZeroDecimal 
           ? payment.total_amount // Use amount as-is for zero decimal currencies
@@ -199,7 +197,8 @@ function handler(webhook) {
         datafast_visitor_id: payment.metadata.datafast_visitor_id,
       };
     } else {
-      return null;
+      // Cancel dispatch if no visitor ID (prevents unnecessary API calls)
+      webhook.cancel = true;
     }
   }
   return webhook;
@@ -218,8 +217,7 @@ function handler(webhook) {
     // Check if this is a subscription payment
     const isSubscription = payment.subscription_id !== null;
     
-    if (payment.metadata?.datafast_visitor_id) {
-      webhook.url = "https://datafa.st/api/v1/payments";
+    if (payment.metadata && payment.metadata.datafast_visitor_id) {
       webhook.payload = {
         amount: payment.total_amount / 100,
         currency: payment.currency,
@@ -231,7 +229,8 @@ function handler(webhook) {
         }),
       };
     } else {
-      return null;
+      // Cancel dispatch if no visitor ID (prevents unnecessary API calls)
+      webhook.cancel = true;
     }
   }
   return webhook;

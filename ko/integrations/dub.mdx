@@ -1,0 +1,545 @@
+---
+title: Dub
+description: Dodo Payments를 통해 고객이 구매를 완료할 때 Dub에서 판매 전환 이벤트를 추적합니다.
+icon: /images/logos/dub.svg
+---
+
+## 소개
+
+[Dub](https://dub.co)는 짧은 링크를 생성, 공유 및 추적하는 데 도움을 주는 강력한 링크 관리 플랫폼입니다. Dodo Payments와 Dub을 통합하면 고객이 구매를 완료할 때 판매 전환 이벤트를 자동으로 추적할 수 있어 마케팅 캠페인 및 추천 프로그램의 ROI를 측정할 수 있습니다.
+
+고객이 다음을 수행할 때 Dub에서 "판매" 이벤트가 기록됩니다:
+- 일회성 결제를 완료함
+- 유료 요금제에 가입함
+- 정기 구독 결제를 함
+
+<Info>
+이 통합을 위해서는 링크에서 전환 추적이 활성화된 Dub 계정이 필요합니다.
+</Info>
+
+## 작동 방식
+
+Dub은 사용자가 Dub 짧은 링크를 클릭할 때 쿠키에 저장된 고유 클릭 ID (`dub_id`)를 통해 방문자를 추적합니다. 판매를 링크에 귀속시키기 위해서는 다음을 수행해야 합니다:
+
+1. **체크아웃 세션을 생성할 때 Dub의 클릭 ID**를 `dub_id` 쿠키에서 캡처합니다.
+2. **클릭 ID를** 고객의 외부 ID와 함께 결제 메타데이터에 저장합니다.
+3. **결제가 성공할 때 판매 데이터를 Dub에 전송합니다**. Track API를 사용합니다.
+
+이렇게 하면 Dub이 성공적인 판매를 원래 링크 클릭과 일치시켜 완전한 전환 귀속을 제공합니다.
+
+## 전제 조건
+
+이 통합을 설정하기 전에 다음을 확인하십시오:
+
+1. [Dub 계정](https://dub.co)과 작업 공간이 있습니다.
+2. 링크에 대한 전환 추적이 활성화되어 있습니다.
+3. Dub API 키 (설정 → API 키에서 Dub 대시보드에서 확인 가능)가 있습니다.
+
+## 시작하기
+
+<Steps>
+<Step title="Dub에서 전환 추적 활성화">
+  Dub 대시보드에서 판매를 추적할 링크에 대한 전환 추적을 활성화합니다. 이렇게 하면 고객이 구매를 완료할 때 Dub이 판매 이벤트를 기록할 수 있습니다.
+
+  <Info>
+  [Dub 문서](https://dub.co/docs/conversions/quickstart)에서 전환 추적 활성화에 대해 자세히 알아보세요.
+  </Info>
+</Step>
+
+<Step title="Dub API 키 가져오기">
+  [Dub 대시보드](https://app.dub.co) → 설정 → API 키로 이동하여 `conversions.write` 범위로 새 API 키를 생성합니다.
+
+  <Warning>
+  API 키를 안전하게 보관하고 클라이언트 측 코드에 노출하지 마십시오.
+  </Warning>
+</Step>
+
+<Step title="체크아웃에서 클릭 ID 캡처">
+  체크아웃 세션을 생성할 때 쿠키에서 Dub 클릭 ID를 캡처하고 결제 메타데이터에 추가합니다.
+</Step>
+
+<Step title="웹훅을 통해 판매 데이터 전송">
+  결제가 성공할 때 판매 데이터를 Dub의 Track API에 전송하도록 웹훅을 구성합니다.
+</Step>
+
+<Step title="완료!">
+  이제 판매 전환 이벤트가 귀하의 Dub 분석 대시보드에 링크에 대한 완전한 귀속과 함께 나타납니다.
+</Step>
+</Steps>
+
+## 구현 가이드
+
+### 1단계: 클릭 ID 및 고객 ID를 체크아웃 메타데이터에 추가
+
+체크아웃 세션을 생성할 때 쿠키에서 Dub 클릭 ID를 캡처하고 고객의 외부 ID와 함께 결제 메타데이터에 포함합니다.
+
+<CodeGroup>
+
+```typescript Next.js
+import { cookies } from 'next/headers';
+import DodoPayments from 'dodopayments';
+
+const client = new DodoPayments();
+
+export async function createCheckout(productId: string, customerId: string) {
+  // Capture Dub click ID from cookie
+  const dubClickId = cookies().get('dub_id')?.value;
+
+  const payment = await client.payments.create({
+    billing: {
+      city: 'New York',
+      country: 'US',
+      state: 'NY',
+      street: '123 Main St',
+      zipcode: '10001',
+    },
+    customer: {
+      email: 'customer@example.com',
+      name: 'John Doe',
+    },
+    product_id: productId,
+    metadata: {
+      dub_click_id: dubClickId,           // Store Dub click ID
+      dub_external_id: customerId,        // Store your customer's unique ID
+    },
+  });
+
+  return payment;
+}
+```
+
+```javascript Express.js
+const express = require('express');
+const DodoPayments = require('dodopayments').default;
+const router = express.Router();
+
+const client = new DodoPayments();
+
+router.post('/create-checkout', async (req, res) => {
+  // Capture Dub click ID from cookie
+  const dubClickId = req.cookies?.dub_id;
+
+  const payment = await client.payments.create({
+    billing: {
+      city: 'New York',
+      country: 'US',
+      state: 'NY',
+      street: '123 Main St',
+      zipcode: '10001',
+    },
+    customer: {
+      email: req.body.email,
+      name: req.body.name,
+    },
+    product_id: req.body.productId,
+    metadata: {
+      dub_click_id: dubClickId,           // Store Dub click ID
+      dub_external_id: req.body.customerId, // Store your customer's unique ID
+    },
+  });
+
+  res.json({ payment });
+});
+```
+
+```python Python (FastAPI)
+from fastapi import FastAPI, Request
+from dodopayments import DodoPayments
+
+app = FastAPI()
+client = DodoPayments()
+
+@app.post("/create-checkout")
+async def create_checkout(request: Request):
+    # Capture Dub click ID from cookie
+    dub_click_id = request.cookies.get("dub_id")
+
+    body = await request.json()
+
+    payment = client.payments.create(
+        billing={
+            "city": "New York",
+            "country": "US",
+            "state": "NY",
+            "street": "123 Main St",
+            "zipcode": "10001",
+        },
+        customer={
+            "email": body["email"],
+            "name": body["name"],
+        },
+        product_id=body["product_id"],
+        metadata={
+            "dub_click_id": dub_click_id,          # Store Dub click ID
+            "dub_external_id": body["customer_id"], # Store your customer's unique ID
+        },
+    )
+
+    return {"payment": payment}
+```
+
+```go Go
+package main
+
+import (
+    "github.com/dodopayments/dodopayments-go"
+)
+
+func createCheckout(dubClickId, customerId, productId string) (*dodopayments.Payment, error) {
+    client := dodopayments.NewClient()
+
+    payment, err := client.Payments.Create(context.Background(), dodopayments.PaymentCreateParams{
+        Billing: dodopayments.BillingParam{
+            City:    "New York",
+            Country: "US",
+            State:   "NY",
+            Street:  "123 Main St",
+            Zipcode: "10001",
+        },
+        Customer: dodopayments.CustomerParam{
+            Email: "customer@example.com",
+            Name:  "John Doe",
+        },
+        ProductID: productId,
+        Metadata: map[string]string{
+            "dub_click_id":   dubClickId,  // Store Dub click ID
+            "dub_external_id": customerId, // Store your customer's unique ID
+        },
+    })
+
+    return payment, err
+}
+```
+
+</CodeGroup>
+
+### 2단계: Dub에 판매 데이터 전송
+
+결제가 성공할 때 판매 데이터를 Dub의 Track API에 전송하도록 웹훅 엔드포인트를 구성합니다.
+
+<Steps>
+<Step title="웹훅 섹션 열기">
+  Dodo Payments 대시보드에서 **웹훅 → + 엔드포인트 추가**로 이동하고 통합 드롭다운을 확장합니다.
+  <Frame>
+    <img src="/images/integrations/dub/add.png" alt="엔드포인트 추가 및 통합 드롭다운" />
+  </Frame>
+</Step>
+
+<Step title="Dub 선택">
+  **Dub** 통합 카드를 선택합니다.
+</Step>
+
+<Step title="API 키 입력">
+  구성 필드에 Dub API 키를 제공합니다.
+  <Frame>
+    <img src="/images/integrations/dub/api-key.png" alt="API 키 추가" />
+  </Frame>
+</Step>
+
+<Step title="변환 구성">
+  결제 데이터를 Dub의 Track Sale API에 맞게 형식화하도록 변환 코드를 편집합니다.
+</Step>
+
+<Step title="테스트 및 생성">
+  샘플 페이로드로 테스트하고 **생성**을 클릭하여 통합을 활성화합니다.
+</Step>
+</Steps>
+
+## 변환 코드 예제
+
+### 기본 판매 추적
+
+결제가 성공할 때 판매를 추적합니다:
+
+```javascript basic_sale.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const payment = webhook.payload.data;
+
+    // Only send to Dub if click ID exists in metadata
+    if (payment.metadata && payment.metadata.dub_click_id) {
+      webhook.payload = {
+        clickId: payment.metadata.dub_click_id,
+        externalId: payment.metadata.dub_external_id || payment.customer.customer_id,
+        amount: payment.total_amount, // Ensure the amount is in cents
+        currency: payment.currency || "USD",
+        paymentProcessor: "dodo",
+        invoiceId: payment.payment_id,
+        metadata: {
+          customer_email: payment.customer.email,
+          customer_name: payment.customer.name,
+          product_id: payment.product_cart ? payment.product_cart.map(product => product.product_id).join(', ') : undefined,
+        },
+      };
+    } else {
+      // Cancel dispatch if no click ID (organic traffic)
+      webhook.cancel = true;
+    }
+  }
+  return webhook;
+}
+```
+
+### 구독 판매 추적
+
+초기 구독 및 정기 결제를 모두 추적합니다:
+
+```javascript subscription_sale.js icon="js" expandable
+function handler(webhook) {
+  const data = webhook.payload.data;
+
+  // Track initial subscription activation
+  if (webhook.eventType === "subscription.active") {
+    if (data.metadata && data.metadata.dub_click_id) {
+      webhook.payload = {
+        clickId: data.metadata.dub_click_id,
+        externalId: data.metadata.dub_external_id || data.customer.customer_id,
+        amount: data.recurring_pre_tax_amount, // Amount in cents
+        currency: data.currency || "USD",
+        paymentProcessor: "dodo",
+        invoiceId: data.subscription_id,
+        eventName: "Subscription Started",
+        metadata: {
+          subscription_id: data.subscription_id,
+          product_id: data.product_id,
+          billing_interval: data.payment_frequency_interval,
+          customer_email: data.customer.email,
+        },
+      };
+    } else {
+      // Cancel dispatch if no click ID (organic traffic)
+      webhook.cancel = true;
+    }
+  }
+
+  // Track recurring subscription payments
+  if (webhook.eventType === "subscription.renewed") {
+    if (data.metadata && data.metadata.dub_click_id) {
+      webhook.payload = {
+        clickId: data.metadata.dub_click_id,
+        externalId: data.metadata.dub_external_id || data.customer.customer_id,
+        amount: data.recurring_pre_tax_amount,
+        currency: data.currency || "USD",
+        paymentProcessor: "dodo",
+        invoiceId: `${data.subscription_id}_${Date.now()}`,
+        eventName: "Subscription Renewed",
+        metadata: {
+          subscription_id: data.subscription_id,
+          product_id: data.product_id,
+          customer_email: data.customer.email,
+        },
+      };
+    } else {
+      // Cancel dispatch if no click ID (organic traffic)
+      webhook.cancel = true;
+    }
+  }
+
+  return webhook;
+}
+```
+
+### 세금 제외 판매 추적
+
+정확한 수익 추적을 위해 세전 금액만 Dub에 전송합니다:
+
+```javascript sale_without_tax.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const payment = webhook.payload.data;
+
+    if (payment.metadata && payment.metadata.dub_click_id) {
+      // Calculate pre-tax amount (total minus tax)
+      const preTaxAmount = payment.total_amount - (payment.tax || 0);
+
+      webhook.payload = {
+        clickId: payment.metadata.dub_click_id,
+        externalId: payment.metadata.dub_external_id || payment.customer.customer_id,
+        amount: preTaxAmount, // Pre-tax amount in cents
+        currency: payment.currency || "USD",
+        paymentProcessor: "dodo",
+        invoiceId: payment.payment_id,
+        metadata: {
+          total_amount: payment.total_amount,
+          tax_amount: payment.tax || 0,
+          customer_email: payment.customer.email,
+        },
+      };
+    } else {
+      // Cancel dispatch if no click ID (organic traffic)
+      webhook.cancel = true;
+    }
+  }
+  return webhook;
+}
+```
+
+### 사용자 정의 이벤트 이름으로 판매 추적
+
+다양한 유형의 판매를 분류하기 위해 사용자 정의 이벤트 이름을 사용합니다:
+
+```javascript custom_events.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const payment = webhook.payload.data;
+
+    if (payment.metadata && payment.metadata.dub_click_id) {
+      // Determine event name based on payment type
+      let eventName = "Purchase";
+      if (payment.subscription_id) {
+        eventName = "Subscription Purchase";
+      } else if (payment.metadata && payment.metadata.is_upgrade) {
+        eventName = "Plan Upgrade";
+      }
+
+      webhook.payload = {
+        clickId: payment.metadata.dub_click_id,
+        externalId: payment.metadata.dub_external_id || payment.customer.customer_id,
+        amount: payment.total_amount,
+        currency: payment.currency || "USD",
+        paymentProcessor: "dodo",
+        invoiceId: payment.payment_id,
+        eventName: eventName,
+        metadata: {
+          product_id: payment.product_cart ? payment.product_cart.map(product => product.product_id).join(', ') : undefined,
+          customer_email: payment.customer.email,
+        },
+      };
+    } else {
+      // Cancel dispatch if no click ID (organic traffic)
+      webhook.cancel = true;
+    }
+  }
+  return webhook;
+}
+```
+
+## 대안: 클라이언트 측 구현
+
+웹훅을 사용하는 대신 서버에서 판매를 추적하려는 경우, 결제가 성공한 후 Dub의 Track API를 직접 호출할 수 있습니다:
+
+<CodeGroup>
+
+```typescript Next.js (Server Action)
+'use server';
+
+import { Dub } from 'dub';
+
+const dub = new Dub();
+
+export async function trackSale(
+  paymentId: string,
+  clickId: string,
+  customerId: string,
+  amount: number,
+  currency: string
+) {
+  await dub.track.sale({
+    clickId: clickId,
+    externalId: customerId,
+    amount: amount,
+    currency: currency,
+    paymentProcessor: 'dodo',
+    invoiceId: paymentId,
+  });
+}
+```
+
+```javascript Node.js
+const { Dub } = require('dub');
+
+const dub = new Dub();
+
+async function trackSale(payment) {
+  if (payment.metadata?.dub_click_id) {
+    await dub.track.sale({
+      clickId: payment.metadata.dub_click_id,
+      externalId: payment.metadata.dub_external_id,
+      amount: payment.total_amount,
+      currency: payment.currency,
+      paymentProcessor: 'dodo',
+      invoiceId: payment.payment_id,
+    });
+  }
+}
+```
+
+</CodeGroup>
+
+## 모범 사례
+
+<Tip>
+**클릭 ID를 조기에 캡처**: 사용자가 나갔다가 나중에 돌아오더라도 정확한 귀속을 보장하기 위해 체크아웃 흐름에서 가능한 한 빨리 Dub 클릭 ID를 저장하십시오.
+</Tip>
+
+- **메타데이터에 클릭 ID를 항상 포함**: 클릭 ID가 없으면 Dub이 귀하의 링크에 수익을 귀속시킬 수 없습니다.
+- **외부 ID를 일관되게 사용**: 정확한 고객 수준 분석을 위해 시스템에서 사용하는 동일한 고객 ID를 전달합니다.
+- **유기적 트래픽을 우아하게 처리**: 클릭 ID가 없을 때 `webhook.cancel = true`를 설정하여 불필요한 API 호출을 피합니다.
+- **샘플 결제로 테스트**: 라이브로 전환하기 전에 통합이 올바르게 작동하는지 확인합니다.
+- **Dub 대시보드를 모니터링**: 판매가 올바르게 나타나고 적절한 귀속이 이루어지는지 확인합니다.
+
+## 중요 사항
+
+<Note>
+- **금액 형식**: Dub은 금액을 센트 단위로 기대합니다 (예: $10.00 = 1000)
+- **통화**: ISO 4217 통화 코드를 사용합니다 (USD, EUR, GBP 등)
+- **무료 체험**: $0 결제는 판매로 추적되지 않습니다.
+- **환불**: 정확한 수익 보고를 위해 필요시 환불을 별도로 추적하는 것을 고려하십시오.
+</Note>
+
+## 문제 해결
+
+<AccordionGroup>
+<Accordion title="Dub에 판매가 나타나지 않음">
+- Dub API 키가 올바르고 `conversions.write` 범위가 있는지 확인합니다.
+- `dub_click_id`가 결제 메타데이터에 캡처되고 저장되고 있는지 확인합니다.
+- 웹훅 변환이 페이로드를 올바르게 형식화하고 있는지 확인합니다.
+- 웹훅이 `payment.succeeded` 이벤트에서 트리거되고 있는지 확인합니다.
+- Dub 링크에 대한 전환 추적이 활성화되어 있는지 확인합니다.
+</Accordion>
+
+<Accordion title="수익 귀속이 작동하지 않음">
+- 사용자가 체크아웃 전에 Dub 짧은 링크를 클릭하고 있는지 확인합니다.
+- `dub_id` 쿠키가 도메인에 올바르게 설정되고 있는지 확인합니다.
+- 체크아웃 생성과 결제 완료 간에 클릭 ID가 일치하는지 확인합니다.
+- 체크아웃 세션을 생성하기 전에 클릭 ID를 캡처하고 있는지 확인합니다.
+</Accordion>
+
+<Accordion title="변환 오류">
+- JSON 구조가 Dub의 Track Sale API 형식과 일치하는지 확인합니다.
+- 모든 필수 필드 (`clickId`, `externalId`, `amount`)가 있는지 확인합니다.
+- 금액이 센트 단위인지 (정수, 소수점 아님) 확인합니다.
+- API 엔드포인트 URL이 올바른지 확인합니다: `https://api.dub.co/track/sale`
+- 샘플 웹훅 페이로드로 변환을 테스트합니다.
+</Accordion>
+
+<Accordion title="중복 판매가 추적됨">
+- `payment.succeeded` 이벤트에서만 추적하고 있는지 확인하고 `payment.processing` 이벤트에서는 추적하지 않도록 합니다.
+- 각 판매에 대해 고유한 `invoiceId` 값을 사용합니다.
+- 구독의 경우, 갱신 시 중복을 방지하기 위해 타임스탬프 또는 청구 기간을 추가합니다.
+</Accordion>
+</AccordionGroup>
+
+## 추가 리소스
+
+<CardGroup cols={2}>
+<Card title="Dub 전환 문서" icon="book" href="https://dub.co/docs/conversions/quickstart">
+  Dub의 전환 추적 및 분석 기능에 대해 자세히 알아보세요.
+</Card>
+
+<Card title="Dub Track Sale API" icon="code" href="https://dub.co/docs/api-reference/track/track-sale">
+  Dub의 Track Sale 엔드포인트에 대한 전체 API 참조를 확인하세요.
+</Card>
+
+<Card title="Dub 대시보드" icon="chart-line" href="https://app.dub.co">
+  Dub 대시보드에 액세스하여 전환 분석 및 귀속 데이터를 확인하세요.
+</Card>
+
+<Card title="웹훅 이벤트 가이드" icon="webhook" href="/developer-resources/webhooks/intents/webhook-events-guide">
+  사용 가능한 모든 Dodo Payments 웹훅 이벤트에 대해 알아보세요.
+</Card>
+</CardGroup>
+
+<Info>
+도움이 필요하신가요? 통합에 대한 지원은 [support@dodopayments.com](mailto:support@dodopayments.com)으로 Dodo Payments 지원팀에 문의하세요.
+</Info>

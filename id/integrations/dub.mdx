@@ -1,0 +1,546 @@
+---
+title: Dub
+description: Lacak peristiwa konversi penjualan di Dub ketika pelanggan
+  menyelesaikan pembelian melalui Dodo Payments.
+icon: /images/logos/dub.svg
+---
+
+## Pendahuluan
+
+[Dub](https://dub.co) adalah platform manajemen tautan yang kuat yang membantu Anda membuat, membagikan, dan melacak tautan pendek. Dengan mengintegrasikan Dodo Payments dengan Dub, Anda dapat secara otomatis melacak peristiwa konversi penjualan ketika pelanggan menyelesaikan pembelian, memungkinkan Anda untuk mengukur ROI dari kampanye pemasaran dan program rujukan Anda.
+
+Peristiwa "penjualan" dicatat di Dub ketika seorang pelanggan:
+- Menyelesaikan pembayaran satu kali
+- Berlangganan ke rencana berbayar
+- Melakukan pembayaran langganan berulang
+
+<Info>
+Integrasi ini memerlukan akun Dub dengan pelacakan konversi yang diaktifkan pada tautan Anda.
+</Info>
+
+## Cara Kerjanya
+
+Dub melacak pengunjung melalui ID klik unik (`dub_id`) yang disimpan dalam cookie ketika pengguna mengklik tautan pendek Dub Anda. Untuk mengaitkan penjualan dengan tautan Anda, Anda perlu:
+
+1. **Tangkap ID klik Dub** dari cookie `dub_id` saat membuat sesi checkout
+2. **Simpan ID klik** dalam metadata pembayaran Anda bersama dengan ID eksternal pelanggan
+3. **Kirim data penjualan ke Dub** ketika pembayaran berhasil menggunakan API Pelacakan mereka
+
+Ini memungkinkan Dub untuk mencocokkan penjualan yang berhasil dengan klik tautan asli, memberikan Anda atribusi konversi yang lengkap.
+
+## Prasyarat
+
+Sebelum mengatur integrasi ini, pastikan Anda memiliki:
+
+1. Akun [Dub](https://dub.co) dengan ruang kerja
+2. Pelacakan konversi diaktifkan untuk tautan Anda
+3. Kunci API Dub Anda (tersedia di dasbor Dub Anda di bawah Pengaturan → Kunci API)
+
+## Memulai
+
+<Steps>
+<Step title="Aktifkan Pelacakan Konversi di Dub">
+  Di dasbor Dub Anda, aktifkan pelacakan konversi untuk tautan yang ingin Anda lacak penjualannya. Ini memungkinkan Dub untuk mencatat peristiwa penjualan ketika pelanggan menyelesaikan pembelian.
+
+  <Info>
+  Pelajari lebih lanjut tentang mengaktifkan pelacakan konversi di [dokumentasi Dub](https://dub.co/docs/conversions/quickstart).
+  </Info>
+</Step>
+
+<Step title="Dapatkan Kunci API Dub Anda">
+  Navigasikan ke [dasbor Dub Anda](https://app.dub.co) → Pengaturan → Kunci API dan buat kunci API baru dengan cakupan `conversions.write`.
+
+  <Warning>
+  Jaga kunci API Anda tetap aman dan jangan pernah mengeksposnya dalam kode sisi klien.
+  </Warning>
+</Step>
+
+<Step title="Tangkap ID Klik di Checkout">
+  Saat membuat sesi checkout, tangkap ID klik Dub dari cookie dan tambahkan ke metadata pembayaran Anda.
+</Step>
+
+<Step title="Kirim Data Penjualan melalui Webhook">
+  Konfigurasikan webhook untuk mengirim data penjualan ke API Pelacakan Dub ketika pembayaran berhasil.
+</Step>
+
+<Step title="Selesai!">
+  Peristiwa konversi penjualan sekarang akan muncul di dasbor analitik Dub Anda dengan atribusi penuh ke tautan Anda.
+</Step>
+</Steps>
+
+## Panduan Implementasi
+
+### Langkah 1: Tambahkan ID Klik dan ID Pelanggan ke Metadata Checkout
+
+Saat membuat sesi checkout, tangkap ID klik Dub dari cookie dan sertakan dalam metadata pembayaran Anda bersama dengan ID eksternal pelanggan Anda.
+
+<CodeGroup>
+
+```typescript Next.js
+import { cookies } from 'next/headers';
+import DodoPayments from 'dodopayments';
+
+const client = new DodoPayments();
+
+export async function createCheckout(productId: string, customerId: string) {
+  // Capture Dub click ID from cookie
+  const dubClickId = cookies().get('dub_id')?.value;
+
+  const payment = await client.payments.create({
+    billing: {
+      city: 'New York',
+      country: 'US',
+      state: 'NY',
+      street: '123 Main St',
+      zipcode: '10001',
+    },
+    customer: {
+      email: 'customer@example.com',
+      name: 'John Doe',
+    },
+    product_id: productId,
+    metadata: {
+      dub_click_id: dubClickId,           // Store Dub click ID
+      dub_external_id: customerId,        // Store your customer's unique ID
+    },
+  });
+
+  return payment;
+}
+```
+
+```javascript Express.js
+const express = require('express');
+const DodoPayments = require('dodopayments').default;
+const router = express.Router();
+
+const client = new DodoPayments();
+
+router.post('/create-checkout', async (req, res) => {
+  // Capture Dub click ID from cookie
+  const dubClickId = req.cookies?.dub_id;
+
+  const payment = await client.payments.create({
+    billing: {
+      city: 'New York',
+      country: 'US',
+      state: 'NY',
+      street: '123 Main St',
+      zipcode: '10001',
+    },
+    customer: {
+      email: req.body.email,
+      name: req.body.name,
+    },
+    product_id: req.body.productId,
+    metadata: {
+      dub_click_id: dubClickId,           // Store Dub click ID
+      dub_external_id: req.body.customerId, // Store your customer's unique ID
+    },
+  });
+
+  res.json({ payment });
+});
+```
+
+```python Python (FastAPI)
+from fastapi import FastAPI, Request
+from dodopayments import DodoPayments
+
+app = FastAPI()
+client = DodoPayments()
+
+@app.post("/create-checkout")
+async def create_checkout(request: Request):
+    # Capture Dub click ID from cookie
+    dub_click_id = request.cookies.get("dub_id")
+
+    body = await request.json()
+
+    payment = client.payments.create(
+        billing={
+            "city": "New York",
+            "country": "US",
+            "state": "NY",
+            "street": "123 Main St",
+            "zipcode": "10001",
+        },
+        customer={
+            "email": body["email"],
+            "name": body["name"],
+        },
+        product_id=body["product_id"],
+        metadata={
+            "dub_click_id": dub_click_id,          # Store Dub click ID
+            "dub_external_id": body["customer_id"], # Store your customer's unique ID
+        },
+    )
+
+    return {"payment": payment}
+```
+
+```go Go
+package main
+
+import (
+    "github.com/dodopayments/dodopayments-go"
+)
+
+func createCheckout(dubClickId, customerId, productId string) (*dodopayments.Payment, error) {
+    client := dodopayments.NewClient()
+
+    payment, err := client.Payments.Create(context.Background(), dodopayments.PaymentCreateParams{
+        Billing: dodopayments.BillingParam{
+            City:    "New York",
+            Country: "US",
+            State:   "NY",
+            Street:  "123 Main St",
+            Zipcode: "10001",
+        },
+        Customer: dodopayments.CustomerParam{
+            Email: "customer@example.com",
+            Name:  "John Doe",
+        },
+        ProductID: productId,
+        Metadata: map[string]string{
+            "dub_click_id":   dubClickId,  // Store Dub click ID
+            "dub_external_id": customerId, // Store your customer's unique ID
+        },
+    })
+
+    return payment, err
+}
+```
+
+</CodeGroup>
+
+### Langkah 2: Kirim Data Penjualan ke Dub
+
+Konfigurasikan endpoint webhook untuk mengirim data penjualan ke API Pelacakan Dub ketika pembayaran berhasil.
+
+<Steps>
+<Step title="Buka Bagian Webhook">
+  Di dasbor Dodo Payments Anda, navigasikan ke **Webhooks → + Tambah Endpoint** dan perluas dropdown integrasi.
+  <Frame>
+    <img src="/images/integrations/dub/add.png" alt="Tambahkan Endpoint dan dropdown integrasi" />
+  </Frame>
+</Step>
+
+<Step title="Pilih Dub">
+  Pilih kartu integrasi **Dub**.
+</Step>
+
+<Step title="Masukkan Kunci API">
+  Berikan Kunci API Dub Anda di bidang konfigurasi.
+  <Frame>
+    <img src="/images/integrations/dub/api-key.png" alt="Tambahkan Kunci API" />
+  </Frame>
+</Step>
+
+<Step title="Konfigurasikan Transformasi">
+  Edit kode transformasi untuk memformat data pembayaran untuk API Pelacakan Penjualan Dub.
+</Step>
+
+<Step title="Uji & Buat">
+  Uji dengan payload contoh dan klik **Buat** untuk mengaktifkan integrasi.
+</Step>
+</Steps>
+
+## Contoh Kode Transformasi
+
+### Pelacakan Penjualan Dasar
+
+Lacak penjualan ketika pembayaran berhasil:
+
+```javascript basic_sale.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const payment = webhook.payload.data;
+
+    // Only send to Dub if click ID exists in metadata
+    if (payment.metadata && payment.metadata.dub_click_id) {
+      webhook.payload = {
+        clickId: payment.metadata.dub_click_id,
+        externalId: payment.metadata.dub_external_id || payment.customer.customer_id,
+        amount: payment.total_amount, // Ensure the amount is in cents
+        currency: payment.currency || "USD",
+        paymentProcessor: "dodo",
+        invoiceId: payment.payment_id,
+        metadata: {
+          customer_email: payment.customer.email,
+          customer_name: payment.customer.name,
+          product_id: payment.product_cart ? payment.product_cart.map(product => product.product_id).join(', ') : undefined,
+        },
+      };
+    } else {
+      // Cancel dispatch if no click ID (organic traffic)
+      webhook.cancel = true;
+    }
+  }
+  return webhook;
+}
+```
+
+### Lacak Penjualan Langganan
+
+Lacak baik langganan awal maupun pembayaran berulang:
+
+```javascript subscription_sale.js icon="js" expandable
+function handler(webhook) {
+  const data = webhook.payload.data;
+
+  // Track initial subscription activation
+  if (webhook.eventType === "subscription.active") {
+    if (data.metadata && data.metadata.dub_click_id) {
+      webhook.payload = {
+        clickId: data.metadata.dub_click_id,
+        externalId: data.metadata.dub_external_id || data.customer.customer_id,
+        amount: data.recurring_pre_tax_amount, // Amount in cents
+        currency: data.currency || "USD",
+        paymentProcessor: "dodo",
+        invoiceId: data.subscription_id,
+        eventName: "Subscription Started",
+        metadata: {
+          subscription_id: data.subscription_id,
+          product_id: data.product_id,
+          billing_interval: data.payment_frequency_interval,
+          customer_email: data.customer.email,
+        },
+      };
+    } else {
+      // Cancel dispatch if no click ID (organic traffic)
+      webhook.cancel = true;
+    }
+  }
+
+  // Track recurring subscription payments
+  if (webhook.eventType === "subscription.renewed") {
+    if (data.metadata && data.metadata.dub_click_id) {
+      webhook.payload = {
+        clickId: data.metadata.dub_click_id,
+        externalId: data.metadata.dub_external_id || data.customer.customer_id,
+        amount: data.recurring_pre_tax_amount,
+        currency: data.currency || "USD",
+        paymentProcessor: "dodo",
+        invoiceId: `${data.subscription_id}_${Date.now()}`,
+        eventName: "Subscription Renewed",
+        metadata: {
+          subscription_id: data.subscription_id,
+          product_id: data.product_id,
+          customer_email: data.customer.email,
+        },
+      };
+    } else {
+      // Cancel dispatch if no click ID (organic traffic)
+      webhook.cancel = true;
+    }
+  }
+
+  return webhook;
+}
+```
+
+### Lacak Penjualan dengan Pengecualian Pajak
+
+Kirim hanya jumlah sebelum pajak ke Dub untuk pelacakan pendapatan yang akurat:
+
+```javascript sale_without_tax.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const payment = webhook.payload.data;
+
+    if (payment.metadata && payment.metadata.dub_click_id) {
+      // Calculate pre-tax amount (total minus tax)
+      const preTaxAmount = payment.total_amount - (payment.tax || 0);
+
+      webhook.payload = {
+        clickId: payment.metadata.dub_click_id,
+        externalId: payment.metadata.dub_external_id || payment.customer.customer_id,
+        amount: preTaxAmount, // Pre-tax amount in cents
+        currency: payment.currency || "USD",
+        paymentProcessor: "dodo",
+        invoiceId: payment.payment_id,
+        metadata: {
+          total_amount: payment.total_amount,
+          tax_amount: payment.tax || 0,
+          customer_email: payment.customer.email,
+        },
+      };
+    } else {
+      // Cancel dispatch if no click ID (organic traffic)
+      webhook.cancel = true;
+    }
+  }
+  return webhook;
+}
+```
+
+### Lacak Penjualan dengan Nama Acara Kustom
+
+Gunakan nama acara kustom untuk mengkategorikan berbagai jenis penjualan:
+
+```javascript custom_events.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const payment = webhook.payload.data;
+
+    if (payment.metadata && payment.metadata.dub_click_id) {
+      // Determine event name based on payment type
+      let eventName = "Purchase";
+      if (payment.subscription_id) {
+        eventName = "Subscription Purchase";
+      } else if (payment.metadata && payment.metadata.is_upgrade) {
+        eventName = "Plan Upgrade";
+      }
+
+      webhook.payload = {
+        clickId: payment.metadata.dub_click_id,
+        externalId: payment.metadata.dub_external_id || payment.customer.customer_id,
+        amount: payment.total_amount,
+        currency: payment.currency || "USD",
+        paymentProcessor: "dodo",
+        invoiceId: payment.payment_id,
+        eventName: eventName,
+        metadata: {
+          product_id: payment.product_cart ? payment.product_cart.map(product => product.product_id).join(', ') : undefined,
+          customer_email: payment.customer.email,
+        },
+      };
+    } else {
+      // Cancel dispatch if no click ID (organic traffic)
+      webhook.cancel = true;
+    }
+  }
+  return webhook;
+}
+```
+
+## Alternatif: Implementasi Sisi Klien
+
+Jika Anda lebih suka melacak penjualan dari server Anda daripada menggunakan webhook, Anda dapat memanggil API Pelacakan Dub secara langsung setelah pembayaran berhasil:
+
+<CodeGroup>
+
+```typescript Next.js (Server Action)
+'use server';
+
+import { Dub } from 'dub';
+
+const dub = new Dub();
+
+export async function trackSale(
+  paymentId: string,
+  clickId: string,
+  customerId: string,
+  amount: number,
+  currency: string
+) {
+  await dub.track.sale({
+    clickId: clickId,
+    externalId: customerId,
+    amount: amount,
+    currency: currency,
+    paymentProcessor: 'dodo',
+    invoiceId: paymentId,
+  });
+}
+```
+
+```javascript Node.js
+const { Dub } = require('dub');
+
+const dub = new Dub();
+
+async function trackSale(payment) {
+  if (payment.metadata?.dub_click_id) {
+    await dub.track.sale({
+      clickId: payment.metadata.dub_click_id,
+      externalId: payment.metadata.dub_external_id,
+      amount: payment.total_amount,
+      currency: payment.currency,
+      paymentProcessor: 'dodo',
+      invoiceId: payment.payment_id,
+    });
+  }
+}
+```
+
+</CodeGroup>
+
+## Praktik Terbaik
+
+<Tip>
+**Tangkap ID klik lebih awal**: Simpan ID klik Dub sesegera mungkin dalam alur checkout Anda untuk memastikan atribusi yang akurat, bahkan jika pengguna berpindah dan kembali nanti.
+</Tip>
+
+- **Selalu sertakan ID klik dalam metadata**: Tanpa ID klik, Dub tidak dapat mengaitkan pendapatan dengan tautan Anda
+- **Gunakan ID eksternal secara konsisten**: Kirim ID pelanggan yang sama yang Anda gunakan dalam sistem Anda untuk analitik tingkat pelanggan yang akurat
+- **Tangani lalu lintas organik dengan baik**: Atur `webhook.cancel = true` ketika tidak ada ID klik untuk menghindari panggilan API yang tidak perlu
+- **Uji dengan pembayaran contoh**: Verifikasi bahwa integrasi berfungsi dengan benar sebelum diluncurkan
+- **Pantau dasbor Dub Anda**: Periksa bahwa penjualan muncul dengan benar dengan atribusi yang tepat
+
+## Catatan Penting
+
+<Note>
+- **Format jumlah**: Dub mengharapkan jumlah dalam sen (misalnya, $10.00 = 1000)
+- **Mata uang**: Gunakan kode mata uang ISO 4217 (USD, EUR, GBP, dll.)
+- **Uji coba gratis**: Pembayaran $0 tidak dilacak sebagai penjualan
+- **Pengembalian dana**: Pertimbangkan untuk melacak pengembalian dana secara terpisah jika diperlukan untuk pelaporan pendapatan yang akurat
+</Note>
+
+## Pemecahan Masalah
+
+<AccordionGroup>
+<Accordion title="Penjualan tidak muncul di Dub">
+- Verifikasi bahwa kunci API Dub Anda benar dan memiliki cakupan `conversions.write`
+- Periksa bahwa `dub_click_id` ditangkap dan disimpan dalam metadata pembayaran
+- Pastikan transformasi webhook memformat payload dengan benar
+- Verifikasi bahwa webhook dipicu pada peristiwa `payment.succeeded`
+- Konfirmasi bahwa pelacakan konversi diaktifkan untuk tautan Dub Anda
+</Accordion>
+
+<Accordion title="Atribusi pendapatan tidak berfungsi">
+- Konfirmasi pengguna mengklik tautan pendek Dub Anda sebelum checkout
+- Verifikasi bahwa cookie `dub_id` disetel dengan benar di domain Anda
+- Periksa bahwa ID klik cocok antara pembuatan checkout dan penyelesaian pembayaran
+- Pastikan Anda menangkap ID klik sebelum membuat sesi checkout
+</Accordion>
+
+<Accordion title="Kesalahan transformasi">
+- Validasi struktur JSON sesuai dengan format API Pelacakan Penjualan Dub
+- Periksa bahwa semua bidang yang diperlukan (`clickId`, `externalId`, `amount`) ada
+- Pastikan jumlah dalam sen (integer, bukan desimal)
+- Verifikasi URL endpoint API benar: `https://api.dub.co/track/sale`
+- Uji transformasi dengan payload webhook contoh
+</Accordion>
+
+<Accordion title="Penjualan duplikat yang dilacak">
+- Pastikan Anda hanya melacak pada peristiwa `payment.succeeded`, bukan `payment.processing`
+- Gunakan nilai `invoiceId` yang unik untuk setiap penjualan
+- Untuk langganan, tambahkan cap waktu atau periode penagihan untuk mencegah duplikat pada pembaruan
+</Accordion>
+</AccordionGroup>
+
+## Sumber Daya Tambahan
+
+<CardGroup cols={2}>
+<Card title="Dokumentasi Konversi Dub" icon="book" href="https://dub.co/docs/conversions/quickstart">
+  Pelajari lebih lanjut tentang pelacakan konversi dan fitur analitik Dub.
+</Card>
+
+<Card title="API Pelacakan Penjualan Dub" icon="code" href="https://dub.co/docs/api-reference/track/track-sale">
+  Lihat referensi API lengkap untuk endpoint Pelacakan Penjualan Dub.
+</Card>
+
+<Card title="Dasbor Dub" icon="chart-line" href="https://app.dub.co">
+  Akses dasbor Dub Anda untuk melihat analitik konversi dan data atribusi.
+</Card>
+
+<Card title="Panduan Acara Webhook" icon="webhook" href="/developer-resources/webhooks/intents/webhook-events-guide">
+  Pelajari tentang semua acara webhook Dodo Payments yang tersedia.
+</Card>
+</CardGroup>
+
+<Info>
+Butuh bantuan? Hubungi dukungan Dodo Payments di [support@dodopayments.com](mailto:support@dodopayments.com) untuk bantuan dengan integrasi.
+</Info>

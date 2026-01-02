@@ -1,0 +1,546 @@
+---
+title: Dub
+description: Dodo Payments के माध्यम से खरीदारी पूरी करने पर Dub में बिक्री
+  रूपांतरण घटनाओं को ट्रैक करें।
+icon: /images/logos/dub.svg
+---
+
+## परिचय
+
+[Dub](https://dub.co) एक शक्तिशाली लिंक प्रबंधन प्लेटफ़ॉर्म है जो आपको छोटे लिंक बनाने, साझा करने और ट्रैक करने में मदद करता है। Dodo Payments के साथ Dub को एकीकृत करके, आप स्वचालित रूप से बिक्री रूपांतरण घटनाओं को ट्रैक कर सकते हैं जब ग्राहक खरीदारी पूरी करते हैं, जिससे आप अपने मार्केटिंग अभियानों और रेफरल कार्यक्रमों की ROI को माप सकते हैं।
+
+Dub में "बिक्री" घटना तब दर्ज की जाती है जब ग्राहक:
+- एक बार का भुगतान पूरा करता है
+- एक भुगतान योजना की सदस्यता लेता है
+- एक आवर्ती सदस्यता भुगतान करता है
+
+<Info>
+इस एकीकरण के लिए आपके लिंक पर रूपांतरण ट्रैकिंग सक्षम Dub खाता की आवश्यकता है।
+</Info>
+
+## यह कैसे काम करता है
+
+Dub आगंतुकों को एक अद्वितीय क्लिक आईडी (`dub_id`) के माध्यम से ट्रैक करता है जो उपयोगकर्ता आपके Dub छोटे लिंक पर क्लिक करते समय कुकी में संग्रहीत होती है। आपकी लिंक के लिए बिक्री को श्रेय देने के लिए, आपको करना होगा:
+
+1. **चेकआउट सत्र बनाते समय Dub की क्लिक आईडी** `dub_id` कुकी से कैप्चर करें
+2. **क्लिक आईडी** को ग्राहक के बाहरी आईडी के साथ अपने भुगतान मेटाडेटा में संग्रहीत करें
+3. **भुगतान सफल होने पर Dub को बिक्री डेटा भेजें** उनके ट्रैक API का उपयोग करके
+
+यह Dub को सफल बिक्री को मूल लिंक क्लिक से मिलाने की अनुमति देता है, जिससे आपको पूर्ण रूपांतरण श्रेय मिलता है।
+
+## पूर्वापेक्षाएँ
+
+इस एकीकरण को सेट करने से पहले, सुनिश्चित करें कि आपके पास है:
+
+1. एक [Dub खाता](https://dub.co) जिसमें एक कार्यक्षेत्र है
+2. आपके लिंक के लिए रूपांतरण ट्रैकिंग सक्षम है
+3. आपका Dub API कुंजी (आपके Dub डैशबोर्ड में सेटिंग्स → API कुंजी के तहत उपलब्ध)
+
+## प्रारंभ करना
+
+<Steps>
+<Step title="Dub में रूपांतरण ट्रैकिंग सक्षम करें">
+  अपने Dub डैशबोर्ड में, उन लिंक के लिए रूपांतरण ट्रैकिंग सक्षम करें जिनके लिए आप बिक्री ट्रैक करना चाहते हैं। इससे Dub को ग्राहकों द्वारा खरीदारी पूरी करने पर बिक्री घटनाओं को रिकॉर्ड करने की अनुमति मिलती है।
+
+  <Info>
+  [Dub दस्तावेज़ीकरण](https://dub.co/docs/conversions/quickstart) में रूपांतरण ट्रैकिंग सक्षम करने के बारे में अधिक जानें।
+  </Info>
+</Step>
+
+<Step title="अपनी Dub API कुंजी प्राप्त करें">
+  अपने [Dub डैशबोर्ड](https://app.dub.co) → सेटिंग्स → API कुंजी पर जाएं और `conversions.write` स्कोप के साथ एक नई API कुंजी बनाएं।
+
+  <Warning>
+  अपनी API कुंजी को सुरक्षित रखें और इसे कभी भी क्लाइंट-साइड कोड में उजागर न करें।
+  </Warning>
+</Step>
+
+<Step title="चेकआउट में क्लिक आईडी कैप्चर करें">
+  चेकआउट सत्र बनाते समय, कुकी से Dub क्लिक आईडी कैप्चर करें और इसे अपने भुगतान मेटाडेटा में जोड़ें।
+</Step>
+
+<Step title="Webhook के माध्यम से बिक्री डेटा भेजें">
+  भुगतान सफल होने पर Dub के ट्रैक API को बिक्री डेटा भेजने के लिए एक वेबहुक कॉन्फ़िगर करें।
+</Step>
+
+<Step title="हो गया!">
+  बिक्री रूपांतरण घटनाएँ अब आपके Dub एनालिटिक्स डैशबोर्ड में आपके लिंक के लिए पूर्ण श्रेय के साथ दिखाई देंगी।
+</Step>
+</Steps>
+
+## कार्यान्वयन गाइड
+
+### चरण 1: चेकआउट मेटाडेटा में क्लिक आईडी और ग्राहक आईडी जोड़ें
+
+चेकआउट सत्र बनाते समय, कुकी से Dub क्लिक आईडी कैप्चर करें और इसे अपने ग्राहक के बाहरी आईडी के साथ अपने भुगतान मेटाडेटा में शामिल करें।
+
+<CodeGroup>
+
+```typescript Next.js
+import { cookies } from 'next/headers';
+import DodoPayments from 'dodopayments';
+
+const client = new DodoPayments();
+
+export async function createCheckout(productId: string, customerId: string) {
+  // Capture Dub click ID from cookie
+  const dubClickId = cookies().get('dub_id')?.value;
+
+  const payment = await client.payments.create({
+    billing: {
+      city: 'New York',
+      country: 'US',
+      state: 'NY',
+      street: '123 Main St',
+      zipcode: '10001',
+    },
+    customer: {
+      email: 'customer@example.com',
+      name: 'John Doe',
+    },
+    product_id: productId,
+    metadata: {
+      dub_click_id: dubClickId,           // Store Dub click ID
+      dub_external_id: customerId,        // Store your customer's unique ID
+    },
+  });
+
+  return payment;
+}
+```
+
+```javascript Express.js
+const express = require('express');
+const DodoPayments = require('dodopayments').default;
+const router = express.Router();
+
+const client = new DodoPayments();
+
+router.post('/create-checkout', async (req, res) => {
+  // Capture Dub click ID from cookie
+  const dubClickId = req.cookies?.dub_id;
+
+  const payment = await client.payments.create({
+    billing: {
+      city: 'New York',
+      country: 'US',
+      state: 'NY',
+      street: '123 Main St',
+      zipcode: '10001',
+    },
+    customer: {
+      email: req.body.email,
+      name: req.body.name,
+    },
+    product_id: req.body.productId,
+    metadata: {
+      dub_click_id: dubClickId,           // Store Dub click ID
+      dub_external_id: req.body.customerId, // Store your customer's unique ID
+    },
+  });
+
+  res.json({ payment });
+});
+```
+
+```python Python (FastAPI)
+from fastapi import FastAPI, Request
+from dodopayments import DodoPayments
+
+app = FastAPI()
+client = DodoPayments()
+
+@app.post("/create-checkout")
+async def create_checkout(request: Request):
+    # Capture Dub click ID from cookie
+    dub_click_id = request.cookies.get("dub_id")
+
+    body = await request.json()
+
+    payment = client.payments.create(
+        billing={
+            "city": "New York",
+            "country": "US",
+            "state": "NY",
+            "street": "123 Main St",
+            "zipcode": "10001",
+        },
+        customer={
+            "email": body["email"],
+            "name": body["name"],
+        },
+        product_id=body["product_id"],
+        metadata={
+            "dub_click_id": dub_click_id,          # Store Dub click ID
+            "dub_external_id": body["customer_id"], # Store your customer's unique ID
+        },
+    )
+
+    return {"payment": payment}
+```
+
+```go Go
+package main
+
+import (
+    "github.com/dodopayments/dodopayments-go"
+)
+
+func createCheckout(dubClickId, customerId, productId string) (*dodopayments.Payment, error) {
+    client := dodopayments.NewClient()
+
+    payment, err := client.Payments.Create(context.Background(), dodopayments.PaymentCreateParams{
+        Billing: dodopayments.BillingParam{
+            City:    "New York",
+            Country: "US",
+            State:   "NY",
+            Street:  "123 Main St",
+            Zipcode: "10001",
+        },
+        Customer: dodopayments.CustomerParam{
+            Email: "customer@example.com",
+            Name:  "John Doe",
+        },
+        ProductID: productId,
+        Metadata: map[string]string{
+            "dub_click_id":   dubClickId,  // Store Dub click ID
+            "dub_external_id": customerId, // Store your customer's unique ID
+        },
+    })
+
+    return payment, err
+}
+```
+
+</CodeGroup>
+
+### चरण 2: Dub को बिक्री डेटा भेजें
+
+एक वेबहुक एंडपॉइंट कॉन्फ़िगर करें ताकि भुगतान सफल होने पर Dub के ट्रैक API को बिक्री डेटा भेजा जा सके।
+
+<Steps>
+<Step title="Webhook अनुभाग खोलें">
+  अपने Dodo Payments डैशबोर्ड में, **Webhooks → + Add Endpoint** पर जाएं और एकीकरण ड्रॉपडाउन का विस्तार करें।
+  <Frame>
+    <img src="/images/integrations/dub/add.png" alt="एंडपॉइंट जोड़ें और एकीकरण ड्रॉपडाउन" />
+  </Frame>
+</Step>
+
+<Step title="Dub का चयन करें">
+  **Dub** एकीकरण कार्ड चुनें।
+</Step>
+
+<Step title="API कुंजी दर्ज करें">
+  कॉन्फ़िगरेशन फ़ील्ड में अपनी Dub API कुंजी प्रदान करें।
+  <Frame>
+    <img src="/images/integrations/dub/api-key.png" alt="API कुंजी जोड़ें" />
+  </Frame>
+</Step>
+
+<Step title="रूपांतरण कॉन्फ़िगर करें">
+  Dub के ट्रैक बिक्री API के लिए भुगतान डेटा को स्वरूपित करने के लिए रूपांतरण कोड संपादित करें।
+</Step>
+
+<Step title="परीक्षण और बनाएँ">
+  नमूना पेलोड के साथ परीक्षण करें और एकीकरण को सक्रिय करने के लिए **Create** पर क्लिक करें।
+</Step>
+</Steps>
+
+## रूपांतरण कोड उदाहरण
+
+### बुनियादी बिक्री ट्रैकिंग
+
+भुगतान सफल होने पर बिक्री को ट्रैक करें:
+
+```javascript basic_sale.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const payment = webhook.payload.data;
+
+    // Only send to Dub if click ID exists in metadata
+    if (payment.metadata && payment.metadata.dub_click_id) {
+      webhook.payload = {
+        clickId: payment.metadata.dub_click_id,
+        externalId: payment.metadata.dub_external_id || payment.customer.customer_id,
+        amount: payment.total_amount, // Ensure the amount is in cents
+        currency: payment.currency || "USD",
+        paymentProcessor: "dodo",
+        invoiceId: payment.payment_id,
+        metadata: {
+          customer_email: payment.customer.email,
+          customer_name: payment.customer.name,
+          product_id: payment.product_cart ? payment.product_cart.map(product => product.product_id).join(', ') : undefined,
+        },
+      };
+    } else {
+      // Cancel dispatch if no click ID (organic traffic)
+      webhook.cancel = true;
+    }
+  }
+  return webhook;
+}
+```
+
+### सदस्यता बिक्री ट्रैक करें
+
+प्रारंभिक सदस्यता और आवर्ती भुगतान दोनों को ट्रैक करें:
+
+```javascript subscription_sale.js icon="js" expandable
+function handler(webhook) {
+  const data = webhook.payload.data;
+
+  // Track initial subscription activation
+  if (webhook.eventType === "subscription.active") {
+    if (data.metadata && data.metadata.dub_click_id) {
+      webhook.payload = {
+        clickId: data.metadata.dub_click_id,
+        externalId: data.metadata.dub_external_id || data.customer.customer_id,
+        amount: data.recurring_pre_tax_amount, // Amount in cents
+        currency: data.currency || "USD",
+        paymentProcessor: "dodo",
+        invoiceId: data.subscription_id,
+        eventName: "Subscription Started",
+        metadata: {
+          subscription_id: data.subscription_id,
+          product_id: data.product_id,
+          billing_interval: data.payment_frequency_interval,
+          customer_email: data.customer.email,
+        },
+      };
+    } else {
+      // Cancel dispatch if no click ID (organic traffic)
+      webhook.cancel = true;
+    }
+  }
+
+  // Track recurring subscription payments
+  if (webhook.eventType === "subscription.renewed") {
+    if (data.metadata && data.metadata.dub_click_id) {
+      webhook.payload = {
+        clickId: data.metadata.dub_click_id,
+        externalId: data.metadata.dub_external_id || data.customer.customer_id,
+        amount: data.recurring_pre_tax_amount,
+        currency: data.currency || "USD",
+        paymentProcessor: "dodo",
+        invoiceId: `${data.subscription_id}_${Date.now()}`,
+        eventName: "Subscription Renewed",
+        metadata: {
+          subscription_id: data.subscription_id,
+          product_id: data.product_id,
+          customer_email: data.customer.email,
+        },
+      };
+    } else {
+      // Cancel dispatch if no click ID (organic traffic)
+      webhook.cancel = true;
+    }
+  }
+
+  return webhook;
+}
+```
+
+### कर छूट के साथ बिक्री ट्रैक करें
+
+सटीक राजस्व ट्रैकिंग के लिए Dub को केवल पूर्व-कर राशि भेजें:
+
+```javascript sale_without_tax.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const payment = webhook.payload.data;
+
+    if (payment.metadata && payment.metadata.dub_click_id) {
+      // Calculate pre-tax amount (total minus tax)
+      const preTaxAmount = payment.total_amount - (payment.tax || 0);
+
+      webhook.payload = {
+        clickId: payment.metadata.dub_click_id,
+        externalId: payment.metadata.dub_external_id || payment.customer.customer_id,
+        amount: preTaxAmount, // Pre-tax amount in cents
+        currency: payment.currency || "USD",
+        paymentProcessor: "dodo",
+        invoiceId: payment.payment_id,
+        metadata: {
+          total_amount: payment.total_amount,
+          tax_amount: payment.tax || 0,
+          customer_email: payment.customer.email,
+        },
+      };
+    } else {
+      // Cancel dispatch if no click ID (organic traffic)
+      webhook.cancel = true;
+    }
+  }
+  return webhook;
+}
+```
+
+### कस्टम इवेंट नामों के साथ बिक्री ट्रैक करें
+
+विभिन्न प्रकार की बिक्री को वर्गीकृत करने के लिए कस्टम इवेंट नामों का उपयोग करें:
+
+```javascript custom_events.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const payment = webhook.payload.data;
+
+    if (payment.metadata && payment.metadata.dub_click_id) {
+      // Determine event name based on payment type
+      let eventName = "Purchase";
+      if (payment.subscription_id) {
+        eventName = "Subscription Purchase";
+      } else if (payment.metadata && payment.metadata.is_upgrade) {
+        eventName = "Plan Upgrade";
+      }
+
+      webhook.payload = {
+        clickId: payment.metadata.dub_click_id,
+        externalId: payment.metadata.dub_external_id || payment.customer.customer_id,
+        amount: payment.total_amount,
+        currency: payment.currency || "USD",
+        paymentProcessor: "dodo",
+        invoiceId: payment.payment_id,
+        eventName: eventName,
+        metadata: {
+          product_id: payment.product_cart ? payment.product_cart.map(product => product.product_id).join(', ') : undefined,
+          customer_email: payment.customer.email,
+        },
+      };
+    } else {
+      // Cancel dispatch if no click ID (organic traffic)
+      webhook.cancel = true;
+    }
+  }
+  return webhook;
+}
+```
+
+## वैकल्पिक: क्लाइंट-साइड कार्यान्वयन
+
+यदि आप वेबहुक का उपयोग करने के बजाय अपने सर्वर से बिक्री को ट्रैक करना पसंद करते हैं, तो आप सफल भुगतान के बाद सीधे Dub के ट्रैक API को कॉल कर सकते हैं:
+
+<CodeGroup>
+
+```typescript Next.js (Server Action)
+'use server';
+
+import { Dub } from 'dub';
+
+const dub = new Dub();
+
+export async function trackSale(
+  paymentId: string,
+  clickId: string,
+  customerId: string,
+  amount: number,
+  currency: string
+) {
+  await dub.track.sale({
+    clickId: clickId,
+    externalId: customerId,
+    amount: amount,
+    currency: currency,
+    paymentProcessor: 'dodo',
+    invoiceId: paymentId,
+  });
+}
+```
+
+```javascript Node.js
+const { Dub } = require('dub');
+
+const dub = new Dub();
+
+async function trackSale(payment) {
+  if (payment.metadata?.dub_click_id) {
+    await dub.track.sale({
+      clickId: payment.metadata.dub_click_id,
+      externalId: payment.metadata.dub_external_id,
+      amount: payment.total_amount,
+      currency: payment.currency,
+      paymentProcessor: 'dodo',
+      invoiceId: payment.payment_id,
+    });
+  }
+}
+```
+
+</CodeGroup>
+
+## सर्वोत्तम प्रथाएँ
+
+<Tip>
+**क्लिक आईडी जल्दी कैप्चर करें**: सुनिश्चित करें कि सटीक श्रेय के लिए चेकआउट प्रवाह में जितनी जल्दी हो सके Dub क्लिक आईडी को संग्रहीत करें, भले ही उपयोगकर्ता दूर navigates और बाद में लौटे।
+</Tip>
+
+- **हमेशा मेटाडेटा में क्लिक आईडी शामिल करें**: बिना क्लिक आईडी के, Dub आपके लिंक पर राजस्व को श्रेय नहीं दे सकता
+- **बाहरी आईडी का लगातार उपयोग करें**: सटीक ग्राहक-स्तरीय एनालिटिक्स के लिए अपने सिस्टम में उपयोग की जाने वाली वही ग्राहक आईडी पास करें
+- **जैविक ट्रैफ़िक को सही ढंग से संभालें**: जब कोई क्लिक आईडी न हो तो `webhook.cancel = true` सेट करें ताकि अनावश्यक API कॉल से बचा जा सके
+- **नमूना भुगतानों के साथ परीक्षण करें**: लाइव जाने से पहले एकीकरण सही ढंग से काम करता है यह सुनिश्चित करें
+- **अपने Dub डैशबोर्ड की निगरानी करें**: जांचें कि बिक्री सही ढंग से उचित श्रेय के साथ दिखाई दे रही है
+
+## महत्वपूर्ण नोट्स
+
+<Note>
+- **राशि प्रारूप**: Dub सेंट में राशियों की अपेक्षा करता है (जैसे, $10.00 = 1000)
+- **मुद्रा**: ISO 4217 मुद्रा कोड (USD, EUR, GBP, आदि) का उपयोग करें
+- **नि:शुल्क परीक्षण**: $0 भुगतान को बिक्री के रूप में ट्रैक नहीं किया जाता है
+- **रिफंड**: सटीक राजस्व रिपोर्टिंग के लिए यदि आवश्यक हो तो रिफंड को अलग से ट्रैक करने पर विचार करें
+</Note>
+
+## समस्या निवारण
+
+<AccordionGroup>
+<Accordion title="Dub में बिक्री नहीं दिखाई दे रही">
+- सुनिश्चित करें कि आपकी Dub API कुंजी सही है और `conversions.write` स्कोप है
+- जांचें कि `dub_click_id` को कैप्चर और भुगतान मेटाडेटा में संग्रहीत किया जा रहा है
+- सुनिश्चित करें कि वेबहुक रूपांतरण सही ढंग से पेलोड को स्वरूपित कर रहा है
+- सुनिश्चित करें कि वेबहुक `payment.succeeded` घटनाओं पर ट्रिगर हो रहा है
+- पुष्टि करें कि आपके Dub लिंक के लिए रूपांतरण ट्रैकिंग सक्षम है
+</Accordion>
+
+<Accordion title="राजस्व श्रेय काम नहीं कर रहा">
+- पुष्टि करें कि उपयोगकर्ता चेकआउट से पहले आपके Dub छोटे लिंक पर क्लिक कर रहे हैं
+- सुनिश्चित करें कि `dub_id` कुकी आपके डोमेन पर सही ढंग से सेट की जा रही है
+- जांचें कि चेकआउट निर्माण और भुगतान पूर्णता के बीच क्लिक आईडी मेल खाती है
+- सुनिश्चित करें कि आप चेकआउट सत्र बनाने से पहले क्लिक आईडी कैप्चर कर रहे हैं
+</Accordion>
+
+<Accordion title="रूपांतरण त्रुटियाँ">
+- सुनिश्चित करें कि JSON संरचना Dub के ट्रैक बिक्री API प्रारूप से मेल खाती है
+- जांचें कि सभी आवश्यक फ़ील्ड (`clickId`, `externalId`, `amount`) मौजूद हैं
+- सुनिश्चित करें कि राशि सेंट में है (पूर्णांक, दशमलव नहीं)
+- सुनिश्चित करें कि API एंडपॉइंट URL सही है: `https://api.dub.co/track/sale`
+- नमूना वेबहुक पेलोड के साथ रूपांतरण का परीक्षण करें
+</Accordion>
+
+<Accordion title="डुप्लिकेट बिक्री ट्रैक की जा रही हैं">
+- सुनिश्चित करें कि आप केवल `payment.succeeded` घटनाओं पर ट्रैक कर रहे हैं, न कि `payment.processing`
+- प्रत्येक बिक्री के लिए अद्वितीय `invoiceId` मानों का उपयोग करें
+- सदस्यताओं के लिए, नवीनीकरण पर डुप्लिकेट से बचने के लिए टाइमस्टैम्प या बिलिंग अवधि जोड़ें
+</Accordion>
+</AccordionGroup>
+
+## अतिरिक्त संसाधन
+
+<CardGroup cols={2}>
+<Card title="Dub रूपांतरण दस्तावेज़ीकरण" icon="book" href="https://dub.co/docs/conversions/quickstart">
+  Dub के रूपांतरण ट्रैकिंग और एनालिटिक्स सुविधाओं के बारे में अधिक जानें।
+</Card>
+
+<Card title="Dub ट्रैक बिक्री API" icon="code" href="https://dub.co/docs/api-reference/track/track-sale">
+  Dub के ट्रैक बिक्री एंडपॉइंट के लिए पूर्ण API संदर्भ देखें।
+</Card>
+
+<Card title="Dub डैशबोर्ड" icon="chart-line" href="https://app.dub.co">
+  रूपांतरण एनालिटिक्स और श्रेय डेटा देखने के लिए अपने Dub डैशबोर्ड तक पहुँचें।
+</Card>
+
+<Card title="Webhook घटनाओं का गाइड" icon="webhook" href="/developer-resources/webhooks/intents/webhook-events-guide">
+  सभी उपलब्ध Dodo Payments वेबहुक घटनाओं के बारे में जानें।
+</Card>
+</CardGroup>
+
+<Info>
+क्या आपको मदद चाहिए? एकीकरण के लिए सहायता के लिए Dodo Payments समर्थन से [support@dodopayments.com](mailto:support@dodopayments.com) पर संपर्क करें।
+</Info>

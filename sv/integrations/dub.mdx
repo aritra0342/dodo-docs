@@ -1,0 +1,546 @@
+---
+title: Dub
+description: Spåra försäljningskonverteringsevenemang i Dub när kunder slutför
+  köp genom Dodo Payments.
+icon: /images/logos/dub.svg
+---
+
+## Introduktion
+
+[Dub](https://dub.co) är en kraftfull länkhanteringsplattform som hjälper dig att skapa, dela och spåra korta länkar. Genom att integrera Dodo Payments med Dub kan du automatiskt spåra försäljningskonverteringsevenemang när kunder slutför köp, vilket gör att du kan mäta ROI för dina marknadsföringskampanjer och referensprogram.
+
+Ett "försäljning"-evenemang registreras i Dub när en kund:
+- Slutför en engångsbetalning
+- Prenumererar på en betald plan
+- Gör en återkommande prenumerationsbetalning
+
+<Info>
+Denna integration kräver ett Dub-konto med konverteringsspårning aktiverad på dina länkar.
+</Info>
+
+## Hur det fungerar
+
+Dub spårar besökare genom en unik klick-ID (`dub_id`) som lagras i en cookie när användare klickar på dina Dub-korta länkar. För att attribuera försäljningar till dina länkar behöver du:
+
+1. **Fånga Dubs klick-ID** från `dub_id`-cookien när du skapar kassa-sessioner
+2. **Lagra klick-ID** i din betalningsmetadata tillsammans med kundens externa ID
+3. **Skicka försäljningsdata till Dub** när betalningar lyckas med deras Track API
+
+Detta gör att Dub kan matcha lyckade försäljningar med det ursprungliga länk-klicket, vilket ger dig fullständig konverteringsattribuering.
+
+## Förutsättningar
+
+Innan du ställer in denna integration, se till att du har:
+
+1. Ett [Dub-konto](https://dub.co) med en arbetsyta
+2. Konverteringsspårning aktiverad för dina länkar
+3. Din Dub API-nyckel (tillgänglig i din Dub-instrumentpanel under Inställningar → API-nycklar)
+
+## Komma igång
+
+<Steps>
+<Step title="Aktivera konverteringsspårning i Dub">
+  I din Dub-instrumentpanel, aktivera konverteringsspårning för de länkar du vill spåra försäljningar för. Detta gör att Dub kan registrera försäljningsevenemang när kunder slutför köp.
+
+  <Info>
+  Lär dig mer om att aktivera konverteringsspårning i [Dub-dokumentationen](https://dub.co/docs/conversions/quickstart).
+  </Info>
+</Step>
+
+<Step title="Hämta din Dub API-nyckel">
+  Navigera till din [Dub-instrumentpanel](https://app.dub.co) → Inställningar → API-nycklar och skapa en ny API-nyckel med `conversions.write`-omfång.
+
+  <Warning>
+  Håll din API-nyckel säker och exponera den aldrig i klientkod.
+  </Warning>
+</Step>
+
+<Step title="Fånga Klick-ID i Kassa">
+  När du skapar en kassa-session, fånga Dub klick-ID från cookien och lägg till det i din betalningsmetadata.
+</Step>
+
+<Step title="Skicka försäljningsdata via Webhook">
+  Konfigurera en webhook för att skicka försäljningsdata till Dubs Track API när betalningar lyckas.
+</Step>
+
+<Step title="Klart!">
+  Försäljningskonverteringsevenemang kommer nu att visas i din Dub-analysinstrumentpanel med full attribuering till dina länkar.
+</Step>
+</Steps>
+
+## Implementeringsguide
+
+### Steg 1: Lägg till Klick-ID och Kund-ID i Kassa-Metadata
+
+När du skapar en kassa-session, fånga Dub klick-ID från cookien och inkludera det i din betalningsmetadata tillsammans med kundens externa ID.
+
+<CodeGroup>
+
+```typescript Next.js
+import { cookies } from 'next/headers';
+import DodoPayments from 'dodopayments';
+
+const client = new DodoPayments();
+
+export async function createCheckout(productId: string, customerId: string) {
+  // Capture Dub click ID from cookie
+  const dubClickId = cookies().get('dub_id')?.value;
+
+  const payment = await client.payments.create({
+    billing: {
+      city: 'New York',
+      country: 'US',
+      state: 'NY',
+      street: '123 Main St',
+      zipcode: '10001',
+    },
+    customer: {
+      email: 'customer@example.com',
+      name: 'John Doe',
+    },
+    product_id: productId,
+    metadata: {
+      dub_click_id: dubClickId,           // Store Dub click ID
+      dub_external_id: customerId,        // Store your customer's unique ID
+    },
+  });
+
+  return payment;
+}
+```
+
+```javascript Express.js
+const express = require('express');
+const DodoPayments = require('dodopayments').default;
+const router = express.Router();
+
+const client = new DodoPayments();
+
+router.post('/create-checkout', async (req, res) => {
+  // Capture Dub click ID from cookie
+  const dubClickId = req.cookies?.dub_id;
+
+  const payment = await client.payments.create({
+    billing: {
+      city: 'New York',
+      country: 'US',
+      state: 'NY',
+      street: '123 Main St',
+      zipcode: '10001',
+    },
+    customer: {
+      email: req.body.email,
+      name: req.body.name,
+    },
+    product_id: req.body.productId,
+    metadata: {
+      dub_click_id: dubClickId,           // Store Dub click ID
+      dub_external_id: req.body.customerId, // Store your customer's unique ID
+    },
+  });
+
+  res.json({ payment });
+});
+```
+
+```python Python (FastAPI)
+from fastapi import FastAPI, Request
+from dodopayments import DodoPayments
+
+app = FastAPI()
+client = DodoPayments()
+
+@app.post("/create-checkout")
+async def create_checkout(request: Request):
+    # Capture Dub click ID from cookie
+    dub_click_id = request.cookies.get("dub_id")
+
+    body = await request.json()
+
+    payment = client.payments.create(
+        billing={
+            "city": "New York",
+            "country": "US",
+            "state": "NY",
+            "street": "123 Main St",
+            "zipcode": "10001",
+        },
+        customer={
+            "email": body["email"],
+            "name": body["name"],
+        },
+        product_id=body["product_id"],
+        metadata={
+            "dub_click_id": dub_click_id,          # Store Dub click ID
+            "dub_external_id": body["customer_id"], # Store your customer's unique ID
+        },
+    )
+
+    return {"payment": payment}
+```
+
+```go Go
+package main
+
+import (
+    "github.com/dodopayments/dodopayments-go"
+)
+
+func createCheckout(dubClickId, customerId, productId string) (*dodopayments.Payment, error) {
+    client := dodopayments.NewClient()
+
+    payment, err := client.Payments.Create(context.Background(), dodopayments.PaymentCreateParams{
+        Billing: dodopayments.BillingParam{
+            City:    "New York",
+            Country: "US",
+            State:   "NY",
+            Street:  "123 Main St",
+            Zipcode: "10001",
+        },
+        Customer: dodopayments.CustomerParam{
+            Email: "customer@example.com",
+            Name:  "John Doe",
+        },
+        ProductID: productId,
+        Metadata: map[string]string{
+            "dub_click_id":   dubClickId,  // Store Dub click ID
+            "dub_external_id": customerId, // Store your customer's unique ID
+        },
+    })
+
+    return payment, err
+}
+```
+
+</CodeGroup>
+
+### Steg 2: Skicka försäljningsdata till Dub
+
+Konfigurera en webhook-endpoint för att skicka försäljningsdata till Dubs Track API när betalningar lyckas.
+
+<Steps>
+<Step title="Öppna Webhook-sektionen">
+  I din Dodo Payments-instrumentpanel, navigera till **Webhooks → + Lägg till Endpoint** och expandera integrationsrullgardinsmenyn.
+  <Frame>
+    <img src="/images/integrations/dub/add.png" alt="Lägg till Endpoint och integrationsrullgardinsmeny" />
+  </Frame>
+</Step>
+
+<Step title="Välj Dub">
+  Välj **Dub** integrationskortet.
+</Step>
+
+<Step title="Ange API-nyckel">
+  Ange din Dub API-nyckel i konfigurationsfältet.
+  <Frame>
+    <img src="/images/integrations/dub/api-key.png" alt="Lägg till API-nyckel" />
+  </Frame>
+</Step>
+
+<Step title="Konfigurera Transformation">
+  Redigera transformationskoden för att formatera betalningsdata för Dubs Track Sale API.
+</Step>
+
+<Step title="Testa & Skapa">
+  Testa med exempelpayloads och klicka på **Skapa** för att aktivera integrationen.
+</Step>
+</Steps>
+
+## Transformationskodsexempel
+
+### Grundläggande Försäljningsspårning
+
+Spåra försäljningar när betalningar lyckas:
+
+```javascript basic_sale.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const payment = webhook.payload.data;
+
+    // Only send to Dub if click ID exists in metadata
+    if (payment.metadata && payment.metadata.dub_click_id) {
+      webhook.payload = {
+        clickId: payment.metadata.dub_click_id,
+        externalId: payment.metadata.dub_external_id || payment.customer.customer_id,
+        amount: payment.total_amount, // Ensure the amount is in cents
+        currency: payment.currency || "USD",
+        paymentProcessor: "dodo",
+        invoiceId: payment.payment_id,
+        metadata: {
+          customer_email: payment.customer.email,
+          customer_name: payment.customer.name,
+          product_id: payment.product_cart ? payment.product_cart.map(product => product.product_id).join(', ') : undefined,
+        },
+      };
+    } else {
+      // Cancel dispatch if no click ID (organic traffic)
+      webhook.cancel = true;
+    }
+  }
+  return webhook;
+}
+```
+
+### Spåra Prenumerationsförsäljningar
+
+Spåra både initiala prenumerationer och återkommande betalningar:
+
+```javascript subscription_sale.js icon="js" expandable
+function handler(webhook) {
+  const data = webhook.payload.data;
+
+  // Track initial subscription activation
+  if (webhook.eventType === "subscription.active") {
+    if (data.metadata && data.metadata.dub_click_id) {
+      webhook.payload = {
+        clickId: data.metadata.dub_click_id,
+        externalId: data.metadata.dub_external_id || data.customer.customer_id,
+        amount: data.recurring_pre_tax_amount, // Amount in cents
+        currency: data.currency || "USD",
+        paymentProcessor: "dodo",
+        invoiceId: data.subscription_id,
+        eventName: "Subscription Started",
+        metadata: {
+          subscription_id: data.subscription_id,
+          product_id: data.product_id,
+          billing_interval: data.payment_frequency_interval,
+          customer_email: data.customer.email,
+        },
+      };
+    } else {
+      // Cancel dispatch if no click ID (organic traffic)
+      webhook.cancel = true;
+    }
+  }
+
+  // Track recurring subscription payments
+  if (webhook.eventType === "subscription.renewed") {
+    if (data.metadata && data.metadata.dub_click_id) {
+      webhook.payload = {
+        clickId: data.metadata.dub_click_id,
+        externalId: data.metadata.dub_external_id || data.customer.customer_id,
+        amount: data.recurring_pre_tax_amount,
+        currency: data.currency || "USD",
+        paymentProcessor: "dodo",
+        invoiceId: `${data.subscription_id}_${Date.now()}`,
+        eventName: "Subscription Renewed",
+        metadata: {
+          subscription_id: data.subscription_id,
+          product_id: data.product_id,
+          customer_email: data.customer.email,
+        },
+      };
+    } else {
+      // Cancel dispatch if no click ID (organic traffic)
+      webhook.cancel = true;
+    }
+  }
+
+  return webhook;
+}
+```
+
+### Spåra Försäljningar med Skatteexkludering
+
+Skicka endast beloppet före skatt till Dub för noggrann intäktsövervakning:
+
+```javascript sale_without_tax.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const payment = webhook.payload.data;
+
+    if (payment.metadata && payment.metadata.dub_click_id) {
+      // Calculate pre-tax amount (total minus tax)
+      const preTaxAmount = payment.total_amount - (payment.tax || 0);
+
+      webhook.payload = {
+        clickId: payment.metadata.dub_click_id,
+        externalId: payment.metadata.dub_external_id || payment.customer.customer_id,
+        amount: preTaxAmount, // Pre-tax amount in cents
+        currency: payment.currency || "USD",
+        paymentProcessor: "dodo",
+        invoiceId: payment.payment_id,
+        metadata: {
+          total_amount: payment.total_amount,
+          tax_amount: payment.tax || 0,
+          customer_email: payment.customer.email,
+        },
+      };
+    } else {
+      // Cancel dispatch if no click ID (organic traffic)
+      webhook.cancel = true;
+    }
+  }
+  return webhook;
+}
+```
+
+### Spåra Försäljningar med Anpassade Evenemangsnamn
+
+Använd anpassade evenemangsnamn för att kategorisera olika typer av försäljningar:
+
+```javascript custom_events.js icon="js" expandable
+function handler(webhook) {
+  if (webhook.eventType === "payment.succeeded") {
+    const payment = webhook.payload.data;
+
+    if (payment.metadata && payment.metadata.dub_click_id) {
+      // Determine event name based on payment type
+      let eventName = "Purchase";
+      if (payment.subscription_id) {
+        eventName = "Subscription Purchase";
+      } else if (payment.metadata && payment.metadata.is_upgrade) {
+        eventName = "Plan Upgrade";
+      }
+
+      webhook.payload = {
+        clickId: payment.metadata.dub_click_id,
+        externalId: payment.metadata.dub_external_id || payment.customer.customer_id,
+        amount: payment.total_amount,
+        currency: payment.currency || "USD",
+        paymentProcessor: "dodo",
+        invoiceId: payment.payment_id,
+        eventName: eventName,
+        metadata: {
+          product_id: payment.product_cart ? payment.product_cart.map(product => product.product_id).join(', ') : undefined,
+          customer_email: payment.customer.email,
+        },
+      };
+    } else {
+      // Cancel dispatch if no click ID (organic traffic)
+      webhook.cancel = true;
+    }
+  }
+  return webhook;
+}
+```
+
+## Alternativ: Klientsideimplementering
+
+Om du föredrar att spåra försäljningar från din server istället för att använda webhooks, kan du anropa Dubs Track API direkt efter en lyckad betalning:
+
+<CodeGroup>
+
+```typescript Next.js (Server Action)
+'use server';
+
+import { Dub } from 'dub';
+
+const dub = new Dub();
+
+export async function trackSale(
+  paymentId: string,
+  clickId: string,
+  customerId: string,
+  amount: number,
+  currency: string
+) {
+  await dub.track.sale({
+    clickId: clickId,
+    externalId: customerId,
+    amount: amount,
+    currency: currency,
+    paymentProcessor: 'dodo',
+    invoiceId: paymentId,
+  });
+}
+```
+
+```javascript Node.js
+const { Dub } = require('dub');
+
+const dub = new Dub();
+
+async function trackSale(payment) {
+  if (payment.metadata?.dub_click_id) {
+    await dub.track.sale({
+      clickId: payment.metadata.dub_click_id,
+      externalId: payment.metadata.dub_external_id,
+      amount: payment.total_amount,
+      currency: payment.currency,
+      paymentProcessor: 'dodo',
+      invoiceId: payment.payment_id,
+    });
+  }
+}
+```
+
+</CodeGroup>
+
+## Bästa praxis
+
+<Tip>
+**Fånga klick-ID tidigt**: Lagra Dub klick-ID så tidigt som möjligt i din kassa-flöde för att säkerställa noggrann attribuering, även om användaren navigerar bort och återvänder senare.
+</Tip>
+
+- **Inkludera alltid klick-ID i metadata**: Utan klick-ID kan Dub inte attribuera intäkter till dina länkar
+- **Använd externa ID konsekvent**: Skicka samma kund-ID som du använder i ditt system för noggrann kundanalys
+- **Hantera organisk trafik smidigt**: Sätt `webhook.cancel = true` när det inte finns något klick-ID för att undvika onödiga API-anrop
+- **Testa med exempelbetalningar**: Verifiera att integrationen fungerar korrekt innan du går live
+- **Övervaka din Dub-instrumentpanel**: Kontrollera att försäljningar visas korrekt med rätt attribuering
+
+## Viktiga anteckningar
+
+<Note>
+- **Beloppsformat**: Dub förväntar sig belopp i cent (t.ex. $10.00 = 1000)
+- **Valuta**: Använd ISO 4217-valutakoder (USD, EUR, GBP, etc.)
+- **Gratis provperioder**: $0 betalningar spåras inte som försäljningar
+- **Återbetalningar**: Överväg att spåra återbetalningar separat om det behövs för noggrann intäktsrapportering
+</Note>
+
+## Felsökning
+
+<AccordionGroup>
+<Accordion title="Försäljningar visas inte i Dub">
+- Verifiera att din Dub API-nyckel är korrekt och har `conversions.write`-omfång
+- Kontrollera att `dub_click_id` fångas och lagras i betalningsmetadata
+- Se till att webhook-transformeringen korrekt formaterar payloaden
+- Verifiera att webhooken utlöses på `payment.succeeded`-evenemang
+- Bekräfta att konverteringsspårning är aktiverad för dina Dub-länkar
+</Accordion>
+
+<Accordion title="Intäktsattribuering fungerar inte">
+- Bekräfta att användare klickar igenom dina Dub-korta länkar innan kassan
+- Verifiera att `dub_id`-cookien sätts korrekt på din domän
+- Kontrollera att klick-ID matchar mellan skapande av kassa och slutförande av betalning
+- Se till att du fångar klick-ID innan du skapar kassa-sessionen
+</Accordion>
+
+<Accordion title="Transformationsfel">
+- Validera att JSON-strukturen matchar Dubs Track Sale API-format
+- Kontrollera att alla obligatoriska fält (`clickId`, `externalId`, `amount`) är närvarande
+- Se till att beloppet är i cent (heltal, inte decimal)
+- Verifiera att API-endpoint-URL:en är korrekt: `https://api.dub.co/track/sale`
+- Testa transformationen med exempel-webhookpayloads
+</Accordion>
+
+<Accordion title="Duplicerade försäljningar spåras">
+- Se till att du endast spårar på `payment.succeeded`-evenemang, inte `payment.processing`
+- Använd unika `invoiceId`-värden för varje försäljning
+- För prenumerationer, lägg till tidsstämplar eller faktureringsperioder för att förhindra dubbletter vid förnyelser
+</Accordion>
+</AccordionGroup>
+
+## Ytterligare resurser
+
+<CardGroup cols={2}>
+<Card title="Dub Konverteringsdokumentation" icon="book" href="https://dub.co/docs/conversions/quickstart">
+  Lär dig mer om Dubs konverteringsspårning och analysfunktioner.
+</Card>
+
+<Card title="Dub Track Sale API" icon="code" href="https://dub.co/docs/api-reference/track/track-sale">
+  Se den kompletta API-referensen för Dubs Track Sale-endpoint.
+</Card>
+
+<Card title="Dub-instrumentpanel" icon="chart-line" href="https://app.dub.co">
+  Få tillgång till din Dub-instrumentpanel för att se konverteringsanalys och attribueringsdata.
+</Card>
+
+<Card title="Webhook Events Guide" icon="webhook" href="/developer-resources/webhooks/intents/webhook-events-guide">
+  Lär dig om alla tillgängliga Dodo Payments webhook-händelser.
+</Card>
+</CardGroup>
+
+<Info>
+Behöver du hjälp? Kontakta Dodo Payments support på [support@dodopayments.com](mailto:support@dodopayments.com) för hjälp med integrationen.
+</Info>
