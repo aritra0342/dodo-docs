@@ -485,26 +485,203 @@ Pour une intégration rapide sans étape de construction, vous pouvez utiliser n
 </html>
 ```
 
-## Support TypeScript
+### Personnalisation du Thème
 
-Le SDK est écrit en TypeScript et inclut des définitions de type complètes. Toutes les API publiques sont entièrement typées pour une meilleure expérience développeur et un support IntelliSense.
+Vous pouvez personnaliser l'apparence du paiement en passant un `themeConfig` objet dans le paramètre `options` lors de l'ouverture du paiement. La configuration du thème prend en charge les modes clair et sombre, vous permettant de personnaliser les couleurs, les bordures, le texte, les boutons et le rayon des bordures.
+
+#### Configuration de Thème de Base
 
 ```typescript
-import { DodoPayments, CheckoutEvent } from "dodopayments-checkout";
-
-DodoPayments.Initialize({
-  mode: "test",
-  displayType: "overlay",
-  onEvent: (event: CheckoutEvent) => {
-    // event is fully typed
-    console.log(event.event_type, event.data);
+DodoPayments.Checkout.open({
+  checkoutUrl: "https://checkout.dodopayments.com/session/cks_123",
+  options: {
+    themeConfig: {
+      light: {
+        bgPrimary: "#FFFFFF",
+        textPrimary: "#344054",
+        buttonPrimary: "#A6E500",
+      },
+      dark: {
+        bgPrimary: "#0D0D0D",
+        textPrimary: "#FFFFFF",
+        buttonPrimary: "#A6E500",
+      },
+      radius: "8px",
+    },
   },
 });
 ```
 
-## Gestion des erreurs
+#### Configuration Complète du Thème
 
-Le SDK fournit des informations détaillées sur les erreurs via le système d'événements. Implémentez toujours une gestion appropriée des erreurs dans votre fonction de rappel `onEvent` :
+Toutes les propriétés de thème disponibles :
+
+```typescript
+DodoPayments.Checkout.open({
+  checkoutUrl: "https://checkout.dodopayments.com/session/cks_123",
+  options: {
+    themeConfig: {
+      light: {
+        // Background colors
+        bgPrimary: "#FFFFFF",        // Primary background color
+        bgSecondary: "#F9FAFB",      // Secondary background color (e.g., tabs)
+        
+        // Border colors
+        borderPrimary: "#D0D5DD",     // Primary border color
+        borderSecondary: "#6B7280",  // Secondary border color
+        
+        // Text colors
+        textPrimary: "#344054",       // Primary text color
+        textSecondary: "#6B7280",    // Secondary text color
+        textPlaceholder: "#667085",  // Placeholder text color
+        textError: "#D92D20",        // Error text color
+        textSuccess: "#10B981",      // Success text color
+        
+        // Button colors
+        buttonPrimary: "#A6E500",           // Primary button background
+        buttonPrimaryHover: "#8CC500",      // Primary button hover state
+        buttonTextPrimary: "#0D0D0D",       // Primary button text color
+        buttonSecondary: "#F3F4F6",         // Secondary button background
+        buttonSecondaryHover: "#E5E7EB",     // Secondary button hover state
+        buttonTextSecondary: "#344054",     // Secondary button text color
+      },
+      dark: {
+        // Background colors
+        bgPrimary: "#0D0D0D",
+        bgSecondary: "#1A1A1A",
+        
+        // Border colors
+        borderPrimary: "#323232",
+        borderSecondary: "#D1D5DB",
+        
+        // Text colors
+        textPrimary: "#FFFFFF",
+        textSecondary: "#909090",
+        textPlaceholder: "#9CA3AF",
+        textError: "#F97066",
+        textSuccess: "#34D399",
+        
+        // Button colors
+        buttonPrimary: "#A6E500",
+        buttonPrimaryHover: "#8CC500",
+        buttonTextPrimary: "#0D0D0D",
+        buttonSecondary: "#2A2A2A",
+        buttonSecondaryHover: "#3A3A3A",
+        buttonTextSecondary: "#FFFFFF",
+      },
+      radius: "8px", // Border radius for inputs, buttons, and tabs
+    },
+  },
+});
+```
+
+#### Mode Clair Seulement
+
+Si vous souhaitez uniquement personnaliser le thème clair :
+
+```typescript
+DodoPayments.Checkout.open({
+  checkoutUrl: "https://checkout.dodopayments.com/session/cks_123",
+  options: {
+    themeConfig: {
+      light: {
+        bgPrimary: "#FFFFFF",
+        textPrimary: "#000000",
+        buttonPrimary: "#0070F3",
+      },
+      radius: "12px",
+    },
+  },
+});
+```
+
+#### Mode Sombre Seulement
+
+Si vous souhaitez uniquement personnaliser le thème sombre :
+
+```typescript
+DodoPayments.Checkout.open({
+  checkoutUrl: "https://checkout.dodopayments.com/session/cks_123",
+  options: {
+    themeConfig: {
+      dark: {
+        bgPrimary: "#000000",
+        textPrimary: "#FFFFFF",
+        buttonPrimary: "#0070F3",
+      },
+      radius: "12px",
+    },
+  },
+});
+```
+
+#### Surcharge Partielle du Thème
+
+Vous pouvez remplacer uniquement des propriétés spécifiques. Le paiement utilisera des valeurs par défaut pour les propriétés que vous ne spécifiez pas :
+
+```typescript
+DodoPayments.Checkout.open({
+  checkoutUrl: "https://checkout.dodopayments.com/session/cks_123",
+  options: {
+    themeConfig: {
+      light: {
+        buttonPrimary: "#FF6B6B", // Only override primary button color
+      },
+      radius: "16px", // Override border radius
+    },
+  },
+});
+```
+
+#### Configuration du Thème avec D'autres Options
+
+Vous pouvez combiner la configuration du thème avec d'autres options de paiement :
+
+```typescript
+DodoPayments.Checkout.open({
+  checkoutUrl: "https://checkout.dodopayments.com/session/cks_123",
+  options: {
+    showTimer: true,
+    showSecurityBadge: true,
+    manualRedirect: false,
+    themeConfig: {
+      light: {
+        bgPrimary: "#FFFFFF",
+        buttonPrimary: "#A6E500",
+      },
+      dark: {
+        bgPrimary: "#0D0D0D",
+        buttonPrimary: "#A6E500",
+      },
+      radius: "8px",
+    },
+  },
+});
+```
+
+#### Types TypeScript
+
+Pour les utilisateurs de TypeScript, tous les types de configuration de thème sont exportés :
+
+```typescript
+import { ThemeConfig, ThemeModeConfig } from "dodopayments-checkout";
+
+const themeConfig: ThemeConfig = {
+  light: {
+    bgPrimary: "#FFFFFF",
+    // ... other properties
+  },
+  dark: {
+    bgPrimary: "#0D0D0D",
+    // ... other properties
+  },
+  radius: "8px",
+};
+```
+
+## Gestion des Erreurs
+
+Le SDK fournit des informations détaillées sur les erreurs via le système d'événements. Implémentez toujours une gestion appropriée des erreurs dans votre `onEvent` callback :
 
 ```typescript
 DodoPayments.Initialize({
@@ -529,17 +706,17 @@ DodoPayments.Initialize({
 Gérez toujours l'événement `checkout.error` pour offrir une bonne expérience utilisateur lorsque des erreurs se produisent.
 </Warning>
 
-## Meilleures pratiques
+## Meilleures Pratiques
 
-1. **Initialisez une fois** : Initialisez le SDK une fois lorsque votre application se charge, pas à chaque tentative de paiement
-2. **Gestion des erreurs** : Implémentez toujours une gestion appropriée des erreurs dans votre fonction de rappel d'événements
-3. **Mode test** : Utilisez le mode `test` pendant le développement et passez à `live` uniquement lorsque vous êtes prêt pour la production
+1. **Initialiser une fois** : Initialisez le SDK une fois lorsque votre application se charge, pas à chaque tentative de paiement
+2. **Gestion des erreurs** : Implémentez toujours une gestion appropriée des erreurs dans votre callback d'événements
+3. **Mode test** : Utilisez le mode `test` pendant le développement et passez au mode `live` uniquement lorsque vous êtes prêt pour la production
 4. **Gestion des événements** : Gérez tous les événements pertinents pour une expérience utilisateur complète
 5. **URLs valides** : Utilisez toujours des URLs de paiement valides provenant de l'API de création de session de paiement
 6. **TypeScript** : Utilisez TypeScript pour une meilleure sécurité de type et expérience développeur
 7. **États de chargement** : Affichez des états de chargement pendant que le paiement s'ouvre pour améliorer l'UX
 8. **Redirections manuelles** : Utilisez `manualRedirect` lorsque vous avez besoin d'un contrôle personnalisé sur la navigation après le paiement
-9. **Gestion du minuteur** : Désactivez le minuteur (`showTimer: false`) si vous souhaitez gérer l'expiration de la session manuellement
+9. **Gestion du minuteur** : Désactivez le minuteur (`showTimer: false`) si vous souhaitez gérer l'expiration de session manuellement
 
 ## Dépannage
 
@@ -610,9 +787,9 @@ Téléversez le fichier sur votre serveur web à `/.well-known/apple-developer-m
 
 </Step>
 
-<Step title="Demander l'activation d'Apple Pay">
+<Step title="Demandez l'activation d'Apple Pay">
 
-Envoyez un e-mail à **support@dodopayments.com** avec les informations suivantes :
+Envoyez un email à **support@dodopayments.com** avec les informations suivantes :
 
 - L'URL de votre domaine de production (par exemple, `https://example.com`)
 - Demande d'activation d'Apple Pay pour votre domaine
@@ -627,7 +804,7 @@ Vous recevrez une confirmation dans un délai de 1 à 2 jours ouvrables une fois
 
 Après avoir reçu la confirmation, testez Apple Pay dans votre paiement :
 
-1. Ouvrez votre paiement sur un appareil pris en charge (iOS 17+, iPadOS 17+ ou Safari 17+ sur macOS)
+1. Ouvrez votre paiement sur un appareil pris en charge (iOS 17+, iPadOS 17+, ou Safari 17+ sur macOS)
 2. Vérifiez que le bouton Apple Pay apparaît comme option de paiement
 3. Testez le flux de paiement complet
 
@@ -638,9 +815,9 @@ Après avoir reçu la confirmation, testez Apple Pay dans votre paiement :
 Apple Pay doit être activé pour votre domaine avant qu'il n'apparaisse comme option de paiement en production. Contactez le support avant de passer en production si vous prévoyez d'offrir Apple Pay.
 </Warning>
 
-## Support des navigateurs
+## Support des Navigateurs
 
-Le SDK de Dodo Payments Checkout prend en charge les navigateurs suivants :
+Le SDK de Dodo Payments prend en charge les navigateurs suivants :
 
 - Chrome (dernier)
 - Firefox (dernier)
@@ -648,11 +825,11 @@ Le SDK de Dodo Payments Checkout prend en charge les navigateurs suivants :
 - Edge (dernier)
 - IE11+
 
-## Paiement en overlay vs en ligne
+## Paiement en Overlay vs Inline
 
 Choisissez le bon type de paiement pour votre cas d'utilisation :
 
-| Fonctionnalité | Paiement en overlay | Paiement en ligne |
+| Fonctionnalité | Paiement en Overlay | Paiement Inline |
 |---------|-----------------|-----------------|
 | Profondeur d'intégration | Modal sur la page | Entièrement intégré dans la page |
 | Contrôle de mise en page | Limité | Contrôle total |
@@ -661,17 +838,17 @@ Choisissez le bon type de paiement pour votre cas d'utilisation :
 | Meilleur pour | Intégration rapide, pages existantes | Pages de paiement personnalisées, flux à haute conversion |
 
 <Tip>
-Utilisez **le paiement en overlay** pour une intégration plus rapide avec des modifications minimales de vos pages existantes. Utilisez **le paiement en ligne** lorsque vous souhaitez un contrôle maximal sur l'expérience de paiement et un branding transparent.
+Utilisez le **paiement en overlay** pour une intégration plus rapide avec des changements minimes sur vos pages existantes. Utilisez le **paiement inline** lorsque vous souhaitez un contrôle maximal sur l'expérience de paiement et un branding transparent.
 </Tip>
 
-## Ressources connexes
+## Ressources Associées
 
 <CardGroup cols={2}>
-<Card title="Paiement en ligne" icon="credit-card" href="/developer-resources/inline-checkout">
-    Intégrez directement le paiement dans votre page pour des expériences entièrement intégrées.
+<Card title="Paiement Inline" icon="credit-card" href="/developer-resources/inline-checkout">
+    Intégrez le paiement directement dans votre page pour des expériences entièrement intégrées.
 </Card>
 
-<Card title="API des sessions de paiement" icon="code" href="/api-reference/checkout-sessions/create">
+<Card title="API des Sessions de Paiement" icon="code" href="/api-reference/checkout-sessions/create">
     Créez des sessions de paiement pour alimenter vos expériences de paiement.
 </Card>
 
@@ -679,7 +856,7 @@ Utilisez **le paiement en overlay** pour une intégration plus rapide avec des m
     Gérez les événements de paiement côté serveur avec des webhooks.
 </Card>
 
-<Card title="Guide d'intégration" icon="book" href="/developer-resources/integration-guide">
+<Card title="Guide d'Intégration" icon="book" href="/developer-resources/integration-guide">
     Guide complet pour intégrer Dodo Payments.
 </Card>
 </CardGroup>
