@@ -34,6 +34,134 @@ Esta arquitectura permite a los agentes de IA realizar operaciones de pago compl
 Usando el Modo de Código, los agentes pueden encadenar múltiples llamadas a la API, manejar lógica condicional y realizar cálculos, todo en una sola invocación de herramienta.
 </Tip>
 
+## Dodo Knowledge MCP
+
+Además del Servidor MCP de Dodo Payments (para ejecutar operaciones de API), proporcionamos **Dodo Knowledge MCP** - un servidor de búsqueda semántica que brinda a los asistentes de IA acceso instantáneo a la documentación y la base de conocimientos de Dodo Payments.
+
+<Info>
+**Construido con [ContextMCP.ai](https://contextmcp.ai)**: Dodo Knowledge MCP está impulsado por ContextMCP, lo que permite una búsqueda semántica rápida a través de nuestra documentación utilizando incrustaciones vectoriales.
+</Info>
+
+### ¿Qué es Dodo Knowledge MCP?
+
+Dodo Knowledge MCP es un servidor MCP remoto que proporciona:
+
+- **Búsqueda Semántica de Documentación**: Encuentra documentación relevante utilizando consultas en lenguaje natural
+- **Respuestas Contextuales**: Los asistentes de IA obtienen información precisa y actualizada sobre Dodo Payments
+- **Sin Configuración**: No se requieren claves de API ni instalación local: solo conéctate y comienza a consultar
+
+### Configuración Rápida
+
+Conéctate a Dodo Knowledge MCP en tu cliente de IA:
+
+<Tabs>
+<Tab title="Cursor">
+Agrega a `~/.cursor/mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "dodo-knowledge": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote@latest", "https://knowledge.dodopayments.com/mcp"]
+    }
+  }
+}
+```
+
+</Tab>
+
+<Tab title="Claude Desktop">
+Agrega a tu configuración de Claude Desktop:
+
+```json
+{
+  "mcpServers": {
+    "dodo-knowledge": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote@latest", "https://knowledge.dodopayments.com/mcp"]
+    }
+  }
+}
+```
+
+Ubicaciones de archivos de configuración:
+- **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+- **Linux**: `~/.config/Claude/claude_desktop_config.json`
+</Tab>
+
+<Tab title="Windsurf">
+Agrega a `~/.codeium/windsurf/mcp_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "dodo-knowledge": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote@latest", "https://knowledge.dodopayments.com/mcp"]
+    }
+  }
+}
+```
+
+</Tab>
+
+<Tab title="Claude Code">
+Ejecuta en tu terminal:
+
+```bash
+claude mcp add dodo-knowledge -- npx -y mcp-remote@latest https://knowledge.dodopayments.com/mcp
+```
+
+</Tab>
+</Tabs>
+
+<Note>
+Requiere Node.js 18 o superior. El `mcp-remote` paquete maneja la conexión al servidor MCP remoto.
+</Note>
+
+### Usando Ambos Servidores MCP Juntos
+
+Para la mejor experiencia de desarrollo asistido por IA, recomendamos usar ambos servidores MCP:
+
+| Servidor | Propósito | Caso de Uso |
+|--------|---------|----------|
+| **Dodo Knowledge MCP** | Búsqueda de documentación | "¿Cómo manejo los webhooks?", "¿Qué métodos de pago están soportados?" |
+| **Dodo Payments MCP** | Operaciones de API | Crear pagos, gestionar suscripciones, manejar reembolsos |
+
+```json
+{
+  "mcpServers": {
+    "dodo-knowledge": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote@latest", "https://knowledge.dodopayments.com/mcp"]
+    },
+    "dodopayments": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote@latest", "https://mcp.dodopayments.com/sse"]
+    }
+  }
+}
+```
+
+<Tip>
+Con ambos servidores configurados, tu asistente de IA puede primero buscar documentación para entender cómo implementar una función, y luego ejecutar las llamadas a la API reales, todo en una sola conversación.
+</Tip>
+
+### Solución de Problemas de Knowledge MCP
+
+Si encuentras problemas de conexión:
+
+1. **Borrar caché de autenticación de MCP**: `rm -rf ~/.mcp-auth`
+2. **Reinicia tu aplicación cliente**
+3. **Revisa los registros del cliente** para mensajes de error
+4. **Verifica la versión de Node.js**: Requiere Node.js 18+
+
+<Card title="Knowledge MCP Server" icon="book-open" href="https://knowledge.dodopayments.com">
+  Accede a la página de configuración de Dodo Knowledge MCP
+</Card>
+
 ## Instalación
 
 Elige el método de instalación que mejor se adapte a tu flujo de trabajo.
@@ -54,12 +182,12 @@ Accede al servidor MCP alojado sin ninguna configuración o instalación local. 
 </Frame>
 
 <Steps>
-<Step title="Acceder al servidor remoto">
+<Step title="Accede al servidor remoto">
     Navega a [https://mcp.dodopayments.com](https://mcp.dodopayments.com) en tu navegador.
 </Step>
 
-<Step title="Configurar tu cliente MCP">
-    Copia la configuración JSON proporcionada para tu cliente específico. Para Cursor o Claude Desktop, añade esto a tu configuración de MCP:
+<Step title="Configura tu cliente MCP">
+    Copia la configuración JSON proporcionada para tu cliente específico. Para Cursor o Claude Desktop, agrega esto a tu configuración de MCP:
     
 
     ```json
@@ -77,7 +205,7 @@ Accede al servidor MCP alojado sin ninguna configuración o instalación local. 
 
 <Step title="Autenticar y configurar">
     El flujo de OAuth te pedirá:
-    - Introducir tu clave API de Dodo Payments
+    - Ingresar tu clave API de Dodo Payments
     - Seleccionar tu entorno (prueba o producción)
     - Elegir tu tipo de cliente MCP
     
@@ -87,7 +215,7 @@ Accede al servidor MCP alojado sin ninguna configuración o instalación local. 
 </Step>
 
 <Step title="Completar configuración">
-    Haz clic en **Iniciar sesión y Aprobar** para autorizar la conexión.
+    Haz clic en **Iniciar sesión y aprobar** para autorizar la conexión.
     
     <Check>
     Una vez conectado, tu asistente de IA puede interactuar con la API de Dodo Payments en tu nombre.
@@ -175,11 +303,11 @@ Las imágenes de Docker están disponibles en [GitHub Container Registry](https:
 
 ## Configuración del Cliente
 
-Configura el servidor MCP de Dodo Payments en tu cliente de IA preferido.
+Configura el servidor Dodo Payments MCP en tu cliente de IA preferido.
 
 <Tabs>
 <Tab title="Cursor">
-Configura el servidor MCP de Dodo Payments en Cursor para habilitar el acceso conversacional a tus datos de pagos.
+Configura el servidor Dodo Payments MCP en Cursor para habilitar el acceso conversacional a tus datos de pagos.
 
 **Instalación con un Clic**
 
@@ -196,15 +324,15 @@ Después de hacer clic, establece tus variables de entorno en `mcp.json` a trav�
 **Configuración Manual**
 
 <Steps>
-<Step title="Abrir configuraciones de Cursor">
+<Step title="Abre la configuración de Cursor">
     Navega a **Configuraciones de Cursor** > **Características** > **Protocolo de Contexto del Modelo** o presiona `Cmd/Ctrl + Shift + P` y busca "Configuraciones de MCP".
 </Step>
 
-<Step title="Editar configuración">
+<Step title="Edita la configuración">
     Haz clic en **Editar Config** para abrir el archivo `mcp_config.json`.
 </Step>
 
-<Step title="Agregar configuración de Dodo Payments">
+<Step title="Agrega la configuración de Dodo Payments">
     Elige una de las siguientes configuraciones:
     
     **Servidor Remoto (Recomendado)**
@@ -240,7 +368,7 @@ Después de hacer clic, establece tus variables de entorno en `mcp.json` a trav�
 
 </Step>
 
-<Step title="Guardar y reiniciar">
+<Step title="Guarda y reinicia">
     Guarda el archivo de configuración y reinicia Cursor.
     
     <Check>
@@ -251,9 +379,9 @@ Después de hacer clic, establece tus variables de entorno en `mcp.json` a trav�
 </Tab>
 
 <Tab title="Claude Desktop">
-Configura el servidor MCP de Dodo Payments en Claude Desktop para habilitar el acceso conversacional a tus datos de pagos.
+Configura el servidor Dodo Payments MCP en Claude Desktop para habilitar el acceso conversacional a tus datos de pagos.
 <Steps>
-<Step title="Localizar archivo de configuración">
+<Step title="Localiza el archivo de configuración">
     Encuentra el archivo de configuración de Claude Desktop:
     
     - **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
@@ -261,7 +389,7 @@ Configura el servidor MCP de Dodo Payments en Claude Desktop para habilitar el a
     - **Linux**: `~/.config/Claude/claude_desktop_config.json`
 </Step>
 
-<Step title="Editar configuración">
+<Step title="Edita la configuración">
     Abre el archivo en un editor de texto y agrega la configuración de Dodo Payments:
     
     **Servidor Remoto (Recomendado)**
@@ -297,7 +425,7 @@ Configura el servidor MCP de Dodo Payments en Claude Desktop para habilitar el a
 
 </Step>
 
-<Step title="Reiniciar Claude Desktop">
+<Step title="Reinicia Claude Desktop">
     Cierra y vuelve a abrir Claude Desktop para que los cambios surtan efecto.
     
     <Tip>
@@ -308,7 +436,7 @@ Configura el servidor MCP de Dodo Payments en Claude Desktop para habilitar el a
 </Tab>
 
 <Tab title="Claude Code">
-Configura el servidor MCP de Dodo Payments en Claude Code CLI.
+Configura el servidor Dodo Payments MCP en Claude Code CLI.
 
 Ejecuta el siguiente comando en tu terminal:
 
@@ -322,12 +450,12 @@ claude mcp add --transport stdio dodopayments_api \
 La configuración se almacenará en el archivo `.claude.json` de tu directorio personal.
 
 <Tip>
-Claude Code automáticamente recoge variables de entorno de tu shell, por lo que también puedes exportarlas antes de ejecutar el comando.
+Claude Code automáticamente recoge las variables de entorno de tu shell, por lo que también puedes exportarlas antes de ejecutar el comando.
 </Tip>
 </Tab>
 
 <Tab title="VS Code">
-Configura el servidor MCP de Dodo Payments en VS Code.
+Configura el servidor Dodo Payments MCP en VS Code.
 
 **Instalación con un Clic**
 
@@ -338,12 +466,12 @@ Después de hacer clic, establece tus variables de entorno en `mcp.json` a trav�
 **Configuración Manual**
 
 <Steps>
-<Step title="Abrir configuración de MCP">
+<Step title="Abre la configuración de MCP">
     Abre la Paleta de Comandos (`Cmd/Ctrl + Shift + P`) y busca "MCP: Abrir Configuración de Usuario".
 </Step>
 
-<Step title="Agregar configuración del servidor">
-    Agrega el servidor MCP de Dodo Payments:
+<Step title="Agrega la configuración del servidor">
+    Agrega el servidor Dodo Payments MCP:
     
 
     ```json
@@ -370,9 +498,9 @@ Después de hacer clic, establece tus variables de entorno en `mcp.json` a trav�
 </Tab>
 
 <Tab title="Cline (VS Code)">
-Configura el servidor MCP de Dodo Payments en Cline (VS Code) para habilitar el acceso conversacional a tus datos de pagos.
+Configura el servidor Dodo Payments MCP en Cline (VS Code) para habilitar el acceso conversacional a tus datos de pagos.
 <Steps>
-<Step title="Abrir configuraciones de Cline">
+<Step title="Abre la configuración de Cline">
     Localiza el archivo de configuración de Cline:
     
     - **macOS**: `~/Library/Application Support/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json`
@@ -380,8 +508,8 @@ Configura el servidor MCP de Dodo Payments en Cline (VS Code) para habilitar el 
     - **Linux**: `~/.config/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json`
 </Step>
 
-<Step title="Configurar servidor MCP">
-    Agrega la configuración del servidor MCP de Dodo Payments:
+<Step title="Configura el servidor MCP">
+    Agrega la configuración del servidor Dodo Payments MCP:
     
 
     ```json
@@ -408,13 +536,13 @@ Configura el servidor MCP de Dodo Payments en Cline (VS Code) para habilitar el 
 </Tab>
 
 <Tab title="Zed">
-Configura el servidor MCP de Dodo Payments en Zed para habilitar el acceso conversacional a tus datos de pagos.
+Configura el servidor Dodo Payments MCP en Zed para habilitar el acceso conversacional a tus datos de pagos.
 <Steps>
-<Step title="Abrir configuraciones de Zed">
+<Step title="Abre la configuración de Zed">
     Navega a **Configuraciones** > **Asistente** > **Protocolo de Contexto del Modelo**.
 </Step>
 
-<Step title="Agregar configuración del servidor">
+<Step title="Agrega la configuración del servidor">
     Agrega la siguiente configuración:
     
 
@@ -435,14 +563,14 @@ Configura el servidor MCP de Dodo Payments en Zed para habilitar el acceso conve
 
 </Step>
 
-<Step title="Guardar y verificar">
+<Step title="Guarda y verifica">
     Guarda la configuración. El servidor MCP ahora debería estar disponible en el asistente de IA de Zed.
 </Step>
 </Steps>
 </Tab>
 
 <Tab title="Otros Clientes">
-Configura el servidor MCP de Dodo Payments en otros clientes compatibles con MCP.
+Configura el servidor Dodo Payments MCP en otros clientes compatibles con MCP.
 
 **Servidor Remoto (Recomendado)**
 
@@ -482,7 +610,7 @@ Visita [modelcontextprotocol.io/clients](https://modelcontextprotocol.io/clients
 
 ## Variables de Entorno
 
-Configura el comportamiento del servidor MCP usando variables de entorno.
+Configura el comportamiento del servidor MCP utilizando variables de entorno.
 
 | Variable | Descripción | Requerido |
 |----------|-------------|----------|
@@ -530,7 +658,7 @@ El servidor remoto acepta autenticación a través de los siguientes encabezados
 
 ## Capacidades del Cliente
 
-Diferentes clientes MCP tienen niveles variados de soporte para la especificación MCP. El servidor puede ajustar automáticamente los esquemas de herramientas para sortear estas limitaciones.
+Diferentes clientes MCP tienen diferentes niveles de soporte para la especificación MCP. El servidor puede ajustar automáticamente los esquemas de herramientas para sortear estas limitaciones.
 
 ```bash
 # Auto-detect client (default)
@@ -549,7 +677,7 @@ npx dodopayments-mcp --client=openai-agents
 |--------|-------------|
 | `infer` | Detección automática del cliente (predeterminado) |
 | `cursor` | Editor Cursor |
-| `claude` | Claude AI web o desktop |
+| `claude` | Claude AI web o de escritorio |
 | `claude-code` | Claude Code CLI |
 | `openai-agents` | Plataforma de agentes de OpenAI |
 
@@ -571,7 +699,7 @@ Capacidades disponibles:
 - `tool-name-length=N` - Longitud máxima del nombre de la herramienta
 
 <Tip>
-Ejecuta `npx dodopayments-mcp --describe-capabilities` para obtener información detallada sobre las capacidades.
+Ejecuta `npx dodopayments-mcp --describe-capabilities` para información detallada sobre capacidades.
 </Tip>
 
 ## Filtrado de Herramientas
@@ -653,14 +781,14 @@ Para APIs grandes, cargar todas las herramientas a la vez puede abrumar la venta
 npx dodopayments-mcp --tools=dynamic
 ```
 
-En modo dinámico, tres meta-herramientas reemplazan a las herramientas individuales de la API:
+En modo dinámico, tres meta-herramientas reemplazan herramientas individuales de API:
 
 1. **`list_api_endpoints`** - Descubre métodos disponibles con filtrado opcional
 2. **`get_api_endpoint_schema`** - Obtiene el esquema detallado para un método específico
-3. **`invoke_api_endpoint`** - Ejecuta cualquier método con los parámetros apropiados
+3. **`invoke_api_endpoint`** - Ejecuta cualquier método con parámetros apropiados
 
 <Info>
-Las herramientas dinámicas se habilitan automáticamente para APIs con más de 50 métodos. Anula esto con `--tools=all` para incluir todas las herramientas.
+Las herramientas dinámicas se habilitan automáticamente para APIs con más de 50 métodos. Anula con `--tools=all` para incluir todas las herramientas.
 </Info>
 
 ```bash
@@ -732,7 +860,7 @@ Protege tus credenciales de API y mantén integraciones seguras.
 
 <AccordionGroup>
 <Accordion title="Gestión de Claves API">
-**Nunca comprometas credenciales en el control de versiones**
+**Nunca cometas credenciales en el control de versiones**
 
 Almacena claves API en variables de entorno o sistemas de gestión de secretos seguros.
 
@@ -750,7 +878,7 @@ Genera nuevas claves API periódicamente y revoca las antiguas a través de tu p
 
 **Usa claves de prueba para el desarrollo**
 
-Siempre usa claves API de modo de prueba durante el desarrollo para evitar afectar los datos de producción.
+Siempre usa claves de API en modo de prueba durante el desarrollo para evitar afectar los datos de producción.
 </Accordion>
 
 <Accordion title="Control de Acceso">
@@ -768,7 +896,7 @@ npx dodopayments-mcp
 
 **Implementa autenticación para servidores remotos**
 
-Al desplegar de forma remota, siempre requiere autenticación a través del encabezado `Authorization` o del encabezado `x-dodo-payments-api-key`.
+Al desplegar de forma remota, siempre requiere autenticación a través del encabezado `Authorization` o el encabezado `x-dodo-payments-api-key`.
 
 **Monitorea el uso de la API**
 
@@ -782,7 +910,7 @@ Siempre despliega servidores MCP remotos detrás de puntos finales HTTPS.
 
 **Implementa limitación de tasa**
 
-Protege contra abusos implementando límites de tasa tanto a nivel de servidor MCP como de API.
+Protege contra abusos implementando límites de tasa tanto en el servidor MCP como en la API.
 
 **Restringe el acceso a la red**
 
@@ -806,7 +934,7 @@ curl -H "Authorization: Bearer dodo_test_..." \
 
 **Verifica tu conexión de red**
 
-Verifica que puedas alcanzar los puntos finales de la API de Dodo Payments.
+Verifica que puedes alcanzar los puntos finales de la API de Dodo Payments.
 
 **Revisa los registros del cliente**
 
@@ -852,7 +980,7 @@ npx dodopayments-mcp --client=cursor
 
 **Verifica el soporte de capacidades**
 
-Algunos clientes no admiten todas las características del esquema JSON. Usa `--describe-capabilities` para entender qué se admite.
+Algunos clientes no soportan todas las características del esquema JSON. Usa `--describe-capabilities` para entender qué se soporta.
 </Accordion>
 </AccordionGroup>
 
@@ -868,7 +996,7 @@ Algunos clientes no admiten todas las características del esquema JSON. Usa `--
 </Card>
 
 <Card title="Repositorio de GitHub" icon="github" href="https://github.com/dodopayments/dodopayments-typescript/tree/main/packages/mcp-server">
-  Ver el código fuente del servidor MCP y contribuir
+  Ve el código fuente del servidor MCP y contribuye
 </Card>
 
 <Card title="Paquete NPM" icon="npm" href="https://www.npmjs.com/package/dodopayments-mcp">

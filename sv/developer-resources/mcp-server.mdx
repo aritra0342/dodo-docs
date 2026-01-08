@@ -34,19 +34,147 @@ Denna arkitektur gör det möjligt för AI-agenter att utföra komplexa, flerste
 Genom att använda Code Mode kan agenter kedja flera API-anrop, hantera villkorslogik och utföra beräkningar - allt i en enda verktygsanrop.
 </Tip>
 
+## Dodo Knowledge MCP
+
+Förutom Dodo Payments MCP Server (för att utföra API-operationer) erbjuder vi **Dodo Knowledge MCP** - en semantisk sökserver som ger AI-assistenter omedelbar tillgång till Dodo Payments dokumentation och kunskapsbas.
+
+<Info>
+**Byggd med [ContextMCP.ai](https://contextmcp.ai)**: Dodo Knowledge MCP drivs av ContextMCP, vilket möjliggör snabb semantisk sökning över vår dokumentation med hjälp av vektorembeddingar.
+</Info>
+
+### Vad är Dodo Knowledge MCP?
+
+Dodo Knowledge MCP är en fjärr-MCP-server som tillhandahåller:
+
+- **Semantisk Dokumentationssökning**: Hitta relevant dokumentation med naturliga språkfrågor
+- **Kontextuella Svar**: AI-assistenter får korrekt, uppdaterad information om Dodo Payments
+- **Ingen Installation**: Inga API-nycklar eller lokal installation krävs - anslut bara och börja fråga
+
+### Snabb Installation
+
+Anslut till Dodo Knowledge MCP i din AI-klient:
+
+<Tabs>
+<Tab title="Cursor">
+Lägg till i `~/.cursor/mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "dodo-knowledge": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote@latest", "https://knowledge.dodopayments.com/mcp"]
+    }
+  }
+}
+```
+
+</Tab>
+
+<Tab title="Claude Desktop">
+Lägg till i din Claude Desktop-konfiguration:
+
+```json
+{
+  "mcpServers": {
+    "dodo-knowledge": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote@latest", "https://knowledge.dodopayments.com/mcp"]
+    }
+  }
+}
+```
+
+Konfigurationsfilens platser:
+- **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+- **Linux**: `~/.config/Claude/claude_desktop_config.json`
+</Tab>
+
+<Tab title="Windsurf">
+Lägg till i `~/.codeium/windsurf/mcp_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "dodo-knowledge": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote@latest", "https://knowledge.dodopayments.com/mcp"]
+    }
+  }
+}
+```
+
+</Tab>
+
+<Tab title="Claude Code">
+Kör i din terminal:
+
+```bash
+claude mcp add dodo-knowledge -- npx -y mcp-remote@latest https://knowledge.dodopayments.com/mcp
+```
+
+</Tab>
+</Tabs>
+
+<Note>
+Kräver Node.js 18 eller högre. `mcp-remote` paketet hanterar anslutningen till den fjärr-MCP-servern.
+</Note>
+
+### Använda Båda MCP-servrar Tillsammans
+
+För den bästa AI-assisterade utvecklingsupplevelsen rekommenderar vi att använda båda MCP-servrar:
+
+| Server | Syfte | Användningsfall |
+|--------|---------|----------|
+| **Dodo Knowledge MCP** | Dokumentationssökning | "Hur hanterar jag webhooks?", "Vilka betalningsmetoder stöds?" |
+| **Dodo Payments MCP** | API-operationer | Skapa betalningar, hantera prenumerationer, hantera återbetalningar |
+
+```json
+{
+  "mcpServers": {
+    "dodo-knowledge": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote@latest", "https://knowledge.dodopayments.com/mcp"]
+    },
+    "dodopayments": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote@latest", "https://mcp.dodopayments.com/sse"]
+    }
+  }
+}
+```
+
+<Tip>
+Med båda servrarna konfigurerade kan din AI-assistent först söka dokumentation för att förstå hur man implementerar en funktion, och sedan utföra de faktiska API-anropen - allt i en enda konversation.
+</Tip>
+
+### Felsökning av Knowledge MCP
+
+Om du stöter på anslutningsproblem:
+
+1. **Rensa MCP-autentiseringscache**: `rm -rf ~/.mcp-auth`
+2. **Starta om din klientapplikation**
+3. **Kontrollera klientloggar** för felmeddelanden
+4. **Verifiera Node.js-version**: Kräver Node.js 18+
+
+<Card title="Knowledge MCP Server" icon="book-open" href="https://knowledge.dodopayments.com">
+  Åtkomst till Dodo Knowledge MCP-konfigurationssidan
+</Card>
+
 ## Installation
 
 Välj installationsmetod som passar din arbetsflöde bäst.
 
 ### Fjärr-MCP-server (Rekommenderas)
 
-Åtkomst till den hostade MCP-servern utan någon lokal installation eller uppsättning. Detta är det snabbaste sättet att komma igång.
+Åtkomst till den hostade MCP-servern utan någon lokal installation. Detta är det snabbaste sättet att komma igång.
 
 <Frame>
   <iframe 
       className="w-full aspect-video rounded-md" 
       src="https://www.youtube.com/embed/TxGgYxNmkT4"
-      title="Använda Dodo Payments Fjärr-MCP-server"
+      title="Using Dodo Payment's Remote MCP Server"
       frameBorder="0"
       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
       allowFullScreen
@@ -54,7 +182,7 @@ Välj installationsmetod som passar din arbetsflöde bäst.
 </Frame>
 
 <Steps>
-<Step title="Åtkomst till den fjärranslutna servern">
+<Step title="Åtkomst till den fjärrservern">
     Navigera till [https://mcp.dodopayments.com](https://mcp.dodopayments.com) i din webbläsare.
 </Step>
 
@@ -82,7 +210,7 @@ Välj installationsmetod som passar din arbetsflöde bäst.
     - Välj din MCP-klienttyp
     
     <Warning>
-    Håll din API-nyckel säker. Använd testnycklar under utveckling.
+    Håll din API-nyckel säker. Använd testläge-nycklar under utveckling.
     </Warning>
 </Step>
 
@@ -100,7 +228,7 @@ Välj installationsmetod som passar din arbetsflöde bäst.
 Installera och kör MCP-servern lokalt med NPM.
 
 <Tabs>
-<Tab title="NPX (Ingen installation)">
+<Tab title="NPX (Ingen Installation)">
 
 ```bash
 # Set your environment variables
@@ -193,7 +321,7 @@ Använd knappen nedan för att installera MCP-servern direkt i Cursor:
 
 Efter att ha klickat, ställ in dina miljövariabler i Cursors `mcp.json` via **Cursor-inställningar** > **Verktyg & MCP** > **Ny MCP-server**.
 
-**Manuell konfiguration**
+**Manuell Konfiguration**
 
 <Steps>
 <Step title="Öppna Cursor-inställningar">
@@ -254,7 +382,7 @@ Efter att ha klickat, ställ in dina miljövariabler i Cursors `mcp.json` via **
 Ställ in Dodo Payments MCP-servern i Claude Desktop för att möjliggöra konversativ åtkomst till dina betalningsdata.
 <Steps>
 <Step title="Hitta konfigurationsfil">
-    Hitta konfigurationsfilen för Claude Desktop:
+    Hitta Claude Desktop-konfigurationsfilen:
     
     - **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
     - **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
@@ -335,7 +463,7 @@ Ställ in Dodo Payments MCP-servern i VS Code.
 
 Efter att ha klickat, ställ in dina miljövariabler i VS Codes `mcp.json` via **Kommandopalett** > **MCP: Öppna användarkonfiguration**.
 
-**Manuell konfiguration**
+**Manuell Konfiguration**
 
 <Steps>
 <Step title="Öppna MCP-konfiguration">
@@ -373,7 +501,7 @@ Efter att ha klickat, ställ in dina miljövariabler i VS Codes `mcp.json` via *
 Ställ in Dodo Payments MCP-servern i Cline (VS Code) för att möjliggöra konversativ åtkomst till dina betalningsdata.
 <Steps>
 <Step title="Öppna Cline-inställningar">
-    Hitta konfigurationsfilen för Cline:
+    Hitta Cline-konfigurationsfilen:
     
     - **macOS**: `~/Library/Application Support/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json`
     - **Windows**: `%APPDATA%\Code\User\globalStorage\saoudrizwan.claude-dev\settings\cline_mcp_settings.json`
@@ -441,7 +569,7 @@ Ställ in Dodo Payments MCP-servern i Zed för att möjliggöra konversativ åtk
 </Steps>
 </Tab>
 
-<Tab title="Andra klienter">
+<Tab title="Andra Klienter">
 Ställ in Dodo Payments MCP-servern i andra MCP-kompatibla klienter.
 
 **Fjärrserver (Rekommenderas)**
@@ -490,7 +618,7 @@ Konfigurera MCP-serverns beteende med hjälp av miljövariabler.
 | `DODO_PAYMENTS_WEBHOOK_KEY` | Din webhook-signeringsnyckel | Nej |
 | `DODO_PAYMENTS_ENVIRONMENT` | Sätt till `live_mode` för produktion | Nej |
 
-## Köra på distans
+## Köra Fjärran
 
 Distribuera MCP-servern som en fjärr HTTP-server för webbaserade klienter eller agentiska arbetsflöden.
 
@@ -504,7 +632,7 @@ npx -y dodopayments-mcp --transport=http --port=3000
 
 ### Fjärrserverkonfiguration
 
-När den har distribuerats kan klienter ansluta med hjälp av server-URL:en:
+När den har distribuerats kan klienter ansluta med hjälp av server-URL:
 
 ```json
 {
@@ -521,14 +649,14 @@ När den har distribuerats kan klienter ansluta med hjälp av server-URL:en:
 
 ### Auktoriseringshuvuden
 
-Den fjärranslutna servern accepterar autentisering via följande huvuden:
+Den fjärrservern accepterar autentisering via följande huvuden:
 
-| Huvud | Beskrivning |
+| Header | Beskrivning |
 |--------|-------------|
 | `Authorization` | Bearer-tokenautentisering |
 | `x-dodo-payments-api-key` | Direkt API-nyckelhuvud |
 
-## Klientfunktioner
+## Klientkapabiliteter
 
 Olika MCP-klienter har olika nivåer av stöd för MCP-specifikationen. Servern kan automatiskt justera verktygsscheman för att kringgå dessa begränsningar.
 
@@ -543,7 +671,7 @@ npx dodopayments-mcp --client=claude-code
 npx dodopayments-mcp --client=openai-agents
 ```
 
-### Tillgängliga klientförinställningar
+### Tillgängliga Klientförinställningar
 
 | Klient | Beskrivning |
 |--------|-------------|
@@ -553,7 +681,7 @@ npx dodopayments-mcp --client=openai-agents
 | `claude-code` | Claude Code CLI |
 | `openai-agents` | OpenAI-agenter plattform |
 
-### Manuell kapabilitetskonfiguration
+### Manuell Kapabilitetskonfiguration
 
 För klienter som inte listas ovan, konfigurera kapabiliteter manuellt:
 
@@ -565,7 +693,7 @@ npx dodopayments-mcp --no-capability=refs --capability=tool-name-length=40
 Tillgängliga kapabiliteter:
 - `top-level-unions` - Stöd för toppnivå unionstyper
 - `valid-json` - Korrekt JSON-strängargumentparsing
-- `refs` - Stöd för $ref-pekar i scheman
+- `refs` - Stöd för $ref pekare i scheman
 - `unions` - Stöd för unionstyper (anyOf)
 - `formats` - Stöd för formatvalideringar
 - `tool-name-length=N` - Maximal verktygsnamnlängd
@@ -638,14 +766,14 @@ npx dodopayments-mcp --operation=read --resource=payments --resource=subscriptio
 
 ### URL-frågeparameterfiltrering (Fjärrserver)
 
-När du använder den fjärranslutna servern, tillämpa filter via URL-frågeparametrar:
+När du använder fjärrservern, tillämpa filter via URL-frågeparametrar:
 
 ```
 https://mcp.dodopayments.com/?operation=read
 https://mcp.dodopayments.com/?resource=payments
 ```
 
-## Dynamiskt verktygsläge
+## Dynamiskt Verktygsläge
 
 För stora API:er kan det att ladda alla verktyg på en gång överväldiga AI:s kontextfönster. Dynamiskt verktygsläge ger ett mer effektivt alternativ.
 
@@ -668,7 +796,7 @@ Dynamiska verktyg aktiveras automatiskt för API:er med mer än 50 metoder. Öve
 npx dodopayments-mcp --tools=dynamic --resource=payments
 ```
 
-## Avancerad användning
+## Avancerad Användning
 
 ### Programmatisk integration
 
@@ -726,7 +854,7 @@ init({
 });
 ```
 
-## Säkerhetsbästa praxis
+## Säkerhetsbästa Praxis
 
 Skydda dina API-referenser och upprätthåll säkra integrationer.
 
@@ -750,7 +878,7 @@ Generera nya API-nycklar periodiskt och återkalla gamla genom din Dodo Payments
 
 **Använd testnycklar för utveckling**
 
-Använd alltid testläge API-nycklar under utveckling för att undvika att påverka produktionsdata.
+Använd alltid testläge-API-nycklar under utveckling för att undvika att påverka produktionsdata.
 </Accordion>
 
 <Accordion title="Åtkomstkontroll">
@@ -768,7 +896,7 @@ npx dodopayments-mcp
 
 **Implementera autentisering för fjärrservrar**
 
-När du distribuerar på distans, kräva alltid autentisering via `Authorization` huvudet eller `x-dodo-payments-api-key` huvudet.
+När du distribuerar fjärr, kräva alltid autentisering via `Authorization` huvudet eller `x-dodo-payments-api-key` huvudet.
 
 **Övervaka API-användning**
 
@@ -814,7 +942,7 @@ Aktivera detaljerad loggning i din MCP-klient för att diagnostisera anslutnings
 </Accordion>
 
 <Accordion title="Autentiseringsfel">
-**Bekräfta API-nyckelmiljö**
+**Bekräfta API-nyckelns miljö**
 
 Se till att du använder testnycklar med testslutpunkter och live-nycklar med produktionsslutpunkter.
 
@@ -844,7 +972,7 @@ Verifiera att operationen fungerar när du anropar Dodo Payments API direkt via 
 <Accordion title="Klientkompatibilitetsproblem">
 **Försök med en annan klientförinställning**
 
-Om verktygen inte fungerar korrekt, försök att specificera din klient uttryckligen:
+Om verktygen inte fungerar korrekt, försök att specificera din klient explicit:
 
 ```bash
 npx dodopayments-mcp --client=cursor
@@ -852,7 +980,7 @@ npx dodopayments-mcp --client=cursor
 
 **Kontrollera kapabilitetsstöd**
 
-Vissa klienter stöder inte alla JSON-schemafunktioner. Använd `--describe-capabilities` för att förstå vad som stöds.
+Vissa klienter stöder inte alla JSON-schemakarakteristika. Använd `--describe-capabilities` för att förstå vad som stöds.
 </Accordion>
 </AccordionGroup>
 
@@ -864,7 +992,7 @@ Vissa klienter stöder inte alla JSON-schemafunktioner. Använd `--describe-capa
 </Card>
 
 <Card title="MCP-protokoll" icon="link" href="https://modelcontextprotocol.io">
-  Lär dig mer om Model Context Protocol-standarden
+  Lär dig mer om standarden för Model Context Protocol
 </Card>
 
 <Card title="GitHub-repo" icon="github" href="https://github.com/dodopayments/dodopayments-typescript/tree/main/packages/mcp-server">
