@@ -449,6 +449,7 @@ The SDK provides real-time events through the `onEvent` callback. For inline che
 | `checkout.opened` | Checkout frame has been loaded. |
 | `checkout.breakdown` | Fired when prices, taxes, or discounts are updated. |
 | `checkout.customer_details_submitted` | Customer details have been submitted. |
+| `checkout.pay_button_clicked` | Fired when the customer clicks the pay button. Useful for analytics and tracking conversion funnels. |
 | `checkout.redirect` | Checkout will perform a redirect (e.g., to a bank page). |
 | `checkout.error` | An error occurred during checkout. |
 | `checkout.link_expired` | Fired when the checkout session expires. Only received when `showTimer` is set to `false`. |
@@ -794,6 +795,105 @@ Always handle the `checkout.error` event to provide a good user experience when 
 <Info>
 For dark mode implementations, it's recommended to use `#0d0d0d` as the background color for optimal visual integration with the inline checkout frame.
 </Info>
+
+## Payment Status Validation
+
+<Warning>
+Do not rely solely on inline checkout events to determine payment success or failure. Always implement server-side validation using webhooks and/or polling.
+</Warning>
+
+### Why Server-Side Validation is Essential
+
+While inline checkout events like `checkout.status` provide real-time feedback, they should **not** be your only source of truth for payment status. Network issues, browser crashes, or users closing the page can cause events to be missed. To ensure reliable payment validation:
+
+1. **Your server should listen to webhook events** - Dodo Payments sends webhooks for payment status changes
+2. **Implement a polling mechanism** - Your frontend should poll your server for status updates
+3. **Combine both approaches** - Use webhooks as the primary source and polling as a fallback
+
+### Recommended Architecture
+
+```mermaid
+flowchart TB
+    subgraph Frontend["Your Frontend"]
+        IC[Inline Checkout<br/>Dodo iframe]
+        CP[Your Checkout Page]
+        IC -->|events| CP
+    end
+
+    subgraph Server["Your Server"]
+        WH[Webhook Handler]
+        DB[(Database)]
+        API[Status API]
+        WH --> DB
+        API --> DB
+    end
+
+    subgraph Dodo["Dodo Payments"]
+        PP[Payment Processor]
+    end
+
+    CP -->|Poll for status| API
+    PP -->|Webhooks| WH
+    IC -.->|Payment request| PP
+```
+
+### Implementation Steps
+
+**1. Listen for checkout events** - When the user clicks pay, start preparing to verify the status:
+
+```typescript
+onEvent: (event) => {
+  if (event.event_type === 'checkout.status') {
+    // Start polling your server for confirmed status
+    startPolling();
+  }
+}
+```
+
+**2. Poll your server** - Create an endpoint that checks your database for the payment status (updated by webhooks):
+
+```typescript
+// Poll every 2 seconds until status is confirmed
+const interval = setInterval(async () => {
+  const { status } = await fetch(`/api/payments/${paymentId}/status`).then(r => r.json());
+  if (status === 'succeeded' || status === 'failed') {
+    clearInterval(interval);
+    handlePaymentResult(status);
+  }
+}, 2000);
+```
+
+**3. Handle webhooks server-side** - Update your database when Dodo sends `payment.succeeded` or `payment.failed` webhooks. See our [Webhooks documentation](/developer-resources/webhooks) for details.
+
+### Handling Redirects (3DS, Google Pay, UPI)
+
+When using `manualRedirect: true`, certain payment methods require redirecting the user away from your page for authentication:
+
+- **3D Secure (3DS)** - Card authentication
+- **Google Pay** - Wallet authentication on some flows
+- **UPI** - Indian payment method redirects
+
+When a redirect is required, you'll receive the `checkout.redirect_requested` event. Redirect the user to the provided URL:
+
+```typescript
+if (event.event_type === 'checkout.redirect_requested') {
+  const redirectUrl = event.data?.message?.redirect_to;
+  // Save payment ID before redirect, then redirect
+  sessionStorage.setItem('pendingPaymentId', paymentId);
+  window.location.href = redirectUrl;
+}
+```
+
+After authentication completes (success or failure), the user returns to your page. **Do not assume success just because the user returned.** Instead:
+
+1. Check if the user is returning from a redirect (e.g., via `sessionStorage`)
+2. Start polling your server for the confirmed payment status
+3. Show a "Verifying payment..." state while polling
+4. Display success/failure UI based on the server-confirmed status
+
+<Tip>
+Always verify payment status server-side after redirects. The user returning to your page only means authentication completed—it doesn't indicate whether the payment succeeded or failed.
+</Tip>
 
 ## Troubleshooting
 
