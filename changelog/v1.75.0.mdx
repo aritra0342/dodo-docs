@@ -1,0 +1,266 @@
+---
+title: v1.75.0 (January 23, 2026)
+description: "Product collections, RevolutPay & Billie payment methods for GBP one-time payments, checkout session preview, metadata in change plan requests, invoice_url field, discount validation endpoint, and enhanced dashboard filtering"
+icon: "arrows-turn-right"
+---
+
+## New Features
+
+### 1. **Product Collections**  
+   
+   Group related products together for unified checkout experiences, plan selection, and seamless upgrade/downgrade paths within the Customer Portal.
+
+   <Frame>
+     <img src="/images/product-collection/checkout-page.png" alt="Product Collection checkout page showing multiple plan options" />
+   </Frame>
+
+  **Key Benefits**
+
+   - **Collection-based checkout**: Display all products from a collection in one checkout view, letting customers compare and choose their preferred plan
+   - **Organized product management**: Group related products (e.g., Starter, Pro, Enterprise) under a single collection
+   - **Customer Portal integration**: Enable customers to upgrade or downgrade between products within the same collection
+   - **Merchant control**: Enable, disable, and reorder products within each collection
+
+   **How It Works**
+
+   Create a checkout session for a collection:
+
+   ```typescript
+   const session = await client.checkoutSessions.create({
+     product_collection_id: 'pdc_abc123',
+     product_cart: [], // Required: pass an empty array for collection checkout
+     return_url: 'https://yoursite.com/return'
+   });
+
+   // Redirect customer to the checkout
+   window.location.href = session.url;
+   ```
+
+   <Check>
+   Result: A unified checkout experience where customers can view and select from all available products in your collection.
+   </Check>
+
+   <Info>
+   Collection checkout is ideal for subscription businesses where you want customers to compare plans side-by-side before purchasing.
+   </Info>
+
+   Learn more: [Product Collections Guide](/features/product-collections)
+
+### 2. **RevolutPay & Billie Payment Methods for GBP Currency**  
+   
+   Expanded payment options with RevolutPay and Billie now available globally for GBP one-time payment transactions, giving your customers more flexibility in how they pay.
+
+   **New Payment Methods**
+
+   | Payment Method | Supported Countries | Currency | Subscription Support |
+   |---------------|---------------------|----------|---------------------|
+   | **RevolutPay** | Global | GBP | No (one-time only) |
+   | **Billie** | Global | GBP | No (one-time only) |
+
+   - **RevolutPay** – Fast and seamless payments for Revolut users globally
+   - **Billie** – B2B Buy Now Pay Later solution enabling businesses to offer flexible payment terms to their customers
+
+   <Info>
+   These payment methods are automatically available for GBP transactions. No additional configuration is required.
+   </Info>
+
+   Learn more: [Payment Methods](/features/payment-methods)
+
+### 3. **Checkout Session Preview**  
+   
+   Preview checkout sessions before creating them to calculate accurate pricing, taxes, discounts, and totals. Display real pricing to customers before they proceed to checkout.
+
+   **How It Works**
+
+   ```typescript
+   const preview = await client.checkoutSessions.preview({
+     product_cart: [
+       { product_id: 'prod_123', quantity: 1 }
+     ],
+     billing_address: {
+       country: 'US',
+       state: 'CA',
+       zipcode: '94102'
+     },
+     discount_code: 'SAVE20'
+   });
+
+   console.log('Subtotal:', preview.subtotal);
+   console.log('Tax:', preview.tax);
+   console.log('Discount:', preview.discount);
+   console.log('Total:', preview.total);
+   ```
+
+   **Use Cases**
+
+   - **Custom pricing displays**: Show accurate totals including tax before checkout
+   - **Discount validation**: Verify discount codes and show savings to customers
+   - **Multi-currency support**: Preview pricing in different currencies
+   - **Cart summaries**: Build custom cart UIs with real-time pricing
+
+   <Card title="Preview API Reference" icon="code" href="/api-reference/checkout-sessions/preview">
+     View the complete preview endpoint documentation.
+   </Card>
+
+### 4. **Metadata Support in Change Plan Requests**  
+   
+   Pass custom metadata when changing subscription plans, enabling better tracking and integration with your internal systems during plan transitions.
+
+   ```javascript
+   // Adding metadata when changing a subscription plan
+   await client.subscriptions.changePlan('sub_123', {
+     product_id: 'prod_premium',
+     proration_billing_mode: 'prorated_immediately',
+     quantity: 1,
+     metadata: {
+       upgrade_reason: 'feature_request',
+       previous_plan: 'basic',
+       sales_rep: 'john@company.com'
+     }
+   });
+   ```
+
+  **Use Cases**
+
+   - **Track upgrade/downgrade reasons**: Store why customers changed plans
+   - **Link to CRM records**: Associate plan changes with sales activities
+   - **Internal categorization**: Tag plan changes for reporting and analytics
+   - **Audit trails**: Maintain records of who initiated plan changes
+
+   <Info>
+   Metadata is included in webhook events, making it easy to process plan changes with your custom data.
+   </Info>
+
+   Learn more: [Metadata Guide](/api-reference/metadata) | [Change Plan API](/api-reference/subscriptions/change-plan)
+
+### 5. **`invoice_url` Field in Payment Response and Payment Link Response**  
+   
+   The Payment Response and Payment Link Response now include an `invoice_url` field, providing direct access to the invoice associated with each payment.
+
+   ```json
+   {
+     "payment_id": "pay_2IjeQm4hqU6RA4Z4kwDee",
+     "status": "succeeded",
+     "invoice_url": "https://dodopayments.com/invoices/inv_2IsUnWGtRKFLxk7xAQeyt",
+     "amount": 9900,
+     "currency": "USD",
+     // ... other fields
+   }
+   ```
+
+  **Use Cases**
+
+   - **Customer communication**: Send invoice links directly to customers
+   - **Accounting integration**: Link payments to invoices in your accounting software
+   - **Self-service portals**: Allow customers to access their invoices easily
+   - **Record keeping**: Maintain direct references to invoice documents
+
+   <Card title="Get Payment API" icon="code" href="/api-reference/payments/get-payments-1">
+     View the Payment Response schema.
+   </Card>
+
+### 6. **Validate Discount by Code Name Endpoint**  
+   
+   New API endpoint to validate and retrieve discount codes by their code name (e.g., "SAVE20") instead of using the internal discount ID. Verify discount eligibility before applying them at checkout.
+
+   ```javascript
+   // Validate a discount code before checkout
+   const discount = await client.discounts.getByCode('SAVE20');
+
+   console.log('Discount type:', discount.type);
+   console.log('Discount value:', discount.amount);
+   console.log('Valid until:', discount.expires_at);
+   ```
+
+  **Benefits**
+
+   - **Pre-checkout validation**: Verify discount codes before creating checkout sessions
+   - **Real-time feedback**: Show customers if their code is valid
+   - **Error handling**: Catch invalid or expired codes early
+   - **Custom discount UIs**: Build discount code input fields with instant validation
+
+   <Card title="Get Discount by Code API" icon="code" href="/api-reference/discounts/get-discount-by-code">
+     View the complete endpoint documentation.
+   </Card>
+
+### 7. **Enhanced Filtering Capabilities for Customers, Discounts, and License Keys**  
+   
+   New API filters for listing Customers, Discounts, and License Keys, making it easier to find and manage your data programmatically.
+
+   **Customers API Filters**
+
+   | Filter | Description |
+   |--------|-------------|
+   | `email` | Filter by customer email |
+   | `name` | Filter by customer name (partial match, case-insensitive) |
+   | `created_at_gte` | Filter customers created on or after this timestamp |
+   | `created_at_lte` | Filter customers created on or before this timestamp |
+
+   ```javascript
+   // Find customers by name created in the last 30 days
+   const customers = await client.customers.list({
+     name: 'John',
+     created_at_gte: '2026-01-01T00:00:00Z'
+   });
+   ```
+
+   **Discounts API Filters**
+
+   | Filter | Description |
+   |--------|-------------|
+   | `code` | Filter by discount code (partial match, case-insensitive) |
+   | `discount_type` | Filter by discount type (percentage) |
+   | `active` | Filter by active status (true = not expired, false = expired) |
+   | `product_id` | Filter by product restriction (only discounts that apply to this product) |
+
+   ```javascript
+   // Find active percentage discounts for a specific product
+   const discounts = await client.discounts.list({
+     active: true,
+     discount_type: 'percentage',
+     product_id: 'prod_123'
+   });
+   ```
+
+   **License Keys API Filters**
+
+   | Filter | Description |
+   |--------|-------------|
+   | `customer_id` | Filter by customer ID |
+   | `status` | Filter by license key status (`active`, `expired`, `disabled`) |
+   | `product_id` | Filter by product ID |
+   | `created_at_gte` | Filter license keys created on or after this timestamp |
+   | `created_at_lte` | Filter license keys created on or before this timestamp |
+
+   ```javascript
+   // Find active license keys for a specific product
+   const licenseKeys = await client.licenseKeys.list({
+     status: 'active',
+     product_id: 'prod_123'
+   });
+   ```
+
+   <CardGroup cols={3}>
+   <Card title="List Customers API" icon="users" href="/api-reference/customers/get-customers">
+     View the complete Customers API documentation.
+   </Card>
+   <Card title="List Discounts API" icon="percent" href="/api-reference/discounts/list-discounts">
+     View the complete Discounts API documentation.
+   </Card>
+   <Card title="List License Keys API" icon="key" href="/api-reference/licenses/list-license-keys">
+     View the complete License Keys API documentation.
+   </Card>
+   </CardGroup>
+
+### 8. **UI/UX Improvements in Dashboard**  
+   
+   This release includes numerous UI/UX improvements across the dashboard for a more intuitive and polished experience.
+
+  **Highlights**
+
+   - Improved navigation and layout consistency
+   - Enhanced data table interactions
+   - Better loading states and feedback
+   - Refined visual design elements
+   - Improved mobile responsiveness
+
