@@ -617,6 +617,61 @@ Enable minimal address for faster checkout completion. Full address collection r
 
 </Accordion>
 
+<Accordion title="Custom Fields">
+
+<ParamField body="custom_fields" type="array">
+Collect additional information from customers during checkout with custom form fields. You can define up to 5 custom fields per checkout session. Customer responses are included in webhook payloads and available via the API.
+
+<Expandable title="Custom field object properties">
+<ParamField body="key" type="string" required>
+Unique identifier for this field. Used as the key in webhook payloads and API responses.
+
+**Example**: `"company_name"`, `"referral_source"`, `"team_size"`
+</ParamField>
+
+<ParamField body="label" type="string" required>
+Display label shown to the customer on the checkout form.
+
+**Example**: `"Company Name"`, `"How did you hear about us?"`, `"Team Size"`
+</ParamField>
+
+<ParamField body="field_type" type="string" required>
+Type of field determining input validation rules.
+
+**Available types**:
+- `text` - Single-line text input
+- `number` - Numeric input
+- `email` - Email address with validation
+- `url` - URL with validation
+- `date` - Date picker
+- `dropdown` - Select from predefined options
+- `boolean` - Yes/No toggle
+</ParamField>
+
+<ParamField body="required" type="boolean" default="false">
+Whether this field must be filled before checkout can complete.
+</ParamField>
+
+<ParamField body="placeholder" type="string">
+Placeholder text displayed in the input field.
+</ParamField>
+
+<ParamField body="options" type="array">
+List of options for `dropdown` field type. Required when `field_type` is `dropdown`, ignored for other types.
+
+**Example**: `["Google", "Twitter", "Friend referral", "Other"]`
+</ParamField>
+</Expandable>
+</ParamField>
+
+<Info>
+Customer responses to custom fields are included in:
+- **Webhooks**: `payment.succeeded`, `subscription.created`, and other relevant event payloads contain the `custom_field_responses` array
+- **API responses**: Payment and subscription objects include `custom_field_responses`
+</Info>
+
+</Accordion>
+
 <Accordion title="Subscription Configuration">
 
 <ParamField body="subscription_data" type="object">
@@ -1098,6 +1153,62 @@ Use `force_language` when you know your customer's preferred language (e.g., fro
 </Tip>
 
 **Supported languages:** Arabic (`ar`), Catalan (`ca`), Chinese (`zh`), Dutch (`nl`), English (`en`), French (`fr`), German (`de`), Hebrew (`he`), Indonesian (`id`), Italian (`it`), Japanese (`ja`), Korean (`ko`), Malay (`ms`), Polish (`pl`), Portuguese (`pt`), Romanian (`ro`), Russian (`ru`), Spanish (`es`), Swedish (`sv`), Thai (`th`), Turkish (`tr`)
+
+### 15. Collecting Custom Fields
+
+Collect additional information from customers during checkout using custom fields:
+
+```javascript expandable
+const session = await client.checkoutSessions.create({
+  product_cart: [
+    {
+      product_id: 'prod_saas_plan',
+      quantity: 1
+    }
+  ],
+  custom_fields: [
+    {
+      key: 'company_name',
+      label: 'Company Name',
+      field_type: 'text',
+      required: true,
+      placeholder: 'Acme Inc.'
+    },
+    {
+      key: 'team_size',
+      label: 'Team Size',
+      field_type: 'dropdown',
+      required: true,
+      options: ['1-10', '11-50', '51-200', '201-500', '500+']
+    },
+    {
+      key: 'referral_source',
+      label: 'How did you hear about us?',
+      field_type: 'dropdown',
+      required: false,
+      options: ['Google', 'Twitter', 'Friend referral', 'Blog post', 'Other']
+    },
+    {
+      key: 'website',
+      label: 'Company Website',
+      field_type: 'url',
+      required: false,
+      placeholder: 'https://example.com'
+    }
+  ],
+  customer: {
+    email: 'buyer@company.com',
+    name: 'Jane Doe'
+  },
+  return_url: 'https://yourapp.com/success'
+});
+```
+
+<Info>
+Custom field responses are automatically included in webhook payloads (`payment.succeeded`, `subscription.created`, etc.) and can be retrieved via the API. Use them to enrich your CRM, trigger onboarding flows, or customize the customer experience.
+</Info>
+
+**Available field types:** `text`, `number`, `email`, `url`, `date`, `dropdown`, `boolean`
 
 ## Previewing Checkout Sessions
 
