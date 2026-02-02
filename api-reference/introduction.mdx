@@ -75,11 +75,48 @@ Never expose your secret API keys in client-side code or public repositories.
 
 ## Rate Limits
 
-- **Standard**: 1000 requests per minute per business
-- **Burst**: Up to 100 requests per second
+Our API uses a dual-window rate limiting system with burst protection. Limits are applied based on your authentication method and business tier.
+
+### Default Limits (Tier 0)
+
+| Window | Limit |
+|--------|-------|
+| Per Second (Burst) | 40 requests |
+| Per Minute (Sustained) | 240 requests |
+
+### Business Tiers
+
+Higher rate limits are available for businesses with increased API needs:
+
+| Tier | Burst (per second) | Sustained (per minute) |
+|------|-------------------|------------------------|
+| Tier 0 (Default) | 40 | 240 |
+| Tier 1 | 100 | 1,000 |
+| Tier 2 | 500 | 5,000 |
+
+<Tip>
+Contact support to upgrade your business to a higher rate limit tier.
+</Tip>
+
+### Unauthenticated Requests
+
+Requests without valid authentication headers are rate limited by IP address:
+
+| Window | Limit |
+|--------|-------|
+| Per Second (Burst) | 20 requests |
+| Per Minute (Sustained) | 100 requests |
+
+### Rate Limit Headers
+
+Monitor your usage with these response headers:
+
+- `X-RateLimit-Limit` - Maximum requests allowed
+- `X-RateLimit-Remaining` - Requests remaining in current window
+- `X-RateLimit-Reset` - Time when the rate limit resets
 
 <Note>
-Monitor `X-RateLimit-Remaining` header to track usage.
+When you exceed rate limits, the API returns a `429 Too Many Requests` response. Implement exponential backoff in your retry logic.
 </Note>
 
 ## Error Handling
