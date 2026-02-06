@@ -4,228 +4,129 @@ description: 'Command-line interface for interacting with the Dodo Payments API 
 icon: "terminal"
 ---
 
+Manage your Dodo Payments resources and test webhooks directly from the terminal. Built for developers who prefer the command line.
+
 ## Installation
 
-### Go Install
-
-```bash
-go install github.com/dodopayments/dodopayments-cli/cmd/dodopayments@latest
+<CodeGroup>
+```bash npm (Recommended)
+npm install -g dodopayments-cli
 ```
 
-### From Source
+```bash Bun
+bun install -g dodopayments-cli
+```
+</CodeGroup>
+
+### Manual Installation
+
+1. Download the latest release from [GitHub Releases](https://github.com/dodopayments/dodopayments-cli/releases) for your system
+2. Extract and rename the binary to `dodo`
+3. Move to a directory in your PATH:
 
 ```bash
-git clone https://github.com/dodopayments/dodopayments-cli.git
-cd dodopayments-cli
-go install ./cmd/dodopayments
+# Linux/macOS
+sudo mv ./dodo /usr/local/bin/
+
+# Windows (admin mode)
+move .\dodo C:\Windows\System32\dodo
 ```
 
-## Quick Start
+## Authentication
 
-Set your API key:
+Before using the CLI, authenticate with your API key:
 
 ```bash
-export DODO_PAYMENTS_API_KEY=your_api_key_here
+dodo login
 ```
 
-Basic command structure:
+This will:
+1. Open your browser to the Dodo Payments API Keys page
+2. Prompt you to enter your API Key
+3. Ask you to select the environment (**Test Mode** or **Live Mode**)
+4. Store your credentials locally to `~/.dodopayments/api-key`
+
+## Usage
+
+The general syntax is:
 
 ```bash
-dodopayments [resource] [command] [flags]
-```
-
-Create a checkout session:
-
-```bash
-dodopayments checkout-sessions create \
-  --product-cart.product_id prod_123 \
-  --product-cart.quantity 1 \
-  --return-url https://yourdomain.com/return
-```
-
-## Global Flags
-
-| Flag | Description |
-|------|-------------|
-| `--format` | Output format: `auto`, `json`, `yaml`, `pretty`, `explore` |
-| `--transform` | Filter response using gjson syntax |
-| `--debug` | Enable verbose logging |
-| `--version`, `-v` | Display CLI version |
-
-## Common Commands
-
-### Payments
-
-```bash
-# List payments
-dodopayments payments list --limit 20 --format json
-
-# Retrieve payment
-dodopayments payments retrieve pay_123
-
-# Get line items
-dodopayments payments line-items pay_123
-```
-
-### Customers
-
-```bash
-# Create customer
-dodopayments customers create \
-  --email customer@example.com \
-  --name "John Doe"
-
-# List customers
-dodopayments customers list
-
-# Update customer
-dodopayments customers update cus_123 --name "Jane Doe"
-```
-
-### Subscriptions
-
-```bash
-# Create subscription
-dodopayments subscriptions create \
-  --customer-id cus_123 \
-  --product-id prod_456
-
-# List subscriptions
-dodopayments subscriptions list
-
-# Get usage history
-dodopayments subscriptions usage-history sub_123
+dodo <category> <sub-command>
 ```
 
 ### Products
 
-```bash
-# Create product
-dodopayments products create \
-  --name "Premium Plan" \
-  --price.amount 2999 \
-  --price.currency USD
+Manage your product catalog.
 
-# List products
-dodopayments products list
-```
+| Command | Description |
+|---------|-------------|
+| `dodo products list` | List all products |
+| `dodo products create` | Open dashboard to create a product |
+| `dodo products info` | View details for a specific product |
 
-## Usage-Based Billing
+### Payments
 
-### Ingest Events
+View payment transactions.
 
-```bash
-dodopayments usage-events ingest \
-  --events.event_id api_call_12345 \
-  --events.customer_id cus_abc123 \
-  --events.event_name api_request \
-  --events.timestamp 2024-01-15T10:30:00Z \
-  --events.metadata.endpoint /api/v1/users
-```
+| Command | Description |
+|---------|-------------|
+| `dodo payments list` | List all payments |
+| `dodo payments info` | Get information about a specific payment |
 
-### Manage Meters
+### Customers
 
-```bash
-# Create meter
-dodopayments meters create \
-  --name "API Requests" \
-  --event-name api_request \
-  --aggregation count
+Manage your customer base.
 
-# List meters
-dodopayments meters list
-```
+| Command | Description |
+|---------|-------------|
+| `dodo customers list` | List all customers |
+| `dodo customers create` | Create a new customer profile |
+| `dodo customers update` | Update an existing customer's details |
 
-## Output Formats
+### Discounts
 
-### JSON (for scripting)
+Manage coupons and discounts.
 
-```bash
-dodopayments payments list --format json | jq '.data[] | {id, amount}'
-```
+| Command | Description |
+|---------|-------------|
+| `dodo discounts list` | List all discounts |
+| `dodo discounts create` | Create a new percentage-based discount |
+| `dodo discounts delete` | Remove a discount by ID |
 
-### Pretty (for reading)
+### Licenses
 
-```bash
-dodopayments payments retrieve pay_123 --format pretty
-```
+Manage software licenses.
 
-### Interactive Explore
+| Command | Description |
+|---------|-------------|
+| `dodo licences list` | List all licenses |
+
+## Webhook Testing
+
+The CLI includes an interactive tool for testing webhooks by simulating events.
 
 ```bash
-dodopayments payments list --format explore
+dodo wh
 ```
 
-### Transform with gjson
+This guides you through:
+1. Setting a destination **endpoint URL**
+2. Configuring **Business ID**, **Product ID**, and **Metadata**
+3. Selecting a specific **Event** to trigger
 
-```bash
-# Extract all payment IDs
-dodopayments payments list --transform "data.#.id"
+<Warning>
+The webhook testing tool doesn't support signing requests yet. Disable webhook signature verification while testing by using `unsafe_unwrap()` instead of `unwrap()` in your webhook endpoint **during testing only**.
+</Warning>
 
-# Filter and extract
-dodopayments payments list --transform "data.#(amount>5000)#.id"
-```
+### Supported Webhook Events
 
-<Tip>
-Use `--format json` with `jq` for powerful data processing in shell scripts.
-</Tip>
-
-## Scripting Example
-
-```bash
-#!/bin/bash
-
-# Export all payments to CSV
-dodopayments payments list --format json | \
-  jq -r '.data[] | [.id, .amount, .currency, .status] | @csv' > payments.csv
-
-# Create customers from file
-while IFS=',' read -r email name; do
-  dodopayments customers create \
-    --email "$email" \
-    --name "$name" \
-    --format json
-done < customers.csv
-```
-
-## Shell Completion
-
-Enable auto-completion:
-
-```bash
-# Bash
-eval "$(dodopayments completion bash)"
-
-# Zsh
-eval "$(dodopayments completion zsh)"
-
-# Fish
-dodopayments completion fish | source
-```
-
-## Available Resources
-
-The CLI provides commands for 24 resource categories:
-
-- `checkout-sessions` - Checkout session management
-- `payments` - Payment operations
-- `subscriptions` - Recurring billing
-- `customers` - Customer accounts
-- `products` - Product catalog
-- `licenses` - Software licensing
-- `refunds` - Payment refunds
-- `disputes` - Payment disputes
-- `webhooks` - Event webhooks
-- `meters` - Usage meters
-- `usage-events` - Usage tracking
-- `discounts` - Discount codes
-- `payouts` - Seller payouts
-- `brands` - Multi-brand management
-- Plus 10 additional resources
-
-<Info>
-Use `dodopayments --help` to see all available resources and `dodopayments [resource] --help` for resource-specific commands.
-</Info>
+| Category | Events |
+|----------|--------|
+| **Subscription** | `active`, `updated`, `on_hold`, `renewed`, `plan_changed`, `cancelled`, `failed`, `expired` |
+| **Payment** | `success`, `failed`, `processing`, `cancelled` |
+| **Refund** | `success`, `failed` |
+| **Dispute** | `opened`, `expired`, `accepted`, `cancelled`, `challenged`, `won`, `lost` |
+| **License** | `created` |
 
 ## Resources
 
@@ -234,15 +135,13 @@ Use `dodopayments --help` to see all available resources and `dodopayments [reso
   View source code and releases
 </Card>
 
-<Card title="API Reference" icon="book" href="/api-reference/introduction">
-  Complete API documentation
+<Card title="npm Package" icon="npm" href="https://www.npmjs.com/package/dodopayments-cli">
+  View on npm registry
 </Card>
 </CardGroup>
 
 ## Support
 
-Need help with the CLI?
-
 - **Discord**: Join our [community server](https://discord.gg/bYqAp4ayYh)
+- **GitHub**: Open an issue on the [repository](https://github.com/dodopayments/dodopayments-cli/issues)
 - **Email**: Contact us at support@dodopayments.com
-- **GitHub**: Open an issue on the [repository](https://github.com/dodopayments/dodopayments-cli)
