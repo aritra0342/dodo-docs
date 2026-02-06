@@ -4,17 +4,15 @@ description: Learn how to change a customer's subscription plan, handle proratio
 icon: "arrows-rotate"
 ---
 
-<CardGroup cols={2}>
-<Card title="Change Plan API Reference" icon="code" href="/api-reference/subscriptions/change-plan">
-  Access the complete API documentation for changing subscription plans and test plan change requests interactively.
+<CardGroup cols={3}>
+<Card title="Change Plan API" icon="code" href="/api-reference/subscriptions/change-plan">
+  Full API docs for updating subscriptions.
 </Card>
-
-<Card title="Preview Plan Change API" icon="eye" href="/api-reference/subscriptions/preview-change-plan">
-  Preview the exact charge amount before committing to a plan change.
+<Card title="Plan Change Preview" icon="eye" href="/api-reference/subscriptions/preview-change-plan">
+  See charge amounts before changing plans.
 </Card>
-
-<Card title="Subscription Integration Guide" icon="book" href="/developer-resources/subscription-integration-guide">
-  Learn how to create and manage subscriptions from scratch with our comprehensive integration guide.
+<Card title="Integration Guide" icon="book" href="/developer-resources/subscription-integration-guide">
+  Step-by-step subscription setup.
 </Card>
 </CardGroup>
 
@@ -115,6 +113,14 @@ How to handle immediate billing: `prorated_immediately`, `full_immediately`, or 
 <ParamField path="addons" type="array">
 Optional addons for the new plan. Leaving this empty removes any existing addons.
 </ParamField>
+
+<ParamField path="on_payment_failure" type="string">
+Controls behavior when the plan change payment fails:
+- `prevent_change`: Keep subscription on current plan until payment succeeds
+- `apply_change` (default): Apply plan change immediately regardless of payment outcome
+
+If not specified, uses the business-level default setting.
+</ParamField>
 </Step>
 
 <Step title="Handle Webhook Events">
@@ -212,6 +218,7 @@ Use the Change Plan API to modify product, quantity, and proration behavior for 
         product_id: 'prod_new',
         quantity: 3,
         proration_billing_mode: 'prorated_immediately',
+        on_payment_failure: 'prevent_change', // Optional: control behavior on payment failure
       });
       console.log(result.status, result.invoice_id, result.payment_id);
     }
@@ -234,6 +241,7 @@ Use the Change Plan API to modify product, quantity, and proration behavior for 
         product_id="prod_new",
         quantity=3,
         proration_billing_mode="prorated_immediately",
+        on_payment_failure="prevent_change",  # Optional: control behavior on payment failure
     )
     print(result.status, result.get("invoice_id"), result.get("payment_id"))
     ```
@@ -256,6 +264,7 @@ Use the Change Plan API to modify product, quantity, and proration behavior for 
         ProductID:             dodopayments.F("prod_new"),
         Quantity:              dodopayments.F(int64(3)),
         ProrationBillingMode:  dodopayments.F(dodopayments.SubscriptionChangePlanParamsProrationBillingModeProratedImmediately),
+        OnPaymentFailure:      dodopayments.F(dodopayments.OnPaymentFailurePreventChange), // Optional
       })
       if err != nil { panic(err) }
       fmt.Println(res.Status, res.InvoiceID, res.PaymentID)
@@ -270,7 +279,8 @@ Use the Change Plan API to modify product, quantity, and proration behavior for 
       -d '{
         "product_id": "prod_new",
         "quantity": 3,
-        "proration_billing_mode": "prorated_immediately"
+        "proration_billing_mode": "prorated_immediately",
+        "on_payment_failure": "prevent_change"
       }'
     ```
   </Tab>
@@ -391,6 +401,64 @@ Credits created by downgrades using <code>difference_immediately</code> are subs
 <Tip>
 Pick `prorated_immediately` for fair-time accounting; choose `full_immediately` to restart billing; use `difference_immediately` for simple upgrades and automatic credit on downgrades.
 </Tip>
+
+## Handling Payment Failures
+
+Control what happens when a plan change payment fails using the `on_payment_failure` parameter.
+
+### Payment Failure Modes
+
+<Tabs>
+<Tab title="prevent_change (Recommended for critical upgrades)">
+**Behavior**: Keep the subscription on its current plan until payment succeeds.
+
+- Plan change is marked as "pending"
+- Customer retains access to their current plan
+- Subscription moves to `active` state only after successful payment
+- Useful when you want to ensure payment before granting upgraded features
+
+```javascript
+await client.subscriptions.changePlan('sub_123', {
+  product_id: 'prod_pro',
+  quantity: 1,
+  proration_billing_mode: 'prorated_immediately',
+  on_payment_failure: 'prevent_change'
+});
+```
+</Tab>
+
+<Tab title="apply_change (Default)">
+**Behavior**: Apply the plan change immediately regardless of payment outcome.
+
+- Plan change is applied even if payment fails
+- Customer gets immediate access to the new plan
+- Subscription may move to `on_hold` if payment fails
+- Good for non-critical upgrades or when you trust the customer
+
+```javascript
+await client.subscriptions.changePlan('sub_123', {
+  product_id: 'prod_pro',
+  quantity: 1,
+  proration_billing_mode: 'prorated_immediately',
+  on_payment_failure: 'apply_change' // This is the default
+});
+```
+</Tab>
+</Tabs>
+
+<Info>
+If not specified, the `on_payment_failure` parameter uses your business-level default setting configured in the dashboard.
+</Info>
+
+### When to Use Each Mode
+
+| Scenario | Recommended Mode | Reason |
+|----------|------------------|--------|
+| Upgrading to premium features | `prevent_change` | Ensure payment before granting access |
+| Quantity increase (more seats) | `prevent_change` | Prevent usage without payment |
+| Downgrading plans | `apply_change` | Customer is reducing spend |
+| Trusted enterprise customers | `apply_change` | Lower risk of non-payment |
+| Trial to paid conversion | `prevent_change` | Critical payment moment |
 
 ## Handling webhooks
 
