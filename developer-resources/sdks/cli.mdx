@@ -4,7 +4,7 @@ description: 'Command-line interface for interacting with the Dodo Payments API 
 icon: "terminal"
 ---
 
-Manage your Dodo Payments resources and test webhooks directly from the terminal. Built for developers who prefer the command line.
+Manage your Dodo Payments resources, create checkout sessions, and test webhooks directly from the terminal. Built for developers who prefer the command line.
 
 ## Installation
 
@@ -46,6 +46,10 @@ This will:
 3. Ask you to select the environment (**Test Mode** or **Live Mode**)
 4. Store your credentials locally to `~/.dodopayments/api-key`
 
+<Info>
+The CLI supports storing one API key per environment. If both test and live mode keys are configured, you'll be prompted to choose which environment to use for the current session.
+</Info>
+
 ## Usage
 
 The general syntax is:
@@ -54,13 +58,15 @@ The general syntax is:
 dodo <category> <sub-command>
 ```
 
+Running `dodo` with no arguments displays all available categories. Running `dodo <category>` with no subcommand shows the available subcommands for that category.
+
 ### Products
 
 Manage your product catalog.
 
 | Command | Description |
 |---------|-------------|
-| `dodo products list` | List all products |
+| `dodo products list` | List all products (paginated) |
 | `dodo products create` | Open dashboard to create a product |
 | `dodo products info` | View details for a specific product |
 
@@ -70,7 +76,7 @@ View payment transactions.
 
 | Command | Description |
 |---------|-------------|
-| `dodo payments list` | List all payments |
+| `dodo payments list` | List all payments (paginated) |
 | `dodo payments info` | Get information about a specific payment |
 
 ### Customers
@@ -79,7 +85,7 @@ Manage your customer base.
 
 | Command | Description |
 |---------|-------------|
-| `dodo customers list` | List all customers |
+| `dodo customers list` | List all customers (paginated) |
 | `dodo customers create` | Create a new customer profile |
 | `dodo customers update` | Update an existing customer's details |
 
@@ -89,7 +95,7 @@ Manage coupons and discounts.
 
 | Command | Description |
 |---------|-------------|
-| `dodo discounts list` | List all discounts |
+| `dodo discounts list` | List all discounts (paginated) |
 | `dodo discounts create` | Create a new percentage-based discount |
 | `dodo discounts delete` | Remove a discount by ID |
 
@@ -99,34 +105,106 @@ Manage software licenses.
 
 | Command | Description |
 |---------|-------------|
-| `dodo licences list` | List all licenses |
+| `dodo licences list` | List all license keys (paginated) |
+
+### Addons
+
+Manage product addons.
+
+| Command | Description |
+|---------|-------------|
+| `dodo addons list` | List all addons (paginated) |
+| `dodo addons create` | Open dashboard to create an addon |
+| `dodo addons info` | View details for a specific addon |
+
+### Refunds
+
+View refund information.
+
+| Command | Description |
+|---------|-------------|
+| `dodo refund list` | List all refunds (paginated) |
+| `dodo refund info` | View details for a specific refund |
+
+### Checkout
+
+Create checkout sessions.
+
+| Command | Description |
+|---------|-------------|
+| `dodo checkout new` | Create a new checkout session and get the checkout URL |
+
+The checkout command supports advanced options including minimal address collection, return URL, 3D Secure enforcement, discount codes, and metadata.
 
 ## Webhook Testing
 
-The CLI includes an interactive tool for testing webhooks by simulating events.
+The CLI includes two powerful tools for testing webhooks during development: a **listener** that forwards live test webhooks to your local server, and a **trigger** that sends mock webhook payloads to any endpoint.
+
+### Listen for Webhooks
+
+Forward webhooks from Dodo Payments directly to your local development server in real time.
 
 ```bash
-dodo wh
+dodo wh listen
+```
+
+<Steps>
+<Step title="Enter your local endpoint URL">
+  Provide the local URL where you want to receive webhooks (e.g., `http://localhost:3000/webhook`).
+</Step>
+
+<Step title="Automatic setup">
+  The CLI automatically creates a webhook endpoint on your Dodo Payments account if one doesn't already exist, then opens a WebSocket connection to receive events in real time.
+</Step>
+
+<Step title="Receive and forward">
+  When a webhook event fires (from a test payment, subscription change, etc.), the CLI receives it, logs the event type, and forwards the full request with headers and body to your local endpoint. The response from your endpoint is logged and sent back.
+</Step>
+</Steps>
+
+<Warning>
+The webhook listener only works with a **test mode** API key. Make sure you're logged in with a test mode key before using `dodo wh listen`.
+</Warning>
+
+<Tip>
+The listener preserves the original webhook headers (`webhook-id`, `webhook-signature`, `webhook-timestamp`) when forwarding to your local endpoint, so you can test your signature verification logic.
+</Tip>
+
+### Trigger Test Webhooks
+
+Send mock webhook payloads to any endpoint for quick testing without needing to create real transactions.
+
+```bash
+dodo wh trigger
 ```
 
 This guides you through:
 1. Setting a destination **endpoint URL**
-2. Configuring **Business ID**, **Product ID**, and **Metadata**
-3. Selecting a specific **Event** to trigger
+2. Optionally configuring **Business ID**, **Product ID**, and **Metadata**
+3. Selecting a specific **event** to trigger from an interactive menu
+4. Sending the mock payload and viewing the response
+
+After each event, you can select another event to trigger or exit -- making it easy to test multiple event handlers in one session.
 
 <Warning>
-The webhook testing tool doesn't support signing requests yet. Disable webhook signature verification while testing by using `unsafe_unwrap()` instead of `unwrap()` in your webhook endpoint **during testing only**.
+The trigger tool sends mock payloads without webhook signatures. Disable webhook signature verification during testing by using `unsafe_unwrap()` instead of `unwrap()` in your webhook handler.
 </Warning>
 
 ### Supported Webhook Events
 
 | Category | Events |
 |----------|--------|
-| **Subscription** | `active`, `updated`, `on_hold`, `renewed`, `plan_changed`, `cancelled`, `failed`, `expired` |
-| **Payment** | `success`, `failed`, `processing`, `cancelled` |
-| **Refund** | `success`, `failed` |
-| **Dispute** | `opened`, `expired`, `accepted`, `cancelled`, `challenged`, `won`, `lost` |
-| **License** | `created` |
+| **Subscription** | `subscription.active`, `subscription.updated`, `subscription.on_hold`, `subscription.renewed`, `subscription.plan_changed`, `subscription.cancelled`, `subscription.failed`, `subscription.expired` |
+| **Payment** | `payment.success`, `payment.failed`, `payment.processing`, `payment.cancelled` |
+| **Refund** | `refund.success`, `refund.failed` |
+| **Dispute** | `dispute.opened`, `dispute.expired`, `dispute.accepted`, `dispute.cancelled`, `dispute.challenged`, `dispute.won`, `dispute.lost` |
+| **License** | `licence.created` |
+
+### Environment Variables
+
+| Variable | Description |
+|----------|-------------|
+| `DODO_WH_TEST_SERVER_URL` | Override the default webhook relay server URL used by `dodo wh listen` |
 
 ## Resources
 
