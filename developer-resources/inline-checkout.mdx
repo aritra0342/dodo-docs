@@ -769,6 +769,56 @@ const themeConfig: ThemeConfig = {
 };
 ```
 
+## Update Payment Method
+
+Inline checkout supports **payment method updates** for subscriptions. When a customer needs to update their payment method -- whether for an active subscription or to reactivate an on-hold subscription -- you can render the update flow directly within your page layout.
+
+### How It Works
+
+1. Call the [Update Payment Method API](/features/subscription#update-payment-method-for-active-subscription) to get a `payment_link`:
+
+```typescript
+const response = await client.subscriptions.updatePaymentMethod('sub_123', {
+  type: 'new',
+  return_url: 'https://example.com/return'
+});
+```
+
+2. Pass the returned `payment_link` as the `checkoutUrl` to open inline checkout:
+
+```typescript
+DodoPayments.Checkout.open({
+  checkoutUrl: response.payment_link,
+  elementId: "dodo-inline-checkout"
+});
+```
+
+The inline frame renders only the payment method collection form. Customers can enter new card details or select a saved payment method without leaving your page.
+
+### For On-Hold Subscriptions
+
+When updating the payment method for a subscription in `on_hold` status, Dodo Payments automatically creates a charge for any remaining dues. Monitor the `payment.succeeded` and `subscription.active` webhooks to confirm reactivation.
+
+```typescript
+const response = await client.subscriptions.updatePaymentMethod('sub_123', {
+  type: 'new',
+  return_url: 'https://example.com/return'
+});
+
+if (response.payment_id) {
+  // Charge created for remaining dues
+  // Open inline checkout for payment collection
+  DodoPayments.Checkout.open({
+    checkoutUrl: response.payment_link,
+    elementId: "dodo-inline-checkout"
+  });
+}
+```
+
+<Tip>
+You can also use an existing saved payment method instead of collecting new details by passing `type: 'existing'` with a `payment_method_id` to the Update Payment Method API.
+</Tip>
+
 ## Error Handling
 
 The SDK provides detailed error information through the event system. Always implement proper error handling in your `onEvent` callback:
