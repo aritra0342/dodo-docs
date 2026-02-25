@@ -167,6 +167,24 @@ You can change subscription plans and update the next billing date directly from
 **Enable self-service plan changes:** Want customers to upgrade or downgrade their own subscriptions via the Customer Portal? Add your subscription products to a Product Collection and enable "Allow Subscription Updates" in your Subscription Settings.
 </Tip>
 
+```mermaid
+sequenceDiagram
+    participant C as Customer
+    participant A as Your App
+    participant D as Dodo Payments
+    C->>A: Request plan change
+    A->>D: Preview change (optional)
+    D-->>A: Charge breakdown
+    A->>C: Show cost
+    C->>A: Confirm
+    A->>D: changePlan API
+    D->>D: Prorate & charge
+    D-->>A: Result
+    D->>A: Webhook: plan_changed
+    A->>C: Access updated
+```
+
+
 <Card title="Product Collections" icon="layer-group" href="/features/product-collections">
   Group related products into collections to enable seamless upgrade/downgrade paths in the Customer Portal.
 </Card>
@@ -174,6 +192,18 @@ You can change subscription plans and update the next billing date directly from
 ### Proration Modes
 
 Choose how customers are billed when changing plans:
+
+<Info>
+**Quick comparison of the three proration modes:**
+
+| | `prorated_immediately` | `difference_immediately` | `full_immediately` |
+|---|---|---|---|
+| **Upgrade** | Prorated charge for remaining days | Full price difference charged | Full new plan price charged |
+| **Downgrade** | Prorated credit for remaining days | Full price difference as credit | No credit, full charge |
+| **Billing cycle** | Stays the same | Stays the same | Resets to today |
+| **Best for** | Fair time-based billing | Simple tier changes | Billing cycle resets |
+</Info>
+
 
 #### `prorated_immediately`
 Charges prorated amount based on remaining time in the current billing cycle. Best for fair billing that accounts for unused time.
@@ -203,6 +233,20 @@ await client.subscriptions.changePlan('sub_123', {
 Credits from downgrades using `difference_immediately` are subscription-scoped and auto-applied to future renewals. They're distinct from <a href="/features/customer-credit">Customer Credits</a>.
 </Info>
 
+When a customer downgrades with `difference_immediately`, the unused value becomes a subscription-scoped credit that automatically offsets future renewals:
+
+```mermaid
+flowchart LR
+    A[Downgrade] --> B[Calculate Credit]
+    B --> C[Credit Added]
+    C --> D[Next Renewal]
+    D --> E{Credit Left?}
+    E -->|Yes| F[Apply to invoice]
+    F --> D
+    E -->|No| G[Full price charged]
+```
+
+
 #### `full_immediately`
 Charges full new plan amount immediately, ignoring remaining time. Best for resetting billing cycles.
 
@@ -213,6 +257,47 @@ await client.subscriptions.changePlan('sub_123', {
   proration_billing_mode: 'full_immediately'
 });
 ```
+
+<AccordionGroup>
+<Accordion title="Example: Prorated upgrade calculation">
+
+**Scenario**: Customer on Basic ($30/month) upgrades to Pro ($80/month) on day 16 of a 30-day cycle using `prorated_immediately`.
+
+```
+Unused credit from Basic = $30 × (15 remaining / 30 total) = $15.00
+Prorated cost of Pro     = $80 × (15 remaining / 30 total) = $40.00
+────────────────────────────────────────────────────────────────────
+Immediate charge         = $40.00 − $15.00 = $25.00
+```
+
+Next renewal on the original billing date: **$80.00/month**.
+
+<Tip>
+For more detailed calculation examples and edge cases, see our full [Upgrade & Downgrade Guide](/developer-resources/subscription-upgrade-downgrade).
+</Tip>
+
+</Accordion>
+<Accordion title="Example: Downgrade credit calculation">
+
+**Scenario**: Customer on Pro ($80/month) downgrades to Starter ($20/month) using `difference_immediately`.
+
+```
+Credit = Old plan − New plan = $80 − $20 = $60.00
+```
+
+The $60 credit auto-applies to future renewals:
+- Renewal 1: $20 − $20 (credit) = **$0.00** ($40 credit remaining)
+- Renewal 2: $20 − $20 (credit) = **$0.00** ($20 credit remaining)  
+- Renewal 3: $20 − $20 (credit) = **$0.00** (credit exhausted)
+- Renewal 4: **$20.00** (full price)
+
+<Info>
+Learn more about how credits are managed in the [Upgrade & Downgrade Guide](/developer-resources/subscription-upgrade-downgrade).
+</Info>
+
+</Accordion>
+</AccordionGroup>
+
 
 ### Changing Plans with Add-ons
 

@@ -66,12 +66,12 @@ Dodo Payments implements seat-based billing using the **Add-ons** system. Here's
 
 ### Architecture Overview
 
-A Team Pro subscription costs \$99/month and includes 5 seats. If you have more than 5 users, you pay an additional \$15/month for each extra seat. 
+A Team Pro subscription costs $99/month and includes 5 seats. If you have more than 5 users, you pay an additional $15/month for each extra seat. 
 
 For example, if your team needs 15 seats:
-- Base Plan: \$99/month (includes 5 seats)
-- Add-ons: 10 extra seats × \$15/month = \$150/month
-- Total monthly cost: \$99 + \$150 = \$249 for 15 seats
+- Base Plan: $99/month (includes 5 seats)
+- Add-ons: 10 extra seats × $15/month = $150/month
+- Total monthly cost: $99 + $150 = $249 for 15 seats
 
 ### Key Components
 
@@ -302,6 +302,23 @@ await client.subscriptions.changePlan('sub_123', {
 
 When customers add or remove seats mid-cycle, proration determines how they're billed.
 
+```mermaid
+sequenceDiagram
+    participant A as Admin
+    participant App as Your App
+    participant D as Dodo Payments
+    A->>App: Add/remove seats
+    App->>D: Preview change
+    D-->>App: Prorated charge preview
+    App->>A: Show cost details
+    A->>App: Confirm
+    App->>D: changePlan (new seat count)
+    D->>D: Prorate & charge/credit
+    D-->>App: Updated subscription
+    D->>App: Webhook: plan_changed
+    App->>A: Seats updated
+```
+
 ### Proration Modes
 
 | Mode | Adding Seats | Removing Seats |
@@ -321,7 +338,7 @@ Prorated charge = ($10 × 5 seats) × (15 days / 30 days)
                 = $50 × 0.5
                 = $25 immediate charge
 ```
-Customer pays \$25 now, then \$50/month on renewal.
+Customer pays $25 now, then $50/month on renewal.
 </Tab>
 
 <Tab title="difference_immediately">
@@ -339,6 +356,27 @@ Billing cycle resets to today
 Customer pays full amount, new billing cycle starts.
 </Tab>
 </Tabs>
+
+**Scenario: Removing 3 seats mid-cycle with prorated_immediately**
+
+```
+Current: Team Plan ($99/month) + 10 extra seats × $10/seat = $199/month
+Change: Remove 3 seats (10 → 7 extra seats) on day 20 of 30-day cycle
+Remaining: 10 days
+
+Credit for removed seats:
+  = ($10 × 3 seats) × (10 days / 30 days)
+  = $30 × 0.333
+  = $10.00 credit
+
+→ $10.00 credit added to subscription
+→ Next renewal: $99 + (7 × $10) = $169.00/month
+→ Credit auto-applies: $169.00 − $10.00 = $159.00 on next invoice
+```
+
+<Tip>
+**Choosing a proration mode for seat changes**: Use `prorated_immediately` for fair day-based billing when teams frequently adjust seats. Use `difference_immediately` for simpler math that charges or credits the full seat price. See the [Proration Guide](/developer-resources/subscription-upgrade-downgrade#proration-modes) for detailed comparisons.
+</Tip>
 
 ### Preview Before Changing
 
