@@ -4,11 +4,22 @@
 const fs = require('fs');
 const path = require('path');
 
+/** Root directory of the documentation project */
 const ROOT_DIR = path.join(__dirname, '..');
+
+/** Path to the docs.json configuration file */
 const DOCS_PATH = path.join(ROOT_DIR, 'docs.json');
 
+/** Directories to skip during MDX file traversal */
 const SKIP_DIRS = ['node_modules', '.git', '.next', 'dist', 'build', 'en'];
 
+/**
+ * Recursively extracts page references from a navigation structure.
+ * Traverses arrays, objects with pages/groups/tabs properties, and string values.
+ * @param {*} value - The value to extract pages from (string, array, or object)
+ * @param {Set<string>} [pages=new Set()] - Set to collect page paths
+ * @returns {Set<string>} Set of page paths
+ */
 function extractPages(value, pages = new Set()) {
   if (typeof value === 'string') {
     pages.add(value);
@@ -44,6 +55,13 @@ function extractPages(value, pages = new Set()) {
   return pages;
 }
 
+/**
+ * Recursively discovers all MDX files in a directory tree.
+ * Skips configured directories (node_modules, .git, etc.) and returns relative paths.
+ * @param {string} [dir=ROOT_DIR] - Directory to search
+ * @param {string[]} [fileList=[]] - Array to collect file paths
+ * @returns {string[]} Array of MDX file paths relative to ROOT_DIR (forward slashes)
+ */
 function getAllMdxFiles(dir = ROOT_DIR, fileList = []) {
   const files = fs.readdirSync(dir);
 
@@ -64,6 +82,10 @@ function getAllMdxFiles(dir = ROOT_DIR, fileList = []) {
   return fileList;
 }
 
+/**
+ * Reads docs.json and extracts all page references from the navigation structure.
+ * @returns {Set<string>} Set of page paths referenced in docs.json
+ */
 function getReferencedPages() {
   const docsContent = fs.readFileSync(DOCS_PATH, 'utf8');
   const docs = JSON.parse(docsContent);
@@ -82,6 +104,11 @@ function getReferencedPages() {
   return referencedPages;
 }
 
+/**
+ * Gets all referenced pages with normalized path separators (forward slashes).
+ * Converts backslashes to forward slashes for cross-platform compatibility.
+ * @returns {Set<string>} Set of normalized page paths
+ */
 function getNormalizedReferencedPages() {
   const referencedPages = getReferencedPages();
   return new Set(
