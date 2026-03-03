@@ -16,19 +16,27 @@ function extractPages(value, pages = new Set()) {
   }
 
   if (Array.isArray(value)) {
-    value.forEach((item) => extractPages(item, pages));
+    value.forEach((item) => {
+      extractPages(item, pages);
+    });
     return pages;
   }
 
   if (value && typeof value === 'object') {
     if (Array.isArray(value.pages)) {
-      value.pages.forEach((p) => extractPages(p, pages));
+      value.pages.forEach((p) => {
+        extractPages(p, pages);
+      });
     }
     if (Array.isArray(value.groups)) {
-      value.groups.forEach((g) => extractPages(g, pages));
+      value.groups.forEach((g) => {
+        extractPages(g, pages);
+      });
     }
     if (Array.isArray(value.tabs)) {
-      value.tabs.forEach((t) => extractPages(t, pages));
+      value.tabs.forEach((t) => {
+        extractPages(t, pages);
+      });
     }
     return pages;
   }
@@ -89,3 +97,4 @@ module.exports = {
   getReferencedPages,
   getNormalizedReferencedPages,
 };
+
