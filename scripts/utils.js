@@ -56,7 +56,7 @@ function getAllMdxFiles(dir = ROOT_DIR, fileList = []) {
         getAllMdxFiles(filePath, fileList);
       }
     } else if (file.endsWith('.mdx')) {
-      const relativePath = path.relative(ROOT_DIR, filePath);
+      const relativePath = path.relative(ROOT_DIR, filePath).replace(/\\/g, '/');
       fileList.push(relativePath);
     }
   });
